@@ -3,6 +3,7 @@
 #include "asset.hpp"
 #include <iostream>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_image.h>
 
 const char* APP_NAME = "shitbrix";
@@ -55,8 +56,6 @@ public:
 
 		int render_result = SDL_RenderCopy(renderer.get(), tr.texture, NULL, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
-
-		std::cerr << "draw gfx " << static_cast<int>(gfx) << " at point x=" << loc.x << ", y=" << loc.y << "\n";
 	}
 
 	/**
@@ -72,26 +71,76 @@ public:
 	}
 };
 
-int main()
+/**
+ * Top-level class which owns general application resources such as the initialized SDL library
+ * and offers the main loop function.
+ */
+class Main
 {
-	SdlContext context;
-	StageBuilder builder;
-	Stage stage = builder.construct();
 
-	bool quit = false;
-	while(!quit) {
-		stage.draw(context, 0.f);
-		context.render();
-		SDL_Event event;
-		if(SDL_WaitEvent(&event)) {
-			if(event.type == SDL_QUIT) {
-				quit = true;
+public:
+
+	Main() : context(), stage(StageBuilder().construct()), left_blocks(stage, Point{32, 48}), right_blocks(stage, Point{368, 48}) {}
+
+	/**
+	 * Main loop.
+	 * Design goals are:
+	 *  - Renders as many frames as possible
+	 *  - Does not fall behind on game logic
+	 *  - Handles inputs and events fast
+	 *  - Frequently yields CPU to other programs in need
+	 * 
+	 * Speed is controlled by FPS (frames per second) and TPS (logic ticks per second) in shitbrix.hpp.
+	 */
+	void game_loop()
+	{
+		Uint64 t0 = SDL_GetPerformanceCounter(); // start of game time
+		Uint64 freq = SDL_GetPerformanceFrequency();
+		long tick = 0; // current logic tick counter
+		Uint64 next_logic = t0 + freq / TPS; // time for next logic update
+
+		for(;;) {
+			// draw frames as long as logic is up to date
+			Uint64 now = SDL_GetPerformanceCounter();
+			while(now < next_logic) {
+				float fraction = 1.0f - static_cast<float>((next_logic-now) * TPS) / freq;
+				stage->draw(context, fraction);
+				context.render();
+				now = SDL_GetPerformanceCounter();
 			}
+
+			// get inputs for next logic tick
+			SDL_Event event;
+			while(SDL_PollEvent(&event)) {
+				if(event.type == SDL_QUIT) {
+					goto quit;
+				}
+			}
+
+			// run one frame of local logic
+			stage->animate();
+			left_blocks.update();
+			right_blocks.update();
+			stage->update();
+			tick++;
+			next_logic = t0 + (tick+1) * freq / TPS;
 		}
-		else {
-			SDL_assert_release(false);
-		}
+
+		quit:;
 	}
 
+private:
+
+	SdlContext context;
+	std::shared_ptr<Stage> stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
+	BlockDirector left_blocks;
+	BlockDirector right_blocks;
+
+};
+
+int main()
+{
+	Main main;
+	main.game_loop();
 	return 0;
 }

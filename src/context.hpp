@@ -1,6 +1,7 @@
 /**
  * context.hpp
- * The context classes in this module are abstractions of SDL functions.
+ * The context interfaces in this module are abstractions of SDL functions.
+ * This module is independent of the concrete library-specific implementation.
  */
 #pragma once
 
