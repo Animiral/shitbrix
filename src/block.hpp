@@ -48,7 +48,7 @@ public:
 	enum class Col { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
 	enum class State { INVALID, REST, FALL, LAND, BREAK, DEAD };
 
-	Block(Col col, Point loc, int r, int c, State state) : col(col), loc(loc), r(r), c(c), offset{0,0}, m_state(state), time(30) {}
+	Block(Col col, Point loc, int r, int c, State state) : col(col), loc(loc), r(r), c(c), offset{0,0}, m_state(state), m_time(0) {}
 
 	virtual void draw(const IVideoContext& context, float dt) override
 	{
@@ -56,7 +56,7 @@ public:
 
 		// bounce when landing
 		if(State::LAND == m_state) {
-			draw_loc.y -= (dt < .5f) ? dt * 10.f : (1.f-dt) * 10.f;
+			draw_loc.y -= BOUNCE_H * ( m_time > LAND_TIME/2 ? (LAND_TIME-m_time+dt) : (m_time-dt) ) / LAND_TIME;
 		}
 
 		switch(col) {
@@ -77,7 +77,7 @@ public:
 	 */
 	virtual void update() override
 	{
-		time--;
+		m_time--;
 
 		switch(m_state) {
 			case State::REST: break; // rest lasts forever by default 
@@ -94,12 +94,16 @@ public:
 		return m_state;
 	}
 
-	void set_state(State state)
+	void set_state(State state, int time = 0)
 	{
 		m_state = state;
+		m_time = time;
 	}
 
 private:
+
+	static constexpr float BOUNCE_H = 10.f;
+	static constexpr int LAND_TIME = 20;
 
 	Col col;       // color
 	Point loc;     // logical location, upper left corner (not necessarily sprite draw location)
@@ -107,7 +111,7 @@ private:
 	int c;         // column 0-5 (left to right)
 	Point offset;  // x/y offset from draw center of r/c location
 	State m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
-	int time;      // number of ticks until we consider a state switch
+	int m_time;    // number of ticks until we consider a state switch
 
 	/**
 	 * Update this falling block
@@ -126,8 +130,7 @@ private:
 		// hit bottom?
 		if(r <= 0 && offset.y >= 0) {
 			offset.y = 0;
-			m_state = State::LAND;
-			time = 30;
+			set_state(State::LAND, LAND_TIME);
 		}
 	}
 
@@ -136,9 +139,8 @@ private:
 	 */
 	void land()
 	{
-		if(time < 0) {
-			m_state = State::BREAK;
-			time = 30;
+		if(m_time < 0) {
+			set_state(State::BREAK, 30);
 		}
 	}
 
@@ -147,8 +149,8 @@ private:
 	 */
 	void dobreak()
 	{
-		if(time < 0) {
-			m_state = State::DEAD;
+		if(m_time < 0) {
+			set_state(State::DEAD);
 		}
 	}
 
