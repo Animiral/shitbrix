@@ -80,7 +80,7 @@ class Main
 
 public:
 
-	Main() : context(), stage(StageBuilder().construct()), left_blocks(stage, Point{32, 48}), right_blocks(stage, Point{368, 48}) {}
+	Main() : context(), stage(StageBuilder().construct()), left_blocks(stage, LPIT_LOC), right_blocks(stage, RPIT_LOC) {}
 
 	/**
 	 * Main loop.
@@ -104,6 +104,7 @@ public:
 			Uint64 now = SDL_GetPerformanceCounter();
 			while(now < next_logic) {
 				float fraction = 1.0f - static_cast<float>((next_logic-now) * TPS) / freq;
+				SDL_assert((fraction >= 0) && (fraction <= 1));
 				stage->draw(context, fraction);
 				context.render();
 				now = SDL_GetPerformanceCounter();

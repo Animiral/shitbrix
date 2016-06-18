@@ -8,15 +8,6 @@
 
 #include <exception>
 
-const int FPS = 60; // aspired-to number of drawn and displayed frames per second
-const int TPS = 30; // fixed number of logic ticks per second (game speed)
-
-// Canvas pixel sizes of objects
-const int CANVAS_W = 640; // width of drawing canvas in pixels
-const int CANVAS_H = 480; // width of drawing canvas in pixels
-const int BLOCK_W = 40; // width of one little colored block
-const int BLOCK_H = 40; // height of one little colored block
-
 /**
  * IDs for all the gfx assets.
  */
@@ -39,6 +30,18 @@ struct Point
 {
 	int x, y;
 };
+
+const int FPS = 60; // aspired-to number of drawn and displayed frames per second
+const int TPS = 30; // fixed number of logic ticks per second (game speed)
+
+// Canvas pixel sizes and locations of objects
+const int CANVAS_W = 640; // width of drawing canvas in pixels
+const int CANVAS_H = 480; // width of drawing canvas in pixels
+const int BLOCK_W = 40; // width of one little colored block
+const int BLOCK_H = 40; // height of one little colored block
+const Point LPIT_LOC = { 32, 48 };
+const Point RPIT_LOC = { 368, 48 };
+const int FALL_SPEED = 3; // max. pixels per update that a falling block moves down
 
 /**
  * General exception for errors that occur in the game.

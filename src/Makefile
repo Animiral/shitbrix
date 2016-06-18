@@ -1,16 +1,17 @@
-CXXFLAGS+=-g -Wall
+CXXFLAGS+=-g -Wall -std=c++14
 LDFLAGS+=$$(sdl2-config --libs) -lSDL2_image
+BIN=../bin/shitbrix
 
-.all: shitbrix
+.all: $(BIN)
 
-shitbrix: main.o
-	g++ $(LDFLAGS) -o $@ $<
+$(BIN): main.o
+	$(CXX) $(LDFLAGS) -o $@ $<
 
 main.o: main.cpp shitbrix.hpp block.hpp context.hpp asset.hpp sdl_helper.hpp
-	g++ -c $(CXXFLAGS) -o $@ $<
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 clean:
-	rm -f shitbrix main.o
+	rm -f $(BIN) main.o
 
 run:
-	(cd .. && bin/shitbrix)
+	(cd .. && src/$(BIN))
