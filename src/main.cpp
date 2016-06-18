@@ -1,4 +1,5 @@
 #include "block.hpp"
+#include "director.hpp"
 #include "context.hpp"
 #include "asset.hpp"
 #include <iostream>

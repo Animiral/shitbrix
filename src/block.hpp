@@ -12,32 +12,6 @@
 #include <algorithm>
 #include <random>
 
-/**
- * Basic interface that specifies that an object can be drawn to the screen.
- */
-class IScreenObject
-{
-	public: virtual void draw(const IVideoContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
-};
-
-/**
- * Basic interface for animated objects
- */
-class IAnimation : public IScreenObject
-{
-	public: virtual void animate() =0; // Called once per frame to update animation
-};
-
-/**
- * Basic interface for objects subject to game logic
- */
-class ILogicObject
-{
-	public: virtual void update() =0; // advance the object by one tick
-};
-
-class IHistoryObject {}; // interface go-back etc.
-
 // Single block, comes in 6 colors
 // State machine: a block can change state only after its time has run down (1 per tick)
 class Block : public IAnimation, public ILogicObject
@@ -156,8 +130,6 @@ private:
 
 };
 
-using SharedAnimation = std::shared_ptr<IAnimation>;
-using SharedLogic = std::shared_ptr<ILogicObject>;
 using SharedBlock = std::shared_ptr<Block>;
 
 /**
@@ -240,67 +212,6 @@ public:
 private:
 
 	Point loc;   // location, upper left corner
-
-};
-
-/**
- * Spawns and removes stuff to and from the stage.
- */
-class BlockDirector
-{
-
-public:
-
-	BlockDirector(std::weak_ptr<Stage> stage, Point loc) : loc(loc), stage(stage), rdev(), rndgen(rdev()), next_spawn(rndgen() % 30) {}
-
-	/**
-	 * Spawn blocks at regular intervals, clean up dead blocks
-	 */
-	void update()
-	{
-		auto locked_stage = stage.lock(); // get access to shared_ptr from weak_ptr
-
-		// spawn blocks
-		next_spawn--;
-
-		if(next_spawn <= 0) {
-			Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
-			Point block_loc = loc;
-			int r = 9; // let blocks fall from top row
-			int c = rndgen() % 6;
-			block_loc.x += c * BLOCK_W;
-			auto block = std::make_shared<Block> (spawn_color, block_loc, r, c, Block::State::FALL);
-
-			blocks.push_back(block);
-			locked_stage->add(static_cast<SharedAnimation>(block));
-			locked_stage->add(static_cast<SharedLogic>(block));
-
-			next_spawn = 10 + rndgen() % 20;
-		}
-
-		// cleanup dead blocks
-		for(auto it = blocks.begin(); it != blocks.end(); ) {
-			auto& block = *it;
-
-			if(Block::State::DEAD == block->state()) {
-				locked_stage->remove(static_cast<SharedAnimation>(block));
-				locked_stage->remove(static_cast<SharedLogic>(block));
-				it = blocks.erase(it);
-			}
-			else {
-				++it;
-			}
-		}
-	}
-
-private:
-
-	Point loc;
-	std::weak_ptr<Stage> stage;
-	std::vector<SharedBlock> blocks;
-	std::random_device rdev;
-	std::mt19937 rndgen;
-	int next_spawn;
 
 };
 
