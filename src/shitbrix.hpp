@@ -6,7 +6,13 @@
 
 #pragma once
 
+// check all the asserts everywhere
+#ifndef SDL_ASSERT_LEVEL
+#define SDL_ASSERT_LEVEL 3
+#endif
+
 #include <exception>
+#include <iostream> // debug stuff
 
 /**
  * IDs for all the gfx assets.
@@ -29,6 +35,20 @@ enum class Gfx
 struct Point
 {
 	int x, y;
+};
+
+/**
+ * Represents a block-sized space in one of the pits.
+ * row 0 = base line (lowest line at the start)
+ * row -9 = top of screen at the start
+ * column 0 = leftmost column
+ */
+struct RowCol
+{
+	int r, c;
+
+	// Order function required by std::map to use as key type
+	bool operator<(const RowCol& rhs) const { return (r == rhs.r) ? c < rhs.c : r < rhs.r; }
 };
 
 const int FPS = 60; // aspired-to number of drawn and displayed frames per second

@@ -1,4 +1,4 @@
-CXXFLAGS+=-g -Wall -std=c++14
+CXXFLAGS+=-g -Wall -std=c++1z
 LDFLAGS+=$$(sdl2-config --libs) -lSDL2_image
 BIN=../bin/shitbrix
 

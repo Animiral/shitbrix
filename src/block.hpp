@@ -6,15 +6,16 @@
 
 #include "shitbrix.hpp"
 #include "context.hpp"
-#include "sdl_helper.hpp"
+#include <SDL2/SDL_assert.h>
 #include <memory>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include <random>
 
 // Single block, comes in 6 colors
 // State machine: a block can change state only after its time has run down (1 per tick)
-class Block : public IAnimation, public ILogicObject
+class Block : public IAnimation, public ILogicObject, public std::enable_shared_from_this<Block>
 {
 
 public:
@@ -22,7 +23,8 @@ public:
 	enum class Col { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
 	enum class State { INVALID, REST, FALL, LAND, BREAK, DEAD };
 
-	Block(Col col, Point loc, int r, int c, State state) : col(col), loc(loc), r(r), c(c), offset{0,0}, m_state(state), m_time(0) {}
+	Block(Col col, Point loc, RowCol rc, State state, WeakSubscriber subscriber)
+	: col(col), loc(loc), m_rc(rc), offset{0,0}, m_state(state), m_time(0), subscriber(subscriber) {}
 
 	virtual void draw(const IVideoContext& context, float dt) override
 	{
@@ -63,29 +65,46 @@ public:
 		}
 	}
 
+	RowCol rc() const
+	{
+		return m_rc;
+	}
+
 	State state() const
 	{
 		return m_state;
 	}
 
-	void set_state(State state, int time = 0)
+	void set_state(State state)
 	{
 		m_state = state;
-		m_time = time;
+
+		switch(state) {
+			case State::LAND:
+				// Correct the block by any eventual extra-pixels
+				loc.x -= offset.x;
+				loc.y -= offset.y;
+				offset = Point{0,0};
+				m_time = LAND_TIME;
+				break;
+			case State::BREAK: m_time = BREAK_TIME; break;
+			default: break;
+		}
 	}
 
 private:
 
 	static constexpr float BOUNCE_H = 10.f;
 	static constexpr int LAND_TIME = 20;
+	static constexpr int BREAK_TIME = 30;
 
-	Col col;       // color
-	Point loc;     // logical location, upper left corner (not necessarily sprite draw location)
-	int r;         // row position relative to the stack origin. + is UP, - is DOWN
-	int c;         // column 0-5 (left to right)
-	Point offset;  // x/y offset from draw center of r/c location
-	State m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
-	int m_time;    // number of ticks until we consider a state switch
+	Col col;         // color
+	Point loc;       // logical location, upper left corner (not necessarily sprite draw location)
+	RowCol m_rc;     // row/col position, - is UP, + is DOWN
+	Point offset;    // x/y offset from draw center of r/c location
+	State m_state;   // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
+	int m_time;      // number of ticks until we consider a state switch
+	WeakSubscriber subscriber; // receives notifications about block state
 
 	/**
 	 * Update this falling block
@@ -97,14 +116,15 @@ private:
 
 		// go to next row?
 		if(offset.y > BLOCK_H/2) {
-			r--;
+			m_rc.r++;
 			offset.y -= BLOCK_H;
 		}
 
-		// hit bottom?
-		if(r <= 0 && offset.y >= 0) {
-			offset.y = 0;
-			set_state(State::LAND, LAND_TIME);
+		// arrived at next row (center)
+		if(offset.y >= 0 && offset.y < FALL_SPEED) {
+			SharedSubscriber locked_subscriber = subscriber.lock();
+			SDL_assert(locked_subscriber);
+			locked_subscriber->notify_block_arrive_row(shared_from_this());
 		}
 	}
 
@@ -114,7 +134,7 @@ private:
 	void land()
 	{
 		if(m_time < 0) {
-			set_state(State::BREAK, 30);
+			set_state(State::BREAK);
 		}
 	}
 
@@ -128,9 +148,9 @@ private:
 		}
 	}
 
-};
+	friend class BlockDirector;
 
-using SharedBlock = std::shared_ptr<Block>;
+};
 
 /**
  * Stage is a container for on-screen objects.
@@ -167,6 +187,18 @@ public:
 		logics.erase(it);
 	}
 
+	void addLeftPit(SharedPit pit)
+	{
+		SDL_assert(!left_pit);
+		left_pit = pit;
+	}
+
+	void addRightPit(SharedPit pit)
+	{
+		SDL_assert(!right_pit);
+		right_pit = pit;
+	}
+
 	virtual void draw(const IVideoContext& context, float dt) override
 	{
 		context.drawGfx(Gfx::BACKGROUND, Point{0,0});
@@ -187,19 +219,24 @@ private:
 
 	std::vector< SharedAnimation > animations;
 	std::vector< SharedLogic > logics;
+	SharedPit left_pit;
+	SharedPit right_pit;
 
 };
+
+using SharedStage = std::shared_ptr<Stage>;
+using WeakStage = std::weak_ptr<Stage>;
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
  * The pit itself does not animate or update the contained blocks and garbage.
  */
-class Pit : public IAnimation, public ILogicObject
+class Pit : public IPit, public IAnimation, public ILogicObject
 {
 
 public:
 
-	Pit(Point loc) : loc(loc) {}
+	Pit(Point loc) : m_loc(loc) {}
 
 	virtual void draw(const IVideoContext& context, float dt) override
 	{
@@ -209,18 +246,67 @@ public:
 	virtual void animate() override {}
 	virtual void update() override {}
 
+	virtual Point loc() const override
+	{
+		return m_loc;
+	}
+
+	/**
+	 * Set the given location to blocked.
+	 */
+	virtual void block(RowCol rc, WeakBlock block) override
+	{
+		auto result = block_map.emplace(std::make_pair(rc, block));
+		game_assert(result.second, "Attempt to block already blocked space in Pit.");
+	}
+
+	/**
+	 * Set the given location to not blocked.
+	 */
+	virtual void unblock(RowCol rc) override
+	{
+		size_t erased = block_map.erase(rc);
+		game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+	}
+
+	/**
+	 * Return the block at the given location.
+	 */
+	virtual WeakBlock block_at(RowCol rc) const override
+	{
+		auto it = block_map.find(rc);
+		if(it == block_map.end())
+			return WeakBlock(); // default-constructed weak_ptr resembles nullptr
+		else
+			return it->second;
+	}
+
 private:
 
-	Point loc;   // location, upper left corner
+	Point m_loc;   // location, upper left corner
+	std::map<RowCol, WeakBlock> block_map; // sparse matrix of blocked spaces
 
 };
 
 class StageBuilder
 {
+
 public:
+
 	std::shared_ptr<Stage> construct()
 	{
-		auto stage = std::make_shared<Stage>();
+		SharedStage stage = std::make_shared<Stage>();
+
+		auto lpit = std::make_shared<Pit>(LPIT_LOC);
+		auto rpit = std::make_shared<Pit>(RPIT_LOC);
+
+		m_left_pit = static_cast<WeakPit>(lpit);
+		m_right_pit = static_cast<WeakPit>(rpit);
+
+		stage->add(static_cast<SharedAnimation>(lpit));
+		stage->add(static_cast<SharedLogic>(lpit));
+		stage->add(static_cast<SharedAnimation>(rpit));
+		stage->add(static_cast<SharedLogic>(rpit));
 
 		// auto block1 = std::make_shared<Block> (Block::Col::BLUE, (Point){30,30}, 0, 0, Block::State::REST, 0);
 		// stage->add(static_cast<SharedAnimation>(block1));
@@ -232,4 +318,20 @@ public:
 
 		return stage;
 	}
+
+	WeakPit left_pit() const
+	{
+		return m_left_pit;
+	}
+
+	WeakPit right_pit() const
+	{
+		return m_right_pit;
+	}
+
+private:
+
+	WeakPit m_left_pit;
+	WeakPit m_right_pit;
+
 };

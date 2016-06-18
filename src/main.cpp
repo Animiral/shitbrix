@@ -81,7 +81,13 @@ class Main
 
 public:
 
-	Main() : context(), stage(StageBuilder().construct()), left_blocks(stage, LPIT_LOC), right_blocks(stage, RPIT_LOC) {}
+	Main() : context()
+	{
+		auto builder = StageBuilder();
+		stage = builder.construct();
+		left_blocks = std::make_shared<BlockDirector>(stage, builder.left_pit());
+		right_blocks = std::make_shared<BlockDirector>(stage, builder.right_pit());
+	}
 
 	/**
 	 * Main loop.
@@ -121,8 +127,8 @@ public:
 
 			// run one frame of local logic
 			stage->animate();
-			left_blocks.update();
-			right_blocks.update();
+			left_blocks->update();
+			right_blocks->update();
 			stage->update();
 			tick++;
 			next_logic = t0 + (tick+1) * freq / TPS;
@@ -134,9 +140,9 @@ public:
 private:
 
 	SdlContext context;
-	std::shared_ptr<Stage> stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
-	BlockDirector left_blocks;
-	BlockDirector right_blocks;
+	SharedStage stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
+	SharedDirector left_blocks;
+	SharedDirector right_blocks;
 
 };
 

@@ -4,9 +4,6 @@
  */
 #pragma once
 
-// check all the asserts everywhere
-#define SDL_ASSERT_LEVEL 3
-
 #include <memory>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_assert.h>
