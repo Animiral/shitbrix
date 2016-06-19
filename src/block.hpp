@@ -56,7 +56,7 @@ public:
 		m_time--;
 
 		switch(m_state) {
-			case State::REST: break; // rest lasts forever by default 
+			case State::REST: if(1 == m_time) set_state(State::BREAK); break; // rest lasts forever by default, auto-break for debug
 			case State::FALL: fall(); break;
 			case State::LAND: land(); break;
 			case State::BREAK: dobreak(); break;
@@ -80,6 +80,10 @@ public:
 		m_state = state;
 
 		switch(state) {
+			case State::REST:
+				m_time = 0; // do not auto-break (for debug purposes)
+				break;
+
 			case State::LAND:
 				// Correct the block by any eventual extra-pixels
 				loc.x -= offset.x;
@@ -87,7 +91,11 @@ public:
 				offset = Point{0,0};
 				m_time = LAND_TIME;
 				break;
-			case State::BREAK: m_time = BREAK_TIME; break;
+
+			case State::BREAK:
+				m_time = BREAK_TIME;
+				break;
+
 			default: break;
 		}
 	}
@@ -96,7 +104,7 @@ private:
 
 	static constexpr float BOUNCE_H = 10.f;
 	static constexpr int LAND_TIME = 20;
-	static constexpr int BREAK_TIME = 30;
+	static constexpr int BREAK_TIME = 1; // 30;
 
 	Col col;         // color
 	Point loc;       // logical location, upper left corner (not necessarily sprite draw location)
@@ -134,7 +142,8 @@ private:
 	void land()
 	{
 		if(m_time < 0) {
-			set_state(State::BREAK);
+			set_state(State::REST);
+			m_time = 10 - 10 * m_rc.r; // after which auto-breaks
 		}
 	}
 
@@ -145,10 +154,13 @@ private:
 	{
 		if(m_time < 0) {
 			set_state(State::DEAD);
+			// std::cerr << "This block is dead.\n";
+			SharedSubscriber locked_subscriber = subscriber.lock();
+			SDL_assert(locked_subscriber);
+			locked_subscriber->notify_block_dead(shared_from_this());
+			// std::cerr << "Subscriber has been notified.\n";
 		}
 	}
-
-	friend class BlockDirector;
 
 };
 

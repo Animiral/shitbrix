@@ -7,7 +7,7 @@ BIN=../bin/shitbrix
 $(BIN): main.o
 	$(CXX) $(LDFLAGS) -o $@ $<
 
-main.o: main.cpp shitbrix.hpp block.hpp context.hpp asset.hpp sdl_helper.hpp
+main.o: main.cpp shitbrix.hpp block.hpp context.hpp asset.hpp sdl_helper.hpp director.hpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 clean:

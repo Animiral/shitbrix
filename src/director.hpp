@@ -46,19 +46,21 @@ public:
 		}
 
 		// cleanup dead blocks
-		for(auto it = blocks.begin(); it != blocks.end(); ) {
-			auto& block = *it;
+		for(WeakBlock block : corpses) {
+			SharedBlock locked_block = block.lock();
 
-			if(Block::State::DEAD == block->state()) {
-				locked_pit->unblock(block->rc());
-				locked_stage->remove(static_cast<SharedAnimation>(block));
-				locked_stage->remove(static_cast<SharedLogic>(block));
-				it = blocks.erase(it);
-			}
-			else {
-				++it;
-			}
+			// remove references from other containers
+			locked_pit->unblock(locked_block->rc());
+			locked_stage->remove(static_cast<SharedAnimation>(locked_block));
+			locked_stage->remove(static_cast<SharedLogic>(locked_block));
+
+			// remove from our own list
+			auto it = std::find(blocks.begin(), blocks.end(), locked_block);
+			SDL_assert(it != blocks.end());
+			blocks.erase(it);
 		}
+
+		corpses.clear();
 	}
 
 	virtual void notify_block_arrive_row(WeakBlock block) override
@@ -86,6 +88,41 @@ public:
 		}
 	}
 
+	virtual void notify_block_dead(WeakBlock block) override
+	{
+		corpses.push_back(block);
+
+		// Release blockage & blocks above the dead block => fall down
+		SharedBlock locked_block = block.lock();
+		SharedPit locked_pit = pit.lock();
+		SDL_assert(locked_block);
+		SDL_assert(locked_pit);
+		
+		Block::State state;
+		auto fallible = [](Block::State s) { return Block::State::REST == s || Block::State::LAND == s; };
+
+		do {
+			RowCol rc = locked_block->rc();
+			RowCol prev_row { rc.r - 1, rc.c };
+
+			WeakBlock prev_block = locked_pit->block_at(prev_row);
+			SharedBlock locked_prev = prev_block.lock();
+
+			if(locked_prev) {
+				state = locked_prev->state();
+
+				if(fallible(state)) {
+					locked_prev->set_state(Block::State::FALL);
+					locked_pit->unblock(prev_row);
+					locked_block = locked_prev; // continue looking 1 block above
+				}
+			}
+			else {
+				state = Block::State::INVALID; // no more blocks above
+			}
+		} while (fallible(state));
+	}
+
 private:
 
 	WeakStage stage;
@@ -94,6 +131,7 @@ private:
 	std::random_device rdev;
 	std::mt19937 rndgen;
 	int next_spawn;
+	std::vector<WeakBlock> corpses; // blocks to be cleaned up
 
 };
 

@@ -58,6 +58,7 @@ public:
 	 * The block has fallen down far enough to arrive at the center of a new row.
 	 */
 	virtual void notify_block_arrive_row(WeakBlock block) =0;
+	virtual void notify_block_dead(WeakBlock block) =0;
 };
 
 /**
