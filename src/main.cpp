@@ -88,8 +88,8 @@ public:
 
 		auto lpit = std::make_shared<Pit>(LPIT_LOC);
 		auto rpit = std::make_shared<Pit>(RPIT_LOC);
-		left_blocks = std::make_shared<BlockDirector>(stage, lpit);
-		right_blocks = std::make_shared<BlockDirector>(stage, rpit);
+		left_blocks = std::make_shared<Director>(stage, lpit);
+		right_blocks = std::make_shared<Director>(stage, rpit);
 	}
 
 	/**
