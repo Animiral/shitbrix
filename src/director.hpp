@@ -7,6 +7,8 @@
 
 #include "block.hpp"
 #include "context.hpp"
+#include <SDL2/SDL_assert.h>
+#include <algorithm>
 
 /**
  * Spawns and removes stuff to and from the stage.

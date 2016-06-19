@@ -4,11 +4,12 @@ BIN=../bin/shitbrix
 
 .all: $(BIN)
 
-$(BIN): main.o
-	$(CXX) $(LDFLAGS) -o $@ $<
+$(BIN): globals.o block.o main.o
+	$(CXX) $(LDFLAGS) -o $@ $^
 
-main.o: main.cpp shitbrix.hpp block.hpp context.hpp asset.hpp sdl_helper.hpp director.hpp
-	$(CXX) -c $(CXXFLAGS) -o $@ $<
+globals.o: globals.cpp globals.hpp
+block.o: block.cpp block.hpp context.hpp globals.hpp
+main.o: main.cpp globals.hpp block.hpp context.hpp asset.hpp sdl_helper.hpp director.hpp
 
 clean:
 	rm -f $(BIN) main.o

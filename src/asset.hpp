@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include "shitbrix.hpp"
+#include "globals.hpp"
 #include "sdl_helper.hpp"
 #include <memory>
 #include <vector>

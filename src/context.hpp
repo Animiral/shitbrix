@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "shitbrix.hpp"
+#include "globals.hpp"
 #include <memory>
 
 /**

@@ -1,5 +1,5 @@
 /**
- * shitbrix.hpp
+ * globals.hpp
  * General global definitions without dependencies.
  * Every other header may include this header.
  */
@@ -77,12 +77,4 @@ private:
 	const char* m_what;
 };
 
-/**
- * Check the condition and, if false, throw a GameException with the given message.
- */
-void game_assert(bool condition, const char* what)
-{
-	if(!condition) {
-		throw GameException(what);
-	}
-}
+void game_assert(bool condition, const char* what);
