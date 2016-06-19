@@ -19,7 +19,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(SharedStage stage, SharedPit pit) : stage(stage), pit(pit), rdev(), rndgen(rdev()), next_spawn(rndgen() % 30), bottom(0) {}
+	BlockDirector(SharedStage stage, SharedPit pit) : stage(stage), pit(pit), rdev(), rndgen(rdev()), bottom(0) {}
 
 	/**
 	 * Spawn blocks at regular intervals, clean up dead blocks
@@ -38,20 +38,16 @@ public:
 			}
 		}
 
-		// spawn blocks from above
-		next_spawn--;
-
-		if(next_spawn <= 0) {
-			RowCol rc {-9, static_cast<int>(rndgen() % PIT_COLS)}; // let blocks fall from top row
-			spawn_falling(rc);
-
-			next_spawn = 20 + rndgen() % 10;
-		}
-
 		// Handle indivitual logic for each block
 		for(auto it = blocks.begin(); it != blocks.end(); ) {
 			SharedBlock block = *it;
 			Block::State state = block->state();
+
+			// block above top => game over
+			if(block->loc().y < pit->loc().y) {
+				game_over();
+				break; // interrupt blocks logic because game_over might invalidate blocks list
+			}
 
 			// falling blocks arrived at next row (center)
 			if(state == Block::State::FALL && block->entering_row()) {
@@ -60,18 +56,7 @@ public:
 
 			// cleanup dead blocks
 			if(Block::State::DEAD == state) {
-				// remove references from other containers
-				pit->unblock(block->rc);
-				stage->remove(static_cast<SharedAnimation>(block));
-				stage->remove(static_cast<SharedLogic>(block));
-
-				// remove from our own list
-				auto it = std::find(blocks.begin(), blocks.end(), block);
-				SDL_assert(it != blocks.end());
-				it = blocks.erase(it);
-
-				// unblock blocks above
-				block_dead(block);
+				it = reap_block(it);
 			}
 			else {
 				++it;
@@ -81,12 +66,13 @@ public:
 
 private:
 
+	using BlockVec = std::vector<SharedBlock>;
+
 	SharedStage stage;
 	SharedPit pit;
-	std::vector<SharedBlock> blocks;
+	BlockVec blocks;
 	std::random_device rdev;
 	std::mt19937 rndgen;
-	int next_spawn;
 	int bottom; // lowest row that we have already spawned blocks for
 
 	void spawn_block(RowCol rc)
@@ -133,37 +119,59 @@ private:
 		}
 	}
 
-	void block_dead(WeakBlock block)
+	BlockVec::iterator reap_block(BlockVec::iterator it)
 	{
+		// remove from our own list
+		SharedBlock block = *it;
+		it = blocks.erase(it);
+
+		// remove references from other containers
+		pit->unblock(block->rc);
+		stage->remove(static_cast<SharedAnimation>(block));
+		stage->remove(static_cast<SharedLogic>(block));
+
 		// Release blockage & blocks above the dead block => fall down
-		SharedBlock locked_block = block.lock();
-		SDL_assert(locked_block);
-		
 		Block::State state;
 		auto fallible = [](Block::State s) { return Block::State::REST == s || Block::State::LAND == s; };
 
 		do {
-			RowCol rc = locked_block->rc;
+			RowCol rc = block->rc;
 			RowCol prev_row { rc.r - 1, rc.c };
 
-			WeakBlock prev_block = pit->block_at(prev_row);
-			SharedBlock locked_prev = prev_block.lock();
+			SharedBlock prev_block = pit->block_at(prev_row);
 
-			if(locked_prev) {
-				state = locked_prev->state();
+			if(prev_block) {
+				state = prev_block->state();
 
 				if(fallible(state)) {
-					locked_prev->set_state(Block::State::FALL);
+					prev_block->set_state(Block::State::FALL);
 					pit->unblock(prev_row);
-					locked_block = locked_prev; // continue looking 1 block above
+					block = prev_block; // continue looking 1 block above
 				}
 			}
 			else {
 				state = Block::State::INVALID; // no more blocks above
 			}
 		} while (fallible(state));
+
+		return it;
 	}
 
+	/**
+	 * Preliminary game over implementation: kill all blocks and just continue
+	 */
+	void game_over()
+	{
+		for(auto it = blocks.begin(); it != blocks.end(); ) {
+			SharedBlock block = *it;
+
+			if(!block->is_obstacle()) // all blocks must be marked blocking in pit to be reaped
+				pit->block(block->rc, block);
+
+			block->set_state(Block::State::DEAD);
+			it = reap_block(it);
+		}
+	}
 };
 
 using SharedDirector = std::shared_ptr<BlockDirector>;

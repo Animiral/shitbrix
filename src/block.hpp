@@ -36,8 +36,10 @@ public:
 	virtual void draw(const IVideoContext& context, float dt) override;
 	virtual void animate() override {}
 	virtual void update() override;
+
 	Point loc() const { return m_view->transform(m_loc); }
 	State state() const { return m_state; }
+	bool is_obstacle() const;
 	void set_state(State state);
 	bool entering_row();
 
@@ -73,9 +75,9 @@ public:
 
 	Point loc() const { return m_loc; }
 	int bottom() const;
-	void block(RowCol rc, WeakBlock block);
+	void block(RowCol rc, SharedBlock block);
 	void unblock(RowCol rc);
-	WeakBlock block_at(RowCol rc) const;
+	SharedBlock block_at(RowCol rc) const;
 
 	virtual Point transform(Point point, float dt=0.f) const override;
 
@@ -87,7 +89,7 @@ private:
 
 	Point m_loc;     // draw location, upper left corner
 	float m_scroll;  // y-offset for view on pit contents
-	std::map<RowCol, WeakBlock> block_map; // sparse matrix of blocked spaces
+	std::map<RowCol, SharedBlock> block_map; // sparse matrix of blocked spaces
 
 };
 

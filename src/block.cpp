@@ -44,6 +44,14 @@ void Block::update()
 	}
 }
 
+/**
+ * Returns true if the block is in a state that prevents other blocks and objects from falling down.
+ */
+bool Block::is_obstacle() const
+{
+	return State::REST == m_state || State::LAND == m_state || State::BREAK == m_state;
+}
+
 void Block::set_state(State state)
 {
 	m_state = state;
@@ -128,7 +136,7 @@ int Pit::bottom() const
 /**
  * Set the given location to blocked.
  */
-void Pit::block(RowCol rc, WeakBlock block)
+void Pit::block(RowCol rc, SharedBlock block)
 {
 	auto result = block_map.emplace(std::make_pair(rc, block));
 	game_assert(result.second, "Attempt to block already blocked space in Pit.");
@@ -146,11 +154,11 @@ void Pit::unblock(RowCol rc)
 /**
  * Return the block at the given location.
  */
-WeakBlock Pit::block_at(RowCol rc) const
+SharedBlock Pit::block_at(RowCol rc) const
 {
 	auto it = block_map.find(rc);
 	if(it == block_map.end())
-		return WeakBlock(); // default-constructed weak_ptr resembles nullptr
+		return SharedBlock(); // default-constructed weak_ptr resembles nullptr
 	else
 		return it->second;
 }
