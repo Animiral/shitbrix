@@ -1,8 +1,5 @@
 /**
  * director.hpp
- * The director implements game-logical interactions between objects which these
- * objects cannot handle on their own.
- * Exmaples are block collisions and making blocks fall when they lose support.
  */
 
 #include "block.hpp"
@@ -12,37 +9,41 @@
 
 /**
  * Spawns and removes stuff to and from the stage.
+ * The director implements game-logical interactions between objects which these
+ * objects cannot handle on their own.
+ * Exmaples are spawning and reaping, block collisions and making blocks fall when they lose support.
+ * The director does /not/ concern itself with pixel coordinates - it only thinks in block rows and columns.
  */
 class BlockDirector
 {
 
 public:
 
-	BlockDirector(WeakStage stage, WeakPit pit) : stage(stage), pit(pit), rdev(), rndgen(rdev()), next_spawn(rndgen() % 30) {}
+	BlockDirector(SharedStage stage, SharedPit pit) : stage(stage), pit(pit), rdev(), rndgen(rdev()), next_spawn(rndgen() % 30), bottom(0) {}
 
 	/**
 	 * Spawn blocks at regular intervals, clean up dead blocks
 	 */
 	void update()
 	{
-		SharedStage locked_stage = stage.lock();
-		SharedPit locked_pit = pit.lock();
-		SDL_assert(locked_stage);
-		SDL_assert(locked_pit);
+		pit->update();
 
-		// spawn blocks
+		// spawn blocks from below
+		int pit_bottom = pit->bottom();
+		while(bottom < pit_bottom) {
+			bottom++;
+			for(int i = 0; i < PIT_COLS; i++) {
+				RowCol rc {bottom, i};
+				spawn_block(rc);
+			}
+		}
+
+		// spawn blocks from above
 		next_spawn--;
 
 		if(next_spawn <= 0) {
-			Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
-			RowCol rc {-9, static_cast<int>(rndgen() % 6)}; // let blocks fall from top row
-			Point block_loc = locked_pit->loc();
-			block_loc.x += rc.c * BLOCK_W;
-			auto block = std::make_shared<Block> (spawn_color, block_loc, rc, Block::State::FALL);
-
-			blocks.push_back(block);
-			locked_stage->add(static_cast<SharedAnimation>(block));
-			locked_stage->add(static_cast<SharedLogic>(block));
+			RowCol rc {-9, static_cast<int>(rndgen() % PIT_COLS)}; // let blocks fall from top row
+			spawn_falling(rc);
 
 			next_spawn = 20 + rndgen() % 10;
 		}
@@ -53,16 +54,16 @@ public:
 			Block::State state = block->state();
 
 			// falling blocks arrived at next row (center)
-			if(state == Block::State::FALL && block->offset.y >= 0 && block->offset.y < FALL_SPEED) {
+			if(state == Block::State::FALL && block->entering_row()) {
 				block_arrive_row(block);
 			}
 
 			// cleanup dead blocks
 			if(Block::State::DEAD == state) {
 				// remove references from other containers
-				locked_pit->unblock(block->rc);
-				locked_stage->remove(static_cast<SharedAnimation>(block));
-				locked_stage->remove(static_cast<SharedLogic>(block));
+				pit->unblock(block->rc);
+				stage->remove(static_cast<SharedAnimation>(block));
+				stage->remove(static_cast<SharedLogic>(block));
 
 				// remove from our own list
 				auto it = std::find(blocks.begin(), blocks.end(), block);
@@ -78,28 +79,57 @@ public:
 		}
 	}
 
-	void block_arrive_row(WeakBlock block)
-	{
-		SharedBlock locked_block = block.lock();
-		SharedPit locked_pit = pit.lock();
-		SDL_assert(locked_block);
-		SDL_assert(locked_pit);
+private:
 
-		RowCol rc = locked_block->rc;
+	SharedStage stage;
+	SharedPit pit;
+	std::vector<SharedBlock> blocks;
+	std::random_device rdev;
+	std::mt19937 rndgen;
+	int next_spawn;
+	int bottom; // lowest row that we have already spawned blocks for
+
+	void spawn_block(RowCol rc)
+	{
+		Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
+		auto block = std::make_shared<Block> (spawn_color, rc, Block::State::REST, pit);
+
+		blocks.push_back(block);
+		stage->add(static_cast<SharedAnimation>(block));
+		stage->add(static_cast<SharedLogic>(block));
+		pit->block(rc, block);
+	}
+
+	void spawn_falling(RowCol rc)
+	{
+		Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
+		auto block = std::make_shared<Block> (spawn_color, rc, Block::State::FALL, pit);
+
+		blocks.push_back(block);
+		stage->add(static_cast<SharedAnimation>(block));
+		stage->add(static_cast<SharedLogic>(block));
+
+		// land immediately?
+		block_arrive_row(block);
+	}
+
+	void block_arrive_row(SharedBlock block)
+	{
+		RowCol rc = block->rc;
 		RowCol next_row { rc.r + 1, rc.c };
 
-		// hit bottom? TODO: there isn’t a bottom, so remove this
-		if(next_row.r > 0) {
-			locked_block->set_state(Block::State::LAND);
-			locked_pit->block(rc, block);
+		// hit bottom? TODO: there isn’t a bottom, (bottom blocks are not matchable), so remove this
+		if(next_row.r > bottom) {
+			block->set_state(Block::State::LAND);
+			pit->block(rc, block);
 		}
 
 		// hit another block?
-		WeakBlock next_block = locked_pit->block_at(next_row);
+		WeakBlock next_block = pit->block_at(next_row);
 
 		if(next_block.lock()) {
-			locked_block->set_state(Block::State::LAND);
-			locked_pit->block(rc, block);
+			block->set_state(Block::State::LAND);
+			pit->block(rc, block);
 		}
 	}
 
@@ -107,9 +137,7 @@ public:
 	{
 		// Release blockage & blocks above the dead block => fall down
 		SharedBlock locked_block = block.lock();
-		SharedPit locked_pit = pit.lock();
 		SDL_assert(locked_block);
-		SDL_assert(locked_pit);
 		
 		Block::State state;
 		auto fallible = [](Block::State s) { return Block::State::REST == s || Block::State::LAND == s; };
@@ -118,7 +146,7 @@ public:
 			RowCol rc = locked_block->rc;
 			RowCol prev_row { rc.r - 1, rc.c };
 
-			WeakBlock prev_block = locked_pit->block_at(prev_row);
+			WeakBlock prev_block = pit->block_at(prev_row);
 			SharedBlock locked_prev = prev_block.lock();
 
 			if(locked_prev) {
@@ -126,7 +154,7 @@ public:
 
 				if(fallible(state)) {
 					locked_prev->set_state(Block::State::FALL);
-					locked_pit->unblock(prev_row);
+					pit->unblock(prev_row);
 					locked_block = locked_prev; // continue looking 1 block above
 				}
 			}
@@ -135,15 +163,6 @@ public:
 			}
 		} while (fallible(state));
 	}
-
-private:
-
-	WeakStage stage;
-	WeakPit pit;
-	std::vector<SharedBlock> blocks;
-	std::random_device rdev;
-	std::mt19937 rndgen;
-	int next_spawn;
 
 };
 

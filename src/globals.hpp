@@ -34,7 +34,7 @@ enum class Gfx
  */
 struct Point
 {
-	int x, y;
+	float x, y;
 };
 
 /**
@@ -61,7 +61,10 @@ const int BLOCK_W = 40; // width of one little colored block
 const int BLOCK_H = 40; // height of one little colored block
 const Point LPIT_LOC = { 32, 48 };
 const Point RPIT_LOC = { 368, 48 };
-const int FALL_SPEED = 3; // max. pixels per update that a falling block moves down
+const int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
+const int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
+const float FALL_SPEED = 3; // max. pixels per update that a falling block moves down
+const float SCROLL_SPEED = .4f; // pixels per update that the pit moves up
 
 /**
  * General exception for errors that occur in the game.

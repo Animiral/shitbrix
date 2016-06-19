@@ -23,18 +23,23 @@ public:
 
 	// Public properties - can be read/changed/corrected at will
 	Col col;         // color
-	Point loc;       // logical location, upper left corner (not necessarily sprite draw location)
 	RowCol rc;       // row/col position, - is UP, + is DOWN
 	Point offset;    // x/y offset from draw center of r/c location
 
-	Block(Col col, Point loc, RowCol rc, State state)
-	: col(col), loc(loc), rc(rc), offset{0,0}, m_state(state), m_time(0) {}
+	Block(Col col, RowCol rc, State state, SharedTransform view)
+	:
+	col(col), rc(rc), offset{0,0}, m_view(view),
+	m_loc{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)},
+	m_state(state), m_time(0)
+	{}
 
 	virtual void draw(const IVideoContext& context, float dt) override;
 	virtual void animate() override {}
 	virtual void update() override;
+	Point loc() const { return m_view->transform(m_loc); }
 	State state() const { return m_state; }
 	void set_state(State state);
+	bool entering_row();
 
 private:
 
@@ -42,6 +47,8 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int BREAK_TIME = 1; // 30;
 
+	SharedTransform m_view; // view applied to m_loc
+	Point m_loc;     // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	State m_state;   // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
 	int m_time;      // number of ticks until we consider a state switch
 
@@ -53,27 +60,33 @@ private:
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
- * The pit itself does not animate or update the contained blocks and garbage.
+ * The pit does not own, animate or update its contained blocks and garbage (the stage does),
+ * but it remembers where blocks are and which spaces are free or blocked.
+ * It also handles scrolling.
  */
-class Pit : public IPit, public IAnimation, public ILogicObject
+class Pit : public ITransform, public IAnimation, public ILogicObject
 {
 
 public:
 
-	Pit(Point loc) : m_loc(loc) {}
+	Pit(Point loc) : m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
+
+	Point loc() const { return m_loc; }
+	int bottom() const;
+	void block(RowCol rc, WeakBlock block);
+	void unblock(RowCol rc);
+	WeakBlock block_at(RowCol rc) const;
+
+	virtual Point transform(Point point, float dt=0.f) const override;
 
 	virtual void draw(const IVideoContext& context, float dt) override {} // nothing so far
 	virtual void animate() override {}
-	virtual void update() override {}
-
-	virtual Point loc() const override { return m_loc; }
-	virtual void block(RowCol rc, WeakBlock block) override;
-	virtual void unblock(RowCol rc) override;
-	virtual WeakBlock block_at(RowCol rc) const override;
+	virtual void update() override;
 
 private:
 
-	Point m_loc;   // location, upper left corner
+	Point m_loc;     // draw location, upper left corner
+	float m_scroll;  // y-offset for view on pit contents
 	std::map<RowCol, WeakBlock> block_map; // sparse matrix of blocked spaces
 
 };
@@ -93,8 +106,6 @@ public:
 	void add(SharedLogic logic);
 	void remove(SharedAnimation animation);
 	void remove(SharedLogic logic);
-	void addLeftPit(SharedPit pit);
-	void addRightPit(SharedPit pit);
 
 	virtual void draw(const IVideoContext& context, float dt) override;
 	virtual void animate() override;
@@ -104,8 +115,6 @@ private:
 
 	std::vector< SharedAnimation > animations;
 	std::vector< SharedLogic > logics;
-	SharedPit left_pit;
-	SharedPit right_pit;
 
 };
 
@@ -114,16 +123,8 @@ using WeakStage = std::weak_ptr<Stage>;
 
 class StageBuilder
 {
-
 public:
-
-	std::shared_ptr<Stage> construct();
-	WeakPit left_pit() const;
-	WeakPit right_pit() const;
-
-private:
-
-	WeakPit m_left_pit;
-	WeakPit m_right_pit;
-
+	SharedStage construct();
 };
+
+using SharedPit = std::shared_ptr<Pit>;

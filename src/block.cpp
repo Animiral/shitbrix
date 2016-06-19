@@ -8,11 +8,12 @@
 
 void Block::draw(const IVideoContext& context, float dt)
 {
-	Point draw_loc = loc;
+	Point draw_loc = m_view->transform(m_loc, dt);
 
 	// bounce when landing
 	if(State::LAND == m_state) {
-		draw_loc.y -= BOUNCE_H * ( m_time > LAND_TIME/2 ? (LAND_TIME-m_time+dt) : (m_time-dt) ) / LAND_TIME;
+		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
+		draw_loc.y -= BOUNCE_H * ( m_time > LAND_TIME/2 ? (LAND_TIME-m_time) : (m_time) ) / LAND_TIME;
 	}
 
 	switch(col) {
@@ -54,8 +55,8 @@ void Block::set_state(State state)
 
 		case State::LAND:
 			// Correct the block by any eventual extra-pixels
-			loc.x -= offset.x;
-			loc.y -= offset.y;
+			m_loc.x -= offset.x;
+			m_loc.y -= offset.y;
 			offset = Point{0,0};
 			m_time = LAND_TIME;
 			break;
@@ -69,11 +70,19 @@ void Block::set_state(State state)
 }
 
 /**
+ * Returns true if the block is just now arriving at the center of a new row.
+ */
+bool Block::entering_row()
+{
+	return State::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+}
+
+/**
  * Update this falling block
  */
 void Block::fall()
 {
-	loc.y += FALL_SPEED;
+	m_loc.y += FALL_SPEED;
 	offset.y += FALL_SPEED;
 
 	// go to next row?
@@ -109,6 +118,14 @@ void Block::dobreak()
 
 
 /**
+ * Returns the number of the bottom visible row in the pit
+ */
+int Pit::bottom() const
+{
+	return static_cast<int>((m_scroll + PIT_H - 1) / BLOCK_H);
+}
+
+/**
  * Set the given location to blocked.
  */
 void Pit::block(RowCol rc, WeakBlock block)
@@ -138,6 +155,25 @@ WeakBlock Pit::block_at(RowCol rc) const
 		return it->second;
 }
 
+/**
+ * The origin {0,0} location of all pit-related objects corresponds with row 0, column 0.
+ * We have to transform the object into the pit and from there, apply the pit scrolling.
+ */
+Point Pit::transform(Point point, float dt) const
+{
+	point.x += m_loc.x;
+	point.y += m_loc.y;
+	// TODO: include dt in scroll anim, don’t forget FPS-TPS conversion
+	point.y -= m_scroll;
+	return point;
+}
+
+void Pit::update()
+{
+	// scroll more
+	m_scroll += SCROLL_SPEED;
+}
+
 
 void Stage::add(SharedAnimation animation)
 {
@@ -163,18 +199,6 @@ void Stage::remove(SharedLogic logic)
 	logics.erase(it);
 }
 
-void Stage::addLeftPit(SharedPit pit)
-{
-	SDL_assert(!left_pit);
-	left_pit = pit;
-}
-
-void Stage::addRightPit(SharedPit pit)
-{
-	SDL_assert(!right_pit);
-	right_pit = pit;
-}
-
 void Stage::draw(const IVideoContext& context, float dt)
 {
 	context.drawGfx(Gfx::BACKGROUND, Point{0,0});
@@ -191,39 +215,11 @@ void Stage::update()
 	for(auto& logic : logics) logic->update();
 }
 
-
 std::shared_ptr<Stage> StageBuilder::construct()
 {
 	SharedStage stage = std::make_shared<Stage>();
 
-	auto lpit = std::make_shared<Pit>(LPIT_LOC);
-	auto rpit = std::make_shared<Pit>(RPIT_LOC);
-
-	m_left_pit = static_cast<WeakPit>(lpit);
-	m_right_pit = static_cast<WeakPit>(rpit);
-
-	stage->add(static_cast<SharedAnimation>(lpit));
-	stage->add(static_cast<SharedLogic>(lpit));
-	stage->add(static_cast<SharedAnimation>(rpit));
-	stage->add(static_cast<SharedLogic>(rpit));
-
-	// auto block1 = std::make_shared<Block> (Block::Col::BLUE, (Point){30,30}, 0, 0, Block::State::REST, 0);
-	// stage->add(static_cast<SharedAnimation>(block1));
-	// stage->add(static_cast<SharedLogic>(block1));
-
-	// auto block2 = std::make_shared<Block> (Block::Col::RED, (Point){80,30}, 0, 0, Block::State::FALL, 0);
-	// stage->add(static_cast<SharedAnimation>(block2));
-	// stage->add(static_cast<SharedLogic>(block2));
 
 	return stage;
 }
 
-WeakPit StageBuilder::left_pit() const
-{
-	return m_left_pit;
-}
-
-WeakPit StageBuilder::right_pit() const
-{
-	return m_right_pit;
-}

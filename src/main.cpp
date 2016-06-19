@@ -52,8 +52,8 @@ public:
 	{
 		TextRect tr = assets->texture(gfx);
 		SDL_Rect dstrect = *tr.rect;
-		dstrect.x = loc.x;
-		dstrect.y = loc.y;
+		dstrect.x = static_cast<int>(loc.x);
+		dstrect.y = static_cast<int>(loc.y);
 
 		int render_result = SDL_RenderCopy(renderer.get(), tr.texture, NULL, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
@@ -85,8 +85,11 @@ public:
 	{
 		auto builder = StageBuilder();
 		stage = builder.construct();
-		left_blocks = std::make_shared<BlockDirector>(stage, builder.left_pit());
-		right_blocks = std::make_shared<BlockDirector>(stage, builder.right_pit());
+
+		auto lpit = std::make_shared<Pit>(LPIT_LOC);
+		auto rpit = std::make_shared<Pit>(RPIT_LOC);
+		left_blocks = std::make_shared<BlockDirector>(stage, lpit);
+		right_blocks = std::make_shared<BlockDirector>(stage, rpit);
 	}
 
 	/**
