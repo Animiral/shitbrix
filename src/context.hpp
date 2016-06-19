@@ -53,25 +53,6 @@ class ITransform
 
 class IHistoryObject {}; // interface go-back etc.
 
-class Block;
-using SharedBlock = std::shared_ptr<Block>;
-using WeakBlock = std::weak_ptr<Block>;
-
-// /**
-//  * The pit does not own its contained blocks (the stage does), but it remembers where blocks are and which
-//  * spaces are free or blocked.
-//  */
-// class IPit
-// {
-// public:
-// 	virtual Point loc() const =0; // get location of pit on canvas
-// 	virtual void block(RowCol rc, WeakBlock block) =0;
-// 	virtual void unblock(RowCol rc) =0;
-// 	virtual WeakBlock block_at(RowCol rc) const =0; // true if the location in the pit is occupied, e.g. by a non-falling block
-// };
-// using SharedPit = std::shared_ptr<IPit>;
-// using WeakPit = std::weak_ptr<IPit>;
-
-using SharedAnimation = std::shared_ptr<IAnimation>;
-using SharedLogic = std::shared_ptr<ILogicObject>;
-using SharedTransform = std::shared_ptr<ITransform>;
+using Animation = std::shared_ptr<IAnimation>;
+using Logic = std::shared_ptr<ILogicObject>;
+using Transform = std::shared_ptr<ITransform>;

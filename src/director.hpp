@@ -3,7 +3,6 @@
  */
 
 #include "block.hpp"
-#include "context.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
 
@@ -19,16 +18,16 @@ class Director
 
 public:
 
-	Director(SharedStage stage, SharedPit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()) {}
+	Director(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()) {}
 
 	void update();
 
 private:
 
-	using BlockVec = std::vector<SharedBlock>;
+	using BlockVec = std::vector<Block>;
 
-	SharedStage stage;
-	SharedPit pit;
+	Stage stage;
+	Pit pit;
 	BlockVec blocks; // all the blocks under the command of this Director
 	BlockVec previews; // blocks which are fresh spawns and currently inactive
 	BlockVec hots; // recently landed or arrived blocks that can start a match
@@ -40,11 +39,9 @@ private:
 
 	void spawn_block(RowCol rc);
 	void spawn_falling(RowCol rc);
-	void block_arrive_row(SharedBlock block);
+	void block_arrive_row(Block block);
 	BlockVec::iterator reap_block(BlockVec::iterator it);
 	void activate_previews();
 	void game_over();
 
 };
-
-using SharedDirector = std::shared_ptr<Director>;

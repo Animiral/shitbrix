@@ -86,10 +86,10 @@ public:
 		auto builder = StageBuilder();
 		stage = builder.construct();
 
-		auto lpit = std::make_shared<Pit>(LPIT_LOC);
-		auto rpit = std::make_shared<Pit>(RPIT_LOC);
-		left_blocks = std::make_shared<Director>(stage, lpit);
-		right_blocks = std::make_shared<Director>(stage, rpit);
+		Pit lpit = std::make_shared<PitImpl>(LPIT_LOC);
+		Pit rpit = std::make_shared<PitImpl>(RPIT_LOC);
+		left_blocks = std::make_unique<Director>(stage, lpit);
+		right_blocks = std::make_unique<Director>(stage, rpit);
 	}
 
 	/**
@@ -143,9 +143,9 @@ public:
 private:
 
 	SdlContext context;
-	SharedStage stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
-	SharedDirector left_blocks;
-	SharedDirector right_blocks;
+	Stage stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
+	std::unique_ptr<Director> left_blocks;
+	std::unique_ptr<Director> right_blocks;
 
 };
 

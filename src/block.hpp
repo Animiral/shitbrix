@@ -11,6 +11,12 @@
 #include <map>
 #include <random>
 
+enum class BlockCol { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
+enum class BlockState { INVALID, PREVIEW, REST, FALL, LAND, BREAK, DEAD };
+
+// Allow operator- on BlockCol
+int operator-(BlockCol lhs, BlockCol rhs);
+
 /**
  * Single block, comes in 6 colors
  *
@@ -23,24 +29,21 @@
  *  * BREAK: the block has been matched and is in the process of destruction
  *  * DEAD: should be removed from the game asap as it is an error to logic update() a dead block
  */
-class Block : public IAnimation, public ILogicObject
+class BlockImpl : public IAnimation, public ILogicObject
 {
 
 public:
 
-	enum class Col { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
-	enum class State { INVALID, PREVIEW, REST, FALL, LAND, BREAK, DEAD };
-
 	// Public properties - can be read/changed/corrected at will
-	Col col;         // color
+	BlockCol col;         // color
 	RowCol rc;       // row/col position, - is UP, + is DOWN
 	Point offset;    // x/y offset from draw center of r/c location
 
-	Block(Col col, RowCol rc, SharedTransform view)
+	BlockImpl(BlockCol col, RowCol rc, Transform view)
 	:
 	col(col), rc(rc), offset{0,0}, m_view(view),
 	m_loc{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)},
-	m_state(State::PREVIEW), m_time(0)
+	m_state(BlockState::PREVIEW), m_time(0)
 	{}
 
 	virtual void draw(const IVideoContext& context, float dt) override;
@@ -48,9 +51,9 @@ public:
 	virtual void update() override;
 
 	Point loc() const { return m_view->transform(m_loc); }
-	State state() const { return m_state; }
+	BlockState state() const { return m_state; }
 	bool is_obstacle() const;
-	void set_state(State state);
+	void set_state(BlockState state);
 	bool entering_row();
 
 private:
@@ -59,9 +62,9 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int BREAK_TIME = 30;
 
-	SharedTransform m_view; // view applied to m_loc
+	Transform m_view; // view applied to m_loc
 	Point m_loc;       // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	State m_state;     // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
+	BlockState m_state;     // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
 	int m_time;        // number of ticks until we consider a state switch
 	BlockFrame m_anim; // current animation frame
 
@@ -71,8 +74,7 @@ private:
 	
 };
 
-// Allow operator- on Block::Col
-int operator-(Block::Col lhs, Block::Col rhs);
+using Block = std::shared_ptr<BlockImpl>;
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
@@ -80,18 +82,18 @@ int operator-(Block::Col lhs, Block::Col rhs);
  * but it remembers where blocks are and which spaces are free or blocked.
  * It also handles scrolling.
  */
-class Pit : public ITransform, public IAnimation, public ILogicObject
+class PitImpl : public ITransform, public IAnimation, public ILogicObject
 {
 
 public:
 
-	Pit(Point loc) : m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
+	PitImpl(Point loc) : m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
 
 	Point loc() const { return m_loc; }
 	int bottom() const;
-	void block(RowCol rc, SharedBlock block);
+	void block(RowCol rc, Block block);
 	void unblock(RowCol rc);
-	SharedBlock block_at(RowCol rc) const;
+	Block block_at(RowCol rc) const;
 
 	virtual Point transform(Point point, float dt=0.f) const override;
 
@@ -103,25 +105,27 @@ private:
 
 	Point m_loc;     // draw location, upper left corner
 	float m_scroll;  // y-offset for view on pit contents
-	std::map<RowCol, SharedBlock> block_map; // sparse matrix of blocked spaces
+	std::map<RowCol, Block> block_map; // sparse matrix of blocked spaces
 
 };
+
+using Pit = std::shared_ptr<PitImpl>;
 
 /**
  * Stage is a container for on-screen objects.
  * The Stage owns all its objects as shared_ptrs.
  */
-class Stage : public IAnimation, public ILogicObject
+class StageImpl : public IAnimation, public ILogicObject
 {
 
 public:
 
-	Stage() {}
+	StageImpl() {}
 
-	void add(SharedAnimation animation);
-	void add(SharedLogic logic);
-	void remove(SharedAnimation animation);
-	void remove(SharedLogic logic);
+	void add(Animation animation);
+	void add(Logic logic);
+	void remove(Animation animation);
+	void remove(Logic logic);
 
 	virtual void draw(const IVideoContext& context, float dt) override;
 	virtual void animate() override;
@@ -129,18 +133,15 @@ public:
 
 private:
 
-	std::vector< SharedAnimation > animations;
-	std::vector< SharedLogic > logics;
+	std::vector< Animation > animations;
+	std::vector< Logic > logics;
 
 };
 
-using SharedStage = std::shared_ptr<Stage>;
-using WeakStage = std::weak_ptr<Stage>;
+using Stage = std::shared_ptr<StageImpl>;
 
 class StageBuilder
 {
 public:
-	SharedStage construct();
+	Stage construct();
 };
-
-using SharedPit = std::shared_ptr<Pit>;

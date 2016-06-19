@@ -27,9 +27,9 @@ void Director::update()
 	if(--m_next_break <= 0) {
 		if(!blocks.empty()) {
 			size_t break_index = rndgen() % blocks.size();
-			SharedBlock block = blocks[break_index];
-			if(Block::State::REST == block->state()) {
-				block->set_state(Block::State::BREAK);
+			Block block = blocks[break_index];
+			if(BlockState::REST == block->state()) {
+				block->set_state(BlockState::BREAK);
 			}
 		}
 
@@ -37,12 +37,12 @@ void Director::update()
 	}
 
 	// Handle individual logic for each block, from bottom to top
-	auto block_compare = [](const SharedBlock& lhs, const SharedBlock& rhs) { return lhs->rc < rhs->rc; };
+	auto block_compare = [](const Block& lhs, const Block& rhs) { return lhs->rc < rhs->rc; };
 	std::sort(blocks.begin(), blocks.end(), block_compare);
 
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
-		SharedBlock block = *it;
-		Block::State state = block->state();
+		Block block = *it;
+		BlockState state = block->state();
 
 		// block above top => game over
 		if(block->loc().y < pit->loc().y) {
@@ -51,12 +51,12 @@ void Director::update()
 		}
 
 		// falling blocks arrived at next row (center)
-		if(state == Block::State::FALL && block->entering_row()) {
+		if(state == BlockState::FALL && block->entering_row()) {
 			block_arrive_row(block);
 		}
 
 		// cleanup dead blocks
-		if(Block::State::DEAD == state) {
+		if(BlockState::DEAD == state) {
 			it = reap_block(it);
 		}
 		else {
@@ -70,47 +70,47 @@ void Director::update()
 
 void Director::spawn_block(RowCol rc)
 {
-	Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
-	auto block = std::make_shared<Block> (spawn_color, rc, pit);
+	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
+	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
 	blocks.push_back(block);
 	previews.push_back(block);
-	stage->add(static_cast<SharedAnimation>(block));
-	stage->add(static_cast<SharedLogic>(block));
+	stage->add(static_cast<Animation>(block));
+	stage->add(static_cast<Logic>(block));
 	pit->block(rc, block);
 }
 
 void Director::spawn_falling(RowCol rc)
 {
-	Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
-	auto block = std::make_shared<Block> (spawn_color, rc, pit);
+	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
+	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
 	blocks.push_back(block);
-	stage->add(static_cast<SharedAnimation>(block));
-	stage->add(static_cast<SharedLogic>(block));
+	stage->add(static_cast<Animation>(block));
+	stage->add(static_cast<Logic>(block));
 
-	block->set_state(Block::State::FALL);
+	block->set_state(BlockState::FALL);
 
 	// land immediately?
 	block_arrive_row(block);
 }
 
-void Director::block_arrive_row(SharedBlock block)
+void Director::block_arrive_row(Block block)
 {
 	RowCol rc = block->rc;
 	RowCol next_row { rc.r + 1, rc.c };
 
 	// hit bottom? TODO: there isn’t a bottom, (bottom blocks are not matchable), so remove this
 	if(next_row.r > bottom) {
-		block->set_state(Block::State::LAND);
+		block->set_state(BlockState::LAND);
 		pit->block(rc, block);
 	}
 
 	// hit another block?
-	WeakBlock next_block = pit->block_at(next_row);
+	Block next_block = pit->block_at(next_row);
 
-	if(next_block.lock()) {
-		block->set_state(Block::State::LAND);
+	if(next_block) {
+		block->set_state(BlockState::LAND);
 		pit->block(rc, block);
 	}
 }
@@ -118,35 +118,35 @@ void Director::block_arrive_row(SharedBlock block)
 Director::BlockVec::iterator Director::reap_block(Director::BlockVec::iterator it)
 {
 	// remove from our own list
-	SharedBlock block = *it;
+	Block block = *it;
 	it = blocks.erase(it);
 
 	// remove references from other containers
 	pit->unblock(block->rc);
-	stage->remove(static_cast<SharedAnimation>(block));
-	stage->remove(static_cast<SharedLogic>(block));
+	stage->remove(static_cast<Animation>(block));
+	stage->remove(static_cast<Logic>(block));
 
 	// Release blockage & blocks above the dead block => fall down
-	Block::State state;
-	auto fallible = [](Block::State s) { return Block::State::REST == s || Block::State::LAND == s; };
+	BlockState state;
+	auto fallible = [](BlockState s) { return BlockState::REST == s || BlockState::LAND == s; };
 
 	do {
 		RowCol rc = block->rc;
 		RowCol prev_row { rc.r - 1, rc.c };
 
-		SharedBlock prev_block = pit->block_at(prev_row);
+		Block prev_block = pit->block_at(prev_row);
 
 		if(prev_block) {
 			state = prev_block->state();
 
 			if(fallible(state)) {
-				prev_block->set_state(Block::State::FALL);
+				prev_block->set_state(BlockState::FALL);
 				pit->unblock(prev_row);
 				block = prev_block; // continue looking 1 block above
 			}
 		}
 		else {
-			state = Block::State::INVALID; // no more blocks above
+			state = BlockState::INVALID; // no more blocks above
 		}
 	} while (fallible(state));
 
@@ -160,7 +160,7 @@ Director::BlockVec::iterator Director::reap_block(Director::BlockVec::iterator i
 void Director::activate_previews()
 {
 	for(auto block : previews) {
-		block->set_state(Block::State::REST);
+		block->set_state(BlockState::REST);
 		hots.push_back(block);
 	}
 
@@ -173,12 +173,12 @@ void Director::activate_previews()
 void Director::game_over()
 {
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
-		SharedBlock block = *it;
+		Block block = *it;
 
 		if(!block->is_obstacle()) // all blocks must be marked blocking in pit to be reaped
 			pit->block(block->rc, block);
 
-		block->set_state(Block::State::DEAD);
+		block->set_state(BlockState::DEAD);
 		it = reap_block(it);
 	}
 }
