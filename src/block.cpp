@@ -35,7 +35,8 @@ void Block::update()
 	m_time--;
 
 	switch(m_state) {
-		case State::REST: if(1 == m_time) set_state(State::BREAK); break; // rest lasts forever by default, auto-break for debug
+		case State::PREVIEW: break;
+		case State::REST: break;
 		case State::FALL: fall(); break;
 		case State::LAND: land(); break;
 		case State::BREAK: dobreak(); break;
@@ -49,7 +50,7 @@ void Block::update()
  */
 bool Block::is_obstacle() const
 {
-	return State::REST == m_state || State::LAND == m_state || State::BREAK == m_state;
+	return State::PREVIEW == m_state || State::REST == m_state || State::LAND == m_state || State::BREAK == m_state;
 }
 
 void Block::set_state(State state)
@@ -57,10 +58,6 @@ void Block::set_state(State state)
 	m_state = state;
 
 	switch(state) {
-		case State::REST:
-			m_time = 0; // do not auto-break (for debug purposes)
-			break;
-
 		case State::LAND:
 			// Correct the block by any eventual extra-pixels
 			m_loc.x -= offset.x;

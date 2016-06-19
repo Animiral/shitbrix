@@ -11,26 +11,36 @@
 #include <map>
 #include <random>
 
-// Single block, comes in 6 colors
-// State machine: a block can change state only after its time has run down (1 per tick)
+/**
+ * Single block, comes in 6 colors
+ *
+ * # Block states
+ *  * INVALID: no block should ever have this non-state
+ *  * PREVIEW: init state. (Partially) visible, but not yet subject to matches and swapping
+ *  * REST: the block is inactive and stationary. Only resting blocks can match.
+ *  * FALL: on its way down the pit at FALL_SPEED
+ *  * LAND: for a short period of time, after its fall stops, the block holds out on matches & can be swapped
+ *  * BREAK: the block has been matched and is in the process of destruction
+ *  * DEAD: should be removed from the game asap as it is an error to logic update() a dead block
+ */
 class Block : public IAnimation, public ILogicObject
 {
 
 public:
 
 	enum class Col { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
-	enum class State { INVALID, REST, FALL, LAND, BREAK, DEAD };
+	enum class State { INVALID, PREVIEW, REST, FALL, LAND, BREAK, DEAD };
 
 	// Public properties - can be read/changed/corrected at will
 	Col col;         // color
 	RowCol rc;       // row/col position, - is UP, + is DOWN
 	Point offset;    // x/y offset from draw center of r/c location
 
-	Block(Col col, RowCol rc, State state, SharedTransform view)
+	Block(Col col, RowCol rc, SharedTransform view)
 	:
 	col(col), rc(rc), offset{0,0}, m_view(view),
 	m_loc{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)},
-	m_state(state), m_time(0)
+	m_state(State::PREVIEW), m_time(0)
 	{}
 
 	virtual void draw(const IVideoContext& context, float dt) override;

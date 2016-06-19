@@ -19,7 +19,7 @@ class Director
 
 public:
 
-	Director(SharedStage stage, SharedPit pit) : stage(stage), pit(pit), rdev(), rndgen(rdev()), bottom(0) {}
+	Director(SharedStage stage, SharedPit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()) {}
 
 	void update();
 
@@ -29,15 +29,19 @@ private:
 
 	SharedStage stage;
 	SharedPit pit;
-	BlockVec blocks;
+	BlockVec blocks; // all the blocks under the command of this Director
+	BlockVec previews; // blocks which are fresh spawns and currently inactive
+	BlockVec hots; // recently landed or arrived blocks that can start a match
+	int bottom; // lowest row that we have already spawned blocks for
+
 	std::random_device rdev;
 	std::mt19937 rndgen;
-	int bottom; // lowest row that we have already spawned blocks for
 
 	void spawn_block(RowCol rc);
 	void spawn_falling(RowCol rc);
 	void block_arrive_row(SharedBlock block);
 	BlockVec::iterator reap_block(BlockVec::iterator it);
+	void activate_previews();
 	void game_over();
 
 };

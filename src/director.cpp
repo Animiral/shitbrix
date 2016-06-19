@@ -14,6 +14,8 @@ void Director::update()
 	// spawn blocks from below
 	int pit_bottom = pit->bottom();
 	while(bottom < pit_bottom) {
+		activate_previews();
+
 		bottom++;
 		for(int i = 0; i < PIT_COLS; i++) {
 			RowCol rc {bottom, i};
@@ -45,14 +47,18 @@ void Director::update()
 			++it;
 		}
 	}
+
+	// Examine hots for matches
+	hots.clear();
 }
 
 void Director::spawn_block(RowCol rc)
 {
 	Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
-	auto block = std::make_shared<Block> (spawn_color, rc, Block::State::REST, pit);
+	auto block = std::make_shared<Block> (spawn_color, rc, pit);
 
 	blocks.push_back(block);
+	previews.push_back(block);
 	stage->add(static_cast<SharedAnimation>(block));
 	stage->add(static_cast<SharedLogic>(block));
 	pit->block(rc, block);
@@ -61,11 +67,13 @@ void Director::spawn_block(RowCol rc)
 void Director::spawn_falling(RowCol rc)
 {
 	Block::Col spawn_color = static_cast<Block::Col>(static_cast<int>(Block::Col::BLUE) + rndgen() % 6);
-	auto block = std::make_shared<Block> (spawn_color, rc, Block::State::FALL, pit);
+	auto block = std::make_shared<Block> (spawn_color, rc, pit);
 
 	blocks.push_back(block);
 	stage->add(static_cast<SharedAnimation>(block));
 	stage->add(static_cast<SharedLogic>(block));
+
+	block->set_state(Block::State::FALL);
 
 	// land immediately?
 	block_arrive_row(block);
@@ -127,6 +135,20 @@ Director::BlockVec::iterator Director::reap_block(Director::BlockVec::iterator i
 	} while (fallible(state));
 
 	return it;
+}
+
+/**
+ * Make all blocks from the preview row into regular matchable resting blocks.
+ * This assumes that they have now fully scrolled into view.
+ */
+void Director::activate_previews()
+{
+	for(auto block : previews) {
+		block->set_state(Block::State::REST);
+		hots.push_back(block);
+	}
+
+	previews.clear();
 }
 
 /**

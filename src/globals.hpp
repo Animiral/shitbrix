@@ -16,6 +16,7 @@
 
 /**
  * IDs for all the gfx assets.
+ * One gfx can refer to several frames or states of the object.
  */
 enum class Gfx
 {
