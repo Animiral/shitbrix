@@ -23,7 +23,20 @@ void Director::update()
 		}
 	}
 
-	// Handle indivitual logic for each block
+	// random block breakage (for show and debug)
+	if(--m_next_break <= 0) {
+		if(!blocks.empty()) {
+			size_t break_index = rndgen() % blocks.size();
+			SharedBlock block = blocks[break_index];
+			if(Block::State::REST == block->state()) {
+				block->set_state(Block::State::BREAK);
+			}
+		}
+
+		m_next_break = 10 + rndgen() % 30;
+	}
+
+	// Handle individual logic for each block
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
 		SharedBlock block = *it;
 		Block::State state = block->state();

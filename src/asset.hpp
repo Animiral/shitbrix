@@ -14,54 +14,27 @@
  */
 class Assets
 {
-	
-private:
-
-	static Surface load_surface(const char* file)
-	{
-		Surface surface(IMG_Load(file));
-		game_assert(static_cast<bool>(surface), file);
-		return surface;
-	}
-
-	static Texture make_texture(Renderer& renderer, Surface& surface)
-	{
-		Texture texture(SDL_CreateTextureFromSurface(renderer.get(), surface.get()));
-		game_assert(static_cast<bool>(texture), SDL_GetError());
-		return texture;
-	}
-
-	/**
-	 * Extract the block with the given index from the surface, which contains all blocks in a row.
-	 */
-	static Texture make_block_texture(Renderer& renderer, Surface& surface, int index)
-	{
-		Surface temp_block(SDL_CreateRGBSurface(0, BLOCK_W, BLOCK_H, 32, 0, 0, 0, 0));
-		game_assert(static_cast<bool>(temp_block), SDL_GetError());
-
-		SDL_Rect srcrect {index*BLOCK_W, 0, BLOCK_W, BLOCK_H};
-		SDL_Rect dstrect {0, 0, BLOCK_W, BLOCK_H};
-		SDL_BlitSurface(surface.get(), &srcrect, temp_block.get(), &dstrect);
-
-		Texture texture(SDL_CreateTextureFromSurface(renderer.get(), temp_block.get()));
-		game_assert(static_cast<bool>(texture), SDL_GetError());
-
-		return texture;
-	}
 
 public:
+
 	Assets(Renderer& renderer) : bg_rect{0, 0, CANVAS_W, CANVAS_H}, block_rect{0,0,BLOCK_W,BLOCK_H}
 	{
 		Surface bg = load_surface("gfx/bg.png");
 		Surface blocks = load_surface("gfx/blocks.png");
 
-		textures.emplace_back(make_texture(renderer, bg));
-		textures.emplace_back(make_block_texture(renderer, blocks, 0));
-		textures.emplace_back(make_block_texture(renderer, blocks, 1));
-		textures.emplace_back(make_block_texture(renderer, blocks, 2));
-		textures.emplace_back(make_block_texture(renderer, blocks, 3));
-		textures.emplace_back(make_block_texture(renderer, blocks, 4));
-		textures.emplace_back(make_block_texture(renderer, blocks, 5));
+		std::vector<Texture> bg_frames;
+		bg_frames.emplace_back(make_texture(renderer, bg));
+		textures.emplace_back(std::move(bg_frames));
+
+		for(int color = 0; color < 6; color++) {
+			std::vector<Texture> block_frames;
+
+			for(int frame = 0; frame < 6; frame++) {
+				block_frames.emplace_back(make_block_texture(renderer, blocks, color, frame));
+			}
+
+			textures.emplace_back(std::move(block_frames));
+		}
 	}
 
 	/**
@@ -69,10 +42,10 @@ public:
 	 * Callers must take care not to use the pointers from the obtained
 	 * structure beyond the life time of the Assets object.
 	 */
-	TextRect texture(Gfx gfx) const
+	TextRect texture(Gfx gfx, size_t frame = 0) const
 	{
 		TextRect tr;
-		tr.texture = textures[static_cast<size_t>(gfx)].get();
+		tr.texture = textures[static_cast<size_t>(gfx)][frame].get();
 
 		switch(gfx) {
 			case Gfx::BACKGROUND:
@@ -94,8 +67,41 @@ public:
 	}
 
 private:
-	std::vector<Texture> textures;
+
+	std::vector< std::vector<Texture> > textures;
 	const SDL_Rect bg_rect;
 	const SDL_Rect block_rect;
+
+	static Surface load_surface(const char* file)
+	{
+		Surface surface(IMG_Load(file));
+		game_assert(static_cast<bool>(surface), file);
+		return surface;
+	}
+
+	static Texture make_texture(Renderer& renderer, Surface& surface)
+	{
+		Texture texture(SDL_CreateTextureFromSurface(renderer.get(), surface.get()));
+		game_assert(static_cast<bool>(texture), SDL_GetError());
+		return texture;
+	}
+
+	/**
+	 * Extract the block with the given index from the surface, which contains all blocks in a row.
+	 */
+	static Texture make_block_texture(Renderer& renderer, Surface& surface, int row, int column)
+	{
+		Surface temp_block(SDL_CreateRGBSurface(0, BLOCK_W, BLOCK_H, 32, 0, 0, 0, 0));
+		game_assert(static_cast<bool>(temp_block), SDL_GetError());
+
+		SDL_Rect srcrect {column*BLOCK_W, row*BLOCK_H, BLOCK_W, BLOCK_H};
+		SDL_Rect dstrect {0, 0, BLOCK_W, BLOCK_H};
+		SDL_BlitSurface(surface.get(), &srcrect, temp_block.get(), &dstrect);
+
+		Texture texture(SDL_CreateTextureFromSurface(renderer.get(), temp_block.get()));
+		game_assert(static_cast<bool>(texture), SDL_GetError());
+
+		return texture;
+	}
 
 };

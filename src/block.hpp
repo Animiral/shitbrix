@@ -44,7 +44,7 @@ public:
 	{}
 
 	virtual void draw(const IVideoContext& context, float dt) override;
-	virtual void animate() override {}
+	virtual void animate() override;
 	virtual void update() override;
 
 	Point loc() const { return m_view->transform(m_loc); }
@@ -57,18 +57,22 @@ private:
 
 	static constexpr float BOUNCE_H = 10.f;
 	static constexpr int LAND_TIME = 20;
-	static constexpr int BREAK_TIME = 1; // 30;
+	static constexpr int BREAK_TIME = 30;
 
 	SharedTransform m_view; // view applied to m_loc
-	Point m_loc;     // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	State m_state;   // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
-	int m_time;      // number of ticks until we consider a state switch
+	Point m_loc;       // logical location, upper left corner relative to view (not necessarily sprite draw location)
+	State m_state;     // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
+	int m_time;        // number of ticks until we consider a state switch
+	BlockFrame m_anim; // current animation frame
 
 	void fall();
 	void land();
 	void dobreak();
 	
 };
+
+// Allow operator- on Block::Col
+int operator-(Block::Col lhs, Block::Col rhs);
 
 /**
  * A pit is the playing area where one player’s blocks fall down.

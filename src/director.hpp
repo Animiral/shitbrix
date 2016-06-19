@@ -36,6 +36,7 @@ private:
 
 	std::random_device rdev;
 	std::mt19937 rndgen;
+	int m_next_break; // random breakage countdown
 
 	void spawn_block(RowCol rc);
 	void spawn_falling(RowCol rc);

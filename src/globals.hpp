@@ -29,6 +29,20 @@ enum class Gfx
 	BLOCK_ORANGE
 };
 
+// Allow operator+ on Gfx
+Gfx operator+(Gfx gfx, int delta);
+
+enum class BlockFrame : size_t
+{
+	REST = 0,
+	PREVIEW = 1,
+	BREAK_BEGIN = 2, // sequence of break anim
+	BREAK_END = 6    // 1-past-end index
+};
+
+// Allow prefix operator++ on BlockFrame
+BlockFrame& operator++(BlockFrame& frame);
+
 /**
  * Represents a screen location in canvas pixels.
  * {0,0} top left - {CANVAS_W,CANVAS_H} bottom right

@@ -16,15 +16,21 @@ void Block::draw(const IVideoContext& context, float dt)
 		draw_loc.y -= BOUNCE_H * ( m_time > LAND_TIME/2 ? (LAND_TIME-m_time) : (m_time) ) / LAND_TIME;
 	}
 
-	switch(col) {
-		case Col::BLUE:   context.drawGfx(Gfx::BLOCK_BLUE, draw_loc);   break;
-		case Col::RED:    context.drawGfx(Gfx::BLOCK_RED, draw_loc);    break;
-		case Col::YELLOW: context.drawGfx(Gfx::BLOCK_YELLOW, draw_loc); break;
-		case Col::GREEN:  context.drawGfx(Gfx::BLOCK_GREEN, draw_loc);  break;
-		case Col::PURPLE: context.drawGfx(Gfx::BLOCK_PURPLE, draw_loc); break;
-		case Col::ORANGE: context.drawGfx(Gfx::BLOCK_ORANGE, draw_loc); break;
-		default: SDL_assert_paranoid(false);
-	}
+	Gfx gfx = Gfx::BLOCK_BLUE + (col - Col::BLUE);
+
+	BlockFrame frame = BlockFrame::REST;
+	if(State::PREVIEW == m_state) frame = BlockFrame::PREVIEW;
+	if(State::BREAK == m_state) frame = m_anim;
+
+	context.drawGfx(draw_loc, gfx, static_cast<size_t>(frame));
+}
+
+void Block::animate()
+{
+	++m_anim;
+
+	if(State::BREAK == m_state && m_anim >= BlockFrame::BREAK_END)
+		m_anim = BlockFrame::BREAK_BEGIN;
 }
 
 /**
@@ -68,6 +74,7 @@ void Block::set_state(State state)
 
 		case State::BREAK:
 			m_time = BREAK_TIME;
+			m_anim = BlockFrame::BREAK_BEGIN;
 			break;
 
 		default: break;
@@ -121,6 +128,10 @@ void Block::dobreak()
 	}
 }
 
+int operator-(Block::Col lhs, Block::Col rhs)
+{
+	return static_cast<int>(lhs) - static_cast<int>(rhs);
+}
 
 /**
  * Returns the number of the bottom visible row in the pit
@@ -206,7 +217,7 @@ void Stage::remove(SharedLogic logic)
 
 void Stage::draw(const IVideoContext& context, float dt)
 {
-	context.drawGfx(Gfx::BACKGROUND, Point{0,0});
+	context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
 	for(auto& animation : animations) animation->draw(context, dt);
 }
 

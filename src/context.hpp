@@ -14,7 +14,7 @@
 class IVideoContext
 {
 public:
-	virtual void drawGfx(Gfx gfx, Point loc) const =0;
+	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const =0;
 };
 
 /**

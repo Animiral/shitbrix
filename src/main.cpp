@@ -48,9 +48,9 @@ public:
 		SDL_Quit();
 	}
 
-	virtual void drawGfx(Gfx gfx, Point loc) const
+	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const
 	{
-		TextRect tr = assets->texture(gfx);
+		TextRect tr = assets->texture(gfx, frame);
 		SDL_Rect dstrect = *tr.rect;
 		dstrect.x = static_cast<int>(loc.x);
 		dstrect.y = static_cast<int>(loc.y);
