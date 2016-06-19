@@ -13,7 +13,7 @@
 
 // Single block, comes in 6 colors
 // State machine: a block can change state only after its time has run down (1 per tick)
-class Block : public IAnimation, public ILogicObject, public std::enable_shared_from_this<Block>
+class Block : public IAnimation, public ILogicObject
 {
 
 public:
@@ -21,13 +21,18 @@ public:
 	enum class Col { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
 	enum class State { INVALID, REST, FALL, LAND, BREAK, DEAD };
 
-	Block(Col col, Point loc, RowCol rc, State state, WeakSubscriber subscriber)
-	: col(col), loc(loc), m_rc(rc), offset{0,0}, m_state(state), m_time(0), subscriber(subscriber) {}
+	// Public properties - can be read/changed/corrected at will
+	Col col;         // color
+	Point loc;       // logical location, upper left corner (not necessarily sprite draw location)
+	RowCol rc;       // row/col position, - is UP, + is DOWN
+	Point offset;    // x/y offset from draw center of r/c location
+
+	Block(Col col, Point loc, RowCol rc, State state)
+	: col(col), loc(loc), rc(rc), offset{0,0}, m_state(state), m_time(0) {}
 
 	virtual void draw(const IVideoContext& context, float dt) override;
 	virtual void animate() override {}
 	virtual void update() override;
-	RowCol rc() const { return m_rc; }
 	State state() const { return m_state; }
 	void set_state(State state);
 
@@ -37,13 +42,8 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int BREAK_TIME = 1; // 30;
 
-	Col col;         // color
-	Point loc;       // logical location, upper left corner (not necessarily sprite draw location)
-	RowCol m_rc;     // row/col position, - is UP, + is DOWN
-	Point offset;    // x/y offset from draw center of r/c location
 	State m_state;   // current block state. On state time out, tell an IStateSubscriber (previously saved via Block::subscribe()) with notify()
 	int m_time;      // number of ticks until we consider a state switch
-	WeakSubscriber subscriber; // receives notifications about block state
 
 	void fall();
 	void land();

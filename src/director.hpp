@@ -13,7 +13,7 @@
 /**
  * Spawns and removes stuff to and from the stage.
  */
-class BlockDirector : public ILogicSubscriber, public std::enable_shared_from_this<BlockDirector>
+class BlockDirector
 {
 
 public:
@@ -38,7 +38,7 @@ public:
 			RowCol rc {-9, static_cast<int>(rndgen() % 6)}; // let blocks fall from top row
 			Point block_loc = locked_pit->loc();
 			block_loc.x += rc.c * BLOCK_W;
-			auto block = std::make_shared<Block> (spawn_color, block_loc, rc, Block::State::FALL, shared_from_this());
+			auto block = std::make_shared<Block> (spawn_color, block_loc, rc, Block::State::FALL);
 
 			blocks.push_back(block);
 			locked_stage->add(static_cast<SharedAnimation>(block));
@@ -47,32 +47,45 @@ public:
 			next_spawn = 20 + rndgen() % 10;
 		}
 
-		// cleanup dead blocks
-		for(WeakBlock block : corpses) {
-			SharedBlock locked_block = block.lock();
+		// Handle indivitual logic for each block
+		for(auto it = blocks.begin(); it != blocks.end(); ) {
+			SharedBlock block = *it;
+			Block::State state = block->state();
 
-			// remove references from other containers
-			locked_pit->unblock(locked_block->rc());
-			locked_stage->remove(static_cast<SharedAnimation>(locked_block));
-			locked_stage->remove(static_cast<SharedLogic>(locked_block));
+			// falling blocks arrived at next row (center)
+			if(state == Block::State::FALL && block->offset.y >= 0 && block->offset.y < FALL_SPEED) {
+				block_arrive_row(block);
+			}
 
-			// remove from our own list
-			auto it = std::find(blocks.begin(), blocks.end(), locked_block);
-			SDL_assert(it != blocks.end());
-			blocks.erase(it);
+			// cleanup dead blocks
+			if(Block::State::DEAD == state) {
+				// remove references from other containers
+				locked_pit->unblock(block->rc);
+				locked_stage->remove(static_cast<SharedAnimation>(block));
+				locked_stage->remove(static_cast<SharedLogic>(block));
+
+				// remove from our own list
+				auto it = std::find(blocks.begin(), blocks.end(), block);
+				SDL_assert(it != blocks.end());
+				it = blocks.erase(it);
+
+				// unblock blocks above
+				block_dead(block);
+			}
+			else {
+				++it;
+			}
 		}
-
-		corpses.clear();
 	}
 
-	virtual void notify_block_arrive_row(WeakBlock block) override
+	void block_arrive_row(WeakBlock block)
 	{
 		SharedBlock locked_block = block.lock();
 		SharedPit locked_pit = pit.lock();
 		SDL_assert(locked_block);
 		SDL_assert(locked_pit);
 
-		RowCol rc = locked_block->rc();
+		RowCol rc = locked_block->rc;
 		RowCol next_row { rc.r + 1, rc.c };
 
 		// hit bottom? TODO: there isn’t a bottom, so remove this
@@ -90,10 +103,8 @@ public:
 		}
 	}
 
-	virtual void notify_block_dead(WeakBlock block) override
+	void block_dead(WeakBlock block)
 	{
-		corpses.push_back(block);
-
 		// Release blockage & blocks above the dead block => fall down
 		SharedBlock locked_block = block.lock();
 		SharedPit locked_pit = pit.lock();
@@ -104,7 +115,7 @@ public:
 		auto fallible = [](Block::State s) { return Block::State::REST == s || Block::State::LAND == s; };
 
 		do {
-			RowCol rc = locked_block->rc();
+			RowCol rc = locked_block->rc;
 			RowCol prev_row { rc.r - 1, rc.c };
 
 			WeakBlock prev_block = locked_pit->block_at(prev_row);
@@ -133,7 +144,6 @@ private:
 	std::random_device rdev;
 	std::mt19937 rndgen;
 	int next_spawn;
-	std::vector<WeakBlock> corpses; // blocks to be cleaned up
 
 };
 

@@ -78,15 +78,8 @@ void Block::fall()
 
 	// go to next row?
 	if(offset.y > BLOCK_H/2) {
-		m_rc.r++;
+		rc.r++;
 		offset.y -= BLOCK_H;
-	}
-
-	// arrived at next row (center)
-	if(offset.y >= 0 && offset.y < FALL_SPEED) {
-		SharedSubscriber locked_subscriber = subscriber.lock();
-		SDL_assert(locked_subscriber);
-		locked_subscriber->notify_block_arrive_row(shared_from_this());
 	}
 }
 
@@ -97,7 +90,7 @@ void Block::land()
 {
 	if(m_time < 0) {
 		set_state(State::REST);
-		m_time = 10 - 10 * m_rc.r; // after which auto-breaks
+		m_time = 10 - 10 * rc.r; // after which auto-breaks
 	}
 }
 
@@ -108,11 +101,9 @@ void Block::dobreak()
 {
 	if(m_time < 0) {
 		set_state(State::DEAD);
-		// std::cerr << "This block is dead.\n";
-		SharedSubscriber locked_subscriber = subscriber.lock();
-		SDL_assert(locked_subscriber);
-		locked_subscriber->notify_block_dead(shared_from_this());
-		// std::cerr << "Subscriber has been notified.\n";
+		// SharedSubscriber locked_subscriber = subscriber.lock();
+		// SDL_assert(locked_subscriber);
+		// locked_subscriber->notify_block_dead(shared_from_this());
 	}
 }
 
