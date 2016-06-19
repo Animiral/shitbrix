@@ -36,7 +36,10 @@ void Director::update()
 		m_next_break = 10 + rndgen() % 30;
 	}
 
-	// Handle individual logic for each block
+	// Handle individual logic for each block, from bottom to top
+	auto block_compare = [](const SharedBlock& lhs, const SharedBlock& rhs) { return lhs->rc < rhs->rc; };
+	std::sort(blocks.begin(), blocks.end(), block_compare);
+
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
 		SharedBlock block = *it;
 		Block::State state = block->state();

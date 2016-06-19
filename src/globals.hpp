@@ -62,8 +62,9 @@ struct RowCol
 {
 	int r, c;
 
-	// Order function required by std::map to use as key type
-	bool operator<(const RowCol& rhs) const { return (r == rhs.r) ? c < rhs.c : r < rhs.r; }
+	// Order function required by std::map to use as key type and
+	// BlockDirector::update() sort. Sorts bottom-to-top.
+	bool operator<(const RowCol& rhs) const { return (r == rhs.r) ? c > rhs.c : r > rhs.r; }
 };
 
 const int FPS = 60; // aspired-to number of drawn and displayed frames per second
