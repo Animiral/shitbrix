@@ -86,10 +86,9 @@ public:
 		auto builder = StageBuilder();
 		stage = builder.construct();
 
-		Pit lpit = std::make_shared<PitImpl>(LPIT_LOC);
-		Pit rpit = std::make_shared<PitImpl>(RPIT_LOC);
-		left_blocks = std::make_unique<Director>(stage, lpit);
-		right_blocks = std::make_unique<Director>(stage, rpit);
+		left_blocks = std::make_unique<BlockDirector>(stage, builder.left_pit);
+		right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit);
+		left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
 	}
 
 	/**
@@ -123,10 +122,23 @@ public:
 			// get inputs for next logic tick
 			SDL_Event event;
 			while(SDL_PollEvent(&event)) {
-				if(event.type == SDL_QUIT) {
-					goto quit;
+				switch(event.type) {
+					case SDL_QUIT:
+						goto quit;	
+					case SDL_KEYDOWN:
+						if(!event.key.repeat) {
+							switch(event.key.keysym.sym) {
+								case SDLK_LEFT: left_cursor->move(Dir::LEFT); break;
+								case SDLK_RIGHT: left_cursor->move(Dir::RIGHT); break;
+								case SDLK_UP: left_cursor->move(Dir::UP); break;
+								case SDLK_DOWN: left_cursor->move(Dir::DOWN); break;
+							}
+						}
+						break;
 				}
 			}
+
+			left_cursor->move(Dir::NONE); // auto-move cursor when scrolling out of bounds
 
 			// run one frame of local logic
 			stage->animate();
@@ -144,8 +156,9 @@ private:
 
 	SdlContext context;
 	Stage stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
-	std::unique_ptr<Director> left_blocks;
-	std::unique_ptr<Director> right_blocks;
+	std::unique_ptr<BlockDirector> left_blocks;
+	std::unique_ptr<BlockDirector> right_blocks;
+	std::unique_ptr<CursorDirector> left_cursor;
 
 };
 

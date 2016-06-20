@@ -22,7 +22,12 @@ public:
  */
 class IScreenObject
 {
-	public: virtual void draw(const IVideoContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
+public:
+	IScreenObject(int z_order) : z_order(z_order) {}
+	virtual void draw(const IVideoContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
+	bool operator<(const IScreenObject& rhs) const { return z_order < rhs.z_order; }
+private:
+	int z_order; // Specifies drawing order. Every subclass must set this value.
 };
 
 /**
@@ -30,7 +35,9 @@ class IScreenObject
  */
 class IAnimation : public IScreenObject
 {
-	public: virtual void animate() =0; // Called once per frame to update animation
+public:
+	IAnimation(int z_order) : IScreenObject(z_order) {}
+	virtual void animate() =0; // Called once per frame to update animation
 };
 
 /**

@@ -7,13 +7,12 @@
 /**
  * Spawn blocks at regular intervals, clean up dead blocks
  */
-void Director::update()
+void BlockDirector::update()
 {
 	pit->update();
 
 	// spawn blocks from below
-	int pit_bottom = pit->bottom();
-	while(bottom < pit_bottom) {
+	while(bottom <= pit->bottom()) {
 		activate_previews();
 
 		bottom++;
@@ -68,7 +67,7 @@ void Director::update()
 	hots.clear();
 }
 
-void Director::spawn_block(RowCol rc)
+void BlockDirector::spawn_block(RowCol rc)
 {
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
@@ -80,7 +79,7 @@ void Director::spawn_block(RowCol rc)
 	pit->block(rc, block);
 }
 
-void Director::spawn_falling(RowCol rc)
+void BlockDirector::spawn_falling(RowCol rc)
 {
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
@@ -95,7 +94,7 @@ void Director::spawn_falling(RowCol rc)
 	block_arrive_row(block);
 }
 
-void Director::block_arrive_row(Block block)
+void BlockDirector::block_arrive_row(Block block)
 {
 	RowCol rc = block->rc;
 	RowCol next_row { rc.r + 1, rc.c };
@@ -115,7 +114,7 @@ void Director::block_arrive_row(Block block)
 	}
 }
 
-Director::BlockVec::iterator Director::reap_block(Director::BlockVec::iterator it)
+BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::BlockVec::iterator it)
 {
 	// remove from our own list
 	Block block = *it;
@@ -157,7 +156,7 @@ Director::BlockVec::iterator Director::reap_block(Director::BlockVec::iterator i
  * Make all blocks from the preview row into regular matchable resting blocks.
  * This assumes that they have now fully scrolled into view.
  */
-void Director::activate_previews()
+void BlockDirector::activate_previews()
 {
 	for(auto block : previews) {
 		block->set_state(BlockState::REST);
@@ -170,7 +169,7 @@ void Director::activate_previews()
 /**
  * Preliminary game over implementation: kill all blocks and just continue
  */
-void Director::game_over()
+void BlockDirector::game_over()
 {
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
 		Block block = *it;
@@ -180,5 +179,20 @@ void Director::game_over()
 
 		block->set_state(BlockState::DEAD);
 		it = reap_block(it);
+	}
+}
+
+
+void CursorDirector::move(Dir dir)
+{
+	RowCol& rc = cursor->rc;
+
+	switch(dir) {
+		case Dir::NONE: while(rc.r < pit->top()) cursor->rc.r++; break; // prevent cursor from scrolling off the top
+		case Dir::LEFT: if(rc.c > 0) cursor->rc.c--; break;
+		case Dir::RIGHT: if(rc.c < PIT_COLS-2) cursor->rc.c++; break;
+		case Dir::UP: if(rc.r > pit->top()) cursor->rc.r--; break;
+		case Dir::DOWN: if(rc.r < pit->bottom()) cursor->rc.r++; break;
+		default: SDL_assert(false);
 	}
 }

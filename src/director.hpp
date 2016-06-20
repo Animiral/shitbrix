@@ -8,17 +8,17 @@
 
 /**
  * Spawns and removes stuff to and from the stage.
- * The Director implements game-logical interactions between objects which these
+ * The BlockDirector implements game-logical interactions between objects which these
  * objects cannot handle on their own.
  * Exmaples are spawning and reaping, block collisions and making blocks fall when they lose support.
- * The Director does /not/ concern itself with pixel coordinates - it only thinks in block rows and columns.
+ * The BlockDirector does /not/ concern itself with pixel coordinates - it only thinks in block rows and columns.
  */
-class Director
+class BlockDirector
 {
 
 public:
 
-	Director(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()) {}
+	BlockDirector(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()) {}
 
 	void update();
 
@@ -28,7 +28,7 @@ private:
 
 	Stage stage;
 	Pit pit;
-	BlockVec blocks; // all the blocks under the command of this Director
+	BlockVec blocks; // all the blocks under the command of this BlockDirector
 	BlockVec previews; // blocks which are fresh spawns and currently inactive
 	BlockVec hots; // recently landed or arrived blocks that can start a match
 	int bottom; // lowest row that we have already spawned blocks for
@@ -43,5 +43,25 @@ private:
 	BlockVec::iterator reap_block(BlockVec::iterator it);
 	void activate_previews();
 	void game_over();
+
+};
+
+/**
+ * An interface for user input during the game.
+ * Applies directions to the cursor.
+ */
+class CursorDirector
+{
+
+public:
+
+	CursorDirector(Pit pit, Cursor cursor) : pit(pit), cursor(cursor) {}
+
+	void move(Dir dir);
+
+private:
+
+	Pit pit;
+	Cursor cursor;
 
 };

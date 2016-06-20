@@ -5,6 +5,7 @@
 #include "block.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
+#include <functional>
 
 int operator-(BlockCol lhs, BlockCol rhs)
 {
@@ -131,11 +132,19 @@ void BlockImpl::dobreak()
 }
 
 /**
- * Returns the number of the bottom visible row in the pit
+ * Returns the number of the top accessible row in the pit
+ */
+int PitImpl::top() const
+{
+	return std::ceil(m_scroll / BLOCK_H);
+}
+
+/**
+ * Returns the number of the bottom accessible row in the pit
  */
 int PitImpl::bottom() const
 {
-	return static_cast<int>((m_scroll + PIT_H - 1) / BLOCK_H);
+	return std::floor((m_scroll + PIT_H) / BLOCK_H) - 1;
 }
 
 /**
@@ -188,9 +197,29 @@ void PitImpl::update()
 }
 
 
+void CursorImpl::draw(const IVideoContext& context, float dt)
+{
+	float x = static_cast<float>(rc.c*BLOCK_W - (CURSOR_W-2*BLOCK_W)/2);
+	float y = static_cast<float>(rc.r*BLOCK_H - (CURSOR_H-BLOCK_H)/2);
+	Point loc {x, y};
+	Point draw_loc = view->transform(loc, dt);
+
+	size_t frame = (anim / FRAME_TIME) % FRAMES;
+	context.drawGfx(draw_loc, Gfx::CURSOR, frame);
+}
+
+void CursorImpl::animate()
+{
+	anim++;
+}
+
+
 void StageImpl::add(Animation animation)
 {
-	animations.push_back(animation);
+	// insertion sort - animations in the list are always in ascending z_order
+	auto greater = [animation] (Animation a) { return *animation < *a; };
+	auto it = std::find_if(animations.begin(), animations.end(), greater);
+	animations.insert(it, animation);
 }
 
 void StageImpl::add(Logic logic)
@@ -231,6 +260,20 @@ void StageImpl::update()
 Stage StageBuilder::construct()
 {
 	Stage stage = std::make_shared<StageImpl>();
+
+	left_pit = std::make_shared<PitImpl>(LPIT_LOC);
+	right_pit = std::make_shared<PitImpl>(RPIT_LOC);
+
+	RowCol center { (left_pit->top()-left_pit->bottom())/2, PIT_COLS/2-1 };
+	// std::cerr << "Place cursor at " << center.r
+	left_cursor = std::make_shared<CursorImpl>(center, left_pit);
+	// TODO: right cursor
+
+	stage->add(static_cast<Animation>(left_pit));
+	stage->add(static_cast<Logic>(left_pit));
+	stage->add(static_cast<Animation>(right_pit));
+	stage->add(static_cast<Logic>(right_pit));
+	stage->add(left_cursor);
+
 	return stage;
 }
-

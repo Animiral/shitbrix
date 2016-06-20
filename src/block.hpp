@@ -17,6 +17,11 @@ enum class BlockState { INVALID, PREVIEW, REST, FALL, LAND, BREAK, DEAD };
 // Allow operator- on BlockCol
 int operator-(BlockCol lhs, BlockCol rhs);
 
+// drawing order
+constexpr int PIT_Z = 1;
+constexpr int BLOCK_Z = 3;
+constexpr int CURSOR_Z = 5;
+
 /**
  * Single block, comes in 6 colors
  *
@@ -41,7 +46,7 @@ public:
 
 	BlockImpl(BlockCol col, RowCol rc, Transform view)
 	:
-	col(col), rc(rc), offset{0,0}, m_view(view),
+	IAnimation(BLOCK_Z), col(col), rc(rc), offset{0,0}, m_view(view),
 	m_loc{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)},
 	m_state(BlockState::PREVIEW), m_time(0)
 	{}
@@ -87,9 +92,10 @@ class PitImpl : public ITransform, public IAnimation, public ILogicObject
 
 public:
 
-	PitImpl(Point loc) : m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
+	PitImpl(Point loc) : IAnimation(PIT_Z), m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
 
 	Point loc() const { return m_loc; }
+	int top() const;
 	int bottom() const;
 	void block(RowCol rc, Block block);
 	void unblock(RowCol rc);
@@ -111,11 +117,35 @@ private:
 
 using Pit = std::shared_ptr<PitImpl>;
 
+class CursorImpl : public IAnimation
+{
+
+public:
+
+	RowCol rc;
+
+	CursorImpl(RowCol rc, Transform view) : IAnimation(CURSOR_Z), rc(rc), anim(0), view(view) {}
+
+	virtual void draw(const IVideoContext& context, float dt) override;
+	virtual void animate() override;
+
+private:
+
+	static constexpr int FRAME_TIME = 4; // how many sceen frames to display one cursor frame
+	static constexpr int FRAMES = 4; // number of available cursor frames
+
+	int anim;
+	Transform view;
+
+};
+
+using Cursor = std::shared_ptr<CursorImpl>;
+
 /**
  * Stage is a container for on-screen objects.
  * The Stage owns all its objects as shared_ptrs.
  */
-class StageImpl : public IAnimation, public ILogicObject
+class StageImpl
 {
 
 public:
@@ -127,9 +157,9 @@ public:
 	void remove(Animation animation);
 	void remove(Logic logic);
 
-	virtual void draw(const IVideoContext& context, float dt) override;
-	virtual void animate() override;
-	virtual void update() override;
+	void draw(const IVideoContext& context, float dt);
+	void animate();
+	void update();
 
 private:
 
@@ -142,6 +172,13 @@ using Stage = std::shared_ptr<StageImpl>;
 
 class StageBuilder
 {
+
 public:
+
+	Pit left_pit;
+	Pit right_pit;
+	Cursor left_cursor;
+
 	Stage construct();
+
 };

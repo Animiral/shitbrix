@@ -26,7 +26,8 @@ enum class Gfx
 	BLOCK_YELLOW,
 	BLOCK_GREEN,
 	BLOCK_PURPLE,
-	BLOCK_ORANGE
+	BLOCK_ORANGE,
+	CURSOR
 };
 
 // Allow operator+ on Gfx
@@ -42,6 +43,11 @@ enum class BlockFrame : size_t
 
 // Allow prefix operator++ on BlockFrame
 BlockFrame& operator++(BlockFrame& frame);
+
+/**
+ * Direction, used for player input & moving cursor
+ */
+enum class Dir { NONE, LEFT, RIGHT, UP, DOWN };
 
 /**
  * Represents a screen location in canvas pixels.
@@ -75,6 +81,8 @@ const int CANVAS_W = 640; // width of drawing canvas in pixels
 const int CANVAS_H = 480; // width of drawing canvas in pixels
 const int BLOCK_W = 40; // width of one little colored block
 const int BLOCK_H = 40; // height of one little colored block
+const int CURSOR_W = 88; // width of the cursor texture
+const int CURSOR_H = 48; // height of the cursor texture
 const Point LPIT_LOC = { 32, 48 };
 const Point RPIT_LOC = { 368, 48 };
 const int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
