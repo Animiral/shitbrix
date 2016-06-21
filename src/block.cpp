@@ -234,9 +234,7 @@ void CursorImpl::animate()
 void StageImpl::add(Animation animation)
 {
 	// insertion sort - animations in the list are always in ascending z_order
-	auto greater = [animation] (Animation a) { return *animation < *a; };
-	auto it = std::find_if(animations.begin(), animations.end(), greater);
-	animations.insert(it, animation);
+	ordered_insert(animations, animation, z_less);
 }
 
 void StageImpl::add(Logic logic)

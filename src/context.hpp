@@ -60,6 +60,9 @@ class ITransform
 
 class IHistoryObject {}; // interface go-back etc.
 
+using ScreenObject = std::shared_ptr<IScreenObject>;
 using Animation = std::shared_ptr<IAnimation>;
 using Logic = std::shared_ptr<ILogicObject>;
 using Transform = std::shared_ptr<ITransform>;
+
+bool z_less (const ScreenObject& lhs, const ScreenObject& rhs);

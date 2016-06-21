@@ -82,7 +82,7 @@ void BlockDirector::spawn_block(RowCol rc)
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
-	blocks.push_back(block);
+	ordered_insert(blocks, block, z_less);
 	previews.push_back(block);
 	stage->add(static_cast<Animation>(block));
 	stage->add(static_cast<Logic>(block));
@@ -94,7 +94,7 @@ void BlockDirector::spawn_falling(RowCol rc)
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
-	blocks.push_back(block);
+	ordered_insert(blocks, block, z_less);
 	stage->add(static_cast<Animation>(block));
 	stage->add(static_cast<Logic>(block));
 
