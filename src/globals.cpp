@@ -15,6 +15,11 @@ BlockFrame& operator++(BlockFrame& frame)
 	return frame = static_cast<BlockFrame>(static_cast<size_t>(frame) + 1);
 }
 
+Point from_rc(RowCol rc)
+{
+	return Point{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)};
+}
+
 /**
  * Check the condition and, if false, throw a GameException with the given message.
  */

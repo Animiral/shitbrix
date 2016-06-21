@@ -177,7 +177,6 @@ void BlockDirector::game_over()
 		if(!block->is_obstacle()) // all blocks must be marked blocking in pit to be reaped
 			pit->block(block->rc, block);
 
-		block->set_state(BlockState::DEAD);
 		it = reap_block(it);
 	}
 }

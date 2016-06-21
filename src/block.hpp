@@ -40,15 +40,15 @@ class BlockImpl : public IAnimation, public ILogicObject
 public:
 
 	// Public properties - can be read/changed/corrected at will
-	BlockCol col;         // color
+	BlockCol col;    // color
 	RowCol rc;       // row/col position, - is UP, + is DOWN
 	Point offset;    // x/y offset from draw center of r/c location
+	int time;        // number of ticks until we consider a state switch
 
 	BlockImpl(BlockCol col, RowCol rc, Transform view)
 	:
-	IAnimation(BLOCK_Z), col(col), rc(rc), offset{0,0}, m_view(view),
-	m_loc{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)},
-	m_state(BlockState::PREVIEW), m_time(0)
+	IAnimation(BLOCK_Z), col(col), rc(rc), offset{0,0}, time(0), m_view(view),
+	m_loc(from_rc(rc)), m_state(BlockState::PREVIEW)
 	{}
 
 	virtual void draw(const IVideoContext& context, float dt) override;
@@ -67,11 +67,10 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int BREAK_TIME = 30;
 
-	Transform m_view; // view applied to m_loc
-	Point m_loc;       // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	BlockState m_state;     // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
-	int m_time;        // number of ticks until we consider a state switch
-	BlockFrame m_anim; // current animation frame
+	Transform m_view;   // view applied to m_loc
+	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
+	BlockState m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
+	BlockFrame m_anim;  // current animation frame
 
 	void fall();
 	void land();

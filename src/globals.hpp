@@ -90,6 +90,8 @@ const int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
 const float FALL_SPEED = 3; // max. pixels per update that a falling block moves down
 const float SCROLL_SPEED = .4f; // pixels per update that the pit moves up
 
+Point from_rc(RowCol rc); // conversion to pit-relative coordinates
+
 /**
  * General exception for errors that occur in the game.
  */

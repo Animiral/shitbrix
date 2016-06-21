@@ -19,7 +19,7 @@ void BlockImpl::draw(const IVideoContext& context, float dt)
 	// bounce when landing
 	if(BlockState::LAND == m_state) {
 		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
-		draw_loc.y -= BOUNCE_H * ( m_time > LAND_TIME/2 ? (LAND_TIME-m_time) : (m_time) ) / LAND_TIME;
+		draw_loc.y -= BOUNCE_H * ( time > LAND_TIME/2 ? LAND_TIME-time : time ) / LAND_TIME;
 	}
 
 	Gfx gfx = Gfx::BLOCK_BLUE + (col - BlockCol::BLUE);
@@ -44,7 +44,7 @@ void BlockImpl::animate()
  */
 void BlockImpl::update()
 {
-	m_time--;
+	time--;
 
 	switch(m_state) {
 		case BlockState::PREVIEW: break;
@@ -67,6 +67,9 @@ bool BlockImpl::is_obstacle() const
 
 void BlockImpl::set_state(BlockState state)
 {
+	SDL_assert(state != BlockState::PREVIEW);
+	SDL_assert(m_state != BlockState::DEAD); // cannot change out of dead state
+
 	m_state = state;
 
 	switch(state) {
@@ -75,11 +78,11 @@ void BlockImpl::set_state(BlockState state)
 			m_loc.x -= offset.x;
 			m_loc.y -= offset.y;
 			offset = Point{0,0};
-			m_time = LAND_TIME;
+			time = LAND_TIME;
 			break;
 
 		case BlockState::BREAK:
-			m_time = BREAK_TIME;
+			time = BREAK_TIME;
 			m_anim = BlockFrame::BREAK_BEGIN;
 			break;
 
@@ -115,9 +118,9 @@ void BlockImpl::fall()
  */
 void BlockImpl::land()
 {
-	if(m_time < 0) {
+	if(time < 0) {
 		set_state(BlockState::REST);
-		m_time = 10 - 10 * rc.r; // after which auto-breaks
+		time = 10 - 10 * rc.r; // after which auto-breaks
 	}
 }
 
@@ -126,7 +129,7 @@ void BlockImpl::land()
  */
 void BlockImpl::dobreak()
 {
-	if(m_time < 0) {
+	if(time < 0) {
 		set_state(BlockState::DEAD);
 	}
 }

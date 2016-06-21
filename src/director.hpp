@@ -57,6 +57,7 @@ public:
 
 	CursorDirector(Pit pit, Cursor cursor) : pit(pit), cursor(cursor) {}
 
+	RowCol rc() const { return cursor->rc; }
 	void move(Dir dir);
 
 private:
