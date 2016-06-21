@@ -41,14 +41,13 @@ public:
 
 	// Public properties - can be read/changed/corrected at will
 	BlockCol col;    // color
-	RowCol rc;       // row/col position, - is UP, + is DOWN
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
 	BlockImpl(BlockCol col, RowCol rc, Transform view)
 	:
-	IAnimation(BLOCK_Z), col(col), rc(rc), offset{0,0}, time(0), m_view(view),
-	m_loc(from_rc(rc)), m_state(BlockState::PREVIEW)
+	IAnimation(BLOCK_Z), col(col), offset{0,0}, time(0), m_view(view),
+	m_loc(from_rc(rc)), m_rc(rc), m_state(BlockState::PREVIEW)
 	{}
 
 	virtual void draw(const IVideoContext& context, float dt) override;
@@ -56,10 +55,14 @@ public:
 	virtual void update() override;
 
 	Point loc() const { return m_view->transform(m_loc); }
+	RowCol rc() const { return m_rc; }
+	void set_rc(RowCol rc);
 	BlockState state() const { return m_state; }
 	bool is_obstacle() const;
 	void set_state(BlockState state);
-	bool entering_row();
+
+	bool is_away();
+	bool is_arriving();
 
 private:
 
@@ -69,6 +72,7 @@ private:
 
 	Transform m_view;   // view applied to m_loc
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
+	RowCol m_rc;        // row/col position, - is UP, + is DOWN
 	BlockState m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
 	BlockFrame m_anim;  // current animation frame
 
@@ -83,7 +87,7 @@ using Block = std::shared_ptr<BlockImpl>;
 /**
  * A pit is the playing area where one player’s blocks fall down.
  * The pit does not own, animate or update its contained blocks and garbage (the stage does),
- * but it remembers where blocks are and which spaces are free or blocked.
+ * but it remembers where blocks are.
  * It also handles scrolling.
  */
 class PitImpl : public ITransform, public IAnimation, public ILogicObject

@@ -58,6 +58,17 @@ void BlockImpl::update()
 }
 
 /**
+ * Changes the block’s logical location while maintaining its draw position,
+ * now relative to the new rc.
+ */
+void BlockImpl::set_rc(RowCol rc)
+{
+	offset.x -= (rc.c - m_rc.c) * BLOCK_W;
+	offset.y -= (rc.r - m_rc.r) * BLOCK_H;
+	m_rc = rc;
+}
+
+/**
  * Returns true if the block is in a state that prevents other blocks and objects from falling down.
  */
 bool BlockImpl::is_obstacle() const
@@ -91,9 +102,18 @@ void BlockImpl::set_state(BlockState state)
 }
 
 /**
+ * Returns true if the block’s drawing offset is so far off center that it makes the
+ * block visually appear in a different space than it actually occupies.
+ */
+bool BlockImpl::is_away()
+{
+	return offset.x < -BLOCK_W/2 || offset.x > BLOCK_W/2 || offset.y < -BLOCK_H/2 || offset.y > BLOCK_H/2;
+}
+
+/**
  * Returns true if the block is just now arriving at the center of a new row.
  */
-bool BlockImpl::entering_row()
+bool BlockImpl::is_arriving()
 {
 	return BlockState::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
 }
@@ -105,12 +125,6 @@ void BlockImpl::fall()
 {
 	m_loc.y += FALL_SPEED;
 	offset.y += FALL_SPEED;
-
-	// go to next row?
-	if(offset.y > BLOCK_H/2) {
-		rc.r++;
-		offset.y -= BLOCK_H;
-	}
 }
 
 /**
@@ -120,7 +134,7 @@ void BlockImpl::land()
 {
 	if(time < 0) {
 		set_state(BlockState::REST);
-		time = 10 - 10 * rc.r; // after which auto-breaks
+		time = 10 - 10 * m_rc.r; // after which auto-breaks
 	}
 }
 

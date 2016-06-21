@@ -36,7 +36,7 @@ void BlockDirector::update()
 	}
 
 	// Handle individual logic for each block, from bottom to top
-	auto block_compare = [](const Block& lhs, const Block& rhs) { return lhs->rc < rhs->rc; };
+	auto block_compare = [](const Block& lhs, const Block& rhs) { return lhs->rc() < rhs->rc(); };
 	std::sort(blocks.begin(), blocks.end(), block_compare);
 
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
@@ -50,8 +50,18 @@ void BlockDirector::update()
 		}
 
 		// falling blocks arrived at next row (center)
-		if(state == BlockState::FALL && block->entering_row()) {
-			block_arrive_row(block);
+		if(state == BlockState::FALL) {
+			// go to next row?
+			if(block->is_away()) {
+				RowCol rc = block->rc();
+				rc.r++;
+				block->set_rc(rc);
+			}
+
+			// land block?
+			if(block->is_arriving()) {
+				block_arrive_row(block);
+			}
 		}
 
 		// cleanup dead blocks
@@ -96,7 +106,7 @@ void BlockDirector::spawn_falling(RowCol rc)
 
 void BlockDirector::block_arrive_row(Block block)
 {
-	RowCol rc = block->rc;
+	RowCol rc = block->rc();
 	RowCol next_row { rc.r + 1, rc.c };
 
 	// hit bottom? TODO: there isn’t a bottom, (bottom blocks are not matchable), so remove this
@@ -121,7 +131,7 @@ BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::Block
 	it = blocks.erase(it);
 
 	// remove references from other containers
-	pit->unblock(block->rc);
+	pit->unblock(block->rc());
 	stage->remove(static_cast<Animation>(block));
 	stage->remove(static_cast<Logic>(block));
 
@@ -130,7 +140,7 @@ BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::Block
 	auto fallible = [](BlockState s) { return BlockState::REST == s || BlockState::LAND == s; };
 
 	do {
-		RowCol rc = block->rc;
+		RowCol rc = block->rc();
 		RowCol prev_row { rc.r - 1, rc.c };
 
 		Block prev_block = pit->block_at(prev_row);
@@ -175,7 +185,7 @@ void BlockDirector::game_over()
 		Block block = *it;
 
 		if(!block->is_obstacle()) // all blocks must be marked blocking in pit to be reaped
-			pit->block(block->rc, block);
+			pit->block(block->rc(), block);
 
 		it = reap_block(it);
 	}
