@@ -214,6 +214,27 @@ void PitImpl::update()
 }
 
 
+void PitViewImpl::draw(const IVideoContext& context, float dt)
+{
+	if(m_show) {
+		for(int r = pit->top(); r <= pit->bottom(); r++) {
+			for(int c = 0; c < PIT_COLS; c++) {
+				RowCol rc {r, c};
+				Block block = pit->block_at(rc);
+				if(block) {
+					BlockState state = block->state();
+					size_t frame = 0;
+					if(BlockState::FALL == state) frame = 1;
+					if(BlockState::BREAK == state) frame = 2;
+					Point loc = pit->transform(from_rc(rc), dt);
+					context.drawGfx(loc, Gfx::PITVIEW, frame);
+				}
+			}
+		}
+	}
+}
+
+
 void CursorImpl::draw(const IVideoContext& context, float dt)
 {
 	float x = static_cast<float>(rc.c*BLOCK_W - (CURSOR_W-2*BLOCK_W)/2);

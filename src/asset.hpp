@@ -19,32 +19,9 @@ public:
 
 	Assets(Renderer& renderer) : bg_rect{0, 0, CANVAS_W, CANVAS_H}, block_rect{0,0,BLOCK_W,BLOCK_H}, cursor_rect{0,0,CURSOR_W,CURSOR_H}
 	{
-		Surface bg = load_surface("gfx/bg.png");
-		Surface blocks = load_surface("gfx/blocks.png");
-		Surface cursor = load_surface("gfx/cursor.png");
-
-		// background (1 frame only)
-		std::vector<Texture> bg_frames;
-		bg_frames.emplace_back(make_texture(renderer, bg));
-		textures.emplace_back(std::move(bg_frames));
-
-		// colorful blocks
-		for(int color = 0; color < 6; color++) {
-			std::vector<Texture> block_frames;
-
-			for(int frame = 0; frame < 6; frame++) {
-				block_frames.emplace_back(make_frame_texture(renderer, blocks, BLOCK_W, BLOCK_H, color, frame));
-			}
-
-			textures.emplace_back(std::move(block_frames));
-		}
-
-		// player cursor
-		std::vector<Texture> cursor_frames;
-		for(int frame = 0; frame < 4; frame++) {
-			cursor_frames.emplace_back(make_frame_texture(renderer, cursor, CURSOR_W, CURSOR_H, 0, frame));
-		}
-		textures.emplace_back(std::move(cursor_frames));
+		load_sheet(renderer, "gfx/bg.png", CANVAS_W, CANVAS_H, 1, 1);
+		load_sheet(renderer, "gfx/blocks.png", BLOCK_W, BLOCK_H, 7, 6);
+		load_sheet(renderer, "gfx/cursor.png", CURSOR_W, CURSOR_H, 1, 4);
 	}
 
 	/**
@@ -67,6 +44,7 @@ public:
 			case Gfx::BLOCK_GREEN:
 			case Gfx::BLOCK_PURPLE:
 			case Gfx::BLOCK_ORANGE:
+			case Gfx::PITVIEW:
 				tr.rect = &block_rect;
 				break;
 			case Gfx::CURSOR:
@@ -132,4 +110,22 @@ private:
 		return texture;
 	}
 
+	/**
+	 * Loads all the gfx and frames from the given sheet and places them in the textures list.
+	 */
+	void load_sheet(Renderer& renderer, const char* file, int width, int height, int rows, int cols)
+	{
+		Surface sheet = load_surface(file);
+
+		for(int r = 0; r < rows; r++) {
+			std::vector<Texture> frames;
+
+			for(int c = 0; c < 6; c++) {
+				frames.emplace_back(make_frame_texture(renderer, sheet, width, height, r, c));
+			}
+
+			textures.emplace_back(std::move(frames));
+		}
+
+	}
 };

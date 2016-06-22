@@ -28,6 +28,7 @@ enum class Gfx
 	BLOCK_GREEN,
 	BLOCK_PURPLE,
 	BLOCK_ORANGE,
+	PITVIEW,  // debug gfx
 	CURSOR
 };
 

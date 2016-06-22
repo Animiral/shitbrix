@@ -20,6 +20,7 @@ int operator-(BlockCol lhs, BlockCol rhs);
 // drawing order
 constexpr int PIT_Z = 1;
 constexpr int BLOCK_Z = 3;
+constexpr int PITVIEW_Z = 4;
 constexpr int CURSOR_Z = 5;
 
 /**
@@ -119,6 +120,23 @@ private:
 };
 
 using Pit = std::shared_ptr<PitImpl>;
+
+/**
+ * Pit visualization for debugging.
+ */
+class PitViewImpl : public IAnimation
+{
+public:
+	PitViewImpl(Pit pit) : IAnimation(PITVIEW_Z), pit(pit), m_show(false) {}
+	virtual void draw(const IVideoContext& context, float dt) override;
+	virtual void animate() override {}
+	void toggle() { m_show = !m_show; }
+private:
+	Pit pit;
+	bool m_show; // whether or not to display this
+};
+
+using PitView = std::shared_ptr<PitViewImpl>;
 
 class CursorImpl : public IAnimation
 {

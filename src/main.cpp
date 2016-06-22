@@ -89,6 +89,12 @@ public:
 		left_blocks = std::make_unique<BlockDirector>(stage, builder.left_pit);
 		right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit);
 		left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
+
+		lpit_view = std::make_shared<PitViewImpl>(builder.left_pit);
+		rpit_view = std::make_shared<PitViewImpl>(builder.right_pit);
+
+		stage->add(lpit_view);
+		stage->add(rpit_view);
 	}
 
 	/**
@@ -132,6 +138,8 @@ public:
 								case SDLK_RIGHT: left_cursor->move(Dir::RIGHT); break;
 								case SDLK_UP: left_cursor->move(Dir::UP); break;
 								case SDLK_DOWN: left_cursor->move(Dir::DOWN); break;
+								case SDLK_d: lpit_view->toggle(); break;
+								case SDLK_h: rpit_view->toggle(); break;
 							}
 						}
 						break;
@@ -159,6 +167,8 @@ private:
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
 	std::unique_ptr<CursorDirector> left_cursor;
+	PitView lpit_view;
+	PitView rpit_view;
 
 };
 
