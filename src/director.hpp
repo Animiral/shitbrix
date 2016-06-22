@@ -21,6 +21,7 @@ public:
 	BlockDirector(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()), m_next_break(0) {}
 
 	void update();
+	bool swap(RowCol lrc);
 
 private:
 
@@ -39,9 +40,14 @@ private:
 
 	void spawn_block(RowCol rc);
 	void spawn_falling(RowCol rc);
-	void block_arrive_row(Block block);
+	Block spawn_fake(RowCol rc);
+
+	void block_arrive_fall(Block block);
+	void block_arrive_swap(Block block);
+
 	void move_block(Block block, RowCol to);
 	BlockVec::iterator reap_block(BlockVec::iterator it);
+
 	void activate_previews();
 	void game_over();
 

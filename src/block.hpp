@@ -11,8 +11,8 @@
 #include <map>
 #include <random>
 
-enum class BlockCol { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
-enum class BlockState { INVALID, PREVIEW, REST, FALL, LAND, BREAK, DEAD };
+enum class BlockCol { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE, FAKE };
+enum class BlockState { INVALID, PREVIEW, REST, SWAP, FALL, LAND, BREAK, DEAD };
 
 // Allow operator- on BlockCol
 int operator-(BlockCol lhs, BlockCol rhs);
@@ -60,21 +60,25 @@ public:
 	void set_rc(RowCol rc);
 	BlockState state() const { return m_state; }
 	void set_state(BlockState state);
+	void swap_toward(RowCol target);
 
 	bool is_arriving();
 
 private:
 
 	static constexpr float BOUNCE_H = 10.f;
+	static constexpr int SWAP_TIME = 6;
 	static constexpr int LAND_TIME = 20;
 	static constexpr int BREAK_TIME = 30;
 
 	Transform m_view;   // view applied to m_loc
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // row/col position, - is UP, + is DOWN
+	Point m_target;     // target location - where the block really wants to be while it’s busy with an animation like SWAP
 	BlockState m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
 	BlockFrame m_anim;  // current animation frame
 
+	void swap();
 	void fall();
 	void land();
 	void dobreak();
@@ -103,6 +107,7 @@ public:
 	int bottom() const;
 	void block(RowCol rc, Block block);
 	void unblock(RowCol rc);
+	void swap(RowCol lrc, RowCol rrc);
 	Block block_at(RowCol rc) const;
 
 	virtual Point transform(Point point, float dt=0.f) const override;

@@ -14,6 +14,9 @@ int operator-(BlockCol lhs, BlockCol rhs)
 
 void BlockImpl::draw(const IVideoContext& context, float dt)
 {
+	SDL_assert(col != BlockCol::INVALID && col != BlockCol::FAKE); // don’t draw fakes
+
+	// m_loc = from_rc(rc); // DEBUG
 	Point draw_loc = m_view->transform(m_loc, dt);
 
 	// bounce when landing
@@ -49,6 +52,7 @@ void BlockImpl::update()
 	switch(m_state) {
 		case BlockState::PREVIEW: break;
 		case BlockState::REST: break;
+		case BlockState::SWAP: swap(); break;
 		case BlockState::FALL: fall(); break;
 		case BlockState::LAND: land(); break;
 		case BlockState::BREAK: dobreak(); break;
@@ -70,7 +74,7 @@ void BlockImpl::set_rc(RowCol rc)
 
 void BlockImpl::set_state(BlockState state)
 {
-	SDL_assert(state != BlockState::PREVIEW);
+	SDL_assert(state != BlockState::PREVIEW && state != BlockState::SWAP); // use swap_toward() instead
 	SDL_assert(m_state != BlockState::DEAD); // cannot change out of dead state
 
 	m_state = state;
@@ -94,11 +98,42 @@ void BlockImpl::set_state(BlockState state)
 }
 
 /**
+ * Starts the swapping state & animation for this block.
+ * This function replaces set_state(BlockState::SWAP) because of the additional
+ * information that must be conveyed in the target parameter.
+ */
+void BlockImpl::swap_toward(RowCol target)
+{
+	m_state = BlockState::SWAP;
+	time = SWAP_TIME;
+	m_target = from_rc(target);
+}
+
+/**
  * Returns true if the block is just now arriving at the center of a new row.
  */
 bool BlockImpl::is_arriving()
 {
 	return BlockState::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+}
+
+/**
+ * Update this swapping block
+ */
+void BlockImpl::swap()
+{
+	if(time > 0.f) {
+		float adv_x = (m_target.x - m_loc.x) / time;
+		float adv_y = (m_target.y - m_loc.y) / time;
+		m_loc.x += adv_x;
+		m_loc.y += adv_y;
+		offset.x += adv_x;
+		offset.y += adv_y;
+	}
+	else {
+		m_loc = m_target;
+		offset = Point{0,0};
+	}
 }
 
 /**
@@ -174,6 +209,28 @@ void PitImpl::unblock(RowCol rc)
 }
 
 /**
+ * Exchanges the blocks at lrc and rrc, including the absence of blocks.
+ */
+void PitImpl::swap(RowCol lrc, RowCol rrc)
+{
+	auto left = block_map.find(lrc);
+	auto right = block_map.find(rrc);
+	auto end = block_map.end();
+
+	if(left != end && right != end) {
+		std::swap(left->second, right->second);
+	}
+	else if(left != end) {
+		block_map.emplace(std::make_pair(rrc, std::move(left->second)));
+		block_map.erase(lrc);
+	}
+	else if(right != end) {
+		block_map.emplace(std::make_pair(lrc, std::move(right->second)));
+		block_map.erase(rrc);
+	}
+}
+
+/**
  * Return the block at the given location.
  */
 Block PitImpl::block_at(RowCol rc) const
@@ -217,6 +274,7 @@ void PitViewImpl::draw(const IVideoContext& context, float dt)
 					size_t frame = 0;
 					if(BlockState::FALL == state) frame = 1;
 					if(BlockState::BREAK == state) frame = 2;
+					if(BlockCol::FAKE == block->col) frame = 3;
 					Point loc = pit->transform(from_rc(rc), dt);
 					context.drawGfx(loc, Gfx::PITVIEW, frame);
 				}

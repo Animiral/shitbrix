@@ -75,6 +75,8 @@ struct RowCol
 	bool operator<(const RowCol& rhs) const { return (r == rhs.r) ? c > rhs.c : r > rhs.r; }
 };
 
+std::ostream& operator<<(std::ostream& stream, RowCol rc);
+
 const int FPS = 60; // aspired-to number of drawn and displayed frames per second
 const int TPS = 30; // fixed number of logic ticks per second (game speed)
 

@@ -140,6 +140,7 @@ public:
 								case SDLK_DOWN: left_cursor->move(Dir::DOWN); break;
 								case SDLK_d: lpit_view->toggle(); break;
 								case SDLK_h: rpit_view->toggle(); break;
+								case SDLK_z: left_blocks->swap(left_cursor->rc()); break;
 							}
 						}
 						break;
