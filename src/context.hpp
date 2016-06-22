@@ -30,6 +30,7 @@ private:
 	int z_order; // Specifies drawing order. Every subclass must set this value.
 };
 
+
 /**
  * Basic interface for animated objects
  */

@@ -35,10 +35,7 @@ void BlockDirector::update()
 		m_next_break = 10 + rndgen() % 30;
 	}
 
-	// Handle individual logic for each block, from bottom to top
-	auto block_compare = [](const Block& lhs, const Block& rhs) { return lhs->rc() < rhs->rc(); };
-	std::sort(blocks.begin(), blocks.end(), block_compare);
-
+	// Handle individual logic for each block
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
 		Block block = *it;
 		BlockState state = block->state();
@@ -51,12 +48,12 @@ void BlockDirector::update()
 
 		// falling blocks arrived at next row (center)
 		if(state == BlockState::FALL) {
-			// go to next row?
-			if(block->is_away()) {
-				RowCol rc = block->rc();
-				rc.r++;
-				block->set_rc(rc);
-			}
+			// // go to next row?
+			// if(block->is_away()) {
+			// 	RowCol rc = block->rc();
+			// 	rc.r++;
+			// 	block->set_rc(rc);
+			// }
 
 			// land block?
 			if(block->is_arriving()) {
@@ -107,31 +104,46 @@ void BlockDirector::spawn_falling(RowCol rc)
 void BlockDirector::block_arrive_row(Block block)
 {
 	RowCol rc = block->rc();
-	RowCol next_row { rc.r + 1, rc.c };
+	RowCol next { rc.r + 1, rc.c };
 
-	// hit bottom? TODO: there isn’t a bottom, (bottom blocks are not matchable), so remove this
-	if(next_row.r > bottom) {
+	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
+
+	// If the next space is free, the block goes on to fall. Otherwise, it lands.
+	if(pit->block_at(next)) {
 		block->set_state(BlockState::LAND);
-		pit->block(rc, block);
 	}
-
-	// hit another block?
-	Block next_block = pit->block_at(next_row);
-
-	if(next_block) {
-		block->set_state(BlockState::LAND);
-		pit->block(rc, block);
+	else {
+		move_block(block, next);
 	}
+}
+
+/**
+ * Changes a block’s logical location.
+ * The block itself will adjust its offset to maintain the same draw-position.
+ * An approach of the draw-position towards the actual block position always happens
+ * gradually using the block’s state and animation.
+ */
+void BlockDirector::move_block(Block block, RowCol to)
+{
+	pit->unblock(block->rc());
+	pit->block(to, block);
+	block->set_rc(to);
+ 
+	// Maintain blocks sorted from bottom to top. This way, lower blocks in pillars of falling
+	// blocks will fall out of the way before upper blocks stumble over them.
+	std::sort(blocks.begin(), blocks.end(), y_greater);
 }
 
 BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::BlockVec::iterator it)
 {
-	// remove from our own list
 	Block block = *it;
+	RowCol rc = block->rc();
+
+	// remove from our own list
 	it = blocks.erase(it);
 
 	// remove references from other containers
-	pit->unblock(block->rc());
+	pit->unblock(rc);
 	stage->remove(static_cast<Animation>(block));
 	stage->remove(static_cast<Logic>(block));
 
@@ -140,18 +152,16 @@ BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::Block
 	auto fallible = [](BlockState s) { return BlockState::REST == s || BlockState::LAND == s; };
 
 	do {
-		RowCol rc = block->rc();
-		RowCol prev_row { rc.r - 1, rc.c };
+		RowCol prev { rc.r - 1, rc.c };
+		block = pit->block_at(prev);
 
-		Block prev_block = pit->block_at(prev_row);
-
-		if(prev_block) {
-			state = prev_block->state();
+		if(block) {
+			state = block->state();
 
 			if(fallible(state)) {
-				prev_block->set_state(BlockState::FALL);
-				pit->unblock(prev_row);
-				block = prev_block; // continue looking 1 block above
+				block->set_state(BlockState::FALL);
+				move_block(block, rc);
+				rc = prev; // continue looking 1 block above
 			}
 		}
 		else {
@@ -182,11 +192,6 @@ void BlockDirector::activate_previews()
 void BlockDirector::game_over()
 {
 	for(auto it = blocks.begin(); it != blocks.end(); ) {
-		Block block = *it;
-
-		if(!block->is_obstacle()) // all blocks must be marked blocking in pit to be reaped
-			pit->block(block->rc(), block);
-
 		it = reap_block(it);
 	}
 }

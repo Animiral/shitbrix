@@ -68,14 +68,6 @@ void BlockImpl::set_rc(RowCol rc)
 	m_rc = rc;
 }
 
-/**
- * Returns true if the block is in a state that prevents other blocks and objects from falling down.
- */
-bool BlockImpl::is_obstacle() const
-{
-	return BlockState::PREVIEW == m_state || BlockState::REST == m_state || BlockState::LAND == m_state || BlockState::BREAK == m_state;
-}
-
 void BlockImpl::set_state(BlockState state)
 {
 	SDL_assert(state != BlockState::PREVIEW);
@@ -99,15 +91,6 @@ void BlockImpl::set_state(BlockState state)
 
 		default: break;
 	}
-}
-
-/**
- * Returns true if the block’s drawing offset is so far off center that it makes the
- * block visually appear in a different space than it actually occupies.
- */
-bool BlockImpl::is_away()
-{
-	return offset.x < -BLOCK_W/2 || offset.x > BLOCK_W/2 || offset.y < -BLOCK_H/2 || offset.y > BLOCK_H/2;
 }
 
 /**
@@ -146,6 +129,14 @@ void BlockImpl::dobreak()
 	if(time < 0) {
 		set_state(BlockState::DEAD);
 	}
+}
+
+/**
+ * Comparison predicate for ordering blocks bottom-to-top.
+ */
+bool y_greater(const Block& lhs, const Block& rhs)
+{
+	return rhs->rc().r < lhs->rc().r;
 }
 
 /**

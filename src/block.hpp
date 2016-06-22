@@ -59,10 +59,8 @@ public:
 	RowCol rc() const { return m_rc; }
 	void set_rc(RowCol rc);
 	BlockState state() const { return m_state; }
-	bool is_obstacle() const;
 	void set_state(BlockState state);
 
-	bool is_away();
 	bool is_arriving();
 
 private:
@@ -84,6 +82,8 @@ private:
 };
 
 using Block = std::shared_ptr<BlockImpl>;
+
+bool y_greater(const Block& lhs, const Block& rhs);
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
