@@ -174,6 +174,28 @@ bool y_greater(const Block& lhs, const Block& rhs)
 	return rhs->rc().r < lhs->rc().r;
 }
 
+bool fallible(Block block)
+{
+	BlockState state = block->state();
+	return BlockState::REST == state || BlockState::LAND == state;
+}
+
+bool swappable(Block block)
+{
+	BlockState state = block->state();
+	return BlockState::REST == state ||
+	       BlockState::SWAP == state ||
+	       BlockState::FALL == state ||
+	       BlockState::LAND == state;
+}
+
+bool matchable(Block block)
+{
+	BlockState state = block->state();
+	return BlockState::REST == state || BlockState::LAND == state;
+}
+
+
 /**
  * Returns the number of the top accessible row in the pit
  */

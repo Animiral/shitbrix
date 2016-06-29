@@ -88,6 +88,9 @@ private:
 using Block = std::shared_ptr<BlockImpl>;
 
 bool y_greater(const Block& lhs, const Block& rhs);
+bool fallible(Block block);
+bool swappable(Block block);
+bool matchable(Block block);
 
 /**
  * A pit is the playing area where one player’s blocks fall down.

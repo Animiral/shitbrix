@@ -97,18 +97,11 @@ bool BlockDirector::swap(RowCol lrc)
 
 	Block left = pit->block_at(lrc);
 	Block right = pit->block_at(rrc);
-	auto swappable = [] (BlockState state)
-	{
-		return BlockState::REST == state ||
-		       BlockState::SWAP == state ||
-		       BlockState::FALL == state ||
-		       BlockState::LAND == state;
-	};
 
 	if(!left && !right) return false; // 2 spaces
 
-	bool left_swappable = !left || swappable(left->state());
-	bool right_swappable = !right || swappable(right->state());
+	bool left_swappable = !left || swappable(left);
+	bool right_swappable = !right || swappable(right);
 
 	if(!left_swappable || !right_swappable) return false;
 
@@ -239,26 +232,18 @@ BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::Block
 	stage->remove(static_cast<Logic>(block));
 
 	// Release blockage & blocks above the dead block => fall down
-	BlockState state;
-	auto fallible = [](BlockState s) { return BlockState::REST == s || BlockState::LAND == s; };
+	RowCol prev { rc.r - 1, rc.c };
+	block = pit->block_at(prev);
 
-	do {
-		RowCol prev { rc.r - 1, rc.c };
+	while (block && fallible(block)) {
+		block->set_state(BlockState::FALL);
+		move_block(block, rc);
+
+		// continue looking 1 block above
+		rc = prev;
+		prev = RowCol{ rc.r - 1, rc.c };
 		block = pit->block_at(prev);
-
-		if(block) {
-			state = block->state();
-
-			if(fallible(state)) {
-				block->set_state(BlockState::FALL);
-				move_block(block, rc);
-				rc = prev; // continue looking 1 block above
-			}
-		}
-		else {
-			state = BlockState::INVALID; // no more blocks above
-		}
-	} while (fallible(state));
+	}
 
 	return it;
 }
