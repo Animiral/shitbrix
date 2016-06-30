@@ -371,16 +371,18 @@ Stage StageBuilder::construct()
 	left_pit = std::make_shared<PitImpl>(LPIT_LOC);
 	right_pit = std::make_shared<PitImpl>(RPIT_LOC);
 
-	RowCol center { (left_pit->top()-left_pit->bottom())/2, PIT_COLS/2-1 };
-	// std::cerr << "Place cursor at " << center.r
-	left_cursor = std::make_shared<CursorImpl>(center, left_pit);
-	// TODO: right cursor
+	RowCol left_center { (left_pit->top()-left_pit->bottom())/2, PIT_COLS/2-1 };
+	left_cursor = std::make_shared<CursorImpl>(left_center, left_pit);
+
+	RowCol right_center { (right_pit->top()-right_pit->bottom())/2, PIT_COLS/2-1 };
+	right_cursor = std::make_shared<CursorImpl>(right_center, right_pit);
 
 	stage->add(static_cast<Animation>(left_pit));
 	stage->add(static_cast<Logic>(left_pit));
 	stage->add(static_cast<Animation>(right_pit));
 	stage->add(static_cast<Logic>(right_pit));
 	stage->add(left_cursor);
+	stage->add(right_cursor);
 
 	return stage;
 }

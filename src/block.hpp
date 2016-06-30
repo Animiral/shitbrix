@@ -207,6 +207,7 @@ public:
 	Pit left_pit;
 	Pit right_pit;
 	Cursor left_cursor;
+	Cursor right_cursor;
 
 	Stage construct();
 

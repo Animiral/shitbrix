@@ -89,6 +89,7 @@ public:
 		left_blocks = std::make_unique<BlockDirector>(stage, builder.left_pit);
 		right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit);
 		left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
+		right_cursor = std::make_unique<CursorDirector>(builder.right_pit, builder.right_cursor);
 
 		lpit_view = std::make_shared<PitViewImpl>(builder.left_pit);
 		rpit_view = std::make_shared<PitViewImpl>(builder.right_pit);
@@ -138,16 +139,23 @@ public:
 								case SDLK_RIGHT: left_cursor->move(Dir::RIGHT); break;
 								case SDLK_UP: left_cursor->move(Dir::UP); break;
 								case SDLK_DOWN: left_cursor->move(Dir::DOWN); break;
+								case SDLK_z: left_blocks->swap(left_cursor->rc()); break;
+								case SDLK_KP_4: right_cursor->move(Dir::LEFT); break;
+								case SDLK_KP_6: right_cursor->move(Dir::RIGHT); break;
+								case SDLK_KP_8: right_cursor->move(Dir::UP); break;
+								case SDLK_KP_5: right_cursor->move(Dir::DOWN); break;
+								case SDLK_KP_0: right_blocks->swap(right_cursor->rc()); break;
 								case SDLK_d: lpit_view->toggle(); break;
 								case SDLK_h: rpit_view->toggle(); break;
-								case SDLK_z: left_blocks->swap(left_cursor->rc()); break;
 							}
 						}
 						break;
 				}
 			}
 
-			left_cursor->move(Dir::NONE); // auto-move cursor when scrolling out of bounds
+			// auto-move cursor when scrolling out of bounds
+			left_cursor->move(Dir::NONE);
+			right_cursor->move(Dir::NONE);
 
 			// run one frame of local logic
 			stage->animate();
@@ -168,6 +176,7 @@ private:
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
 	std::unique_ptr<CursorDirector> left_cursor;
+	std::unique_ptr<CursorDirector> right_cursor;
 	PitView lpit_view;
 	PitView rpit_view;
 
