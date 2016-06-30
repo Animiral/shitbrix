@@ -4,6 +4,72 @@
 
 #include "director.hpp"
 
+void MatchBuilder::ignite(Block block)
+{
+	BlockCol color = block->col;
+	int row = block->rc().r;
+	int col = block->rc().c;
+
+	// m_result.insert(block);
+
+	// extents of match
+	int left = col;
+	int right = col;
+	int top = row;
+	int bottom = row;
+
+	for(left = col-1; left >= 0 && match_at({row,left}, color); left--);
+	for(right = col+1; left < PIT_COLS && match_at({row,right}, color); right++);
+	for(top = row-1; top >= pit->top() && match_at({top,col}, color); top--);
+	for(bottom = row+1; top <= pit->bottom() && match_at({bottom,col}, color); bottom++);
+
+	// horizontal match >= 3 blocks
+	if(right-left-1 >= 3) {
+		for(int c = left+1; c < right; c++)
+			m_result.insert(pit->block_at({row,c}));
+	}
+
+	// vertical match
+	if(bottom-top-1 >= 3) {
+		for(int r = top+1; r < bottom; r++)
+			m_result.insert(pit->block_at({r,col}));
+	}
+
+	// // right
+	// for(int c = col+1; c < PIT_COLS; c++)
+	// 	if(!add_block({row,c}))
+	// 		break;
+
+	// // up
+	// for(int r = row-1; r >= pit->top(); r--)
+	// 	if(!add_block({r,col}))
+	// 		break;
+
+	// // down
+	// for(int r = row+1; r <= pit->bottom(); r++)
+	// 	if(!add_block({r,col}))
+	// 		break;
+}
+
+bool MatchBuilder::match_at(RowCol rc, BlockCol color)
+{
+	Block next = pit->block_at(rc);
+	return next && next->col == color && matchable(next);
+}
+
+// bool MatchBuilder::add_block(RowCol rc)
+// {
+// 	Block next = pit->block_at(rc);
+
+// 	if (next && next->col == block->col) {
+// 		m_result.insert(next);
+// 		return true;
+// 	}
+// 	else {
+// 		return false;
+// 	}
+// }
+
 /**
  * Spawn blocks at regular intervals, clean up dead blocks
  */
@@ -12,28 +78,20 @@ void BlockDirector::update()
 	pit->update();
 
 	// spawn blocks from below
-	while(bottom <= pit->bottom()) {
-		activate_previews();
+	spawn_previews();
 
-		bottom++;
-		for(int i = 0; i < PIT_COLS; i++) {
-			RowCol rc {bottom, i};
-			spawn_block(rc);
-		}
-	}
+	// // random block breakage (for show and debug)
+	// if(--m_next_break <= 0) {
+	// 	if(!blocks.empty()) {
+	// 		size_t break_index = rndgen() % blocks.size();
+	// 		Block block = blocks[break_index];
+	// 		if(BlockState::REST == block->state()) {
+	// 			block->set_state(BlockState::BREAK);
+	// 		}
+	// 	}
 
-	// random block breakage (for show and debug)
-	if(--m_next_break <= 0) {
-		if(!blocks.empty()) {
-			size_t break_index = rndgen() % blocks.size();
-			Block block = blocks[break_index];
-			if(BlockState::REST == block->state()) {
-				block->set_state(BlockState::BREAK);
-			}
-		}
-
-		m_next_break = 10 + rndgen() % 30;
-	}
+	// 	m_next_break = 10 + rndgen() % 30;
+	// }
 
 	// Handle individual logic for each block
 
@@ -76,7 +134,22 @@ void BlockDirector::update()
 	}
 
 	// Examine hots for matches
-	hots.clear();
+	if(!hots.empty()) {
+		auto builder = MatchBuilder(pit);
+
+		for(auto it = hots.begin(); it != hots.end(); ++it) {
+			builder.ignite(*it);	
+		}
+
+		auto& breaks = builder.result();
+
+		for(auto it = breaks.begin(); it != breaks.end(); ++it) {
+			Block block = *it;
+			block->set_state(BlockState::BREAK);
+		}
+
+		hots.clear();
+	}
 }
 
 /**
@@ -118,6 +191,22 @@ bool BlockDirector::swap(RowCol lrc)
 	pit->swap(lrc, rrc);
 
 	return true;
+}
+
+/**
+ * Bring up a new row of preview blocks and enable the previous row, if necessary.
+ */
+void BlockDirector::spawn_previews()
+{
+	while(bottom <= pit->bottom()) {
+		activate_previews();
+
+		bottom++;
+		for(int i = 0; i < PIT_COLS; i++) {
+			RowCol rc {bottom, i};
+			spawn_block(rc);
+		}
+	}
 }
 
 void BlockDirector::spawn_block(RowCol rc)

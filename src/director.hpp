@@ -5,6 +5,34 @@
 #include "block.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
+#include <set>
+
+/**
+ * Examines the pit for matching blocks from a sequence of “hot” blocks
+ * which have just been moved or landed. They are passed to the MatchBuilder via ignite(). 
+ * Returns all detected matching blocks (3 or more in a row from a hot block) in result().
+ * The combo() specifies the number of blocks resolved at the same time.
+ */
+class MatchBuilder
+{
+
+public:
+
+	MatchBuilder(Pit pit) : pit(pit) {}
+
+	void ignite(Block block);
+	const std::set<Block>& result() { return m_result; }
+	int combo() { return m_result.size(); }
+
+private:
+
+	Pit pit;
+	std::set<Block> m_result;
+
+	// bool add_block(RowCol rc);
+	bool match_at(RowCol rc, BlockCol color);
+
+};
 
 /**
  * Spawns and removes stuff to and from the stage.
@@ -38,6 +66,7 @@ private:
 	std::mt19937 rndgen;
 	int m_next_break; // random breakage countdown
 
+	void spawn_previews();
 	void spawn_block(RowCol rc);
 	void spawn_falling(RowCol rc);
 	Block spawn_fake(RowCol rc);
