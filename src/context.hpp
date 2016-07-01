@@ -15,6 +15,8 @@ class IVideoContext
 {
 public:
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const =0;
+	virtual void clip(Point top_left, int width, int height) =0;
+	virtual void unclip() =0;
 };
 
 /**
@@ -24,7 +26,7 @@ class IScreenObject
 {
 public:
 	IScreenObject(int z_order) : z_order(z_order) {}
-	virtual void draw(const IVideoContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
+	virtual void draw(IVideoContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
 	bool operator<(const IScreenObject& rhs) const { return z_order < rhs.z_order; }
 private:
 	int z_order; // Specifies drawing order. Every subclass must set this value.

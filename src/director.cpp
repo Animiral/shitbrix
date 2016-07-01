@@ -10,8 +10,6 @@ void MatchBuilder::ignite(Block block)
 	int row = block->rc().r;
 	int col = block->rc().c;
 
-	// m_result.insert(block);
-
 	// extents of match
 	int left = col;
 	int right = col;
@@ -34,21 +32,6 @@ void MatchBuilder::ignite(Block block)
 		for(int r = top+1; r < bottom; r++)
 			m_result.insert(pit->block_at({r,col}));
 	}
-
-	// // right
-	// for(int c = col+1; c < PIT_COLS; c++)
-	// 	if(!add_block({row,c}))
-	// 		break;
-
-	// // up
-	// for(int r = row-1; r >= pit->top(); r--)
-	// 	if(!add_block({r,col}))
-	// 		break;
-
-	// // down
-	// for(int r = row+1; r <= pit->bottom(); r++)
-	// 	if(!add_block({r,col}))
-	// 		break;
 }
 
 bool MatchBuilder::match_at(RowCol rc, BlockCol color)
@@ -57,50 +40,22 @@ bool MatchBuilder::match_at(RowCol rc, BlockCol color)
 	return next && next->col == color && matchable(next);
 }
 
-// bool MatchBuilder::add_block(RowCol rc)
-// {
-// 	Block next = pit->block_at(rc);
-
-// 	if (next && next->col == block->col) {
-// 		m_result.insert(next);
-// 		return true;
-// 	}
-// 	else {
-// 		return false;
-// 	}
-// }
-
 /**
  * Spawn blocks at regular intervals, clean up dead blocks
  */
 void BlockDirector::update()
 {
-	pit->update();
-
 	// spawn blocks from below
 	spawn_previews();
-
-	// // random block breakage (for show and debug)
-	// if(--m_next_break <= 0) {
-	// 	if(!blocks.empty()) {
-	// 		size_t break_index = rndgen() % blocks.size();
-	// 		Block block = blocks[break_index];
-	// 		if(BlockState::REST == block->state()) {
-	// 			block->set_state(BlockState::BREAK);
-	// 		}
-	// 	}
-
-	// 	m_next_break = 10 + rndgen() % 30;
-	// }
 
 	// Handle individual logic for each block
 
 	// Maintain blocks sorted from bottom to top. This way, lower blocks in pillars of falling
 	// blocks will fall out of the way before upper blocks stumble over them.
 	// TODO: only do this after a block has moved
-	std::sort(blocks.begin(), blocks.end(), y_greater);
+	std::sort(pit->blocks().begin(), pit->blocks().end(), y_greater);
 
-	for(auto it = blocks.begin(); it != blocks.end(); ) {
+	for(auto it = pit->blocks().begin(); it != pit->blocks().end(); ) {
 		Block block = *it;
 		BlockState state = block->state();
 
@@ -214,10 +169,8 @@ void BlockDirector::spawn_block(RowCol rc)
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
-	ordered_insert(blocks, block, y_greater);
+	ordered_insert(pit->blocks(), block, y_greater);
 	previews.push_back(block);
-	stage->add(static_cast<Animation>(block));
-	stage->add(static_cast<Logic>(block));
 	pit->block(rc, block);
 }
 
@@ -226,9 +179,7 @@ void BlockDirector::spawn_falling(RowCol rc)
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
-	ordered_insert(blocks, block, y_greater);
-	stage->add(static_cast<Animation>(block));
-	stage->add(static_cast<Logic>(block));
+	ordered_insert(pit->blocks(), block, y_greater);
 
 	block->set_state(BlockState::FALL);
 
@@ -243,8 +194,7 @@ Block BlockDirector::spawn_fake(RowCol rc)
 {
 	auto block = std::make_shared<BlockImpl> (BlockCol::FAKE, rc, pit);
 
-	ordered_insert(blocks, block, y_greater);
-	stage->add(static_cast<Logic>(block));
+	ordered_insert(pit->blocks(), block, y_greater);
 	pit->block(rc, block);
 	block->set_state(BlockState::REST);
 
@@ -274,8 +224,8 @@ void BlockDirector::block_arrive_swap(Block block)
 
 	// fake blocks are only for swapping and disappear right afterwards
 	if(BlockCol::FAKE == block->col) {
-		auto it = std::find(blocks.begin(), blocks.end(), block);
-		SDL_assert(it != blocks.end());
+		auto it = std::find(pit->blocks().begin(), pit->blocks().end(), block);
+		SDL_assert(it != pit->blocks().end());
 		block->set_state(BlockState::DEAD);
 		return;
 	}
@@ -306,19 +256,16 @@ void BlockDirector::move_block(Block block, RowCol to)
 	block->set_rc(to);
 }
 
-BlockDirector::BlockVec::iterator BlockDirector::reap_block(BlockDirector::BlockVec::iterator it)
+BlockVec::iterator BlockDirector::reap_block(BlockVec::iterator it)
 {
 	Block block = *it;
 	RowCol rc = block->rc();
 
 	// remove from our own list
-	it = blocks.erase(it);
+	it = pit->blocks().erase(it);
 
 	// remove references from other containers
 	pit->unblock(rc);
-	if(block->col != BlockCol::FAKE)
-		stage->remove(static_cast<Animation>(block));
-	stage->remove(static_cast<Logic>(block));
 
 	// Release blockage & blocks above the dead block => fall down
 	RowCol prev { rc.r - 1, rc.c };
@@ -356,7 +303,7 @@ void BlockDirector::activate_previews()
  */
 void BlockDirector::game_over()
 {
-	for(auto it = blocks.begin(); it != blocks.end(); ) {
+	for(auto it = pit->blocks().begin(); it != pit->blocks().end(); ) {
 		it = reap_block(it);
 	}
 }

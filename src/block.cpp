@@ -12,11 +12,12 @@ int operator-(BlockCol lhs, BlockCol rhs)
 	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
 
-void BlockImpl::draw(const IVideoContext& context, float dt)
+void BlockImpl::draw(IVideoContext& context, float dt)
 {
-	SDL_assert(col != BlockCol::INVALID && col != BlockCol::FAKE); // don’t draw fakes
+	SDL_assert(col != BlockCol::INVALID);
 
-	// m_loc = from_rc(rc); // DEBUG
+	if(BlockCol::FAKE == col) return;
+
 	Point draw_loc = m_view->transform(m_loc, dt);
 
 	// bounce when landing
@@ -277,14 +278,26 @@ Point PitImpl::transform(Point point, float dt) const
 	return point;
 }
 
+void PitImpl::draw(IVideoContext& context, float dt)
+{
+	context.clip(m_loc, PIT_W, PIT_H);
+
+	for(auto b: m_blocks)
+		b->draw(context, dt);
+
+	context.unclip();
+}
+
 void PitImpl::update()
 {
-	// scroll more
+	for(auto b : m_blocks)
+		b->update();
+
 	m_scroll += SCROLL_SPEED;
 }
 
 
-void PitViewImpl::draw(const IVideoContext& context, float dt)
+void PitViewImpl::draw(IVideoContext& context, float dt)
 {
 	if(m_show) {
 		for(int r = pit->top(); r <= pit->bottom(); r++) {
@@ -306,7 +319,7 @@ void PitViewImpl::draw(const IVideoContext& context, float dt)
 }
 
 
-void CursorImpl::draw(const IVideoContext& context, float dt)
+void CursorImpl::draw(IVideoContext& context, float dt)
 {
 	float x = static_cast<float>(rc.c*BLOCK_W - (CURSOR_W-2*BLOCK_W)/2);
 	float y = static_cast<float>(rc.r*BLOCK_H - (CURSOR_H-BLOCK_H)/2);
@@ -348,7 +361,7 @@ void StageImpl::remove(Logic logic)
 	logics.erase(it);
 }
 
-void StageImpl::draw(const IVideoContext& context, float dt)
+void StageImpl::draw(IVideoContext& context, float dt)
 {
 	context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
 	for(auto& animation : animations) animation->draw(context, dt);

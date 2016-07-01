@@ -51,7 +51,7 @@ public:
 	m_loc(from_rc(rc)), m_rc(rc), m_state(BlockState::PREVIEW)
 	{}
 
-	virtual void draw(const IVideoContext& context, float dt) override;
+	virtual void draw(IVideoContext& context, float dt) override;
 	virtual void animate() override;
 	virtual void update() override;
 
@@ -86,6 +86,7 @@ private:
 };
 
 using Block = std::shared_ptr<BlockImpl>;
+using BlockVec = std::vector<Block>;
 
 bool y_greater(const Block& lhs, const Block& rhs);
 bool fallible(Block block);
@@ -94,8 +95,8 @@ bool matchable(Block block);
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
- * The pit does not own, animate or update its contained blocks and garbage (the stage does),
- * but it remembers where blocks are.
+ * The pit owns, animates and updates its contained blocks and garbage.
+ * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
  */
 class PitImpl : public ITransform, public IAnimation, public ILogicObject
@@ -106,6 +107,7 @@ public:
 	PitImpl(Point loc) : IAnimation(PIT_Z), m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
 
 	Point loc() const { return m_loc; }
+	BlockVec& blocks() { return m_blocks; }
 	int top() const;
 	int bottom() const;
 	void block(RowCol rc, Block block);
@@ -115,14 +117,15 @@ public:
 
 	virtual Point transform(Point point, float dt=0.f) const override;
 
-	virtual void draw(const IVideoContext& context, float dt) override {} // nothing so far
-	virtual void animate() override {}
+	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void animate() override { for(auto b : m_blocks) b->animate(); }
 	virtual void update() override;
 
 private:
 
 	Point m_loc;     // draw location, upper left corner
 	float m_scroll;  // y-offset for view on pit contents
+	BlockVec m_blocks; // list of all blocks in the pit
 	std::map<RowCol, Block> block_map; // sparse matrix of blocked spaces
 
 };
@@ -136,7 +139,7 @@ class PitViewImpl : public IAnimation
 {
 public:
 	PitViewImpl(Pit pit) : IAnimation(PITVIEW_Z), pit(pit), m_show(false) {}
-	virtual void draw(const IVideoContext& context, float dt) override;
+	virtual void draw(IVideoContext& context, float dt) override;
 	virtual void animate() override {}
 	void toggle() { m_show = !m_show; }
 private:
@@ -155,7 +158,7 @@ public:
 
 	CursorImpl(RowCol rc, Transform view) : IAnimation(CURSOR_Z), rc(rc), anim(0), view(view) {}
 
-	virtual void draw(const IVideoContext& context, float dt) override;
+	virtual void draw(IVideoContext& context, float dt) override;
 	virtual void animate() override;
 
 private:
@@ -186,7 +189,7 @@ public:
 	void remove(Animation animation);
 	void remove(Logic logic);
 
-	void draw(const IVideoContext& context, float dt);
+	void draw(IVideoContext& context, float dt);
 	void animate();
 	void update();
 

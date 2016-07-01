@@ -15,12 +15,6 @@ const char* APP_NAME = "shitbrix";
 class SdlContext : public IVideoContext
 {
 
-private:
-
-	std::unique_ptr<Assets> assets;
-	Window screen;
-	Renderer renderer;
-
 public:
 
 	SdlContext()
@@ -48,7 +42,7 @@ public:
 		SDL_Quit();
 	}
 
-	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const
+	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
 	{
 		TextRect tr = assets->texture(gfx, frame);
 		SDL_Rect dstrect = *tr.rect;
@@ -57,6 +51,22 @@ public:
 
 		int render_result = SDL_RenderCopy(renderer.get(), tr.texture, NULL, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
+	}
+
+	virtual void clip(Point top_left, int width, int height) override
+	{
+		int x = static_cast<int>(top_left.x);
+		int y = static_cast<int>(top_left.y);
+		clip_rect = SDL_Rect{x, y, width, height};
+
+		int clip_result = SDL_RenderSetClipRect(renderer.get(), &clip_rect);
+		game_assert(0 == clip_result, SDL_GetError());
+	}
+
+	virtual void unclip() override
+	{
+		int clip_result = SDL_RenderSetClipRect(renderer.get(), nullptr);
+		game_assert(0 == clip_result, SDL_GetError());
 	}
 
 	/**
@@ -70,6 +80,14 @@ public:
 		int render_result = SDL_RenderClear(renderer.get());
 		game_assert(0 == render_result, SDL_GetError());
 	}
+
+private:
+
+	std::unique_ptr<Assets> assets;
+	Window screen;
+	Renderer renderer;
+	SDL_Rect clip_rect;
+
 };
 
 /**

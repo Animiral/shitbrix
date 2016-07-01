@@ -46,25 +46,21 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()), m_next_break(0) {}
+	BlockDirector(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), rdev(), rndgen(rdev()) {}
 
 	void update();
 	bool swap(RowCol lrc);
 
 private:
 
-	using BlockVec = std::vector<Block>;
-
 	Stage stage;
 	Pit pit;
-	BlockVec blocks; // all the blocks under the command of this BlockDirector
 	BlockVec previews; // blocks which are fresh spawns and currently inactive
 	BlockVec hots; // recently landed or arrived blocks that can start a match
 	int bottom; // lowest row that we have already spawned blocks for
 
-	std::random_device rdev;
-	std::mt19937 rndgen;
-	int m_next_break; // random breakage countdown
+	std::random_device rdev; // block colors for fresh spawns
+	std::mt19937 rndgen;     // are generated randomly
 
 	void spawn_previews();
 	void spawn_block(RowCol rc);
