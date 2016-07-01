@@ -1,5 +1,4 @@
-#include "block.hpp"
-#include "director.hpp"
+#include "screen.hpp"
 #include "context.hpp"
 #include "asset.hpp"
 #include <iostream>
@@ -99,22 +98,7 @@ class Main
 
 public:
 
-	Main() : context()
-	{
-		auto builder = StageBuilder();
-		stage = builder.construct();
-
-		left_blocks = std::make_unique<BlockDirector>(stage, builder.left_pit);
-		right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit);
-		left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
-		right_cursor = std::make_unique<CursorDirector>(builder.right_pit, builder.right_cursor);
-
-		lpit_view = std::make_shared<PitViewImpl>(builder.left_pit);
-		rpit_view = std::make_shared<PitViewImpl>(builder.right_pit);
-
-		stage->add(lpit_view);
-		stage->add(rpit_view);
-	}
+	Main() : context(), game_screen() {}
 
 	/**
 	 * Main loop.
@@ -139,7 +123,9 @@ public:
 			while(now < next_logic) {
 				float fraction = 1.0f - static_cast<float>((next_logic-now) * TPS) / freq;
 				SDL_assert((fraction >= 0) && (fraction <= 1));
-				stage->draw(context, fraction);
+
+				game_screen.draw(context, fraction);
+				// stage->draw(context, fraction);
 				context.render();
 				now = SDL_GetPerformanceCounter();
 			}
@@ -153,18 +139,18 @@ public:
 					case SDL_KEYDOWN:
 						if(!event.key.repeat) {
 							switch(event.key.keysym.sym) {
-								case SDLK_LEFT: left_cursor->move(Dir::LEFT); break;
-								case SDLK_RIGHT: left_cursor->move(Dir::RIGHT); break;
-								case SDLK_UP: left_cursor->move(Dir::UP); break;
-								case SDLK_DOWN: left_cursor->move(Dir::DOWN); break;
-								case SDLK_z: left_blocks->swap(left_cursor->rc()); break;
-								case SDLK_KP_4: right_cursor->move(Dir::LEFT); break;
-								case SDLK_KP_6: right_cursor->move(Dir::RIGHT); break;
-								case SDLK_KP_8: right_cursor->move(Dir::UP); break;
-								case SDLK_KP_5: right_cursor->move(Dir::DOWN); break;
-								case SDLK_KP_0: right_blocks->swap(right_cursor->rc()); break;
-								case SDLK_d: lpit_view->toggle(); break;
-								case SDLK_h: rpit_view->toggle(); break;
+								case SDLK_LEFT:  game_screen.input_dir(Dir::LEFT, 0); break;
+								case SDLK_RIGHT: game_screen.input_dir(Dir::RIGHT, 0); break;
+								case SDLK_UP:    game_screen.input_dir(Dir::UP, 0); break;
+								case SDLK_DOWN:  game_screen.input_dir(Dir::DOWN, 0); break;
+								case SDLK_z:     game_screen.input_a(0); break;
+								case SDLK_KP_4:  game_screen.input_dir(Dir::LEFT, 1); break;
+								case SDLK_KP_6:  game_screen.input_dir(Dir::RIGHT, 1); break;
+								case SDLK_KP_8:  game_screen.input_dir(Dir::UP, 1); break;
+								case SDLK_KP_5:  game_screen.input_dir(Dir::DOWN, 1); break;
+								case SDLK_KP_0:  game_screen.input_a(1); break;
+								case SDLK_d:     game_screen.input_debug(0); break;
+								case SDLK_h:     game_screen.input_debug(1); break;
 							}
 						}
 						break;
@@ -172,14 +158,13 @@ public:
 			}
 
 			// auto-move cursor when scrolling out of bounds
-			left_cursor->move(Dir::NONE);
-			right_cursor->move(Dir::NONE);
+			game_screen.input_dir(Dir::NONE, 0);
+			game_screen.input_dir(Dir::NONE, 1);
 
 			// run one frame of local logic
-			stage->animate();
-			left_blocks->update();
-			right_blocks->update();
-			stage->update();
+			game_screen.animate();
+			game_screen.update();
+
 			tick++;
 			next_logic = t0 + (tick+1) * freq / TPS;
 		}
@@ -190,13 +175,7 @@ public:
 private:
 
 	SdlContext context;
-	Stage stage; // to be replaced by app-state object (e.g. menu, in-game etc.)
-	std::unique_ptr<BlockDirector> left_blocks;
-	std::unique_ptr<BlockDirector> right_blocks;
-	std::unique_ptr<CursorDirector> left_cursor;
-	std::unique_ptr<CursorDirector> right_cursor;
-	PitView lpit_view;
-	PitView rpit_view;
+	GameScreen game_screen;
 
 };
 

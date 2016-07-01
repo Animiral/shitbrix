@@ -301,6 +301,8 @@ void BlockDirector::game_over()
 	for(auto it = pit->blocks().begin(); it != pit->blocks().end(); ) {
 		it = reap_block(it);
 	}
+
+	m_over = true;
 }
 
 

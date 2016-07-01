@@ -17,12 +17,6 @@ enum class BlockState { INVALID, PREVIEW, REST, SWAP, FALL, LAND, BREAK, DEAD };
 // Allow operator- on BlockCol
 int operator-(BlockCol lhs, BlockCol rhs);
 
-// drawing order
-constexpr int PIT_Z = 1;
-constexpr int BLOCK_Z = 3;
-constexpr int PITVIEW_Z = 4;
-constexpr int CURSOR_Z = 5;
-
 /**
  * Single block, comes in 6 colors
  *
