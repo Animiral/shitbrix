@@ -63,8 +63,7 @@ private:
 	std::mt19937 rndgen;     // are generated randomly
 
 	void spawn_previews();
-	void spawn_block(RowCol rc);
-	void spawn_falling(RowCol rc);
+	Block spawn_block(RowCol rc);
 	Block spawn_fake(RowCol rc);
 
 	void block_arrive_fall(Block block);

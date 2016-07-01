@@ -214,6 +214,18 @@ int PitImpl::bottom() const
 }
 
 /**
+ * Return the block at the given location.
+ */
+Block PitImpl::block_at(RowCol rc) const
+{
+	auto it = block_map.find(rc);
+	if(it == block_map.end())
+		return nullptr;
+	else
+		return it->second;
+}
+
+/**
  * Set the given location to blocked.
  */
 void PitImpl::block(RowCol rc, Block block)
@@ -251,18 +263,6 @@ void PitImpl::swap(RowCol lrc, RowCol rrc)
 		block_map.emplace(std::make_pair(lrc, std::move(right->second)));
 		block_map.erase(rrc);
 	}
-}
-
-/**
- * Return the block at the given location.
- */
-Block PitImpl::block_at(RowCol rc) const
-{
-	auto it = block_map.find(rc);
-	if(it == block_map.end())
-		return nullptr;
-	else
-		return it->second;
 }
 
 /**

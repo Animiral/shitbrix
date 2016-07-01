@@ -110,10 +110,11 @@ public:
 	BlockVec& blocks() { return m_blocks; }
 	int top() const;
 	int bottom() const;
+	Block block_at(RowCol rc) const;
+
 	void block(RowCol rc, Block block);
 	void unblock(RowCol rc);
 	void swap(RowCol lrc, RowCol rrc);
-	Block block_at(RowCol rc) const;
 
 	virtual Point transform(Point point, float dt=0.f) const override;
 

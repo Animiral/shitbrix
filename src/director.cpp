@@ -159,32 +159,21 @@ void BlockDirector::spawn_previews()
 		bottom++;
 		for(int i = 0; i < PIT_COLS; i++) {
 			RowCol rc {bottom, i};
-			spawn_block(rc);
+			Block block = spawn_block(rc);
+			previews.push_back(block);
 		}
 	}
 }
 
-void BlockDirector::spawn_block(RowCol rc)
+Block BlockDirector::spawn_block(RowCol rc)
 {
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
 	ordered_insert(pit->blocks(), block, y_greater);
-	previews.push_back(block);
 	pit->block(rc, block);
-}
 
-void BlockDirector::spawn_falling(RowCol rc)
-{
-	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
-	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
-
-	ordered_insert(pit->blocks(), block, y_greater);
-
-	block->set_state(BlockState::FALL);
-
-	// land immediately?
-	block_arrive_fall(block);
+	return block;
 }
 
 /**
@@ -192,12 +181,9 @@ void BlockDirector::spawn_falling(RowCol rc)
  */
 Block BlockDirector::spawn_fake(RowCol rc)
 {
-	auto block = std::make_shared<BlockImpl> (BlockCol::FAKE, rc, pit);
-
-	ordered_insert(pit->blocks(), block, y_greater);
-	pit->block(rc, block);
+	Block block = spawn_block(rc);
+	block->col = BlockCol::FAKE;
 	block->set_state(BlockState::REST);
-
 	return block;
 }
 
