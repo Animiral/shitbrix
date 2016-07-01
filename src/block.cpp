@@ -337,6 +337,12 @@ void CursorImpl::animate()
 }
 
 
+void BannerImpl::draw(IVideoContext& context, float dt)
+{
+	context.drawGfx(loc, Gfx::BANNER, static_cast<size_t>(frame));
+}
+
+
 void StageImpl::add(Animation animation)
 {
 	// insertion sort - animations in the list are always in ascending z_order

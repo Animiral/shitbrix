@@ -29,7 +29,8 @@ enum class Gfx
 	BLOCK_PURPLE,
 	BLOCK_ORANGE,
 	PITVIEW,  // debug gfx
-	CURSOR
+	CURSOR,
+	BANNER
 };
 
 // Allow operator+ on Gfx
@@ -92,6 +93,8 @@ const Point RPIT_LOC = { 368, 48 };
 const int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
 const int PIT_W = PIT_COLS*BLOCK_W; // width of the pit in canvas pixels
 const int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
+const int BANNER_W = 200; // width of the win/lose banner in canvas pixels
+const int BANNER_H = 140; // height of the win/lose banner in canvas pixels
 
 // Gameplay constants
 const float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
@@ -103,6 +106,7 @@ constexpr int PIT_Z = 2;
 constexpr int BLOCK_Z = 3;
 constexpr int PITVIEW_Z = 4;
 constexpr int CURSOR_Z = 5;
+constexpr int BANNER_Z = 6;
 
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
 

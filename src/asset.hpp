@@ -17,11 +17,16 @@ class Assets
 
 public:
 
-	Assets(Renderer& renderer) : bg_rect{0, 0, CANVAS_W, CANVAS_H}, block_rect{0,0,BLOCK_W,BLOCK_H}, cursor_rect{0,0,CURSOR_W,CURSOR_H}
+	Assets(Renderer& renderer)
+	: bg_rect{0, 0, CANVAS_W, CANVAS_H},
+	  block_rect{0, 0, BLOCK_W, BLOCK_H},
+	  cursor_rect{0, 0, CURSOR_W, CURSOR_H},
+	  banner_rect{0, 0, BANNER_W, BANNER_H}
 	{
 		load_sheet(renderer, "gfx/bg.png", CANVAS_W, CANVAS_H, 1, 1);
 		load_sheet(renderer, "gfx/blocks.png", BLOCK_W, BLOCK_H, 7, 6);
 		load_sheet(renderer, "gfx/cursor.png", CURSOR_W, CURSOR_H, 1, 4);
+		load_sheet(renderer, "gfx/banner.png", BANNER_W, BANNER_H, 1, 2);
 	}
 
 	/**
@@ -50,6 +55,9 @@ public:
 			case Gfx::CURSOR:
 				tr.rect = &cursor_rect;
 				break;
+			case Gfx::BANNER:
+				tr.rect = &banner_rect;
+				break;
 			default:
 				SDL_assert(false);
 		}
@@ -63,6 +71,7 @@ private:
 	const SDL_Rect bg_rect;
 	const SDL_Rect block_rect;
 	const SDL_Rect cursor_rect;
+	const SDL_Rect banner_rect;
 
 	static Surface load_surface(const char* file)
 	{

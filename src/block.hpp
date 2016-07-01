@@ -171,6 +171,20 @@ private:
 
 using Cursor = std::shared_ptr<CursorImpl>;
 
+enum class BannerFrame : size_t { WIN=0, LOSE=1 };
+
+class BannerImpl : public IAnimation
+{
+public:
+	Point loc;
+	BannerFrame frame;
+	BannerImpl(Point loc, BannerFrame frame) : IAnimation(BANNER_Z), loc(loc), frame(frame) {}
+	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void animate() override {}
+};
+
+using Banner = std::shared_ptr<BannerImpl>;
+
 /**
  * Stage is a container for on-screen objects.
  * The Stage owns all its objects as shared_ptrs.

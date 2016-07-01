@@ -26,6 +26,8 @@ public:
 	virtual void input_debug(int func) =0; // developer help function
 };
 
+enum class GamePhase { INTRO, PLAY, RESULT };
+
 class GameScreen : public IScreen
 {
 
@@ -46,6 +48,7 @@ public:
 
 private:
 
+	GamePhase game_phase;
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
@@ -53,5 +56,7 @@ private:
 	std::unique_ptr<CursorDirector> right_cursor;
 	PitView lpit_view;
 	PitView rpit_view;
+	Banner banner_left;
+	Banner banner_right;
 
 };
