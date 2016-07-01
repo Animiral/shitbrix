@@ -79,9 +79,14 @@ void BlockDirector::update()
 			state = block->state(); // NOTE: block_arrive_swap may change the state
 		}
 
-		// cleanup dead blocks
+		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
 		if(BlockState::DEAD == state) {
 			it = reap_block(it);
+
+			auto breaking = std::find_if(pit->blocks().begin(), pit->blocks().end(), [] (Block b) { return b->state() == BlockState::BREAK; });
+			if(pit->blocks().end() == breaking) {
+				pit->start();
+			}
 		}
 		else {
 			++it;
@@ -98,9 +103,13 @@ void BlockDirector::update()
 
 		auto& breaks = builder.result();
 
-		for(auto it = breaks.begin(); it != breaks.end(); ++it) {
-			Block block = *it;
-			block->set_state(BlockState::BREAK);
+		if(!breaks.empty()) {
+			pit->stop();
+
+			for(auto it = breaks.begin(); it != breaks.end(); ++it) {
+				Block block = *it;
+				block->set_state(BlockState::BREAK);
+			}
 		}
 
 		hots.clear();

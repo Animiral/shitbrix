@@ -104,7 +104,7 @@ class PitImpl : public ITransform, public IAnimation, public ILogicObject
 
 public:
 
-	PitImpl(Point loc) : IAnimation(PIT_Z), m_loc(loc), m_scroll(BLOCK_H - PIT_H) {}
+	PitImpl(Point loc) : IAnimation(PIT_Z), m_loc(loc), m_enabled(true), m_scroll(BLOCK_H - PIT_H) {}
 
 	Point loc() const { return m_loc; }
 	BlockVec& blocks() { return m_blocks; }
@@ -115,6 +115,8 @@ public:
 	void block(RowCol rc, Block block);
 	void unblock(RowCol rc);
 	void swap(RowCol lrc, RowCol rrc);
+	void stop() { m_enabled = false; }
+	void start() { m_enabled = true; }
 
 	virtual Point transform(Point point, float dt=0.f) const override;
 
@@ -125,6 +127,7 @@ public:
 private:
 
 	Point m_loc;     // draw location, upper left corner
+	bool m_enabled;  // whether or not to scroll the pit on update()
 	float m_scroll;  // y-offset for view on pit contents
 	BlockVec m_blocks; // list of all blocks in the pit
 	std::map<RowCol, Block> block_map; // sparse matrix of blocked spaces

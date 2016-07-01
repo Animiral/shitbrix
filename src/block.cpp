@@ -293,7 +293,8 @@ void PitImpl::update()
 	for(auto b : m_blocks)
 		b->update();
 
-	m_scroll += SCROLL_SPEED;
+	if(m_enabled)
+		m_scroll += SCROLL_SPEED;
 }
 
 

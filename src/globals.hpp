@@ -92,7 +92,7 @@ const Point RPIT_LOC = { 368, 48 };
 const int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
 const int PIT_W = PIT_COLS*BLOCK_W; // width of the pit in canvas pixels
 const int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
-const float FALL_SPEED = 3; // max. pixels per update that a falling block moves down
+const float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
 const float SCROLL_SPEED = .4f; // pixels per update that the pit moves up
 
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
