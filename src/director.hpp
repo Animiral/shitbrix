@@ -88,14 +88,15 @@ class CursorDirector
 
 public:
 
-	CursorDirector(Pit pit, Cursor cursor) : pit(pit), cursor(cursor) {}
+	CursorDirector(Pit pit, Cursor cursor) : pit(pit), m_cursor(cursor) {}
 
-	RowCol rc() const { return cursor->rc; }
+	Cursor cursor() const { return m_cursor; }
+	RowCol rc() const { return m_cursor->rc; }
 	void move(Dir dir);
 
 private:
 
 	Pit pit;
-	Cursor cursor;
+	Cursor m_cursor;
 
 };

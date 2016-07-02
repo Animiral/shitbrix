@@ -39,8 +39,8 @@ void GameScreen::update()
 		if(right_blocks->over()) add_banner(RPIT_LOC, BannerFrame::LOSE);
 		else                     add_banner(RPIT_LOC, BannerFrame::WIN);
 
-		// stage->remove(left_cursor->cursor());
-		// stage->remove(right_cursor->cursor());
+		stage->remove(left_cursor->cursor());
+		stage->remove(right_cursor->cursor());
 	}
 
 	if(GamePhase::PLAY == game_phase) {
