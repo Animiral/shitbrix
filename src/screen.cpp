@@ -1,7 +1,75 @@
 #include "screen.hpp"
 
+IGamePhase::~IGamePhase() =default;
+
+void IGamePhase::draw(IVideoContext& context, float dt)
+{
+	m_screen->stage->draw(context, dt);
+}
+
+
+void GameIntro::draw(IVideoContext& context, float dt)
+{
+	m_screen->stage->draw(context, dt); // TODO: apply fade-in
+}
+
+void GameIntro::update()
+{
+	if(0 == --countdown) {
+		auto phase = std::make_unique<GamePlay>(m_screen);
+		m_screen->set_phase(std::move(phase));
+	}
+}
+
+void GamePlay::update()
+{
+	m_screen->left_blocks->update();
+	m_screen->right_blocks->update();
+	m_screen->stage->update();
+
+	if(m_screen->done()) {
+		if(m_screen->left_blocks->over())
+			m_screen->add_banner(LPIT_LOC, BannerFrame::LOSE);
+		else
+			m_screen->add_banner(LPIT_LOC, BannerFrame::WIN);
+
+		if(m_screen->right_blocks->over())
+			m_screen->add_banner(RPIT_LOC, BannerFrame::LOSE);
+		else
+			m_screen->add_banner(RPIT_LOC, BannerFrame::WIN);
+
+		m_screen->stage->remove(m_screen->left_cursor->cursor());
+		m_screen->stage->remove(m_screen->right_cursor->cursor());
+
+		auto phase = std::make_unique<GameResult>(m_screen);
+		m_screen->set_phase(std::move(phase));
+	}
+}
+
+void GamePlay::input_dir(Dir dir, int player)
+{
+	if(0 == player)
+		m_screen->left_cursor->move(dir);
+	else if(1 == player)
+		m_screen->right_cursor->move(dir);
+}
+
+void GamePlay::input_a(int player)
+{
+	if(0 == player)
+		m_screen->left_blocks->swap(m_screen->left_cursor->rc());
+	else if(1 == player)
+		m_screen->right_blocks->swap(m_screen->right_cursor->rc());
+}
+
+void GamePlay::input_b(int player)
+{
+	input_a(player);
+}
+
+
 GameScreen::GameScreen()
-: rdev(), game_phase(GamePhase::PLAY)
+: rdev(), game_phase(std::make_unique<GameIntro>(this))
 {
 	rndgen = std::make_shared<std::mt19937>(rdev());
 
@@ -23,6 +91,7 @@ GameScreen::GameScreen()
 GameScreen& GameScreen::operator=(GameScreen&& rhs)
 {
 	game_phase = std::move(rhs.game_phase);
+	game_phase->set_screen(this);
 	stage = std::move(rhs.stage);
 	left_blocks = std::move(rhs.left_blocks);
 	right_blocks = std::move(rhs.right_blocks);
@@ -35,60 +104,9 @@ GameScreen& GameScreen::operator=(GameScreen&& rhs)
 	return *this;
 }
 
-void GameScreen::draw(IVideoContext& context, float dt)
-{
-	stage->draw(context, dt);
-}
-
 void GameScreen::animate()
 {
 	stage->animate();
-}
-
-void GameScreen::update()
-{
-	if(GamePhase::PLAY == game_phase && done()) {
-		game_phase = GamePhase::RESULT;
-
-		if(left_blocks->over()) add_banner(LPIT_LOC, BannerFrame::LOSE);
-		else                    add_banner(LPIT_LOC, BannerFrame::WIN);
-
-		if(right_blocks->over()) add_banner(RPIT_LOC, BannerFrame::LOSE);
-		else                     add_banner(RPIT_LOC, BannerFrame::WIN);
-
-		stage->remove(left_cursor->cursor());
-		stage->remove(right_cursor->cursor());
-	}
-
-	if(GamePhase::PLAY == game_phase) {
-		left_blocks->update();
-		right_blocks->update();
-		stage->update();
-	}
-}
-
-void GameScreen::input_dir(Dir dir, int player)
-{
-	if(0 == player)
-		left_cursor->move(dir);
-	else if(1 == player)
-		right_cursor->move(dir);
-}
-
-void GameScreen::input_a(int player)
-{
-	if(0 == player)
-		left_blocks->swap(left_cursor->rc());
-	else if(1 == player)
-		right_blocks->swap(right_cursor->rc());
-}
-
-void GameScreen::input_b(int player)
-{
-	if(0 == player)
-		left_blocks->swap(left_cursor->rc());
-	else if(1 == player)
-		right_blocks->swap(right_cursor->rc());
 }
 
 void GameScreen::input_debug(int func)

@@ -127,7 +127,6 @@ public:
 				SDL_assert((fraction >= 0) && (fraction <= 1));
 
 				game_screen.draw(context, fraction);
-				// stage->draw(context, fraction);
 				context.render();
 				now = SDL_GetPerformanceCounter();
 			}
