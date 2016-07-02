@@ -17,6 +17,7 @@ public:
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const =0;
 	virtual void clip(Point top_left, int width, int height) =0;
 	virtual void unclip() =0;
+	virtual void fade(float fraction) =0;
 };
 
 /**

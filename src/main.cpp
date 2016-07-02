@@ -19,11 +19,11 @@ public:
 	SdlContext()
 	{
 		int init_result = SDL_Init(SDL_INIT_EVERYTHING);
-		game_assert(0 == init_result, "SDL initialization failed.");
+		game_assert(0 == init_result, SDL_GetError());
 
 		if(!IMG_Init(IMG_INIT_PNG)) {
 			SDL_Quit();
-			throw GameException("SDL_image initialization failed.");
+			throw GameException(IMG_GetError());
 		}
 
 		screen = Window(SDL_CreateWindow(APP_NAME, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, CANVAS_W, CANVAS_H, 0));
@@ -33,6 +33,11 @@ public:
 		game_assert(static_cast<bool>(renderer), SDL_GetError());
 
 		assets = std::make_unique<Assets>(renderer);
+		fadetex = Texture(SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
+		game_assert(static_cast<bool>(fadetex), SDL_GetError());
+
+		int mode_result = SDL_SetTextureBlendMode(fadetex.get(), SDL_BLENDMODE_BLEND);
+		game_assert(0 == mode_result, SDL_GetError());
 	}
 
 	~SdlContext()
@@ -48,7 +53,7 @@ public:
 		dstrect.x = static_cast<int>(loc.x);
 		dstrect.y = static_cast<int>(loc.y);
 
-		int render_result = SDL_RenderCopy(renderer.get(), tr.texture, NULL, &dstrect);
+		int render_result = SDL_RenderCopy(renderer.get(), tr.texture, nullptr, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
 	}
 
@@ -56,7 +61,7 @@ public:
 	{
 		int x = static_cast<int>(top_left.x);
 		int y = static_cast<int>(top_left.y);
-		clip_rect = SDL_Rect{x, y, width, height};
+		SDL_Rect clip_rect{x, y, width, height};
 
 		int clip_result = SDL_RenderSetClipRect(renderer.get(), &clip_rect);
 		game_assert(0 == clip_result, SDL_GetError());
@@ -68,11 +73,26 @@ public:
 		game_assert(0 == clip_result, SDL_GetError());
 	}
 
+	virtual void fade(float fraction) override
+	{
+		m_fade = fraction;
+	}
+
 	/**
 	 * Puts the rendered scene on screen
 	 */
 	void render() const
 	{
+		if(m_fade < 1.f) {
+			SDL_Rect rect_pixel{0,0,1,1};
+			uint32_t fade_pixel = static_cast<uint32_t>(0xff * (1.f - m_fade));
+			int tex_result = SDL_UpdateTexture(fadetex.get(), &rect_pixel, &fade_pixel, 1);
+			game_assert(0 == tex_result, SDL_GetError());
+
+			int render_result = SDL_RenderCopy(renderer.get(), fadetex.get(), nullptr, nullptr);
+			game_assert(0 == render_result, SDL_GetError());
+		}
+
 		SDL_RenderPresent(renderer.get());
 
 		// clear for next frame
@@ -85,7 +105,9 @@ private:
 	std::unique_ptr<Assets> assets;
 	Window screen;
 	Renderer renderer;
-	SDL_Rect clip_rect;
+
+	float m_fade = 1.f;
+	Texture fadetex; // solid pixel used for fading
 
 };
 

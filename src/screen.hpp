@@ -65,7 +65,7 @@ public:
 	virtual void input_a(int player) override {}
 	virtual void input_b(int player) override {}
 private:
-	static constexpr int INTRO_TIME = 60; // number of animation frames for intro
+	static constexpr int INTRO_TIME = 20; // number of animation frames for intro
 	int countdown;
 };
 
