@@ -176,7 +176,7 @@ void BlockDirector::spawn_previews()
 
 Block BlockDirector::spawn_block(RowCol rc)
 {
-	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + rndgen() % 6);
+	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + (*rndgen)() % 6);
 	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
 
 	ordered_insert(pit->blocks(), block, y_greater);

@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <set>
 
+using RndGen = std::shared_ptr<std::mt19937>;
+
 /**
  * Examines the pit for matching blocks from a sequence of “hot” blocks
  * which have just been moved or landed. They are passed to the MatchBuilder via ignite(). 
@@ -46,7 +48,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Stage stage, Pit pit) : stage(stage), pit(pit), bottom(0), m_over(false), rdev(), rndgen(rdev()) {}
+	BlockDirector(Stage stage, Pit pit, RndGen rndgen) : stage(stage), pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
 
 	bool over() const { return m_over; }
 	void update();
@@ -61,8 +63,7 @@ private:
 	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
 
-	std::random_device rdev; // block colors for fresh spawns
-	std::mt19937 rndgen;     // are generated randomly
+	RndGen rndgen;     // block colors are generated randomly
 
 	void spawn_previews();
 	Block spawn_block(RowCol rc);

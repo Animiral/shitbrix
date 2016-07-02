@@ -48,6 +48,8 @@ public:
 
 private:
 
+	std::random_device rdev;
+	RndGen rndgen;
 	GamePhase game_phase;
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;

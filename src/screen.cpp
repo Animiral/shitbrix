@@ -1,13 +1,15 @@
 #include "screen.hpp"
 
 GameScreen::GameScreen()
-: game_phase(GamePhase::PLAY)
+: rdev(), game_phase(GamePhase::PLAY)
 {
+	rndgen = std::make_shared<std::mt19937>(rdev());
+
 	auto builder = StageBuilder();
 	stage = builder.construct();
 
-	left_blocks = std::make_unique<BlockDirector>(stage, builder.left_pit);
-	right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit);
+	left_blocks = std::make_unique<BlockDirector>(stage, builder.left_pit, rndgen);
+	right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit, rndgen);
 	left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
 	right_cursor = std::make_unique<CursorDirector>(builder.right_pit, builder.right_cursor);
 
