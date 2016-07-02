@@ -59,4 +59,6 @@ private:
 	Banner banner_left;
 	Banner banner_right;
 
+	void add_banner(Point pit_loc, BannerFrame frame);
+
 };

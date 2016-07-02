@@ -98,7 +98,7 @@ const int BANNER_H = 140; // height of the win/lose banner in canvas pixels
 
 // Gameplay constants
 const float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
-const float SCROLL_SPEED = .4f; // pixels per update that the pit moves up
+const float SCROLL_SPEED = 1; // .4f; // pixels per update that the pit moves up
 
 // drawing order for objects
 constexpr int SCREEN_Z = 1;

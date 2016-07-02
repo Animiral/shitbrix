@@ -33,21 +33,14 @@ void GameScreen::update()
 	if(GamePhase::PLAY == game_phase && done()) {
 		game_phase = GamePhase::RESULT;
 
-		Point left_loc { LPIT_LOC.x + (PIT_W-BANNER_W)/2, LPIT_LOC.y + (PIT_H-BANNER_H)/2 };
-		Point right_loc { RPIT_LOC.x + (PIT_W-BANNER_W)/2, RPIT_LOC.y + (PIT_H-BANNER_H)/2 };
+		if(left_blocks->over()) add_banner(LPIT_LOC, BannerFrame::LOSE);
+		else                    add_banner(LPIT_LOC, BannerFrame::WIN);
 
-		if(left_blocks->over())
-			banner_left = std::make_shared<BannerImpl>(left_loc, BannerFrame::LOSE);
-		else
-			banner_left = std::make_shared<BannerImpl>(left_loc, BannerFrame::WIN);
+		if(right_blocks->over()) add_banner(RPIT_LOC, BannerFrame::LOSE);
+		else                     add_banner(RPIT_LOC, BannerFrame::WIN);
 
-		if(right_blocks->over())
-			banner_right = std::make_shared<BannerImpl>(right_loc, BannerFrame::LOSE);
-		else
-			banner_right = std::make_shared<BannerImpl>(right_loc, BannerFrame::WIN);
-
-		stage->add(banner_left);
-		stage->add(banner_right);
+		// stage->remove(left_cursor->cursor());
+		// stage->remove(right_cursor->cursor());
 	}
 
 	if(GamePhase::PLAY == game_phase) {
@@ -87,4 +80,13 @@ void GameScreen::input_debug(int func)
 		lpit_view->toggle();
 	else if(1 == func)
 		rpit_view->toggle();
+}
+
+void GameScreen::add_banner(Point pit_loc, BannerFrame frame)
+{
+	pit_loc.x += (PIT_W-BANNER_W)/2;
+	pit_loc.y += (PIT_H-BANNER_H)/2;
+
+	Banner banner = std::make_shared<BannerImpl>(pit_loc, frame);
+	stage->add(banner);
 }
