@@ -112,6 +112,8 @@ public:
 	 */
 	void game_loop()
 	{
+		start:
+
 		Uint64 t0 = SDL_GetPerformanceCounter(); // start of game time
 		Uint64 freq = SDL_GetPerformanceFrequency();
 		long tick = 0; // current logic tick counter
@@ -151,6 +153,11 @@ public:
 								case SDLK_KP_0:  game_screen.input_a(1); break;
 								case SDLK_d:     game_screen.input_debug(0); break;
 								case SDLK_h:     game_screen.input_debug(1); break;
+								case SDLK_RETURN: // restart
+									game_screen = GameScreen();
+									goto start;
+								case SDLK_ESCAPE:
+									goto quit;
 							}
 						}
 						break;

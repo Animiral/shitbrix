@@ -34,6 +34,7 @@ class GameScreen : public IScreen
 public:
 
 	GameScreen();
+	GameScreen& operator=(GameScreen&& rhs);
 
 	virtual void draw(IVideoContext& context, float dt) override;
 	virtual void animate() override;
