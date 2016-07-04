@@ -40,7 +40,7 @@ private:
  */
 class ILogic
 {
-	public: virtual void update() =0; // advance the object by one tick
+	public: virtual void update(IContext& context) =0; // advance the object by one tick
 };
 
 /**

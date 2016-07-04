@@ -47,7 +47,7 @@ public:
 
 	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
-	virtual void update() override;
+	virtual void update(IContext& context) override;
 
 	Point loc() const { return m_view->transform(m_loc); }
 	RowCol rc() const { return m_rc; }
@@ -116,7 +116,7 @@ public:
 
 	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override { for(auto b : m_blocks) b->animate(); }
-	virtual void update() override;
+	virtual void update(IContext& context) override;
 
 private:
 
@@ -203,7 +203,7 @@ public:
 
 	void draw(IContext& context, float dt);
 	void animate();
-	void update();
+	void update(IContext& context);
 
 private:
 

@@ -51,7 +51,7 @@ public:
 	BlockDirector(Stage stage, Pit pit, RndGen rndgen) : stage(stage), pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
 
 	bool over() const { return m_over; }
-	void update();
+	void update(IContext& context);
 	bool swap(RowCol lrc);
 
 private:

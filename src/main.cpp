@@ -200,7 +200,7 @@ public:
 
 			// run one frame of local logic
 			game_screen.animate();
-			game_screen.update();
+			game_screen.update(context);
 
 			tick++;
 			next_logic = t0 + (tick+1) * freq / TPS;

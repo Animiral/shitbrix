@@ -44,7 +44,7 @@ public:
 
 	void set_screen(GameScreen* screen) { m_screen = screen; }
 	virtual void draw(IContext& context, float dt);
-	virtual void update() =0;
+	virtual void update(IContext& context) =0;
 	virtual void input_dir(Dir dir, int player) =0;
 	virtual void input_a(int player) =0;
 	virtual void input_b(int player) =0;
@@ -60,7 +60,7 @@ public:
 	GameIntro(GameScreen* screen) : IGamePhase(screen), countdown(INTRO_TIME) {}
 
 	virtual void draw(IContext& context, float dt) override;
-	virtual void update() override;
+	virtual void update(IContext& context) override;
 	virtual void input_dir(Dir dir, int player) override {}
 	virtual void input_a(int player) override {}
 	virtual void input_b(int player) override {}
@@ -74,7 +74,7 @@ class GamePlay : public IGamePhase
 public:
 	GamePlay(GameScreen* screen) : IGamePhase(screen) {}
 
-	virtual void update() override;
+	virtual void update(IContext& context) override;
 	virtual void input_dir(Dir dir, int player) override;
 	virtual void input_a(int player) override;
 	virtual void input_b(int player) override;
@@ -85,7 +85,7 @@ class GameResult : public IGamePhase
 public:
 	GameResult(GameScreen* screen) : IGamePhase(screen) {}
 
-	virtual void update() override {}
+	virtual void update(IContext& context) override {}
 	virtual void input_dir(Dir dir, int player) override {}
 	virtual void input_a(int player) override {}
 	virtual void input_b(int player) override {}
@@ -101,7 +101,7 @@ public:
 
 	virtual void draw(IContext& context, float dt) override { game_phase->draw(context, dt); }
 	virtual void animate() override;
-	virtual void update() override { game_phase->update(); }
+	virtual void update(IContext& context) override { game_phase->update(context); }
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return left_blocks->over() || right_blocks->over(); }
 

@@ -15,7 +15,7 @@ void GameIntro::draw(IContext& context, float dt)
 	m_screen->stage->draw(context, dt);
 }
 
-void GameIntro::update()
+void GameIntro::update(IContext& context)
 {
 	if(0 == --countdown) {
 		auto phase = std::make_unique<GamePlay>(m_screen);
@@ -23,11 +23,11 @@ void GameIntro::update()
 	}
 }
 
-void GamePlay::update()
+void GamePlay::update(IContext& context)
 {
-	m_screen->left_blocks->update();
-	m_screen->right_blocks->update();
-	m_screen->stage->update();
+	m_screen->left_blocks->update(context);
+	m_screen->right_blocks->update(context);
+	m_screen->stage->update(context);
 
 	if(m_screen->done()) {
 		if(m_screen->left_blocks->over())

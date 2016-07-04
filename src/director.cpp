@@ -43,7 +43,7 @@ bool MatchBuilder::match_at(RowCol rc, BlockCol color)
 /**
  * Spawn blocks at regular intervals, clean up dead blocks
  */
-void BlockDirector::update()
+void BlockDirector::update(IContext& context)
 {
 	// spawn blocks from below
 	spawn_previews();
@@ -54,6 +54,8 @@ void BlockDirector::update()
 	// blocks will fall out of the way before upper blocks stumble over them.
 	// TODO: only do this after a block has moved
 	std::sort(pit->blocks().begin(), pit->blocks().end(), y_greater);
+
+	bool have_dead = false;
 
 	for(auto it = pit->blocks().begin(); it != pit->blocks().end(); ) {
 		Block block = *it;
@@ -81,6 +83,7 @@ void BlockDirector::update()
 
 		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
 		if(BlockState::DEAD == state) {
+			have_dead = true;
 			it = reap_block(it);
 
 			auto breaking = std::find_if(pit->blocks().begin(), pit->blocks().end(), [] (Block b) { return b->state() == BlockState::BREAK; });
@@ -93,6 +96,9 @@ void BlockDirector::update()
 		}
 	}
 
+	if(have_dead)
+		context.play(Snd::BREAK);
+
 	// Examine hots for matches
 	if(!hots.empty()) {
 		auto builder = MatchBuilder(pit);
@@ -104,6 +110,7 @@ void BlockDirector::update()
 		auto& breaks = builder.result();
 
 		if(!breaks.empty()) {
+			context.play(Snd::MATCH);
 			pit->stop();
 
 			for(auto it = breaks.begin(); it != breaks.end(); ++it) {

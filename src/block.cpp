@@ -46,7 +46,7 @@ void BlockImpl::animate()
 /**
  * State machine spaghetti for block behavior
  */
-void BlockImpl::update()
+void BlockImpl::update(IContext& context)
 {
 	time--;
 
@@ -288,10 +288,10 @@ void PitImpl::draw(IContext& context, float dt)
 	context.unclip();
 }
 
-void PitImpl::update()
+void PitImpl::update(IContext& context)
 {
 	for(auto b : m_blocks)
-		b->update();
+		b->update(context);
 
 	if(m_enabled)
 		m_scroll += SCROLL_SPEED;
@@ -379,9 +379,9 @@ void StageImpl::animate()
 	for(auto& animation : animations) animation->animate();
 }
 
-void StageImpl::update()
+void StageImpl::update(IContext& context)
 {
-	for(auto& logic : logics) logic->update();
+	for(auto& logic : logics) logic->update(context);
 }
 
 Stage StageBuilder::construct()
