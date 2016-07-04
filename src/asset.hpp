@@ -27,6 +27,10 @@ public:
 		load_sheet(renderer, "gfx/blocks.png", BLOCK_W, BLOCK_H, 7, 6);
 		load_sheet(renderer, "gfx/cursor.png", CURSOR_W, CURSOR_H, 1, 4);
 		load_sheet(renderer, "gfx/banner.png", BANNER_W, BANNER_H, 1, 2);
+
+		load_wav("snd/swap.wav");
+		load_wav("snd/break.wav");
+		load_wav("snd/match.wav");
 	}
 
 	/**
@@ -65,9 +69,16 @@ public:
 		return tr;
 	}
 
+	Sound sound(Snd snd) const
+	{
+		return sounds[static_cast<size_t>(snd)];
+	}
+
 private:
 
 	std::vector< std::vector<Texture> > textures;
+	std::vector< Sound > sounds;
+
 	const SDL_Rect bg_rect;
 	const SDL_Rect block_rect;
 	const SDL_Rect cursor_rect;
@@ -136,5 +147,13 @@ private:
 			textures.emplace_back(std::move(frames));
 		}
 
+	}
+
+	/**
+	 * Loads a sound file
+	 */
+	void load_wav(const char* file)
+	{
+		sounds.emplace_back(std::make_shared<SoundImpl>(file));
 	}
 };

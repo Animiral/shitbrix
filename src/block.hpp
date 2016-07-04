@@ -45,7 +45,7 @@ public:
 	m_loc(from_rc(rc)), m_rc(rc), m_state(BlockState::PREVIEW)
 	{}
 
-	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
 	virtual void update() override;
 
@@ -114,7 +114,7 @@ public:
 
 	virtual Point transform(Point point, float dt=0.f) const override;
 
-	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override { for(auto b : m_blocks) b->animate(); }
 	virtual void update() override;
 
@@ -137,7 +137,7 @@ class PitViewImpl : public IAnimation
 {
 public:
 	PitViewImpl(Pit pit) : IAnimation(PITVIEW_Z), pit(pit), m_show(false) {}
-	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override {}
 	void toggle() { m_show = !m_show; }
 private:
@@ -156,7 +156,7 @@ public:
 
 	CursorImpl(RowCol rc, Transform view) : IAnimation(CURSOR_Z), rc(rc), anim(0), view(view) {}
 
-	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
 
 private:
@@ -179,7 +179,7 @@ public:
 	Point loc;
 	BannerFrame frame;
 	BannerImpl(Point loc, BannerFrame frame) : IAnimation(BANNER_Z), loc(loc), frame(frame) {}
-	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override {}
 };
 
@@ -201,7 +201,7 @@ public:
 	void remove(Animation animation);
 	void remove(Logic logic);
 
-	void draw(IVideoContext& context, float dt);
+	void draw(IContext& context, float dt);
 	void animate();
 	void update();
 

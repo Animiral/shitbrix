@@ -2,13 +2,13 @@
 
 IGamePhase::~IGamePhase() =default;
 
-void IGamePhase::draw(IVideoContext& context, float dt)
+void IGamePhase::draw(IContext& context, float dt)
 {
 	m_screen->stage->draw(context, dt);
 }
 
 
-void GameIntro::draw(IVideoContext& context, float dt)
+void GameIntro::draw(IContext& context, float dt)
 {
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
 	context.fade(fadeness);

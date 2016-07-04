@@ -12,7 +12,7 @@ int operator-(BlockCol lhs, BlockCol rhs)
 	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
 
-void BlockImpl::draw(IVideoContext& context, float dt)
+void BlockImpl::draw(IContext& context, float dt)
 {
 	SDL_assert(col != BlockCol::INVALID);
 
@@ -278,7 +278,7 @@ Point PitImpl::transform(Point point, float dt) const
 	return point;
 }
 
-void PitImpl::draw(IVideoContext& context, float dt)
+void PitImpl::draw(IContext& context, float dt)
 {
 	context.clip(m_loc, PIT_W, PIT_H);
 
@@ -298,7 +298,7 @@ void PitImpl::update()
 }
 
 
-void PitViewImpl::draw(IVideoContext& context, float dt)
+void PitViewImpl::draw(IContext& context, float dt)
 {
 	if(m_show) {
 		for(int r = pit->top(); r <= pit->bottom(); r++) {
@@ -320,7 +320,7 @@ void PitViewImpl::draw(IVideoContext& context, float dt)
 }
 
 
-void CursorImpl::draw(IVideoContext& context, float dt)
+void CursorImpl::draw(IContext& context, float dt)
 {
 	float x = static_cast<float>(rc.c*BLOCK_W - (CURSOR_W-2*BLOCK_W)/2);
 	float y = static_cast<float>(rc.r*BLOCK_H - (CURSOR_H-BLOCK_H)/2);
@@ -337,7 +337,7 @@ void CursorImpl::animate()
 }
 
 
-void BannerImpl::draw(IVideoContext& context, float dt)
+void BannerImpl::draw(IContext& context, float dt)
 {
 	context.drawGfx(loc, Gfx::BANNER, static_cast<size_t>(frame));
 }
@@ -368,7 +368,7 @@ void StageImpl::remove(Logic logic)
 	logics.erase(it);
 }
 
-void StageImpl::draw(IVideoContext& context, float dt)
+void StageImpl::draw(IContext& context, float dt)
 {
 	context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
 	for(auto& animation : animations) animation->draw(context, dt);

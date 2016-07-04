@@ -33,6 +33,21 @@ enum class Gfx
 	BANNER
 };
 
+/**
+ * IDs for all the sound effect assets.
+ */
+enum class Snd
+{
+	SWAP = 0, // swap blocks (click)
+	BREAK,    // break blocks (splat)
+	MATCH,    // match blocks (ding)
+	CONFIRM,  // menu confirm (cheerful ding)
+	DECLINE,  // menu decline (disappointed ding)
+	START,    // game start (shot or fireworks launch)
+	END,      // game end (alarming crumble)
+	RESULT    // game over (cheer)
+};
+
 // Allow operator+ on Gfx
 Gfx operator+(Gfx gfx, int delta);
 
@@ -80,6 +95,8 @@ std::ostream& operator<<(std::ostream& stream, RowCol rc);
 
 const int FPS = 60; // aspired-to number of drawn and displayed frames per second
 const int TPS = 30; // fixed number of logic ticks per second (game speed)
+
+const int AUDIO_SAMPLES = 4096;
 
 // Canvas pixel sizes and locations of objects
 const int CANVAS_W = 640; // width of drawing canvas in pixels

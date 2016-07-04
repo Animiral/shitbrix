@@ -43,7 +43,7 @@ public:
 	virtual ~IGamePhase() =0;
 
 	void set_screen(GameScreen* screen) { m_screen = screen; }
-	virtual void draw(IVideoContext& context, float dt);
+	virtual void draw(IContext& context, float dt);
 	virtual void update() =0;
 	virtual void input_dir(Dir dir, int player) =0;
 	virtual void input_a(int player) =0;
@@ -59,7 +59,7 @@ class GameIntro : public IGamePhase
 public:
 	GameIntro(GameScreen* screen) : IGamePhase(screen), countdown(INTRO_TIME) {}
 
-	virtual void draw(IVideoContext& context, float dt) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void update() override;
 	virtual void input_dir(Dir dir, int player) override {}
 	virtual void input_a(int player) override {}
@@ -99,7 +99,7 @@ public:
 	GameScreen();
 	GameScreen& operator=(GameScreen&& rhs);
 
-	virtual void draw(IVideoContext& context, float dt) override { game_phase->draw(context, dt); }
+	virtual void draw(IContext& context, float dt) override { game_phase->draw(context, dt); }
 	virtual void animate() override;
 	virtual void update() override { game_phase->update(); }
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }

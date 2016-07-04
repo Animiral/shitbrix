@@ -11,7 +11,7 @@ const char* APP_NAME = "shitbrix";
 /**
  * The SdlContext owns the SDL setup (from SDL_Init to SDL_Quit) and the window.
  */
-class SdlContext : public IVideoContext
+class SdlContext : public IContext
 {
 
 public:
@@ -35,6 +35,8 @@ public:
 		assets = std::make_unique<Assets>(renderer);
 		fadetex = Texture(SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
 		game_assert(static_cast<bool>(fadetex), SDL_GetError());
+
+		audio = std::make_unique<Audio>();
 
 		int mode_result = SDL_SetTextureBlendMode(fadetex.get(), SDL_BLENDMODE_BLEND);
 		game_assert(0 == mode_result, SDL_GetError());
@@ -78,6 +80,12 @@ public:
 		m_fade = fraction;
 	}
 
+	virtual void play(Snd snd) override
+	{
+		Sound sound = assets->sound(snd);
+		audio->play(sound);
+	}
+
 	/**
 	 * Puts the rendered scene on screen
 	 */
@@ -102,9 +110,10 @@ public:
 
 private:
 
-	std::unique_ptr<Assets> assets;
 	Window screen;
 	Renderer renderer;
+	std::unique_ptr<Assets> assets;
+	std::unique_ptr<Audio> audio;
 
 	float m_fade = 1.f;
 	Texture fadetex; // solid pixel used for fading
@@ -166,12 +175,12 @@ public:
 								case SDLK_RIGHT: game_screen.input_dir(Dir::RIGHT, 0); break;
 								case SDLK_UP:    game_screen.input_dir(Dir::UP, 0); break;
 								case SDLK_DOWN:  game_screen.input_dir(Dir::DOWN, 0); break;
-								case SDLK_z:     game_screen.input_a(0); break;
+								case SDLK_z:     game_screen.input_a(0); context.play(Snd::SWAP); break;
 								case SDLK_KP_4:  game_screen.input_dir(Dir::LEFT, 1); break;
 								case SDLK_KP_6:  game_screen.input_dir(Dir::RIGHT, 1); break;
 								case SDLK_KP_8:  game_screen.input_dir(Dir::UP, 1); break;
 								case SDLK_KP_5:  game_screen.input_dir(Dir::DOWN, 1); break;
-								case SDLK_KP_0:  game_screen.input_a(1); break;
+								case SDLK_KP_0:  game_screen.input_a(1); context.play(Snd::SWAP); break;
 								case SDLK_d:     game_screen.input_debug(0); break;
 								case SDLK_h:     game_screen.input_debug(1); break;
 								case SDLK_RETURN: // restart
