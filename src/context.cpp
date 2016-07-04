@@ -4,10 +4,10 @@
 #include "context.hpp"
 
 /**
- * Ordering function applicable for memory-managed IScreenObjects.
- * Simple adapter using IScreenObject::operator<().
+ * Ordering function applicable for memory-managed IAnimations.
+ * Simple adapter using IAnimation::operator<().
  */
-bool z_less (const ScreenObject& lhs, const ScreenObject& rhs)
+bool z_less (const Animation& lhs, const Animation& rhs)
 {
 	return *lhs < *rhs;
 };

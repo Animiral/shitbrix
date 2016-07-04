@@ -24,25 +24,15 @@ public:
 /**
  * Basic interface that specifies that an object can be drawn to the screen.
  */
-class IScreenObject
+class IAnimation
 {
 public:
-	IScreenObject(int z_order) : z_order(z_order) {}
+	IAnimation(int z_order) : z_order(z_order) {}
 	virtual void draw(IContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
-	bool operator<(const IScreenObject& rhs) const { return z_order < rhs.z_order; }
+	virtual void animate() {} // Called once per frame to update animation
+	bool operator<(const IAnimation& rhs) const { return z_order < rhs.z_order; }
 private:
 	int z_order; // Specifies drawing order. Every subclass must set this value.
-};
-
-
-/**
- * Basic interface for animated objects
- */
-class IAnimation : public IScreenObject
-{
-public:
-	IAnimation(int z_order) : IScreenObject(z_order) {}
-	virtual void animate() =0; // Called once per frame to update animation
 };
 
 /**
@@ -65,9 +55,8 @@ class ITransform
 
 class IHistoryObject {}; // interface go-back etc.
 
-using ScreenObject = std::shared_ptr<IScreenObject>;
 using Animation = std::shared_ptr<IAnimation>;
 using Logic = std::shared_ptr<ILogicObject>;
 using Transform = std::shared_ptr<ITransform>;
 
-bool z_less (const ScreenObject& lhs, const ScreenObject& rhs);
+bool z_less (const Animation& lhs, const Animation& rhs);
