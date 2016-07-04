@@ -38,7 +38,7 @@ private:
 /**
  * Basic interface for objects subject to game logic
  */
-class ILogicObject
+class ILogic
 {
 	public: virtual void update() =0; // advance the object by one tick
 };
@@ -56,7 +56,7 @@ class ITransform
 class IHistoryObject {}; // interface go-back etc.
 
 using Animation = std::shared_ptr<IAnimation>;
-using Logic = std::shared_ptr<ILogicObject>;
+using Logic = std::shared_ptr<ILogic>;
 using Transform = std::shared_ptr<ITransform>;
 
 bool z_less (const Animation& lhs, const Animation& rhs);

@@ -12,7 +12,7 @@
 
 enum class ScreenPhase { MENU, GAME };
 
-class IScreen : public IAnimation, public ILogicObject
+class IScreen : public IAnimation, public ILogic
 {
 public:
 	IScreen() : IAnimation(SCREEN_Z) {}

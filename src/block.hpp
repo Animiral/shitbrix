@@ -29,7 +29,7 @@ int operator-(BlockCol lhs, BlockCol rhs);
  *  * BREAK: the block has been matched and is in the process of destruction
  *  * DEAD: should be removed from the game asap as it is an error to logic update() a dead block
  */
-class BlockImpl : public IAnimation, public ILogicObject
+class BlockImpl : public IAnimation, public ILogic
 {
 
 public:
@@ -93,7 +93,7 @@ bool matchable(Block block);
  * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
  */
-class PitImpl : public ITransform, public IAnimation, public ILogicObject
+class PitImpl : public ITransform, public IAnimation, public ILogic
 {
 
 public:
