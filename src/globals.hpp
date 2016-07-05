@@ -93,29 +93,30 @@ struct RowCol
 
 std::ostream& operator<<(std::ostream& stream, RowCol rc);
 
-const int FPS = 60; // aspired-to number of drawn and displayed frames per second
-const int TPS = 30; // fixed number of logic ticks per second (game speed)
+constexpr int FPS = 60; // aspired-to number of drawn and displayed frames per second
+constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
 
-const int AUDIO_SAMPLES = 4096;
+constexpr const char* APP_NAME = "shitbrix";
+constexpr int AUDIO_SAMPLES = 4096;
 
 // Canvas pixel sizes and locations of objects
-const int CANVAS_W = 640; // width of drawing canvas in pixels
-const int CANVAS_H = 480; // width of drawing canvas in pixels
-const int BLOCK_W = 40; // width of one little colored block
-const int BLOCK_H = 40; // height of one little colored block
-const int CURSOR_W = 88; // width of the cursor texture
-const int CURSOR_H = 48; // height of the cursor texture
-const Point LPIT_LOC = { 32, 48 };
-const Point RPIT_LOC = { 368, 48 };
-const int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
-const int PIT_W = PIT_COLS*BLOCK_W; // width of the pit in canvas pixels
-const int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
-const int BANNER_W = 200; // width of the win/lose banner in canvas pixels
-const int BANNER_H = 140; // height of the win/lose banner in canvas pixels
+constexpr int CANVAS_W = 640; // width of drawing canvas in pixels
+constexpr int CANVAS_H = 480; // width of drawing canvas in pixels
+constexpr int BLOCK_W = 40; // width of one little colored block
+constexpr int BLOCK_H = 40; // height of one little colored block
+constexpr int CURSOR_W = 88; // width of the cursor texture
+constexpr int CURSOR_H = 48; // height of the cursor texture
+constexpr Point LPIT_LOC = { 32, 48 };
+constexpr Point RPIT_LOC = { 368, 48 };
+constexpr int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
+constexpr int PIT_W = PIT_COLS*BLOCK_W; // width of the pit in canvas pixels
+constexpr int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
+constexpr int BANNER_W = 200; // width of the win/lose banner in canvas pixels
+constexpr int BANNER_H = 140; // height of the win/lose banner in canvas pixels
 
 // Gameplay constants
-const float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
-const float SCROLL_SPEED = 1; // .4f; // pixels per update that the pit moves up
+constexpr float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
+constexpr float SCROLL_SPEED = 1; // .4f; // pixels per update that the pit moves up
 
 // drawing order for objects
 constexpr int SCREEN_Z = 1;
