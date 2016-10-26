@@ -1,11 +1,11 @@
 CXXFLAGS+=-g -Wall -std=c++1z
-LDFLAGS+=$$(sdl2-config --libs) -lSDL2_image
+LDLIBS+=$$(sdl2-config --libs) -lSDL2_image
 BIN=../bin/shitbrix
 
 .all: $(BIN)
 
 $(BIN): globals.o sdl_helper.o context.o block.o director.o screen.o main.o
-	$(CXX) $(LDFLAGS) -o $@ $^
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 globals.o: globals.cpp globals.hpp
 sdl_helper.o: sdl_helper.cpp sdl_helper.hpp globals.hpp
