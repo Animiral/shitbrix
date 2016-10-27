@@ -1,6 +1,9 @@
 # Output directory
 bin/
 
+# Google Test directory (must be provided by user)
+tests/googletest
+
 # Compiled Object files
 *.slo
 *.lo
