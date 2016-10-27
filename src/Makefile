@@ -1,11 +1,19 @@
-CXXFLAGS+=-g -Wall -std=c++1z
+CXXFLAGS=-g -Wall
 LDLIBS+=$$(sdl2-config --libs) -lSDL2_image
+GAME_O=globals.o sdl_helper.o context.o block.o director.o screen.o
 BIN=../bin/shitbrix
+GAME_A=game.a
+CXXFLAGS+=-std=c++1z
 
-.all: $(BIN)
+.all: $(BIN) $(GAME_A)
 
-$(BIN): globals.o sdl_helper.o context.o block.o director.o screen.o main.o
+$(BIN): $(GAME_O) main.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+# This archive of all game implementation code except main
+# is created for testing purposes. See the separate test project.
+$(GAME_A): $(GAME_O)
+	ar rcs $@ $^
 
 globals.o: globals.cpp globals.hpp
 sdl_helper.o: sdl_helper.cpp sdl_helper.hpp globals.hpp
