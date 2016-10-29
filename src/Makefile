@@ -1,6 +1,6 @@
 CXXFLAGS=-g -Wall
 LDLIBS+=$$(sdl2-config --libs) -lSDL2_image
-GAME_O=globals.o sdl_helper.o context.o block.o director.o screen.o
+GAME_O=globals.o sdl_helper.o context.o block.o director.o screen.o replay.o
 BIN=../bin/shitbrix
 GAME_A=game.a
 CXXFLAGS+=-std=c++1z
@@ -21,11 +21,12 @@ context.o: context.cpp context.hpp globals.hpp
 block.o: block.cpp block.hpp context.hpp globals.hpp
 director.o: director.cpp director.hpp globals.hpp block.hpp context.hpp
 screen.o: screen.cpp screen.hpp director.hpp globals.hpp block.hpp context.hpp
+replay.o: replay.cpp replay.hpp globals.hpp
 main.o: main.cpp globals.hpp block.hpp context.hpp asset.hpp sdl_helper.hpp director.hpp screen.hpp
 # main.o needs less?
 
 clean:
-	rm -f $(BIN) globals.o sdl_helper.o context.o block.o director.o screen.o main.o
+	rm -f $(BIN) $(GAME_O) main.o
 
 run:
 	(cd .. && src/$(BIN))

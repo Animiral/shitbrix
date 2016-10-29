@@ -63,9 +63,14 @@ enum class BlockFrame : size_t
 BlockFrame& operator++(BlockFrame& frame);
 
 /**
- * Direction, used for player input & moving cursor
+ * Direction, used for moving cursor
  */
 enum class Dir { NONE, LEFT, RIGHT, UP, DOWN };
+
+/**
+ * Enumeration of possible input actions by one player
+ */
+enum class PlayerInput { NONE, LEFT, RIGHT, UP, DOWN, SWAP, RAISE };
 
 /**
  * Represents a screen location in canvas pixels.
