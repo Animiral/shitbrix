@@ -9,6 +9,8 @@
 #include "context.hpp"
 #include "block.hpp"
 #include "director.hpp"
+#include "replay.hpp"
+#include <fstream>
 
 enum class ScreenPhase { MENU, GAME };
 
@@ -20,10 +22,8 @@ public:
 	virtual ScreenPhase phase() const =0; // type enum
 	virtual bool done() const =0; // whether the screen has ended
 
-	virtual void input_dir(Dir dir, int player) =0;
-	virtual void input_a(int player) =0;
-	virtual void input_b(int player) =0;
-	virtual void input_debug(int func) =0; // developer help function
+	virtual void input(ControllerInput cinput) =0;
+	virtual void input_debug(int func) {} // developer help function
 };
 
 class GameScreen;
@@ -38,18 +38,22 @@ class GameScreen;
  */
 class IGamePhase
 {
+
 public:
+
 	IGamePhase(GameScreen* screen) : m_screen(screen) {}
 	virtual ~IGamePhase() =0;
 
 	void set_screen(GameScreen* screen) { m_screen = screen; }
+
 	virtual void draw(IContext& context, float dt);
 	virtual void update(IContext& context) =0;
-	virtual void input_dir(Dir dir, int player) =0;
-	virtual void input_a(int player) =0;
-	virtual void input_b(int player) =0;
+	virtual void input(GameInput ginput) =0;
+
 protected:
+
 	GameScreen* m_screen;
+
 };
 
 using GamePhase = std::unique_ptr<IGamePhase>;
@@ -61,9 +65,7 @@ public:
 
 	virtual void draw(IContext& context, float dt) override;
 	virtual void update(IContext& context) override;
-	virtual void input_dir(Dir dir, int player) override {}
-	virtual void input_a(int player) override {}
-	virtual void input_b(int player) override {}
+	virtual void input(GameInput ginput) override {}
 private:
 	static constexpr int INTRO_TIME = 20; // number of animation frames for intro
 	int countdown;
@@ -71,24 +73,28 @@ private:
 
 class GamePlay : public IGamePhase
 {
+
 public:
-	GamePlay(GameScreen* screen) : IGamePhase(screen) {}
+
+	GamePlay(GameScreen* screen);
+	~GamePlay();
 
 	virtual void update(IContext& context) override;
-	virtual void input_dir(Dir dir, int player) override;
-	virtual void input_a(int player) override;
-	virtual void input_b(int player) override;
+	virtual void input(GameInput ginput) override;
+
+private:
+
+	long tick; // game time in the current session
+
 };
 
 class GameResult : public IGamePhase
 {
 public:
-	GameResult(GameScreen* screen) : IGamePhase(screen) {}
+	GameResult(GameScreen* screen, int winner);
 
 	virtual void update(IContext& context) override {}
-	virtual void input_dir(Dir dir, int player) override {}
-	virtual void input_a(int player) override {}
-	virtual void input_b(int player) override {}
+	virtual void input(GameInput ginput) override {}
 };
 
 class GameScreen : public IScreen
@@ -99,22 +105,20 @@ public:
 	GameScreen();
 	GameScreen& operator=(GameScreen&& rhs);
 
+	void reset();
 	virtual void draw(IContext& context, float dt) override { game_phase->draw(context, dt); }
 	virtual void animate() override;
-	virtual void update(IContext& context) override { game_phase->update(context); }
+	virtual void update(IContext& context) override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return left_blocks->over() || right_blocks->over(); }
-
-	virtual void input_dir(Dir dir, int player) { game_phase->input_dir(dir, player); }
-	virtual void input_a(int player) { game_phase->input_a(player); }
-	virtual void input_b(int player) { game_phase->input_b(player); }
-	virtual void input_debug(int func); // developer help function
+	virtual void input(ControllerInput cinput) override;
+	virtual void input_debug(int func) override; // developer help function
 
 private:
 
-	std::random_device rdev;
 	RndGen rndgen;
 	GamePhase game_phase;
+
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
@@ -125,8 +129,12 @@ private:
 	Banner banner_left;
 	Banner banner_right;
 
-	void set_phase(GamePhase phase) { game_phase = std::move(phase); }
+	std::ofstream replay_file;
+	Journal journal;
+
+	void set_phase(GamePhase phase);
 	void add_banner(Point pit_loc, BannerFrame frame);
+	void seed(unsigned int rng_seed);
 
 	friend class IGamePhase;
 	friend class GameIntro;

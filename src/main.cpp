@@ -150,33 +150,26 @@ public:
 						goto quit;	
 					case SDL_KEYDOWN:
 						if(!event.key.repeat) {
-							switch(event.key.keysym.sym) {
-								case SDLK_LEFT:  game_screen.input_dir(Dir::LEFT, 0); break;
-								case SDLK_RIGHT: game_screen.input_dir(Dir::RIGHT, 0); break;
-								case SDLK_UP:    game_screen.input_dir(Dir::UP, 0); break;
-								case SDLK_DOWN:  game_screen.input_dir(Dir::DOWN, 0); break;
-								case SDLK_z:     game_screen.input_a(0); context.play(Snd::SWAP); break;
-								case SDLK_KP_4:  game_screen.input_dir(Dir::LEFT, 1); break;
-								case SDLK_KP_6:  game_screen.input_dir(Dir::RIGHT, 1); break;
-								case SDLK_KP_8:  game_screen.input_dir(Dir::UP, 1); break;
-								case SDLK_KP_5:  game_screen.input_dir(Dir::DOWN, 1); break;
-								case SDLK_KP_0:  game_screen.input_a(1); context.play(Snd::SWAP); break;
-								case SDLK_d:     game_screen.input_debug(0); break;
-								case SDLK_h:     game_screen.input_debug(1); break;
-								case SDLK_RETURN: // restart
-									game_screen = GameScreen();
-									goto start;
-								case SDLK_ESCAPE:
-									goto quit;
+							SDL_Keycode key = event.key.keysym.sym;
+
+							if(SDLK_d == key) game_screen.input_debug(0);
+							else if(SDLK_h == key) game_screen.input_debug(1);
+							else if(SDLK_RETURN == key) {
+								game_screen.reset();
+								goto start;
+							}
+							else if(SDLK_ESCAPE == key) {
+								goto quit;
+							}
+							else {
+								ControllerInput cinput = key_to_controller(key);
+								if(cinput.button != Button::NONE)
+									game_screen.input(cinput);
 							}
 						}
 						break;
 				}
 			}
-
-			// auto-move cursor when scrolling out of bounds
-			game_screen.input_dir(Dir::NONE, 0);
-			game_screen.input_dir(Dir::NONE, 1);
 
 			// run one frame of local logic
 			game_screen.animate();
@@ -190,6 +183,28 @@ public:
 	}
 
 private:
+
+	ControllerInput key_to_controller(SDL_Keycode key) const
+	{
+		int device = 0;
+		Button button;
+
+		switch(key) {
+			case SDLK_LEFT:  device = 0; button = Button::LEFT;  break;
+			case SDLK_RIGHT: device = 0; button = Button::RIGHT; break;
+			case SDLK_UP:    device = 0; button = Button::UP;    break;
+			case SDLK_DOWN:  device = 0; button = Button::DOWN;  break;
+			case SDLK_z:     device = 0; button = Button::A;     break;
+			case SDLK_KP_4:  device = 1; button = Button::LEFT;  break;
+			case SDLK_KP_6:  device = 1; button = Button::RIGHT; break;
+			case SDLK_KP_8:  device = 1; button = Button::UP;    break;
+			case SDLK_KP_5:  device = 1; button = Button::DOWN;  break;
+			case SDLK_KP_0:  device = 1; button = Button::A;     break;
+			default:         device = -1; button = Button::NONE; break;
+		}
+
+		return ControllerInput { device, button };
+	}
 
 	SdlContext context;
 	GameScreen game_screen;

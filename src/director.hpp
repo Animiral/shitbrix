@@ -93,6 +93,12 @@ public:
 
 	Cursor cursor() const { return m_cursor; }
 	RowCol rc() const { return m_cursor->rc; }
+
+	/**
+	 * Moves the cursor one column in the specified direction, if possible.
+	 * Dir::NONE is a special direction that prevents the cursor from
+	 * scrolling out of bounds.
+	 */
 	void move(Dir dir);
 
 private:
