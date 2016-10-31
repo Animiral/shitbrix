@@ -96,3 +96,8 @@ Journal& Journal::operator<<(ReplayEvent event)
 	m_stream << "\n";
 	return *this;
 }
+
+Replay& Replay::operator>>(ReplayEvent& event)
+{
+	return *this;
+}

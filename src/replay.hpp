@@ -42,6 +42,9 @@ private:
 const char* replay_event_type_string(ReplayEvent::Type type);
 const char* game_button_string(GameButton button);
 
+/**
+ * Writes a replay file event by event.
+ */
 class Journal
 {
 
@@ -53,5 +56,25 @@ public:
 private:
 
 	std::ostream& m_stream;
+
+};
+
+/**
+ * Reads through a replay file event by event.
+ */
+class Replay
+{
+
+public:
+
+	Replay(std::istream& stream) : m_stream(stream), m_bad(false) {}
+	Replay& operator>>(ReplayEvent& event);
+	bool bad() const { return m_bad; }
+	operator bool() const { return !bad(); }
+
+private:
+
+	std::istream& m_stream;
+	bool m_bad;
 
 };

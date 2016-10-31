@@ -47,3 +47,46 @@ R"(0 set rng_seed 4711
 
 	EXPECT_EQ(expected, stream.str());
 }
+
+/**
+ * Test basic replay parsing
+ */
+TEST(ReplayTest, ReadBasic)
+{
+	std::string replay_str =
+R"(0 set rng_seed 4711
+0 start
+10 input 1 swap
+20 end
+)";
+	std::istringstream stream(replay_str);
+	ReplayEvent set_event, start_event, input_event, end_event;
+
+	Replay replay(stream);
+	replay >> set_event >> start_event >> input_event >> end_event;
+
+	ASSERT_TRUE(replay);
+	EXPECT_EQ(ReplayEvent::Type::SET, set_event.type());
+	EXPECT_EQ("rng_seed", set_event.set_name());
+	EXPECT_EQ("4711", set_event.set_value());
+	EXPECT_EQ(ReplayEvent::Type::START, start_event.type());
+	EXPECT_EQ(ReplayEvent::Type::INPUT, input_event.type());
+	EXPECT_EQ(10, input_event.time());
+	EXPECT_EQ(1, input_event.input().player);
+	EXPECT_EQ(GameButton::SWAP, input_event.input().button);
+	EXPECT_EQ(ReplayEvent::Type::END, end_event.type());
+	EXPECT_EQ(20, end_event.time());
+}
+
+/**
+ * Test replay error (input)
+ */
+TEST(ReplayTest, ReadErrorInput)
+{
+	std::string replay_str = "10 input 1\n20 end\n";
+	std::istringstream stream(replay_str);
+	ReplayEvent input_event;
+
+	Replay replay(stream);
+	EXPECT_THROW(replay >> input_event, GameException);
+}
