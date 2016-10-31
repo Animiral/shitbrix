@@ -20,11 +20,11 @@ TEST(ReplayTest, WriteJournal)
 		ReplayEvent::make_set("rng_seed", "4711"),
 		ReplayEvent::make_set("winner", "1"),
 		ReplayEvent::make_start(),
-		ReplayEvent::make_input(3, 0, PlayerInput::LEFT),
-		ReplayEvent::make_input(5, 1, PlayerInput::UP),
-		ReplayEvent::make_input(8, 0, PlayerInput::RAISE),
-		ReplayEvent::make_input(10, 0, PlayerInput::LEFT),
-		ReplayEvent::make_input(10, 1, PlayerInput::SWAP),
+		ReplayEvent::make_input(3, GameInput{0, GameButton::LEFT}),
+		ReplayEvent::make_input(5, GameInput{1, GameButton::UP}),
+		ReplayEvent::make_input(8, GameInput{0, GameButton::RAISE}),
+		ReplayEvent::make_input(10, GameInput{0, GameButton::LEFT}),
+		ReplayEvent::make_input(10, GameInput{1, GameButton::SWAP}),
 		ReplayEvent::make_end(20)
 	};
 

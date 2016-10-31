@@ -25,12 +25,11 @@ ReplayEvent ReplayEvent::make_start()
 	return event;
 }
 
-ReplayEvent ReplayEvent::make_input(int time, int player, PlayerInput input)
+ReplayEvent ReplayEvent::make_input(int time, GameInput input)
 {
 	ReplayEvent event;
 	event.m_time = time;
 	event.m_type = Type::INPUT;
-	event.m_player = player;
 	event.m_input = input;
 	
 	return event;
@@ -56,16 +55,16 @@ const char* replay_event_type_string(ReplayEvent::Type type)
 	}
 }
 
-const char* player_input_string(PlayerInput input)
+const char* game_button_string(GameButton button)
 {
-	switch(input) {
-		case PlayerInput::NONE: return "none";
-		case PlayerInput::LEFT: return "left";
-		case PlayerInput::RIGHT: return "right";
-		case PlayerInput::UP: return "up";
-		case PlayerInput::DOWN: return "down";
-		case PlayerInput::SWAP: return "swap";
-		case PlayerInput::RAISE: return "raise";
+	switch(button) {
+		case GameButton::NONE: return "none";
+		case GameButton::LEFT: return "left";
+		case GameButton::RIGHT: return "right";
+		case GameButton::UP: return "up";
+		case GameButton::DOWN: return "down";
+		case GameButton::SWAP: return "swap";
+		case GameButton::RAISE: return "raise";
 		default: SDL_assert_paranoid(false); return nullptr;
 	}
 }
@@ -82,7 +81,11 @@ Journal& Journal::operator<<(ReplayEvent event)
 			break;
 
 		case ReplayEvent::Type::INPUT:
-			m_stream << " " << event.player() << " " << player_input_string(event.input());
+			{
+				int player = event.input().player;
+				GameButton button = event.input().button;
+				m_stream << " " << player << " " << game_button_string(button);
+			}
 			break;
 
 		case ReplayEvent::Type::START:

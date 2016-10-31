@@ -68,9 +68,31 @@ BlockFrame& operator++(BlockFrame& frame);
 enum class Dir { NONE, LEFT, RIGHT, UP, DOWN };
 
 /**
- * Enumeration of possible input actions by one player
+ * All input actions that the game accepts at any point from one source,
+ * after key mapping from the original input device (e.g. keyboard).
+ * Direction values can be cast to and from Dir.
  */
-enum class PlayerInput { NONE, LEFT, RIGHT, UP, DOWN, SWAP, RAISE };
+enum class Button { NONE, LEFT, RIGHT, UP, DOWN, A, B, PAUSE };
+
+/**
+ * Enumeration of possible input actions by one player.
+ * These are also the possible actions from a replay file.
+ * Direction values can be cast to and from Dir.
+ * All values can be cast to and from Button.
+ */
+enum class GameButton { NONE, LEFT, RIGHT, UP, DOWN, SWAP, RAISE };
+
+struct ControllerInput
+{
+	int device; // 0-based device index
+	Button button;
+};
+
+struct GameInput
+{
+	int player; // 0-based player index
+	GameButton button;
+};
 
 /**
  * Represents a screen location in canvas pixels.
