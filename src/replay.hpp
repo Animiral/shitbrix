@@ -70,7 +70,7 @@ public:
 	Replay(std::istream& stream) : m_stream(stream), m_bad(false) {}
 	Replay& operator>>(ReplayEvent& event);
 	bool bad() const { return m_bad; }
-	operator bool() const { return !bad(); }
+	operator bool() const { return static_cast<bool>(m_stream); }
 
 private:
 

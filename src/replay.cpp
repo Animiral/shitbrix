@@ -3,6 +3,8 @@
  */
 
 #include "replay.hpp"
+#include <sstream>
+#include <cctype>
 #include <SDL2/SDL_assert.h>
 
 ReplayEvent ReplayEvent::make_set(std::string name, std::string value)
@@ -69,6 +71,31 @@ const char* game_button_string(GameButton button)
 	}
 }
 
+namespace
+{
+
+ReplayEvent::Type string_to_replay_event_type(const std::string& str)
+{
+	if("set" == str) return ReplayEvent::Type::SET;
+	else if("start" == str) return ReplayEvent::Type::START;
+	else if("input" == str) return ReplayEvent::Type::INPUT;
+	else if("end" == str) return ReplayEvent::Type::END;
+	else throw GameException("Invalid event type string.");
+}
+
+GameButton string_to_game_button(const std::string& str)
+{
+	if("left" == str) return GameButton::LEFT;
+	else if("right" == str) return GameButton::RIGHT;
+	else if("up" == str) return GameButton::UP;
+	else if("down" == str) return GameButton::DOWN;
+	else if("swap" == str) return GameButton::SWAP;
+	else if("raise" == str) return GameButton::RAISE;
+	else throw GameException("Invalid game button string.");
+}
+
+}
+
 Journal& Journal::operator<<(ReplayEvent event)
 {
 	ReplayEvent::Type event_type = event.type();
@@ -99,5 +126,60 @@ Journal& Journal::operator<<(ReplayEvent event)
 
 Replay& Replay::operator>>(ReplayEvent& event)
 {
+	if(m_stream) {
+		std::string line;
+		std::getline(m_stream, line);
+
+		int time;
+		std::string type_str;
+		std::istringstream tokenizer(line);
+		tokenizer >> time >> type_str;
+
+		ReplayEvent::Type type = string_to_replay_event_type(type_str);
+
+		switch(type) {
+
+		case ReplayEvent::Type::SET:
+			{
+				std::string set_name;
+				std::string set_value;
+				tokenizer >> set_name;
+
+				while(std::isspace(tokenizer.peek()))
+					tokenizer.ignore();
+
+				std::getline(tokenizer, set_value);
+				event = ReplayEvent::make_set(set_name, set_value);
+			}
+			break;
+
+		case ReplayEvent::Type::START:
+			event = ReplayEvent::make_start();
+			break;
+
+		case ReplayEvent::Type::INPUT:
+			{
+				int player;
+				std::string button_str;
+				tokenizer >> player >> button_str;
+				GameButton button = string_to_game_button(button_str);
+				GameInput input{player, button};
+				event = ReplayEvent::make_input(time, input);
+			}
+			break;
+
+		case ReplayEvent::Type::END:
+			event = ReplayEvent::make_end(time);
+			break;
+
+		default:
+			SDL_assert_paranoid(false);
+
+		}
+	}
+	else {
+		throw GameException("Failed to read from replay.");
+	}
+
 	return *this;
 }
