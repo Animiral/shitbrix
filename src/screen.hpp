@@ -77,7 +77,6 @@ class GamePlay : public IGamePhase
 public:
 
 	GamePlay(GameScreen* screen);
-	~GamePlay();
 
 	virtual void update(IContext& context) override;
 	virtual void input(GameInput ginput) override;
@@ -88,8 +87,9 @@ class GameResult : public IGamePhase
 {
 public:
 	GameResult(GameScreen* screen, int winner);
+	~GameResult();
 
-	virtual void update(IContext& context) override {}
+	virtual void update(IContext& context) override;
 	virtual void input(GameInput ginput) override {}
 };
 

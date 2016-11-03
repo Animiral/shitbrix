@@ -30,11 +30,6 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 	m_screen->journal << ReplayEvent::make_start();
 }
 
-GamePlay::~GamePlay()
-{
-	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
-}
-
 void GamePlay::update(IContext& context)
 {
 	m_screen->left_blocks->update(context);
@@ -88,6 +83,7 @@ void GamePlay::input(GameInput ginput)
 	}
 }
 
+
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 {
 	std::ostringstream stream;
@@ -105,6 +101,17 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 
 	m_screen->stage->remove(m_screen->left_cursor->cursor());
 	m_screen->stage->remove(m_screen->right_cursor->cursor());
+}
+
+GameResult::~GameResult()
+{
+	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
+}
+
+void GameResult::update(IContext& context)
+{
+	// this is only needed to display the replay correctly
+	m_screen->m_game_time++;
 }
 
 GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
