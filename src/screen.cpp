@@ -41,15 +41,10 @@ void GamePlay::update(IContext& context)
 	m_screen->right_blocks->update(context);
 	m_screen->stage->update(context);
 
-	if(m_screen->done()) {
-		int winner = -1;
-
-		if(m_screen->left_blocks->over())
-			winner = 1;
-		else
-		if(m_screen->right_blocks->over())
-			winner = 0;
-
+	bool left_over = m_screen->left_blocks->over();
+	bool right_over = m_screen->right_blocks->over();
+	if(left_over || right_over) {
+		int winner = left_over ? 1 : 0;
 		auto phase = std::make_unique<GameResult>(m_screen, winner);
 		m_screen->set_phase(std::move(phase));
 	}
