@@ -67,14 +67,14 @@ class Replay
 
 public:
 
-	Replay(std::istream& stream) : m_stream(stream), m_bad(false) {}
+	Replay(std::istream& stream) : m_stream(stream) {}
 	Replay& operator>>(ReplayEvent& event);
-	bool bad() const { return m_bad; }
+	bool eof() const { return m_stream.peek(), m_stream.eof(); }
 	operator bool() const { return static_cast<bool>(m_stream); }
 
 private:
 
 	std::istream& m_stream;
-	bool m_bad;
 
 };
+

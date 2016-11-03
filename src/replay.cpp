@@ -126,10 +126,9 @@ Journal& Journal::operator<<(ReplayEvent event)
 
 Replay& Replay::operator>>(ReplayEvent& event)
 {
-	if(m_stream) {
-		std::string line;
-		std::getline(m_stream, line);
+	std::string line;
 
+	if(std::getline(m_stream, line)) {
 		int time;
 		std::string type_str;
 		std::istringstream tokenizer(line);
