@@ -78,3 +78,10 @@ private:
 
 };
 
+/**
+ * A ReplaySink can handle replay events.
+ */
+class IReplaySink
+{
+	public: virtual void handle(const ReplayEvent& event) =0;
+};

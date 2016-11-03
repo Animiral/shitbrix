@@ -37,7 +37,7 @@ class GameScreen;
  * GamePhases control their own life and transition via GameScreen::set_phase(),
  * enabled through the friend relation to GameScreen.
  */
-class IGamePhase
+class IGamePhase : public IGameInputSink
 {
 
 public:
@@ -49,7 +49,6 @@ public:
 
 	virtual void draw(IContext& context, float dt);
 	virtual void update(IContext& context) =0;
-	virtual void input(GameInput ginput) =0;
 
 protected:
 
@@ -83,10 +82,6 @@ public:
 	virtual void update(IContext& context) override;
 	virtual void input(GameInput ginput) override;
 
-private:
-
-	long tick; // game time in the current session
-
 };
 
 class GameResult : public IGamePhase
@@ -98,14 +93,15 @@ public:
 	virtual void input(GameInput ginput) override {}
 };
 
-class GameScreen : public IScreen
+class GameScreen : public IScreen, public IReplaySink
 {
 
 public:
 
-	GameScreen();
+	GameScreen(const char* replay_infile = nullptr, const char* replay_outfile = LAST_REPLAY_FILE);
 	GameScreen& operator=(GameScreen&& rhs);
 
+	const long& game_time() const { return m_game_time; }
 	void reset();
 	virtual void draw(IContext& context, float dt) override { game_phase->draw(context, dt); }
 	virtual void animate() override;
@@ -113,12 +109,15 @@ public:
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerInput cinput) override;
+	virtual void handle(const ReplayEvent& event) override;
 
 private:
 
 	RndGen rndgen;
 	GamePhase game_phase;
+	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
+	GameInputMixer input_mixer;
 
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;
@@ -130,7 +129,7 @@ private:
 	Banner banner_left;
 	Banner banner_right;
 
-	std::ofstream replay_file;
+	std::ofstream replay_outstream;
 	Journal journal;
 
 	void set_phase(GamePhase phase);

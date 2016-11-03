@@ -25,14 +25,14 @@ void GameIntro::update(IContext& context)
 }
 
 
-GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen), tick(0)
+GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 {
 	m_screen->journal << ReplayEvent::make_start();
 }
 
 GamePlay::~GamePlay()
 {
-	m_screen->journal << ReplayEvent::make_end(tick);
+	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
 }
 
 void GamePlay::update(IContext& context)
@@ -49,12 +49,12 @@ void GamePlay::update(IContext& context)
 		m_screen->set_phase(std::move(phase));
 	}
 
-	tick++;
+	m_screen->m_game_time++;
 }
 
 void GamePlay::input(GameInput ginput)
 {
-	m_screen->journal << ReplayEvent::make_input(tick, ginput);
+	m_screen->journal << ReplayEvent::make_input(m_screen->m_game_time, ginput);
 
 	switch(ginput.button) {
 		case GameButton::LEFT:
@@ -107,9 +107,10 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 	m_screen->stage->remove(m_screen->right_cursor->cursor());
 }
 
-GameScreen::GameScreen()
-: replay_file(LAST_REPLAY_FILE),
-  journal(replay_file)
+GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
+: input_mixer(*this, replay_infile),
+  replay_outstream(replay_outfile),
+  journal(replay_outstream)
 {
 	reset();
 }
@@ -136,6 +137,7 @@ void GameScreen::reset()
 
 	std::random_device rdev;
 	seed(rdev());
+	m_game_time = 0L;
 	m_done = false;
 
 	auto builder = StageBuilder();
@@ -160,6 +162,7 @@ void GameScreen::animate()
 
 void GameScreen::update(IContext& context)
 {
+	input_mixer.update(m_game_time);
 	game_phase->update(context);
 
 	// auto-move cursor when scrolling out of bounds
@@ -176,10 +179,7 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::DOWN:
 		case Button::A:
 		case Button::B:
-			GameInput ginput;
-			ginput.player = cinput.device; // TODO: properly map dev to player
-			ginput.button = static_cast<GameButton>(cinput.button);
-			game_phase->input(ginput);
+			input_mixer.input(cinput);
 			break;
 
 		case Button::PAUSE:
@@ -209,9 +209,41 @@ void GameScreen::input(ControllerInput cinput)
 	}
 }
 
+void GameScreen::handle(const ReplayEvent& event)
+{
+	switch(event.type()) {
+
+	case ReplayEvent::Type::SET:
+		if("rng_seed" == event.set_name()) {
+			std::istringstream stream(event.set_value());
+			unsigned int rng_seed;
+			stream >> rng_seed;
+			seed(rng_seed);
+		}
+		else {
+			// TODO: handle other “set” names
+		}
+		break;
+
+	case ReplayEvent::Type::START:
+		reset();
+		break;
+
+	case ReplayEvent::Type::INPUT:
+		// ignore (mixer passes this to game phase)
+		break;
+
+	case ReplayEvent::Type::END:
+		m_done = true;
+		break;
+
+	}
+}
+
 void GameScreen::set_phase(GamePhase phase)
 {
 	game_phase = std::move(phase);
+	input_mixer.set_game_sink(game_phase.get());
 }
 
 void GameScreen::add_banner(Point pit_loc, BannerFrame frame)

@@ -58,3 +58,59 @@ void Keyboard::poll()
 		}
 	}
 }
+
+
+GameInputMixer::GameInputMixer(IReplaySink& replay_sink, const char* replay_file)
+: m_game_sink(nullptr), m_replay_sink(replay_sink)
+{
+	if(replay_file) {
+		replay_stream.open(replay_file);
+		replay = std::make_unique<Replay>(replay_stream);
+		*replay >> next_event;
+	}
+}
+
+void GameInputMixer::input(ControllerInput input)
+{
+	if(replay) return; // do not accept regular inputs during replay
+	if(NOONE == input.player) return; // do not accept non-player inputs
+	if(!m_game_sink) return; // no recipient registered
+
+	switch(input.button) {
+		case Button::LEFT:
+		case Button::RIGHT:
+		case Button::UP:
+		case Button::DOWN:
+		case Button::A:
+		case Button::B:
+			GameInput ginput;
+			ginput.player = input.player; // TODO: properly map dev to player
+			ginput.button = static_cast<GameButton>(input.button);
+			m_game_sink->input(ginput);
+			break;
+
+		// These buttons should not be used by any actual player nr
+		case Button::PAUSE:
+		case Button::RESET:
+		case Button::QUIT:
+		case Button::DEBUG1:
+		case Button::DEBUG2:
+		case Button::NONE:
+		default:
+			SDL_assert_paranoid(false);
+	}
+}
+
+void GameInputMixer::update(long game_time)
+{
+	if(replay) {
+		while(*replay && !replay->eof() && game_time >= next_event.time()) {
+			if(m_game_sink && ReplayEvent::Type::INPUT == next_event.type()) {
+				m_game_sink->input(next_event.input());
+			}
+
+			m_replay_sink.handle(next_event);
+			*replay >> next_event;
+		}
+	}
+}
