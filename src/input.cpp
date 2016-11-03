@@ -104,12 +104,19 @@ void GameInputMixer::input(ControllerInput input)
 void GameInputMixer::update(long game_time)
 {
 	if(replay) {
-		while(*replay && !replay->eof() && game_time >= next_event.time()) {
+		while(*replay &&                        // replay stream is intact
+		      !replay->eof() &&                 // more input is available
+		      game_time >= next_event.time()) { // it is time to handle this
 			if(m_game_sink && ReplayEvent::Type::INPUT == next_event.type()) {
 				m_game_sink->input(next_event.input());
 			}
 
 			m_replay_sink.handle(next_event);
+
+			if(ReplayEvent::Type::START == next_event.type()) {
+				game_time = 0;
+			}
+
 			*replay >> next_event;
 		}
 	}
