@@ -2,6 +2,7 @@
 #include "context.hpp"
 #include "asset.hpp"
 #include <iostream>
+#include <algorithm>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_image.h>
@@ -100,6 +101,40 @@ private:
 
 };
 
+class Options
+{
+
+public:
+	Options(int argc, const char* argv[])
+		: m_replay_file(str_option(argc, argv, "--replay"))
+	{
+	}
+
+	const char* replay_file() const { return m_replay_file; }
+
+private:
+	const char* m_replay_file;
+
+	// Minimalistic opts parsing from http://stackoverflow.com/questions/865668/how-to-parse-command-line-arguments-in-c
+	const char* str_option(int argc, const char* argv[], const std::string& option)
+	{
+		auto end = argv + argc;
+	    const char** itr = std::find(argv, end, option);
+	    if (itr != end && ++itr != end)
+	    {
+	        return *itr;
+	    }
+	    return nullptr;
+	}
+
+	bool bool_option(int argc, const char* argv[], const std::string& option)
+	{
+		auto end = argv + argc;
+	    return std::find(argv, end, option) != end;
+	}
+
+};
+
 /**
  * Top-level class which owns general application resources such as the initialized SDL library
  * and offers the main loop function.
@@ -109,7 +144,12 @@ class Main
 
 public:
 
-	Main() : context(), game_screen() {}
+	Main(Options options)
+		: m_options(std::move(options)),
+		  context(),
+		  game_screen(m_options.replay_file())
+	{
+	}
 
 	/**
 	 * Main loop.
@@ -206,14 +246,16 @@ private:
 		return ControllerInput { device, button };
 	}
 
+	Options m_options;
 	SdlContext context;
 	GameScreen game_screen;
 
 };
 
-int main()
+int main(int argc, const char* argv[])
 {
-	Main main;
+	Options options(argc, argv);
+	Main main(options);
 	main.game_loop();
 	return 0;
 }
