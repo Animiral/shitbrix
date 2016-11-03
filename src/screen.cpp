@@ -112,6 +112,11 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
   replay_outstream(replay_outfile),
   journal(replay_outstream)
 {
+	if(!replay_infile) {
+		std::random_device rdev;
+		seed(rdev());
+	}
+
 	reset();
 }
 
@@ -134,9 +139,6 @@ GameScreen& GameScreen::operator=(GameScreen&& rhs)
 void GameScreen::reset()
 {
 	set_phase(std::make_unique<GameIntro>(this));
-
-	std::random_device rdev;
-	seed(rdev());
 	m_game_time = 0L;
 	m_done = false;
 
