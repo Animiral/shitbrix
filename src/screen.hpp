@@ -6,6 +6,7 @@
 #pragma once
 
 #include "globals.hpp"
+#include "input.hpp"
 #include "context.hpp"
 #include "block.hpp"
 #include "director.hpp"
@@ -14,7 +15,7 @@
 
 enum class ScreenPhase { MENU, GAME };
 
-class IScreen : public IAnimation, public ILogic
+class IScreen : public IAnimation, public ILogic, public IControllerSink
 {
 public:
 	IScreen() : IAnimation(SCREEN_Z) {}
@@ -110,14 +111,14 @@ public:
 	virtual void animate() override;
 	virtual void update(IContext& context) override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
-	virtual bool done() const override { return left_blocks->over() || right_blocks->over(); }
+	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerInput cinput) override;
-	virtual void input_debug(int func) override; // developer help function
 
 private:
 
 	RndGen rndgen;
 	GamePhase game_phase;
+	bool m_done; // true if this screen has reached its end
 
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;

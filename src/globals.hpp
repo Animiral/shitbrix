@@ -72,7 +72,16 @@ enum class Dir { NONE, LEFT, RIGHT, UP, DOWN };
  * after key mapping from the original input device (e.g. keyboard).
  * Direction values can be cast to and from Dir.
  */
-enum class Button { NONE, LEFT, RIGHT, UP, DOWN, A, B, PAUSE };
+enum class Button
+{
+	NONE,          // no button was pressed
+	LEFT, RIGHT, UP, DOWN, // directional pad
+	A, B,          // standard action buttons
+	PAUSE,         // pause the game
+	RESET,         // restart the game
+	QUIT,          // exit the game
+	DEBUG1, DEBUG2 // debug functions
+};
 
 /**
  * Enumeration of possible input actions by one player.
@@ -82,12 +91,20 @@ enum class Button { NONE, LEFT, RIGHT, UP, DOWN, A, B, PAUSE };
  */
 enum class GameButton { NONE, LEFT, RIGHT, UP, DOWN, SWAP, RAISE };
 
+constexpr int NOONE = -1; // not-a player id
+
+/**
+ * Holds one button input and the number of the player who pressed it.
+ */
 struct ControllerInput
 {
-	int device; // 0-based device index
+	int player; // 0-based player index
 	Button button;
 };
 
+/**
+ * Holds one in-game action and the number of the player who pressed it.
+ */
 struct GameInput
 {
 	int player; // 0-based player index

@@ -147,7 +147,8 @@ public:
 	Main(Options options)
 		: m_options(std::move(options)),
 		  context(),
-		  game_screen(m_options.replay_file())
+		  game_screen(m_options.replay_file()),
+		  keyboard(game_screen)
 	{
 	}
 
@@ -163,14 +164,12 @@ public:
 	 */
 	void game_loop()
 	{
-		start:
-
 		Uint64 t0 = SDL_GetPerformanceCounter(); // start of game time
 		Uint64 freq = SDL_GetPerformanceFrequency();
 		long tick = 0; // current logic tick counter
 		Uint64 next_logic = t0 + freq / TPS; // time for next logic update
 
-		for(;;) {
+		while(!game_screen.done()) {
 			// draw frames as long as logic is up to date
 			Uint64 now = SDL_GetPerformanceCounter();
 			while(now < next_logic) {
@@ -182,34 +181,7 @@ public:
 				now = SDL_GetPerformanceCounter();
 			}
 
-			// get inputs for next logic tick
-			SDL_Event event;
-			while(SDL_PollEvent(&event)) {
-				switch(event.type) {
-					case SDL_QUIT:
-						goto quit;	
-					case SDL_KEYDOWN:
-						if(!event.key.repeat) {
-							SDL_Keycode key = event.key.keysym.sym;
-
-							if(SDLK_d == key) game_screen.input_debug(0);
-							else if(SDLK_h == key) game_screen.input_debug(1);
-							else if(SDLK_RETURN == key) {
-								game_screen.reset();
-								goto start;
-							}
-							else if(SDLK_ESCAPE == key) {
-								goto quit;
-							}
-							else {
-								ControllerInput cinput = key_to_controller(key);
-								if(cinput.button != Button::NONE)
-									game_screen.input(cinput);
-							}
-						}
-						break;
-				}
-			}
+			keyboard.poll();
 
 			// run one frame of local logic
 			game_screen.animate();
@@ -218,37 +190,14 @@ public:
 			tick++;
 			next_logic = t0 + (tick+1) * freq / TPS;
 		}
-
-		quit:;
 	}
 
 private:
 
-	ControllerInput key_to_controller(SDL_Keycode key) const
-	{
-		int device = 0;
-		Button button;
-
-		switch(key) {
-			case SDLK_LEFT:  device = 0; button = Button::LEFT;  break;
-			case SDLK_RIGHT: device = 0; button = Button::RIGHT; break;
-			case SDLK_UP:    device = 0; button = Button::UP;    break;
-			case SDLK_DOWN:  device = 0; button = Button::DOWN;  break;
-			case SDLK_z:     device = 0; button = Button::A;     break;
-			case SDLK_KP_4:  device = 1; button = Button::LEFT;  break;
-			case SDLK_KP_6:  device = 1; button = Button::RIGHT; break;
-			case SDLK_KP_8:  device = 1; button = Button::UP;    break;
-			case SDLK_KP_5:  device = 1; button = Button::DOWN;  break;
-			case SDLK_KP_0:  device = 1; button = Button::A;     break;
-			default:         device = -1; button = Button::NONE; break;
-		}
-
-		return ControllerInput { device, button };
-	}
-
 	Options m_options;
 	SdlContext context;
 	GameScreen game_screen;
+	Keyboard keyboard;
 
 };
 

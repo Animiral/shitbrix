@@ -141,6 +141,7 @@ void GameScreen::reset()
 
 	std::random_device rdev;
 	seed(rdev());
+	m_done = false;
 
 	auto builder = StageBuilder();
 	stage = builder.construct();
@@ -190,19 +191,27 @@ void GameScreen::input(ControllerInput cinput)
 			// TODO: pause game
 			break;
 
+		case Button::RESET:
+			reset();
+			break;
+
+		case Button::QUIT:
+			m_done = true;
+			break;
+
+		case Button::DEBUG1:
+			lpit_view->toggle();
+			break;
+
+		case Button::DEBUG2:
+			rpit_view->toggle();
+			break;
+
 		case Button::NONE:
 		default:
 			SDL_assert_paranoid(false);
 
 	}
-}
-
-void GameScreen::input_debug(int func)
-{
-	if(0 == func)
-		lpit_view->toggle();
-	else if(1 == func)
-		rpit_view->toggle();
 }
 
 void GameScreen::set_phase(GamePhase phase)
