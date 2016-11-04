@@ -3,6 +3,9 @@
 #include "asset.hpp"
 #include <iostream>
 #include <algorithm>
+#include <ctime>
+#include <chrono>
+#include <iomanip>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_image.h>
@@ -135,6 +138,26 @@ private:
 
 };
 
+namespace
+{
+
+/**
+ * Returns the default name of the file where the replay of this session will
+ * be stored. This default name is built from the current date and time.
+ */
+std::string make_journal_file()
+{
+	using clock = std::chrono::system_clock;
+	auto now = clock::now();
+	std::time_t time_now = clock::to_time_t(now);
+	auto ltime = std::localtime(&time_now);
+	std::ostringstream stream;
+	stream << std::put_time(ltime, "replay/%Y-%m-%d_%H-%M.txt");
+	return stream.str();
+}
+
+}
+
 /**
  * Top-level class which owns general application resources such as the initialized SDL library
  * and offers the main loop function.
@@ -147,7 +170,7 @@ public:
 	Main(Options options)
 		: m_options(std::move(options)),
 		  context(),
-		  game_screen(m_options.replay_file()),
+		  game_screen(m_options.replay_file(), make_journal_file().c_str()),
 		  keyboard(game_screen)
 	{
 	}

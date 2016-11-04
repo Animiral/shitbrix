@@ -1,6 +1,9 @@
 # Output directory
 bin/
 
+# Runtime-generated files
+replay/*
+
 # Google Test directory (must be provided by user)
 tests/googletest
 

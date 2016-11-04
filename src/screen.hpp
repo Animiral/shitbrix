@@ -98,7 +98,7 @@ class GameScreen : public IScreen, public IReplaySink
 
 public:
 
-	GameScreen(const char* replay_infile = nullptr, const char* replay_outfile = LAST_REPLAY_FILE);
+	GameScreen(const char* replay_infile, const char* replay_outfile);
 	GameScreen& operator=(GameScreen&& rhs);
 
 	const long& game_time() const { return m_game_time; }

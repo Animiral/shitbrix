@@ -141,7 +141,6 @@ constexpr int FPS = 60; // aspired-to number of drawn and displayed frames per s
 constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
 
 constexpr const char* APP_NAME = "shitbrix";
-constexpr const char* LAST_REPLAY_FILE = "last_replay.txt";
 constexpr int AUDIO_SAMPLES = 4096;
 
 // Canvas pixel sizes and locations of objects
