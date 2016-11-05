@@ -30,7 +30,8 @@ enum class Gfx
 	BLOCK_ORANGE,
 	PITVIEW,  // debug gfx
 	CURSOR,
-	BANNER
+	BANNER,
+	GARBAGE
 };
 
 /**
@@ -57,6 +58,19 @@ enum class BlockFrame : size_t
 	PREVIEW = 1,
 	BREAK_BEGIN = 2, // sequence of break anim
 	BREAK_END = 6    // 1-past-end index
+};
+
+enum class GarbageFrame : size_t
+{
+	TOP_LEFT = 0,
+	TOP,
+	TOP_RIGHT,
+	MID_LEFT,
+	MID,
+	MID_RIGHT,
+	LOW_LEFT,
+	LOW,
+	LOW_RIGHT
 };
 
 // Allow prefix operator++ on BlockFrame
@@ -148,6 +162,8 @@ constexpr int CANVAS_W = 640; // width of drawing canvas in pixels
 constexpr int CANVAS_H = 480; // width of drawing canvas in pixels
 constexpr int BLOCK_W = 40; // width of one little colored block
 constexpr int BLOCK_H = 40; // height of one little colored block
+constexpr int GARBAGE_W = BLOCK_W/2; // width of one drawable piece of garbage
+constexpr int GARBAGE_H = BLOCK_H/2; // height of one drawable piece of garbage
 constexpr int CURSOR_W = 88; // width of the cursor texture
 constexpr int CURSOR_H = 48; // height of the cursor texture
 constexpr Point LPIT_LOC = { 32, 48 };

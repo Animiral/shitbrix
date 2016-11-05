@@ -24,6 +24,7 @@ public:
 		textures.insert(textures.end(), blocks.begin(), blocks.end());                   // Gfx::BLOCK_*, Gfx::PITVIEW
 		textures.emplace_back(factory.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
 		textures.emplace_back(factory.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
+		textures.emplace_back(factory.create_texture_row("gfx/garbage.png", GARBAGE_W)); // Gfx::GARBAGE
 
 		sounds.emplace_back(factory.create_sound("snd/swap.wav"));   // Snd::SWAP
 		sounds.emplace_back(factory.create_sound("snd/break.wav"));  // Snd::BREAK
