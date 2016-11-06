@@ -88,6 +88,62 @@ bool swappable(Block block);
 bool matchable(Block block);
 
 /**
+ * Garbage block.
+ * This block is a bit like the common blocks in that it occupies some space
+ * in the pit. Garbage blocks span multiple spaces. They never spawn from the
+ * bottom, always falling from above.
+ */
+class Garbage : public IAnimation, public ILogic
+{
+
+public:
+
+	enum class State { REST, FALL, LAND, DISSOLVE, DEAD };
+
+	// Public properties - can be read/changed/corrected at will
+	Point offset;    // x/y offset from draw center of r/c location
+	int time;        // number of ticks until we consider a state switch
+
+	Garbage(RowCol rc, int columns, int rows, Transform view)
+	:
+	IAnimation(BLOCK_Z), offset{0,0}, time(0), m_view(view),
+	m_loc(from_rc(RowCol{rc.r + rows - 1, rc.c})), m_rc(rc),
+	m_columns(columns), m_rows(rows), m_state(State::FALL)
+	{}
+
+	virtual void draw(IContext& context, float dt) override;
+	virtual void animate() override;
+	virtual void update(IContext& context) override;
+
+	Point loc() const { return m_view->transform(m_loc); }
+	RowCol rc() const { return m_rc; }
+	void set_rc(RowCol rc);
+	State state() const { return m_state; }
+	void set_state(State state);
+
+	bool is_arriving();
+
+private:
+
+	static constexpr float BOUNCE_H = 10.f;
+	static constexpr int LAND_TIME = 20;
+	static constexpr int DISSOLVE_TIME = 30;
+
+	Transform m_view;   // view applied to m_loc
+	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
+	RowCol m_rc;        // lower left row/col position, - is UP, + is DOWN
+	int m_columns;      // width of this garbage in blocks
+	int m_rows;         // height of this garbage in blocks
+	Point m_target;     // target location - where the garbage really wants to be while it’s busy with an animation
+	State m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
+
+	void fall();
+	void land();
+	void dobreak();
+
+};
+
+/**
  * A pit is the playing area where one player’s blocks fall down.
  * The pit owns, animates and updates its contained blocks and garbage.
  * It remembers where blocks are in a sparse matrix.
