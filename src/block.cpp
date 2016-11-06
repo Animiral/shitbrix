@@ -198,6 +198,125 @@ bool matchable(Block block)
 
 
 /**
+ * Draw the garbage brick.
+ * While a Garbage’s rc is always set to point at the lower left space that
+ * it occupies, its loc points to the top left corner of the displayed array
+ * of graphics.
+ */
+void Garbage::draw(IContext& context, float dt)
+{
+	Point draw_loc = m_view.transform(m_loc, dt);
+
+	for(int y = 0; y < m_rows*2; y++)
+	for(int x = 0; x < m_columns*2; x++) {
+		Point piece_loc = { draw_loc.x + x*GARBAGE_W, draw_loc.y + y*GARBAGE_H };
+		GarbageFrame frame = GarbageFrame::MID;
+
+		bool top = 0 == y;
+		bool low = m_rows*2 == y+1;
+		bool left = 0 == x;
+		bool right = m_columns*2 == x+1;
+
+		if(top && left)       frame = GarbageFrame::TOP_LEFT;
+		else if(top && right) frame = GarbageFrame::TOP_RIGHT;
+		else if(top)          frame = GarbageFrame::TOP;
+		else if(low && left)  frame = GarbageFrame::LOW_LEFT;
+		else if(low && right) frame = GarbageFrame::LOW_RIGHT;
+		else if(low)          frame = GarbageFrame::LOW;
+		else if(left)         frame = GarbageFrame::MID_LEFT;
+		else if(right)        frame = GarbageFrame::MID_RIGHT;
+		else                  frame = GarbageFrame::MID;
+
+		context.drawGfx(piece_loc, Gfx::GARBAGE, static_cast<size_t>(frame));
+	}
+}
+
+/**
+ * Animation, for a garbage block, primarily means the part where it dissolves
+ * and turns into small blocks.
+ */
+void Garbage::animate()
+{
+	if(State::DISSOLVE == m_state) {
+		// TODO: animate garbage block
+	}
+}
+
+void Garbage::update(IContext& context)
+{
+	time--;
+
+	switch(m_state) {
+		case State::REST: break;
+		case State::FALL: fall(); break;
+		case State::LAND: land(); break;
+		case State::DISSOLVE: dobreak(); break;
+		case State::DEAD: throw GameException("Cannot update() dead garbage.");
+		default: SDL_assert_paranoid(false);
+	}
+}
+
+/**
+ * Changes the garbage’s logical location while maintaining its draw position,
+ * now relative to the new rc.
+ */
+void Garbage::set_rc(RowCol rc)
+{
+	offset.x -= (rc.c - m_rc.c) * BLOCK_W;
+	offset.y -= (rc.r - m_rc.r) * BLOCK_H;
+	m_rc = rc;
+}
+
+void Garbage::set_state(State state)
+{
+	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
+
+	m_state = state;
+
+	switch(state) {
+		case State::LAND:
+			// Correct the garbage by any eventual extra-pixels
+			m_loc.x -= offset.x;
+			m_loc.y -= offset.y;
+			offset = Point{0,0};
+			time = LAND_TIME;
+			break;
+
+		case State::DISSOLVE:
+			time = DISSOLVE_TIME;
+			break;
+
+		default: break;
+	}
+}
+
+bool Garbage::is_arriving()
+{
+	return State::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+}
+
+void Garbage::fall()
+{
+	m_loc.y += FALL_SPEED;
+	offset.y += FALL_SPEED;
+}
+
+void Garbage::land()
+{
+	if(time < 0) {
+		set_state(State::REST);
+	}
+}
+
+void Garbage::dobreak()
+{
+	if(time < 0) {
+		set_state(State::DEAD);
+	}
+}
+
+
+/**
  * Returns the number of the top accessible row in the pit
  */
 int PitImpl::top() const
