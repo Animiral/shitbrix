@@ -68,8 +68,8 @@ void BlockImpl::update(IContext& context)
  */
 void BlockImpl::set_rc(RowCol rc)
 {
-	offset.x -= (rc.c - m_rc.c) * BLOCK_W;
-	offset.y -= (rc.r - m_rc.r) * BLOCK_H;
+	offset.x -= (rc.c - m_rc.c) * COL_W;
+	offset.y -= (rc.r - m_rc.r) * ROW_H;
 	m_rc = rc;
 }
 
@@ -262,8 +262,8 @@ void Garbage::update(IContext& context)
  */
 void Garbage::set_rc(RowCol rc)
 {
-	offset.x -= (rc.c - m_rc.c) * BLOCK_W;
-	offset.y -= (rc.r - m_rc.r) * BLOCK_H;
+	offset.x -= (rc.c - m_rc.c) * COL_W;
+	offset.y -= (rc.r - m_rc.r) * ROW_H;
 	m_rc = rc;
 }
 
@@ -320,8 +320,8 @@ void Garbage::dobreak()
  * Constructs a Pit at the specified draw location.
  */
 PitImpl::PitImpl(Point loc)
-: IAnimation(PIT_Z), m_loc(loc), m_enabled(true), m_scroll(BLOCK_H - PIT_H),
-  m_peak(0)
+: IAnimation(PIT_Z), m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
+  m_peak(1), m_highlight_row(0)
 {
 }
 
@@ -330,7 +330,7 @@ PitImpl::PitImpl(Point loc)
  */
 int PitImpl::top() const
 {
-	return std::ceil(m_scroll / BLOCK_H);
+	return std::ceil(m_scroll / ROW_H);
 }
 
 /**
@@ -338,7 +338,12 @@ int PitImpl::top() const
  */
 int PitImpl::bottom() const
 {
-	return std::floor((m_scroll + PIT_H) / BLOCK_H) - 1;
+	return std::floor((m_scroll + PIT_H) / ROW_H) - 1;
+}
+
+int PitImpl::peak() const
+{
+	return m_peak;
 }
 
 /**
@@ -382,17 +387,21 @@ void PitImpl::block(RowCol rc, Block block)
 void PitImpl::block(GarbagePtr garbage)
 {
 	RowCol low_left = garbage->rc();
+	int low = low_left.r;
+	int high = low - garbage->rows();
+	int left = low_left.c;
+	int right = left + garbage->columns();
 
-	for(int r = low_left.r; r < low_left.r - garbage->rows(); r--) {
-		for(int c = low_left.c; c < low_left.c + garbage->columns(); c++) {
+	for(int r = low; r < high; r--) {
+		for(int c = left; c < right; c++) {
 			RowCol rc{r, c};
 			auto result = m_garbage_map.emplace(std::make_pair(rc, garbage));
 			game_assert(result.second, "Attempt to block already blocked space in Pit.");
 		}
-
-		if(r < m_peak)
-			m_peak = r;
 	}
+
+	if(high < m_peak)
+		m_peak = high;
 }
 
 /**
@@ -442,6 +451,11 @@ void PitImpl::swap(RowCol lrc, RowCol rrc)
 	}
 }
 
+void PitImpl::highlight(int row)
+{
+	m_highlight_row = row;
+}
+
 /**
  * The origin {0,0} location of all pit-related objects corresponds with row 0, column 0.
  * We have to transform the object into the pit and from there, apply the pit scrolling.
@@ -464,6 +478,11 @@ void PitImpl::draw(IContext& context, float dt)
 
 	for(auto g: m_garbage)
 		g->draw(context, dt);
+
+	// draw the highlighted row for debugging
+	Point top_left{0, static_cast<float>(m_highlight_row * ROW_H)};
+	top_left = transform(top_left); // apply pit offset/scrolling
+	context.highlight(top_left, PIT_W, ROW_H);
 
 	context.unclip();
 }
@@ -514,8 +533,8 @@ void PitViewImpl::draw(IContext& context, float dt)
 
 void CursorImpl::draw(IContext& context, float dt)
 {
-	float x = static_cast<float>(rc.c*BLOCK_W - (CURSOR_W-2*BLOCK_W)/2);
-	float y = static_cast<float>(rc.r*BLOCK_H - (CURSOR_H-BLOCK_H)/2);
+	float x = static_cast<float>(rc.c*COL_W - (CURSOR_W-2*COL_W)/2);
+	float y = static_cast<float>(rc.r*ROW_H - (CURSOR_H-ROW_H)/2);
 	Point loc {x, y};
 	Point draw_loc = view->transform(loc, dt);
 

@@ -178,6 +178,11 @@ public:
 	void stop() { m_enabled = false; }
 	void start() { m_enabled = true; }
 
+	/**
+	 * Put a debug highlight on a row
+	 */
+	void highlight(int row);
+
 	virtual Point transform(Point point, float dt=0.f) const override;
 
 	virtual void draw(IContext& context, float dt) override;
@@ -194,6 +199,8 @@ private:
 	std::vector<GarbagePtr> m_garbage; // list of all garbage in the pit
 	std::map<RowCol, Block> block_map; // sparse matrix of blocked spaces
 	std::map<RowCol, GarbagePtr> m_garbage_map; // sparse matrix of blocked spaces
+
+	int m_highlight_row;
 
 };
 

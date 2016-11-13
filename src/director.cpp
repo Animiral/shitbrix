@@ -121,6 +121,9 @@ void BlockDirector::update(IContext& context)
 
 		hots.clear();
 	}
+
+	// debug: show what the pit considers to be its peak row
+	pit->highlight(pit->peak());
 }
 
 /**
