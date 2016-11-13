@@ -164,6 +164,11 @@ bool BlockDirector::swap(RowCol lrc)
 	return true;
 }
 
+void BlockDirector::debug_spawn_garbage(int columns, int rows)
+{
+	pit->spawn_garbage(columns, rows);
+}
+
 /**
  * Bring up a new row of preview blocks and enable the previous row, if necessary.
  */

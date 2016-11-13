@@ -53,6 +53,7 @@ public:
 	bool over() const { return m_over; }
 	void update(IContext& context);
 	bool swap(RowCol lrc);
+	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
 private:
 

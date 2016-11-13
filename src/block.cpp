@@ -317,6 +317,15 @@ void Garbage::dobreak()
 
 
 /**
+ * Constructs a Pit at the specified draw location.
+ */
+PitImpl::PitImpl(Point loc)
+: IAnimation(PIT_Z), m_loc(loc), m_enabled(true), m_scroll(BLOCK_H - PIT_H),
+  m_peak(0)
+{
+}
+
+/**
  * Returns the number of the top accessible row in the pit
  */
 int PitImpl::top() const
@@ -344,6 +353,17 @@ Block PitImpl::block_at(RowCol rc) const
 		return it->second;
 }
 
+GarbagePtr PitImpl::spawn_garbage(int columns, int rows)
+{
+	int row = std::min(m_peak, top()) - 2;
+	// int col = (*rndgen)() % (PIT_COLS - columns + 1);
+	int col = 0;
+	GarbagePtr garbage = std::make_shared<Garbage>(RowCol{row, col}, columns, rows, *this);
+	m_garbage.push_back(garbage);
+	block(garbage);
+	return garbage;
+}
+
 /**
  * Set the given location to blocked.
  */
@@ -351,6 +371,28 @@ void PitImpl::block(RowCol rc, Block block)
 {
 	auto result = block_map.emplace(std::make_pair(rc, block));
 	game_assert(result.second, "Attempt to block already blocked space in Pit.");
+
+	if(rc.r < m_peak)
+		m_peak = rc.r;
+}
+
+/**
+ * Set the given location to blocked by garbage.
+ */
+void PitImpl::block(GarbagePtr garbage)
+{
+	RowCol low_left = garbage->rc();
+
+	for(int r = low_left.r; r < low_left.r - garbage->rows(); r--) {
+		for(int c = low_left.c; c < low_left.c + garbage->columns(); c++) {
+			RowCol rc{r, c};
+			auto result = m_garbage_map.emplace(std::make_pair(rc, garbage));
+			game_assert(result.second, "Attempt to block already blocked space in Pit.");
+		}
+
+		if(r < m_peak)
+			m_peak = r;
+	}
 }
 
 /**
@@ -360,6 +402,22 @@ void PitImpl::unblock(RowCol rc)
 {
 	size_t erased = block_map.erase(rc);
 	game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+
+	// maintain peak by linear search through the pit contents, if necessary
+	if(rc.r == m_peak) {
+		int lowest_row = this->bottom();
+
+		while(m_peak < lowest_row) {
+			for(int c = 0; c < PIT_COLS; c++) {
+				if(this->block_at({m_peak, c}))
+					goto peak_done;
+			}
+
+			m_peak++; // try next row
+		}
+	}
+
+peak_done:;
 }
 
 /**
@@ -404,6 +462,9 @@ void PitImpl::draw(IContext& context, float dt)
 	for(auto b: m_blocks)
 		b->draw(context, dt);
 
+	for(auto g: m_garbage)
+		g->draw(context, dt);
+
 	context.unclip();
 }
 
@@ -411,6 +472,9 @@ void PitImpl::update(IContext& context)
 {
 	for(auto b : m_blocks)
 		b->update(context);
+
+	for(auto g : m_garbage)
+		g->update(context);
 
 	if(m_enabled)
 		m_scroll += SCROLL_SPEED;
