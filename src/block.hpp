@@ -181,7 +181,7 @@ public:
 	virtual Point transform(Point point, float dt=0.f) const override;
 
 	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override { for(auto b : m_blocks) b->animate(); }
+	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
 private:

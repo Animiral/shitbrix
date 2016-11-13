@@ -468,6 +468,15 @@ void PitImpl::draw(IContext& context, float dt)
 	context.unclip();
 }
 
+void PitImpl::animate()
+{
+	for(auto b : m_blocks)
+		b->animate();
+
+	for(auto g : m_garbage)
+		g->animate();
+}
+
 void PitImpl::update(IContext& context)
 {
 	for(auto b : m_blocks)
