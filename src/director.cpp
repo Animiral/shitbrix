@@ -122,6 +122,22 @@ void BlockDirector::update(IContext& context)
 		hots.clear();
 	}
 
+	// Handle individual logic for each garbage
+	for(auto it = pit->garbage().begin(); it != pit->garbage().end(); ) {
+		GarbagePtr garbage = *it;
+		Garbage::State state = garbage->state();
+
+		// falling blocks arrived at next row (center)
+		if(state == Garbage::State::FALL) {
+			// land block?
+			if(garbage->is_arriving()) {
+				garbage_arrive_fall(garbage);
+			}
+		}
+
+		++it;
+	}
+
 	// debug: show what the pit considers to be its peak row
 	pit->highlight(pit->peak());
 }
@@ -228,6 +244,22 @@ void BlockDirector::block_arrive_fall(Block block)
 	}
 }
 
+void BlockDirector::garbage_arrive_fall(GarbagePtr garbage)
+{
+	RowCol rc = garbage->rc();
+	RowCol next { rc.r + 1, rc.c };
+
+	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
+
+	// If the next space is free, the block goes on to fall. Otherwise, it lands.
+	if(pit->anything_at(next)) {
+		garbage->set_state(Garbage::State::LAND);
+	}
+	else {
+		move_garbage(garbage, next);
+	}
+}
+
 void BlockDirector::block_arrive_swap(Block block)
 {
 	RowCol rc = block->rc();
@@ -264,6 +296,19 @@ void BlockDirector::move_block(Block block, RowCol to)
 	pit->unblock(block->rc());
 	pit->block(to, block);
 	block->set_rc(to);
+}
+
+/**
+ * Changes a garbage’s logical location.
+ * The garbage itself will adjust its offset to maintain the same draw-position.
+ * An approach of the draw-position towards the actual garbage position always happens
+ * gradually using the garbage’s state and animation.
+ */
+void BlockDirector::move_garbage(GarbagePtr garbage, RowCol to)
+{
+	pit->unblock(garbage);
+	garbage->set_rc(to);
+	pit->block(garbage);
 }
 
 BlockVec::iterator BlockDirector::reap_block(BlockVec::iterator it)

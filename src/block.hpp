@@ -166,7 +166,7 @@ public:
 	int bottom() const;
 	int peak() const;
 	Block block_at(RowCol rc) const;
-	Garbage garbage_at(RowCol rc) const;
+	GarbagePtr garbage_at(RowCol rc) const;
 	bool anything_at(RowCol rc) const;
 
 	GarbagePtr spawn_garbage(int columns, int rows);

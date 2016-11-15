@@ -358,6 +358,25 @@ Block PitImpl::block_at(RowCol rc) const
 		return it->second;
 }
 
+/**
+ * Return the garbage at the given location.
+ */
+GarbagePtr PitImpl::garbage_at(RowCol rc) const
+{
+	auto it = m_garbage_map.find(rc);
+	if(it == m_garbage_map.end())
+		return nullptr;
+	else
+		return it->second;
+}
+
+bool PitImpl::anything_at(RowCol rc) const
+{
+	return
+		block_map.find(rc) != block_map.end() || 
+		m_garbage_map.find(rc) != m_garbage_map.end();
+}
+
 GarbagePtr PitImpl::spawn_garbage(int columns, int rows)
 {
 	int row = std::min(m_peak, top()) - 2;
@@ -392,7 +411,7 @@ void PitImpl::block(GarbagePtr garbage)
 	int left = low_left.c;
 	int right = left + garbage->columns();
 
-	for(int r = low; r < high; r--) {
+	for(int r = low; r > high; r--) {
 		for(int c = left; c < right; c++) {
 			RowCol rc{r, c};
 			auto result = m_garbage_map.emplace(std::make_pair(rc, garbage));
@@ -418,7 +437,43 @@ void PitImpl::unblock(RowCol rc)
 
 		while(m_peak < lowest_row) {
 			for(int c = 0; c < PIT_COLS; c++) {
-				if(this->block_at({m_peak, c}))
+				if(this->anything_at({m_peak, c}))
+					goto peak_done;
+			}
+
+			m_peak++; // try next row
+		}
+	}
+
+peak_done:;
+}
+
+/**
+ * Set the given location to not blocked.
+ */
+void PitImpl::unblock(GarbagePtr garbage)
+{
+	RowCol low_left = garbage->rc();
+	int low = low_left.r;
+	int high = low - garbage->rows();
+	int left = low_left.c;
+	int right = left + garbage->columns();
+
+	for(int r = low; r > high; r--) {
+		for(int c = left; c < right; c++) {
+			RowCol rc{r, c};
+			size_t erased = m_garbage_map.erase(rc);
+			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+		}
+	}
+
+	// maintain peak by linear search through the pit contents, if necessary
+	if(low >= m_peak) {
+		int lowest_row = this->bottom();
+
+		while(m_peak < lowest_row) {
+			for(int c = 0; c < PIT_COLS; c++) {
+				if(this->anything_at({m_peak, c}))
 					goto peak_done;
 			}
 
@@ -511,21 +566,31 @@ void PitImpl::update(IContext& context)
 
 void PitViewImpl::draw(IContext& context, float dt)
 {
-	if(m_show) {
-		for(int r = pit->top(); r <= pit->bottom(); r++) {
-			for(int c = 0; c < PIT_COLS; c++) {
-				RowCol rc {r, c};
-				Block block = pit->block_at(rc);
-				if(block) {
-					BlockState state = block->state();
-					size_t frame = 0;
-					if(BlockState::FALL == state) frame = 1;
-					if(BlockState::BREAK == state) frame = 2;
-					if(BlockCol::FAKE == block->col) frame = 3;
-					Point loc = pit->transform(from_rc(rc), dt);
-					context.drawGfx(loc, Gfx::PITVIEW, frame);
-				}
-			}
+	if(!m_show)
+		return;
+
+	for(int r = pit->top(); r <= pit->bottom(); r++)
+	for(int c = 0; c < PIT_COLS; c++) {
+		RowCol rc {r, c};
+		Block block = pit->block_at(rc);
+		GarbagePtr garbage = pit->garbage_at(rc);
+
+		if(block) {
+			BlockState state = block->state();
+			size_t frame = 0;
+			if(BlockState::FALL == state) frame = 1;
+			if(BlockState::BREAK == state) frame = 2;
+			if(BlockCol::FAKE == block->col) frame = 3;
+			Point loc = pit->transform(from_rc(rc), dt);
+			context.drawGfx(loc, Gfx::PITVIEW, frame);
+		}
+
+		if(garbage) {
+			Garbage::State state = garbage->state();
+			size_t frame = 4;
+			if(Garbage::State::FALL == state) frame = 5;
+			Point loc = pit->transform(from_rc(rc), dt);
+			context.drawGfx(loc, Gfx::PITVIEW, frame);
 		}
 	}
 }
