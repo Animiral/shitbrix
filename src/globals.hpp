@@ -166,11 +166,15 @@ constexpr int GARBAGE_W = BLOCK_W/2; // width of one drawable piece of garbage
 constexpr int GARBAGE_H = BLOCK_H/2; // height of one drawable piece of garbage
 constexpr int CURSOR_W = 88; // width of the cursor texture
 constexpr int CURSOR_H = 48; // height of the cursor texture
+
 constexpr Point LPIT_LOC = { 32, 48 };
 constexpr Point RPIT_LOC = { 368, 48 };
 constexpr int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
 constexpr int PIT_W = PIT_COLS*BLOCK_W; // width of the pit in canvas pixels
-constexpr int PIT_H = 10*BLOCK_H; // height of the pit in canvas pixels
+constexpr int ROW_H = BLOCK_H; // height of a single row in the pit
+constexpr int COL_W = PIT_W/PIT_COLS; // width of a single column in the pit
+constexpr int PIT_H = 10*ROW_H; // height of the pit in canvas pixels
+
 constexpr int BANNER_W = 200; // width of the win/lose banner in canvas pixels
 constexpr int BANNER_H = 140; // height of the win/lose banner in canvas pixels
 

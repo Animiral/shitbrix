@@ -19,6 +19,8 @@ public:
 	virtual void unclip() =0;
 	virtual void fade(float fraction) =0;
 	virtual void play(Snd snd) =0;
+
+	virtual void highlight(Point top_left, int width, int height) =0;
 };
 
 /**

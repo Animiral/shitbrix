@@ -23,8 +23,12 @@ public:
 		fadetex = std::unique_ptr<SDL_Texture, SdlDeleter>(SDL_CreateTexture(factory.get_renderer().get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
 		game_assert(bool(fadetex), SDL_GetError());
 
-		int mode_result = SDL_SetTextureBlendMode(fadetex.get(), SDL_BLENDMODE_BLEND);
-		game_assert(0 == mode_result, SDL_GetError());
+		int texblend_result = SDL_SetTextureBlendMode(fadetex.get(), SDL_BLENDMODE_BLEND);
+		game_assert(0 == texblend_result, SDL_GetError());
+
+		SDL_Renderer* renderer = factory.get_renderer().get();
+		int drawblend_result = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
+		game_assert(0 == drawblend_result, SDL_GetError());
 	}
 
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
@@ -68,6 +72,19 @@ public:
 		Sound sound = assets.sound(snd);
 		auto audio = factory.get_audio();
 		audio->play(sound);
+	}
+
+	virtual void highlight(Point top_left, int width, int height) override
+	{
+		int x = top_left.x;
+		int y = top_left.y;
+		SDL_Rect fill_rect{x, y, width, height};
+
+		SDL_Renderer* renderer = factory.get_renderer().get();
+		int color_result = SDL_SetRenderDrawColor(renderer, 200, 200, 0, 150);
+		game_assert(0 == color_result, SDL_GetError());
+		int fill_result = SDL_RenderFillRect(renderer, &fill_rect);
+		game_assert(0 == fill_result, SDL_GetError());
 	}
 
 	/**

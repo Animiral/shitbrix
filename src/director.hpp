@@ -53,6 +53,7 @@ public:
 	bool over() const { return m_over; }
 	void update(IContext& context);
 	bool swap(RowCol lrc);
+	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
 private:
 
@@ -70,9 +71,11 @@ private:
 	Block spawn_fake(RowCol rc);
 
 	void block_arrive_fall(Block block);
+	void garbage_arrive_fall(GarbagePtr garbage);
 	void block_arrive_swap(Block block);
 
 	void move_block(Block block, RowCol to);
+	void move_garbage(GarbagePtr garbage, RowCol to);
 	BlockVec::iterator reap_block(BlockVec::iterator it);
 
 	void activate_previews();

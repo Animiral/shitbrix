@@ -104,7 +104,7 @@ public:
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
-	Garbage(RowCol rc, int columns, int rows, Transform view)
+	Garbage(RowCol rc, int columns, int rows, const ITransform& view)
 	:
 	IAnimation(BLOCK_Z), offset{0,0}, time(0), m_view(view),
 	m_loc(from_rc(RowCol{rc.r + rows - 1, rc.c})), m_rc(rc),
@@ -115,8 +115,10 @@ public:
 	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
-	Point loc() const { return m_view->transform(m_loc); }
+	Point loc() const { return m_view.transform(m_loc); }
 	RowCol rc() const { return m_rc; }
+	int rows() const { return m_rows; }
+	int columns() const { return m_columns; }
 	void set_rc(RowCol rc);
 	State state() const { return m_state; }
 	void set_state(State state);
@@ -129,7 +131,7 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int DISSOLVE_TIME = 30;
 
-	Transform m_view;   // view applied to m_loc
+	const ITransform& m_view;   // view applied to m_loc
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // lower left row/col position, - is UP, + is DOWN
 	int m_columns;      // width of this garbage in blocks
@@ -143,6 +145,8 @@ private:
 
 };
 
+using GarbagePtr = std::shared_ptr<Garbage>;
+
 /**
  * A pit is the playing area where one player’s blocks fall down.
  * The pit owns, animates and updates its contained blocks and garbage.
@@ -154,24 +158,35 @@ class PitImpl : public ITransform, public IAnimation, public ILogic
 
 public:
 
-	PitImpl(Point loc) : IAnimation(PIT_Z), m_loc(loc), m_enabled(true), m_scroll(BLOCK_H - PIT_H) {}
-
+	PitImpl(Point loc);
 	Point loc() const { return m_loc; }
 	BlockVec& blocks() { return m_blocks; }
+	std::vector<GarbagePtr>& garbage() { return m_garbage; }
 	int top() const;
 	int bottom() const;
+	int peak() const;
 	Block block_at(RowCol rc) const;
+	GarbagePtr garbage_at(RowCol rc) const;
+	bool anything_at(RowCol rc) const;
 
+	GarbagePtr spawn_garbage(int columns, int rows);
 	void block(RowCol rc, Block block);
+	void block(GarbagePtr garbage);
 	void unblock(RowCol rc);
+	void unblock(GarbagePtr garbage);
 	void swap(RowCol lrc, RowCol rrc);
 	void stop() { m_enabled = false; }
 	void start() { m_enabled = true; }
 
+	/**
+	 * Put a debug highlight on a row
+	 */
+	void highlight(int row);
+
 	virtual Point transform(Point point, float dt=0.f) const override;
 
 	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override { for(auto b : m_blocks) b->animate(); }
+	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
 private:
@@ -179,8 +194,13 @@ private:
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
 	float m_scroll;  // y-offset for view on pit contents
+	int m_peak;      // highest blocked row (may be above visible space)
 	BlockVec m_blocks; // list of all blocks in the pit
+	std::vector<GarbagePtr> m_garbage; // list of all garbage in the pit
 	std::map<RowCol, Block> block_map; // sparse matrix of blocked spaces
+	std::map<RowCol, GarbagePtr> m_garbage_map; // sparse matrix of blocked spaces
+
+	int m_highlight_row;
 
 };
 
