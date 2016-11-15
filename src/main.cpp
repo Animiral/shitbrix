@@ -34,14 +34,19 @@ public:
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
 	{
 		Texture texture = assets.texture(gfx, frame);
-		int x = loc.x;
-		int y = loc.y;
+		int x = loc.x + m_translate.x;
+		int y = loc.y + m_translate.y;
 		SDL_Rect dstrect { x, y, texture->width, texture->height };
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
 		SDL_Texture* tex = texture->tex.get();
 		int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
+	}
+
+	virtual void translate(Point offset) override
+	{
+		m_translate = offset;
 	}
 
 	virtual void clip(Point top_left, int width, int height) override
@@ -116,6 +121,7 @@ private:
 	SdlFactory factory;
 	Assets assets;
 
+	Point m_translate{0,0};
 	float m_fade = 1.f;
 	std::unique_ptr<SDL_Texture, SdlDeleter> fadetex; // solid pixel used for fading
 
