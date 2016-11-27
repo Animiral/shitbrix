@@ -18,7 +18,7 @@ void BlockImpl::draw(IContext& context, float dt)
 
 	if(BlockCol::FAKE == col) return;
 
-	Point draw_loc = m_view->transform(m_loc, dt);
+	Point draw_loc = m_loc;
 
 	// bounce when landing
 	if(BlockState::LAND == m_state) {
@@ -205,11 +205,10 @@ bool matchable(Block block)
  */
 void Garbage::draw(IContext& context, float dt)
 {
-	Point draw_loc = m_view.transform(m_loc, dt);
 
 	for(int y = 0; y < m_rows*2; y++)
 	for(int x = 0; x < m_columns*2; x++) {
-		Point piece_loc = { draw_loc.x + x*GARBAGE_W, draw_loc.y + y*GARBAGE_H };
+		Point piece_loc = { m_loc.x + x*GARBAGE_W, m_loc.y + y*GARBAGE_H };
 		GarbageFrame frame = GarbageFrame::MID;
 
 		bool top = 0 == y;
@@ -382,7 +381,7 @@ GarbagePtr PitImpl::spawn_garbage(int columns, int rows)
 	int row = std::min(m_peak, top()) - 2;
 	// int col = (*rndgen)() % (PIT_COLS - columns + 1);
 	int col = 0;
-	GarbagePtr garbage = std::make_shared<Garbage>(RowCol{row, col}, columns, rows, *this);
+	GarbagePtr garbage = std::make_shared<Garbage>(RowCol{row, col}, columns, rows);
 	m_garbage.push_back(garbage);
 	block(garbage);
 	return garbage;
@@ -527,6 +526,7 @@ Point PitImpl::transform(Point point, float dt) const
 void PitImpl::draw(IContext& context, float dt)
 {
 	context.clip(m_loc, PIT_W, PIT_H);
+	context.translate(m_loc.offset(0, -m_scroll));
 
 	for(auto b: m_blocks)
 		b->draw(context, dt);
@@ -539,6 +539,7 @@ void PitImpl::draw(IContext& context, float dt)
 	top_left = transform(top_left); // apply pit offset/scrolling
 	context.highlight(top_left, PIT_W, ROW_H);
 
+	context.translate(Point{0,0});
 	context.unclip();
 }
 
@@ -601,10 +602,9 @@ void CursorImpl::draw(IContext& context, float dt)
 	float x = static_cast<float>(rc.c*COL_W - (CURSOR_W-2*COL_W)/2);
 	float y = static_cast<float>(rc.r*ROW_H - (CURSOR_H-ROW_H)/2);
 	Point loc {x, y};
-	Point draw_loc = view->transform(loc, dt);
 
 	size_t frame = (anim / FRAME_TIME) % FRAMES;
-	context.drawGfx(draw_loc, Gfx::CURSOR, frame);
+	context.drawGfx(loc, Gfx::CURSOR, frame);
 }
 
 void CursorImpl::animate()
@@ -667,10 +667,10 @@ Stage StageBuilder::construct()
 	right_pit = std::make_shared<PitImpl>(RPIT_LOC);
 
 	RowCol left_center { (left_pit->top()-left_pit->bottom())/2, PIT_COLS/2-1 };
-	left_cursor = std::make_shared<CursorImpl>(left_center, left_pit);
+	left_cursor = std::make_shared<CursorImpl>(left_center);
 
 	RowCol right_center { (right_pit->top()-right_pit->bottom())/2, PIT_COLS/2-1 };
-	right_cursor = std::make_shared<CursorImpl>(right_center, right_pit);
+	right_cursor = std::make_shared<CursorImpl>(right_center);
 
 	stage->add(static_cast<Animation>(left_pit));
 	stage->add(static_cast<Logic>(left_pit));

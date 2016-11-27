@@ -82,20 +82,9 @@ class ILogic
 	public: virtual void update(IContext& context) =0; // advance the object by one tick
 };
 
-/**
- * Transforms point coordinates.
- * E.g. the scrolling pit translates its block’s coordinates ever upwards.
- * Optionally, a display frame fraction is included to enable smooth drawing.
- */
-class ITransform
-{
-	public: virtual Point transform(Point point, float dt=0.f) const =0;
-};
-
 class IHistoryObject {}; // interface go-back etc.
 
 using Animation = std::shared_ptr<IAnimation>;
 using Logic = std::shared_ptr<ILogic>;
-using Transform = std::shared_ptr<ITransform>;
 
 bool z_less (const Animation& lhs, const Animation& rhs);

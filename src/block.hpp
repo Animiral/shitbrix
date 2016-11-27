@@ -39,9 +39,9 @@ public:
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
-	BlockImpl(BlockCol col, RowCol rc, Transform view)
+	BlockImpl(BlockCol col, RowCol rc)
 	:
-	IAnimation(BLOCK_Z), col(col), offset{0,0}, time(0), m_view(view),
+	IAnimation(BLOCK_Z), col(col), offset{0,0}, time(0),
 	m_loc(from_rc(rc)), m_rc(rc), m_state(BlockState::PREVIEW)
 	{}
 
@@ -49,7 +49,7 @@ public:
 	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
-	Point loc() const { return m_view->transform(m_loc); }
+	Point loc() const { return m_loc; }
 	RowCol rc() const { return m_rc; }
 	void set_rc(RowCol rc);
 	BlockState state() const { return m_state; }
@@ -65,7 +65,6 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int BREAK_TIME = 30;
 
-	Transform m_view;   // view applied to m_loc
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // row/col position, - is UP, + is DOWN
 	Point m_target;     // target location - where the block really wants to be while it’s busy with an animation like SWAP
@@ -104,9 +103,9 @@ public:
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
-	Garbage(RowCol rc, int columns, int rows, const ITransform& view)
+	Garbage(RowCol rc, int columns, int rows)
 	:
-	IAnimation(BLOCK_Z), offset{0,0}, time(0), m_view(view),
+	IAnimation(BLOCK_Z), offset{0,0}, time(0),
 	m_loc(from_rc(RowCol{rc.r + rows - 1, rc.c})), m_rc(rc),
 	m_columns(columns), m_rows(rows), m_state(State::FALL)
 	{}
@@ -115,7 +114,7 @@ public:
 	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
-	Point loc() const { return m_view.transform(m_loc); }
+	Point loc() const { return m_loc; }
 	RowCol rc() const { return m_rc; }
 	int rows() const { return m_rows; }
 	int columns() const { return m_columns; }
@@ -131,7 +130,6 @@ private:
 	static constexpr int LAND_TIME = 20;
 	static constexpr int DISSOLVE_TIME = 30;
 
-	const ITransform& m_view;   // view applied to m_loc
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // lower left row/col position, - is UP, + is DOWN
 	int m_columns;      // width of this garbage in blocks
@@ -153,7 +151,7 @@ using GarbagePtr = std::shared_ptr<Garbage>;
  * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
  */
-class PitImpl : public ITransform, public IAnimation, public ILogic
+class PitImpl : public IAnimation, public ILogic
 {
 
 public:
@@ -183,7 +181,7 @@ public:
 	 */
 	void highlight(int row);
 
-	virtual Point transform(Point point, float dt=0.f) const override;
+	Point transform(Point point, float dt=0.f) const;
 
 	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
@@ -230,7 +228,7 @@ public:
 
 	RowCol rc;
 
-	CursorImpl(RowCol rc, Transform view) : IAnimation(CURSOR_Z), rc(rc), anim(0), view(view) {}
+	CursorImpl(RowCol rc) : IAnimation(CURSOR_Z), rc(rc), anim(0) {}
 
 	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
@@ -241,7 +239,6 @@ private:
 	static constexpr int FRAMES = 4; // number of available cursor frames
 
 	int anim;
-	Transform view;
 
 };
 
