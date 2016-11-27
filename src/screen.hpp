@@ -96,7 +96,14 @@ public:
 	~GameResult();
 
 	virtual void update(IContext& context) override;
+	virtual void draw(IContext& context, float dt) override;
 	virtual void input(GameInput ginput) override {}
+
+private:
+
+	Banner banner_left;
+	Banner banner_right;
+
 };
 
 class GameScreen : public IScreen, public IReplaySink
@@ -131,14 +138,11 @@ private:
 	std::unique_ptr<CursorDirector> right_cursor;
 	PitView lpit_view;
 	PitView rpit_view;
-	Banner banner_left;
-	Banner banner_right;
 
 	std::ofstream replay_outstream;
 	Journal journal;
 
 	void set_phase(GamePhase phase);
-	void add_banner(Point pit_loc, BannerFrame frame);
 	void seed(unsigned int rng_seed);
 
 	friend class IGamePhase;

@@ -96,13 +96,18 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 	stream << winner;
 	m_screen->journal << ReplayEvent::make_set("winner", stream.str());
 
+	float dx = (PIT_W-BANNER_W)/2;
+	float dy = (PIT_H-BANNER_H)/2;
+	Point left_banner_loc = LPIT_LOC.offset(dx, dy);
+	Point right_banner_loc = RPIT_LOC.offset(dx, dy);
+
 	if(0 == winner) {
-		m_screen->add_banner(LPIT_LOC, BannerFrame::WIN);
-		m_screen->add_banner(RPIT_LOC, BannerFrame::LOSE);
+		banner_left.reset(new BannerImpl{left_banner_loc, BannerFrame::WIN});
+		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::LOSE});
 	}
 	else {
-		m_screen->add_banner(LPIT_LOC, BannerFrame::LOSE);
-		m_screen->add_banner(RPIT_LOC, BannerFrame::WIN);
+		banner_left.reset(new BannerImpl{left_banner_loc, BannerFrame::LOSE});
+		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::WIN});
 	}
 
 	m_screen->stage->remove(m_screen->left_cursor->cursor());
@@ -112,6 +117,17 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 GameResult::~GameResult()
 {
 	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
+}
+
+void GameResult::draw(IContext& context, float dt)
+{
+	IGamePhase::draw(context, dt);
+
+	size_t left_frame = static_cast<size_t>(banner_left->frame);
+	context.drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
+
+	size_t right_frame = static_cast<size_t>(banner_right->frame);
+	context.drawGfx(banner_right->loc, Gfx::BANNER, right_frame);
 }
 
 void GameResult::update(IContext& context)
@@ -243,15 +259,6 @@ void GameScreen::set_phase(GamePhase phase)
 {
 	game_phase = std::move(phase);
 	input_mixer.set_game_sink(game_phase.get());
-}
-
-void GameScreen::add_banner(Point pit_loc, BannerFrame frame)
-{
-	pit_loc.x += (PIT_W-BANNER_W)/2;
-	pit_loc.y += (PIT_H-BANNER_H)/2;
-
-	Banner banner = std::make_shared<BannerImpl>(pit_loc, frame);
-	stage->add(banner);
 }
 
 void GameScreen::seed(unsigned int rng_seed)
