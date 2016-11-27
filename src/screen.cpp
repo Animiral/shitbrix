@@ -13,7 +13,7 @@ void GameIntro::draw(IContext& context, float dt)
 {
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
 	context.fade(fadeness);
-	m_screen->stage->draw(context, dt);
+	IGamePhase::draw(context, dt);
 }
 
 void GameIntro::update(IContext& context)
