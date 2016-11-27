@@ -132,6 +132,8 @@ struct GameInput
 struct Point
 {
 	float x, y;
+
+	Point offset(float dx, float dy) const { return Point{x+dx, y+dy}; }
 };
 
 /**
