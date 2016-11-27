@@ -193,7 +193,7 @@ public:
 	Main(Options options)
 		: m_options(std::move(options)),
 		  context(),
-		  game_screen(m_options.replay_file(), make_journal_file().c_str()),
+		  game_screen(m_options.replay_file(), make_journal_file().c_str(), context),
 		  keyboard(game_screen)
 	{
 	}
@@ -222,7 +222,7 @@ public:
 				float fraction = 1.0f - static_cast<float>((next_logic-now) * TPS) / freq;
 				SDL_assert((fraction >= 0) && (fraction <= 1));
 
-				game_screen.draw(context, fraction);
+				game_screen.draw(fraction);
 				context.render();
 				now = SDL_GetPerformanceCounter();
 			}
@@ -231,7 +231,7 @@ public:
 
 			// run one frame of local logic
 			game_screen.animate();
-			game_screen.update(context);
+			game_screen.update();
 
 			tick++;
 			next_logic = t0 + (tick+1) * freq / TPS;

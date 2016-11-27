@@ -3,20 +3,20 @@
 
 IGamePhase::~IGamePhase() =default;
 
-void IGamePhase::draw(IContext& context, float dt)
+void IGamePhase::draw(float dt) const
 {
-	m_screen->stage->draw(context, dt);
+	m_screen->stage->draw(m_screen->m_context, dt);
 }
 
 
-void GameIntro::draw(IContext& context, float dt)
+void GameIntro::draw(float dt) const
 {
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
-	context.fade(fadeness);
-	IGamePhase::draw(context, dt);
+	m_screen->m_context.fade(fadeness);
+	IGamePhase::draw(dt);
 }
 
-void GameIntro::update(IContext& context)
+void GameIntro::update()
 {
 	if(0 == --countdown) {
 		auto phase = std::make_unique<GamePlay>(m_screen);
@@ -30,11 +30,11 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 	m_screen->journal << ReplayEvent::make_start();
 }
 
-void GamePlay::update(IContext& context)
+void GamePlay::update()
 {
-	m_screen->left_blocks->update(context);
-	m_screen->right_blocks->update(context);
-	m_screen->stage->update(context);
+	m_screen->left_blocks->update(m_screen->m_context);
+	m_screen->right_blocks->update(m_screen->m_context);
+	m_screen->stage->update(m_screen->m_context);
 
 	// debug: spawn some garbage
 	if(m_screen->m_game_time % 400 == 0) {
@@ -119,25 +119,27 @@ GameResult::~GameResult()
 	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
 }
 
-void GameResult::draw(IContext& context, float dt)
+void GameResult::draw(float dt) const
 {
-	IGamePhase::draw(context, dt);
+	IGamePhase::draw(dt);
 
 	size_t left_frame = static_cast<size_t>(banner_left->frame);
-	context.drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
+	m_screen->m_context.drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
 
 	size_t right_frame = static_cast<size_t>(banner_right->frame);
-	context.drawGfx(banner_right->loc, Gfx::BANNER, right_frame);
+	m_screen->m_context.drawGfx(banner_right->loc, Gfx::BANNER, right_frame);
 }
 
-void GameResult::update(IContext& context)
+void GameResult::update()
 {
 	// this is only needed to display the replay correctly
 	m_screen->m_game_time++;
 }
 
-GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
+
+GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context)
 : input_mixer(*this, replay_infile),
+  m_context(context),
   replay_outstream(replay_outfile),
   journal(replay_outstream)
 {
@@ -170,10 +172,10 @@ void GameScreen::reset()
 	stage->add(rpit_view);
 }
 
-void GameScreen::draw(IContext& context, float dt)
+void GameScreen::draw(float dt) const
 {
-	context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
-	game_phase->draw(context, dt);
+	m_context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
+	game_phase->draw(dt);
 }
 
 void GameScreen::animate()
@@ -181,10 +183,10 @@ void GameScreen::animate()
 	stage->animate();
 }
 
-void GameScreen::update(IContext& context)
+void GameScreen::update()
 {
 	input_mixer.update(m_game_time);
-	game_phase->update(context);
+	game_phase->update();
 
 	// auto-move cursor when scrolling out of bounds
 	left_cursor->move(Dir::NONE);
