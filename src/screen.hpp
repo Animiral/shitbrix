@@ -115,7 +115,7 @@ public:
 
 	const long& game_time() const { return m_game_time; }
 	void reset();
-	virtual void draw(IContext& context, float dt) override { game_phase->draw(context, dt); }
+	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
 	virtual void update(IContext& context) override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }

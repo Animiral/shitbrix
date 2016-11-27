@@ -646,7 +646,6 @@ void StageImpl::remove(Logic logic)
 
 void StageImpl::draw(IContext& context, float dt)
 {
-	context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
 	for(auto& animation : animations) animation->draw(context, dt);
 }
 

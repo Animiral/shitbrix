@@ -170,6 +170,12 @@ void GameScreen::reset()
 	stage->add(rpit_view);
 }
 
+void GameScreen::draw(IContext& context, float dt)
+{
+	context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
+	game_phase->draw(context, dt);
+}
+
 void GameScreen::animate()
 {
 	stage->animate();
