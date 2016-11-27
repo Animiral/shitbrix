@@ -133,22 +133,6 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
 	reset();
 }
 
-GameScreen& GameScreen::operator=(GameScreen&& rhs)
-{
-	game_phase = std::move(rhs.game_phase);
-	game_phase->set_screen(this);
-	stage = std::move(rhs.stage);
-	left_blocks = std::move(rhs.left_blocks);
-	right_blocks = std::move(rhs.right_blocks);
-	left_cursor = std::move(rhs.left_cursor);
-	right_cursor = std::move(rhs.right_cursor);
-	lpit_view = std::move(rhs.lpit_view);
-	rpit_view = std::move(rhs.rpit_view);
-	banner_left = std::move(rhs.banner_left);
-	banner_right = std::move(rhs.banner_right);
-	return *this;
-}
-
 void GameScreen::reset()
 {
 	set_phase(std::make_unique<GameIntro>(this));

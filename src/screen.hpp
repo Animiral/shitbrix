@@ -20,6 +20,12 @@ class IScreen : public IAnimation, public ILogic, public IControllerSink
 public:
 	IScreen() : IAnimation(SCREEN_Z) {}
 
+	// Screens are complex objects and can not be copied or moved.
+	IScreen(const IScreen& ) = delete;
+	IScreen(IScreen&& ) = delete;
+	IScreen& operator=(const IScreen& ) = delete;
+	IScreen& operator=(IScreen&& ) = delete;
+
 	virtual ScreenPhase phase() const =0; // type enum
 	virtual bool done() const =0; // whether the screen has ended
 
@@ -99,7 +105,6 @@ class GameScreen : public IScreen, public IReplaySink
 public:
 
 	GameScreen(const char* replay_infile, const char* replay_outfile);
-	GameScreen& operator=(GameScreen&& rhs);
 
 	const long& game_time() const { return m_game_time; }
 	void reset();
