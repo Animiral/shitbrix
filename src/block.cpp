@@ -565,38 +565,6 @@ void PitImpl::update(IContext& context)
 }
 
 
-void PitViewImpl::draw(IContext& context, float dt)
-{
-	if(!m_show)
-		return;
-
-	for(int r = pit->top(); r <= pit->bottom(); r++)
-	for(int c = 0; c < PIT_COLS; c++) {
-		RowCol rc {r, c};
-		Block block = pit->block_at(rc);
-		GarbagePtr garbage = pit->garbage_at(rc);
-
-		if(block) {
-			BlockState state = block->state();
-			size_t frame = 0;
-			if(BlockState::FALL == state) frame = 1;
-			if(BlockState::BREAK == state) frame = 2;
-			if(BlockCol::FAKE == block->col) frame = 3;
-			Point loc = pit->transform(from_rc(rc), dt);
-			context.drawGfx(loc, Gfx::PITVIEW, frame);
-		}
-
-		if(garbage) {
-			Garbage::State state = garbage->state();
-			size_t frame = 4;
-			if(Garbage::State::FALL == state) frame = 5;
-			Point loc = pit->transform(from_rc(rc), dt);
-			context.drawGfx(loc, Gfx::PITVIEW, frame);
-		}
-	}
-}
-
-
 void CursorImpl::draw(IContext& context, float dt)
 {
 	float x = static_cast<float>(rc.c*COL_W - (CURSOR_W-2*COL_W)/2);

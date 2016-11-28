@@ -164,12 +164,6 @@ void GameScreen::reset()
 	right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit, rndgen);
 	left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
 	right_cursor = std::make_unique<CursorDirector>(builder.right_pit, builder.right_cursor);
-
-	lpit_view = std::make_shared<PitViewImpl>(builder.left_pit);
-	rpit_view = std::make_shared<PitViewImpl>(builder.right_pit);
-
-	stage->add(lpit_view);
-	stage->add(rpit_view);
 }
 
 void GameScreen::draw(float dt) const
@@ -218,11 +212,9 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG1:
-			lpit_view->toggle();
 			break;
 
 		case Button::DEBUG2:
-			rpit_view->toggle();
 			break;
 
 		case Button::NONE:

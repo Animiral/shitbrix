@@ -207,23 +207,6 @@ private:
 
 using Pit = std::shared_ptr<PitImpl>;
 
-/**
- * Pit visualization for debugging.
- */
-class PitViewImpl : public IAnimation
-{
-public:
-	PitViewImpl(Pit pit) : IAnimation(PITVIEW_Z), pit(pit), m_show(false) {}
-	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override {}
-	void toggle() { m_show = !m_show; }
-private:
-	Pit pit;
-	bool m_show; // whether or not to display this
-};
-
-using PitView = std::shared_ptr<PitViewImpl>;
-
 class CursorImpl : public IAnimation
 {
 

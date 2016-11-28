@@ -149,8 +149,6 @@ private:
 	std::unique_ptr<BlockDirector> right_blocks;
 	std::unique_ptr<CursorDirector> left_cursor;
 	std::unique_ptr<CursorDirector> right_cursor;
-	PitView lpit_view;
-	PitView rpit_view;
 
 	std::ofstream replay_outstream;
 	Journal journal;
