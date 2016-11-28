@@ -58,12 +58,12 @@ public:
 
 	bool is_arriving();
 
-private:
+	static constexpr float BOUNCE_H = 10.f; // height of a block’s bouncing animation when it lands
+	static constexpr int SWAP_TIME = 6; // number of ticks to swap two blocks
+	static constexpr int LAND_TIME = 20; // number of ticks in a block’s landing animation
+	static constexpr int BREAK_TIME = 30; // number of ticks for a block to break
 
-	static constexpr float BOUNCE_H = 10.f;
-	static constexpr int SWAP_TIME = 6;
-	static constexpr int LAND_TIME = 20;
-	static constexpr int BREAK_TIME = 30;
+private:
 
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // row/col position, - is UP, + is DOWN
@@ -124,11 +124,11 @@ public:
 
 	bool is_arriving();
 
-private:
+	static constexpr float BOUNCE_H = 10.f; // height of a garbage’s bouncing animation when it lands
+	static constexpr int LAND_TIME = 20; // number of ticks in a garbage’s landing animation
+	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to break
 
-	static constexpr float BOUNCE_H = 10.f;
-	static constexpr int LAND_TIME = 20;
-	static constexpr int DISSOLVE_TIME = 30;
+private:
 
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // lower left row/col position, - is UP, + is DOWN
@@ -235,11 +235,11 @@ public:
 
 	virtual void draw(IContext& context, float dt) override;
 	virtual void animate() override;
+	static constexpr int FRAME_TIME = 4; // how many sceen frames to display one cursor frame
+	static constexpr int FRAMES = 4; // number of available cursor frames
 
 private:
 
-	static constexpr int FRAME_TIME = 4; // how many sceen frames to display one cursor frame
-	static constexpr int FRAMES = 4; // number of available cursor frames
 
 	int anim;
 
