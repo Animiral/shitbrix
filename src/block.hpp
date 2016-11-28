@@ -160,12 +160,15 @@ public:
 	Point loc() const { return m_loc; }
 	BlockVec& blocks() { return m_blocks; }
 	std::vector<GarbagePtr>& garbage() { return m_garbage; }
+	const BlockVec& blocks() const { return m_blocks; }
+	const std::vector<GarbagePtr>& garbage() const { return m_garbage; }
 	int top() const;
 	int bottom() const;
 	int peak() const;
 	Block block_at(RowCol rc) const;
 	GarbagePtr garbage_at(RowCol rc) const;
 	bool anything_at(RowCol rc) const;
+	int highlight_row() const { return m_highlight_row; }
 
 	GarbagePtr spawn_garbage(int columns, int rows);
 	void block(RowCol rc, Block block);
