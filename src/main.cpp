@@ -230,7 +230,6 @@ public:
 			keyboard.poll();
 
 			// run one frame of local logic
-			game_screen.animate();
 			game_screen.update();
 
 			tick++;

@@ -3,17 +3,23 @@
 
 IGamePhase::~IGamePhase() =default;
 
-void IGamePhase::draw(float dt) const
+void IGamePhase::draw() const
 {
-	m_screen->stage->draw(m_screen->m_context, dt);
+	m_screen->m_draw.draw_all();
 }
 
 
-void GameIntro::draw(float dt) const
+GameIntro::GameIntro(GameScreen* screen)
+: IGamePhase(screen), countdown(INTRO_TIME)
+{
+	m_screen->m_draw.show_cursors(true);
+}
+
+void GameIntro::draw() const
 {
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
 	m_screen->m_context.fade(fadeness);
-	IGamePhase::draw(dt);
+	IGamePhase::draw();
 }
 
 void GameIntro::update()
@@ -110,8 +116,7 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::WIN});
 	}
 
-	m_screen->stage->remove(m_screen->left_cursor->cursor());
-	m_screen->stage->remove(m_screen->right_cursor->cursor());
+	m_screen->m_draw.show_cursors(false);
 }
 
 GameResult::~GameResult()
@@ -119,9 +124,9 @@ GameResult::~GameResult()
 	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
 }
 
-void GameResult::draw(float dt) const
+void GameResult::draw() const
 {
-	IGamePhase::draw(dt);
+	IGamePhase::draw();
 
 	size_t left_frame = static_cast<size_t>(banner_left->frame);
 	m_screen->m_context.drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
@@ -139,9 +144,10 @@ void GameResult::update()
 
 GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context)
 : input_mixer(*this, replay_infile),
-  m_context(context),
   replay_outstream(replay_outfile),
-  journal(replay_outstream)
+  journal(replay_outstream),
+  m_context(context),
+  m_draw(context)
 {
 	if(!replay_infile) {
 		std::random_device rdev;
@@ -153,6 +159,8 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IC
 
 void GameScreen::reset()
 {
+	m_draw.clear();
+
 	set_phase(std::make_unique<GameIntro>(this));
 	m_game_time = 0L;
 	m_done = false;
@@ -164,17 +172,16 @@ void GameScreen::reset()
 	right_blocks = std::make_unique<BlockDirector>(stage, builder.right_pit, rndgen);
 	left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
 	right_cursor = std::make_unique<CursorDirector>(builder.right_pit, builder.right_cursor);
+
+	m_draw.add_pit(*builder.left_pit, *builder.left_cursor);
+	m_draw.add_pit(*builder.right_pit, *builder.right_cursor);
 }
 
 void GameScreen::draw(float dt) const
 {
+	m_draw.set_dt(dt);
 	m_context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
-	game_phase->draw(dt);
-}
-
-void GameScreen::animate()
-{
-	stage->animate();
+	game_phase->draw();
 }
 
 void GameScreen::update()
@@ -212,9 +219,11 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG1:
+			m_draw.toggle_pit_debug_overlay();
 			break;
 
 		case Button::DEBUG2:
+			m_draw.toggle_pit_debug_highlight();
 			break;
 
 		case Button::NONE:

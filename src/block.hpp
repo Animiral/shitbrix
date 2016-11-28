@@ -29,7 +29,7 @@ int operator-(BlockCol lhs, BlockCol rhs);
  *  * BREAK: the block has been matched and is in the process of destruction
  *  * DEAD: should be removed from the game asap as it is an error to logic update() a dead block
  */
-class BlockImpl : public IAnimation, public ILogic
+class BlockImpl : public ILogic
 {
 
 public:
@@ -41,12 +41,10 @@ public:
 
 	BlockImpl(BlockCol col, RowCol rc)
 	:
-	IAnimation(BLOCK_Z), col(col), offset{0,0}, time(0),
+	col(col), offset{0,0}, time(0),
 	m_loc(from_rc(rc)), m_rc(rc), m_state(BlockState::PREVIEW)
 	{}
 
-	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
 	Point loc() const { return m_loc; }
@@ -58,7 +56,6 @@ public:
 
 	bool is_arriving();
 
-	static constexpr float BOUNCE_H = 10.f; // height of a block’s bouncing animation when it lands
 	static constexpr int SWAP_TIME = 6; // number of ticks to swap two blocks
 	static constexpr int LAND_TIME = 20; // number of ticks in a block’s landing animation
 	static constexpr int BREAK_TIME = 30; // number of ticks for a block to break
@@ -92,7 +89,7 @@ bool matchable(Block block);
  * in the pit. Garbage blocks span multiple spaces. They never spawn from the
  * bottom, always falling from above.
  */
-class Garbage : public IAnimation, public ILogic
+class Garbage : public ILogic
 {
 
 public:
@@ -105,13 +102,11 @@ public:
 
 	Garbage(RowCol rc, int columns, int rows)
 	:
-	IAnimation(BLOCK_Z), offset{0,0}, time(0),
+	offset{0,0}, time(0),
 	m_loc(from_rc(RowCol{rc.r + rows - 1, rc.c})), m_rc(rc),
 	m_columns(columns), m_rows(rows), m_state(State::FALL)
 	{}
 
-	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
 	Point loc() const { return m_loc; }
@@ -124,7 +119,6 @@ public:
 
 	bool is_arriving();
 
-	static constexpr float BOUNCE_H = 10.f; // height of a garbage’s bouncing animation when it lands
 	static constexpr int LAND_TIME = 20; // number of ticks in a garbage’s landing animation
 	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to break
 
@@ -147,11 +141,11 @@ using GarbagePtr = std::shared_ptr<Garbage>;
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
- * The pit owns, animates and updates its contained blocks and garbage.
+ * The pit owns and updates its contained blocks and garbage.
  * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
  */
-class PitImpl : public IAnimation, public ILogic
+class PitImpl : public ILogic
 {
 
 public:
@@ -185,9 +179,6 @@ public:
 	void highlight(int row);
 
 	Point transform(Point point, float dt=0.f) const;
-
-	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override;
 	virtual void update(IContext& context) override;
 
 private:
@@ -207,24 +198,16 @@ private:
 
 using Pit = std::shared_ptr<PitImpl>;
 
-class CursorImpl : public IAnimation
+class CursorImpl
 {
 
 public:
 
 	RowCol rc;
+	int time;
 
-	CursorImpl(RowCol rc) : IAnimation(CURSOR_Z), rc(rc), anim(0) {}
+	CursorImpl(RowCol rc) : rc(rc), time(0) {}
 
-	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override;
-	static constexpr int FRAME_TIME = 4; // how many sceen frames to display one cursor frame
-	static constexpr int FRAMES = 4; // number of available cursor frames
-
-private:
-
-
-	int anim;
 
 };
 
@@ -232,14 +215,12 @@ using Cursor = std::shared_ptr<CursorImpl>;
 
 enum class BannerFrame : size_t { WIN=0, LOSE=1 };
 
-class BannerImpl : public IAnimation
+class BannerImpl
 {
 public:
 	Point loc;
 	BannerFrame frame;
-	BannerImpl(Point loc, BannerFrame frame) : IAnimation(BANNER_Z), loc(loc), frame(frame) {}
-	virtual void draw(IContext& context, float dt) override;
-	virtual void animate() override {}
+	BannerImpl(Point loc, BannerFrame frame) : loc(loc), frame(frame) {}
 };
 
 using Banner = std::shared_ptr<BannerImpl>;
@@ -255,18 +236,13 @@ public:
 
 	StageImpl() {}
 
-	void add(Animation animation);
 	void add(Logic logic);
-	void remove(Animation animation);
 	void remove(Logic logic);
 
-	void draw(IContext& context, float dt);
-	void animate();
 	void update(IContext& context);
 
 private:
 
-	std::vector< Animation > animations;
 	std::vector< Logic > logics;
 
 };

@@ -9,6 +9,7 @@
 #include "input.hpp"
 #include "context.hpp"
 #include "block.hpp"
+#include "draw.hpp"
 #include "director.hpp"
 #include "replay.hpp"
 #include <fstream>
@@ -61,7 +62,7 @@ public:
 
 	void set_screen(GameScreen* screen) { m_screen = screen; }
 
-	virtual void draw(float dt) const;
+	virtual void draw() const;
 	virtual void update() =0;
 
 protected:
@@ -75,9 +76,9 @@ using GamePhase = std::unique_ptr<IGamePhase>;
 class GameIntro : public IGamePhase
 {
 public:
-	GameIntro(GameScreen* screen) : IGamePhase(screen), countdown(INTRO_TIME) {}
+	GameIntro(GameScreen* screen);
 
-	virtual void draw(float dt) const override;
+	virtual void draw() const override;
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
 private:
@@ -103,7 +104,7 @@ public:
 	GameResult(GameScreen* screen, int winner);
 	~GameResult();
 
-	virtual void draw(float dt) const override;
+	virtual void draw() const override;
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
 
@@ -128,7 +129,6 @@ public:
 	 * Draw content to the screen according to the game phase.
 	 */
 	virtual void draw(float dt) const override;
-	virtual void animate();
 	virtual void update() override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
@@ -143,15 +143,16 @@ private:
 	bool m_done; // true if this screen has reached its end
 	GameInputMixer input_mixer;
 
+	std::ofstream replay_outstream;
+	Journal journal;
+
 	IContext& m_context;
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
 	std::unique_ptr<CursorDirector> left_cursor;
 	std::unique_ptr<CursorDirector> right_cursor;
-
-	std::ofstream replay_outstream;
-	Journal journal;
+	DrawGame m_draw;
 
 	void set_phase(GamePhase phase);
 	void seed(unsigned int rng_seed);

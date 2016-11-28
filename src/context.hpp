@@ -61,20 +61,6 @@ public:
 };
 
 /**
- * Basic interface that specifies that an object can be drawn to the screen.
- */
-class IAnimation
-{
-public:
-	IAnimation(int z_order) : z_order(z_order) {}
-	virtual void draw(IContext& context, float dt) =0; // dt: fraction of current display frame time elapsed
-	virtual void animate() {} // Called once per frame to update animation
-	bool operator<(const IAnimation& rhs) const { return z_order < rhs.z_order; }
-private:
-	int z_order; // Specifies drawing order. Every subclass must set this value.
-};
-
-/**
  * Basic interface for objects subject to game logic
  */
 class ILogic
@@ -84,7 +70,4 @@ class ILogic
 
 class IHistoryObject {}; // interface go-back etc.
 
-using Animation = std::shared_ptr<IAnimation>;
 using Logic = std::shared_ptr<ILogic>;
-
-bool z_less (const Animation& lhs, const Animation& rhs);

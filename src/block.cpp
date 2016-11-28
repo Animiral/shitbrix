@@ -12,37 +12,6 @@ int operator-(BlockCol lhs, BlockCol rhs)
 	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
 
-void BlockImpl::draw(IContext& context, float dt)
-{
-	SDL_assert(col != BlockCol::INVALID);
-
-	if(BlockCol::FAKE == col) return;
-
-	Point draw_loc = m_loc;
-
-	// bounce when landing
-	if(BlockState::LAND == m_state) {
-		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
-		draw_loc.y -= BOUNCE_H * ( time > LAND_TIME/2 ? LAND_TIME-time : time ) / LAND_TIME;
-	}
-
-	Gfx gfx = Gfx::BLOCK_BLUE + (col - BlockCol::BLUE);
-
-	BlockFrame frame = BlockFrame::REST;
-	if(BlockState::PREVIEW == m_state) frame = BlockFrame::PREVIEW;
-	if(BlockState::BREAK == m_state) frame = m_anim;
-
-	context.drawGfx(draw_loc, gfx, static_cast<size_t>(frame));
-}
-
-void BlockImpl::animate()
-{
-	++m_anim;
-
-	if(BlockState::BREAK == m_state && m_anim >= BlockFrame::BREAK_END)
-		m_anim = BlockFrame::BREAK_BEGIN;
-}
-
 /**
  * State machine spaghetti for block behavior
  */
@@ -197,50 +166,6 @@ bool matchable(Block block)
 }
 
 
-/**
- * Draw the garbage brick.
- * While a Garbage’s rc is always set to point at the lower left space that
- * it occupies, its loc points to the top left corner of the displayed array
- * of graphics.
- */
-void Garbage::draw(IContext& context, float dt)
-{
-
-	for(int y = 0; y < m_rows*2; y++)
-	for(int x = 0; x < m_columns*2; x++) {
-		Point piece_loc = { m_loc.x + x*GARBAGE_W, m_loc.y + y*GARBAGE_H };
-		GarbageFrame frame = GarbageFrame::MID;
-
-		bool top = 0 == y;
-		bool low = m_rows*2 == y+1;
-		bool left = 0 == x;
-		bool right = m_columns*2 == x+1;
-
-		if(top && left)       frame = GarbageFrame::TOP_LEFT;
-		else if(top && right) frame = GarbageFrame::TOP_RIGHT;
-		else if(top)          frame = GarbageFrame::TOP;
-		else if(low && left)  frame = GarbageFrame::LOW_LEFT;
-		else if(low && right) frame = GarbageFrame::LOW_RIGHT;
-		else if(low)          frame = GarbageFrame::LOW;
-		else if(left)         frame = GarbageFrame::MID_LEFT;
-		else if(right)        frame = GarbageFrame::MID_RIGHT;
-		else                  frame = GarbageFrame::MID;
-
-		context.drawGfx(piece_loc, Gfx::GARBAGE, static_cast<size_t>(frame));
-	}
-}
-
-/**
- * Animation, for a garbage block, primarily means the part where it dissolves
- * and turns into small blocks.
- */
-void Garbage::animate()
-{
-	if(State::DISSOLVE == m_state) {
-		// TODO: animate garbage block
-	}
-}
-
 void Garbage::update(IContext& context)
 {
 	time--;
@@ -319,7 +244,7 @@ void Garbage::dobreak()
  * Constructs a Pit at the specified draw location.
  */
 PitImpl::PitImpl(Point loc)
-: IAnimation(PIT_Z), m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
+: m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
   m_peak(1), m_highlight_row(0)
 {
 }
@@ -523,35 +448,6 @@ Point PitImpl::transform(Point point, float dt) const
 	return point;
 }
 
-void PitImpl::draw(IContext& context, float dt)
-{
-	context.clip(m_loc, PIT_W, PIT_H);
-	context.translate(m_loc.offset(0, -m_scroll));
-
-	for(auto b: m_blocks)
-		b->draw(context, dt);
-
-	for(auto g: m_garbage)
-		g->draw(context, dt);
-
-	// draw the highlighted row for debugging
-	Point top_left{0, static_cast<float>(m_highlight_row * ROW_H)};
-	top_left = transform(top_left); // apply pit offset/scrolling
-	context.highlight(top_left, PIT_W, ROW_H);
-
-	context.translate(Point{0,0});
-	context.unclip();
-}
-
-void PitImpl::animate()
-{
-	for(auto b : m_blocks)
-		b->animate();
-
-	for(auto g : m_garbage)
-		g->animate();
-}
-
 void PitImpl::update(IContext& context)
 {
 	for(auto b : m_blocks)
@@ -565,44 +461,9 @@ void PitImpl::update(IContext& context)
 }
 
 
-void CursorImpl::draw(IContext& context, float dt)
-{
-	float x = static_cast<float>(rc.c*COL_W - (CURSOR_W-2*COL_W)/2);
-	float y = static_cast<float>(rc.r*ROW_H - (CURSOR_H-ROW_H)/2);
-	Point loc {x, y};
-
-	size_t frame = (anim / FRAME_TIME) % FRAMES;
-	context.drawGfx(loc, Gfx::CURSOR, frame);
-}
-
-void CursorImpl::animate()
-{
-	anim++;
-}
-
-
-void BannerImpl::draw(IContext& context, float dt)
-{
-	context.drawGfx(loc, Gfx::BANNER, static_cast<size_t>(frame));
-}
-
-
-void StageImpl::add(Animation animation)
-{
-	// insertion sort - animations in the list are always in ascending z_order
-	ordered_insert(animations, animation, z_less);
-}
-
 void StageImpl::add(Logic logic)
 {
 	logics.push_back(logic);
-}
-
-void StageImpl::remove(Animation animation)
-{
-	auto it = std::find(animations.begin(), animations.end(), animation);
-	SDL_assert(it != animations.end());
-	animations.erase(it);
 }
 
 void StageImpl::remove(Logic logic)
@@ -610,16 +471,6 @@ void StageImpl::remove(Logic logic)
 	auto it = std::find(logics.begin(), logics.end(), logic);
 	SDL_assert(it != logics.end());
 	logics.erase(it);
-}
-
-void StageImpl::draw(IContext& context, float dt)
-{
-	for(auto& animation : animations) animation->draw(context, dt);
-}
-
-void StageImpl::animate()
-{
-	for(auto& animation : animations) animation->animate();
 }
 
 void StageImpl::update(IContext& context)
@@ -634,18 +485,14 @@ Stage StageBuilder::construct()
 	left_pit = std::make_shared<PitImpl>(LPIT_LOC);
 	right_pit = std::make_shared<PitImpl>(RPIT_LOC);
 
+	stage->add(left_pit);
+	stage->add(right_pit);
+
 	RowCol left_center { (left_pit->top()-left_pit->bottom())/2, PIT_COLS/2-1 };
 	left_cursor = std::make_shared<CursorImpl>(left_center);
 
 	RowCol right_center { (right_pit->top()-right_pit->bottom())/2, PIT_COLS/2-1 };
 	right_cursor = std::make_shared<CursorImpl>(right_center);
-
-	stage->add(static_cast<Animation>(left_pit));
-	stage->add(static_cast<Logic>(left_pit));
-	stage->add(static_cast<Animation>(right_pit));
-	stage->add(static_cast<Logic>(right_pit));
-	stage->add(left_cursor);
-	stage->add(right_cursor);
 
 	return stage;
 }
