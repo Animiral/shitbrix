@@ -1,8 +1,8 @@
 /**
- * Definitions for block and stage objects
+ * Definitions for stage objects
  */
 
-#include "block.hpp"
+#include "stage.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
 #include <functional>

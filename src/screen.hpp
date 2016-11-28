@@ -8,7 +8,7 @@
 #include "globals.hpp"
 #include "input.hpp"
 #include "context.hpp"
-#include "block.hpp"
+#include "stage.hpp"
 #include "draw.hpp"
 #include "director.hpp"
 #include "replay.hpp"

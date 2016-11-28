@@ -1,6 +1,8 @@
 /**
- * block.hpp
- * In-game objects such as Block, Pit, Stage, StageBuilder
+ * stage.hpp
+ * This module contains all the basic classes of objects that we see
+ * exclusively during gameplay (on the GameScreen).
+ * These are objects such as Block, Pit, Cursor and Stage itself.
  */
 #pragma once
 

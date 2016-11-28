@@ -2,7 +2,7 @@
  * director.hpp
  */
 
-#include "block.hpp"
+#include "stage.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
 #include <set>
