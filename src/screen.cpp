@@ -3,20 +3,26 @@
 
 IGamePhase::~IGamePhase() =default;
 
-void IGamePhase::draw(IContext& context, float dt)
+void IGamePhase::draw() const
 {
-	m_screen->stage->draw(context, dt);
+	m_screen->m_draw.draw_all();
 }
 
 
-void GameIntro::draw(IContext& context, float dt)
+GameIntro::GameIntro(GameScreen* screen)
+: IGamePhase(screen), countdown(INTRO_TIME)
+{
+	m_screen->m_draw.show_cursors(true);
+}
+
+void GameIntro::draw() const
 {
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
-	context.fade(fadeness);
-	m_screen->stage->draw(context, dt);
+	m_screen->m_context.fade(fadeness);
+	IGamePhase::draw();
 }
 
-void GameIntro::update(IContext& context)
+void GameIntro::update()
 {
 	if(0 == --countdown) {
 		auto phase = std::make_unique<GamePlay>(m_screen);
@@ -30,11 +36,11 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 	m_screen->journal << ReplayEvent::make_start();
 }
 
-void GamePlay::update(IContext& context)
+void GamePlay::update()
 {
-	m_screen->left_blocks->update(context);
-	m_screen->right_blocks->update(context);
-	m_screen->stage->update(context);
+	m_screen->left_blocks->update(m_screen->m_context);
+	m_screen->right_blocks->update(m_screen->m_context);
+	m_screen->stage->update(m_screen->m_context);
 
 	// debug: spawn some garbage
 	if(m_screen->m_game_time % 400 == 0) {
@@ -96,17 +102,21 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 	stream << winner;
 	m_screen->journal << ReplayEvent::make_set("winner", stream.str());
 
+	float dx = (PIT_W-BANNER_W)/2;
+	float dy = (PIT_H-BANNER_H)/2;
+	Point left_banner_loc = LPIT_LOC.offset(dx, dy);
+	Point right_banner_loc = RPIT_LOC.offset(dx, dy);
+
 	if(0 == winner) {
-		m_screen->add_banner(LPIT_LOC, BannerFrame::WIN);
-		m_screen->add_banner(RPIT_LOC, BannerFrame::LOSE);
+		banner_left.reset(new BannerImpl{left_banner_loc, BannerFrame::WIN});
+		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::LOSE});
 	}
 	else {
-		m_screen->add_banner(LPIT_LOC, BannerFrame::LOSE);
-		m_screen->add_banner(RPIT_LOC, BannerFrame::WIN);
+		banner_left.reset(new BannerImpl{left_banner_loc, BannerFrame::LOSE});
+		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::WIN});
 	}
 
-	m_screen->stage->remove(m_screen->left_cursor->cursor());
-	m_screen->stage->remove(m_screen->right_cursor->cursor());
+	m_screen->m_draw.show_cursors(false);
 }
 
 GameResult::~GameResult()
@@ -114,16 +124,30 @@ GameResult::~GameResult()
 	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
 }
 
-void GameResult::update(IContext& context)
+void GameResult::draw() const
+{
+	IGamePhase::draw();
+
+	size_t left_frame = static_cast<size_t>(banner_left->frame);
+	m_screen->m_context.drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
+
+	size_t right_frame = static_cast<size_t>(banner_right->frame);
+	m_screen->m_context.drawGfx(banner_right->loc, Gfx::BANNER, right_frame);
+}
+
+void GameResult::update()
 {
 	// this is only needed to display the replay correctly
 	m_screen->m_game_time++;
 }
 
-GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
+
+GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context)
 : input_mixer(*this, replay_infile),
   replay_outstream(replay_outfile),
-  journal(replay_outstream)
+  journal(replay_outstream),
+  m_context(context),
+  m_draw(context)
 {
 	if(!replay_infile) {
 		std::random_device rdev;
@@ -133,24 +157,10 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile)
 	reset();
 }
 
-GameScreen& GameScreen::operator=(GameScreen&& rhs)
-{
-	game_phase = std::move(rhs.game_phase);
-	game_phase->set_screen(this);
-	stage = std::move(rhs.stage);
-	left_blocks = std::move(rhs.left_blocks);
-	right_blocks = std::move(rhs.right_blocks);
-	left_cursor = std::move(rhs.left_cursor);
-	right_cursor = std::move(rhs.right_cursor);
-	lpit_view = std::move(rhs.lpit_view);
-	rpit_view = std::move(rhs.rpit_view);
-	banner_left = std::move(rhs.banner_left);
-	banner_right = std::move(rhs.banner_right);
-	return *this;
-}
-
 void GameScreen::reset()
 {
+	m_draw.clear();
+
 	set_phase(std::make_unique<GameIntro>(this));
 	m_game_time = 0L;
 	m_done = false;
@@ -163,22 +173,21 @@ void GameScreen::reset()
 	left_cursor = std::make_unique<CursorDirector>(builder.left_pit, builder.left_cursor);
 	right_cursor = std::make_unique<CursorDirector>(builder.right_pit, builder.right_cursor);
 
-	lpit_view = std::make_shared<PitViewImpl>(builder.left_pit);
-	rpit_view = std::make_shared<PitViewImpl>(builder.right_pit);
-
-	stage->add(lpit_view);
-	stage->add(rpit_view);
+	m_draw.add_pit(*builder.left_pit, *builder.left_cursor);
+	m_draw.add_pit(*builder.right_pit, *builder.right_cursor);
 }
 
-void GameScreen::animate()
+void GameScreen::draw(float dt) const
 {
-	stage->animate();
+	m_draw.set_dt(dt);
+	m_context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
+	game_phase->draw();
 }
 
-void GameScreen::update(IContext& context)
+void GameScreen::update()
 {
 	input_mixer.update(m_game_time);
-	game_phase->update(context);
+	game_phase->update();
 
 	// auto-move cursor when scrolling out of bounds
 	left_cursor->move(Dir::NONE);
@@ -210,11 +219,11 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG1:
-			lpit_view->toggle();
+			m_draw.toggle_pit_debug_overlay();
 			break;
 
 		case Button::DEBUG2:
-			rpit_view->toggle();
+			m_draw.toggle_pit_debug_highlight();
 			break;
 
 		case Button::NONE:
@@ -259,15 +268,6 @@ void GameScreen::set_phase(GamePhase phase)
 {
 	game_phase = std::move(phase);
 	input_mixer.set_game_sink(game_phase.get());
-}
-
-void GameScreen::add_banner(Point pit_loc, BannerFrame frame)
-{
-	pit_loc.x += (PIT_W-BANNER_W)/2;
-	pit_loc.y += (PIT_H-BANNER_H)/2;
-
-	Banner banner = std::make_shared<BannerImpl>(pit_loc, frame);
-	stage->add(banner);
 }
 
 void GameScreen::seed(unsigned int rng_seed)

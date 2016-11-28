@@ -132,6 +132,8 @@ struct GameInput
 struct Point
 {
 	float x, y;
+
+	Point offset(float dx, float dy) const { return Point{x+dx, y+dy}; }
 };
 
 /**
@@ -181,14 +183,6 @@ constexpr int BANNER_H = 140; // height of the win/lose banner in canvas pixels
 // Gameplay constants
 constexpr float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
 constexpr float SCROLL_SPEED = 1; // .4f; // pixels per update that the pit moves up
-
-// drawing order for objects
-constexpr int SCREEN_Z = 1;
-constexpr int PIT_Z = 2;
-constexpr int BLOCK_Z = 3;
-constexpr int PITVIEW_Z = 4;
-constexpr int CURSOR_Z = 5;
-constexpr int BANNER_Z = 6;
 
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
 

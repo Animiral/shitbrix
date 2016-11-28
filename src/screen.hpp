@@ -9,16 +9,31 @@
 #include "input.hpp"
 #include "context.hpp"
 #include "block.hpp"
+#include "draw.hpp"
 #include "director.hpp"
 #include "replay.hpp"
 #include <fstream>
 
 enum class ScreenPhase { MENU, GAME };
 
-class IScreen : public IAnimation, public ILogic, public IControllerSink
+class IScreen : public IControllerSink
 {
 public:
-	IScreen() : IAnimation(SCREEN_Z) {}
+	IScreen() = default;
+
+	// Screens are complex objects and can not be copied or moved.
+	IScreen(const IScreen& ) = delete;
+	IScreen(IScreen&& ) = delete;
+	IScreen& operator=(const IScreen& ) = delete;
+	IScreen& operator=(IScreen&& ) = delete;
+
+	/**
+	 * Draw all contents to the screen.
+	 * Since this is the “top-level” draw, everything in the game that appears
+	 * on the screen at any point must eventually be drawn through this call.
+	 */
+	virtual void draw(float dt) const =0;
+	virtual void update() =0;
 
 	virtual ScreenPhase phase() const =0; // type enum
 	virtual bool done() const =0; // whether the screen has ended
@@ -47,8 +62,8 @@ public:
 
 	void set_screen(GameScreen* screen) { m_screen = screen; }
 
-	virtual void draw(IContext& context, float dt);
-	virtual void update(IContext& context) =0;
+	virtual void draw() const;
+	virtual void update() =0;
 
 protected:
 
@@ -61,10 +76,10 @@ using GamePhase = std::unique_ptr<IGamePhase>;
 class GameIntro : public IGamePhase
 {
 public:
-	GameIntro(GameScreen* screen) : IGamePhase(screen), countdown(INTRO_TIME) {}
+	GameIntro(GameScreen* screen);
 
-	virtual void draw(IContext& context, float dt) override;
-	virtual void update(IContext& context) override;
+	virtual void draw() const override;
+	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
 private:
 	static constexpr int INTRO_TIME = 20; // number of animation frames for intro
@@ -78,7 +93,7 @@ public:
 
 	GamePlay(GameScreen* screen);
 
-	virtual void update(IContext& context) override;
+	virtual void update() override;
 	virtual void input(GameInput ginput) override;
 
 };
@@ -89,8 +104,15 @@ public:
 	GameResult(GameScreen* screen, int winner);
 	~GameResult();
 
-	virtual void update(IContext& context) override;
+	virtual void draw() const override;
+	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
+
+private:
+
+	Banner banner_left;
+	Banner banner_right;
+
 };
 
 class GameScreen : public IScreen, public IReplaySink
@@ -98,14 +120,16 @@ class GameScreen : public IScreen, public IReplaySink
 
 public:
 
-	GameScreen(const char* replay_infile, const char* replay_outfile);
-	GameScreen& operator=(GameScreen&& rhs);
+	GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context);
 
 	const long& game_time() const { return m_game_time; }
 	void reset();
-	virtual void draw(IContext& context, float dt) override { game_phase->draw(context, dt); }
-	virtual void animate() override;
-	virtual void update(IContext& context) override;
+
+	/**
+	 * Draw content to the screen according to the game phase.
+	 */
+	virtual void draw(float dt) const override;
+	virtual void update() override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerInput cinput) override;
@@ -119,21 +143,18 @@ private:
 	bool m_done; // true if this screen has reached its end
 	GameInputMixer input_mixer;
 
+	std::ofstream replay_outstream;
+	Journal journal;
+
+	IContext& m_context;
 	Stage stage;
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
 	std::unique_ptr<CursorDirector> left_cursor;
 	std::unique_ptr<CursorDirector> right_cursor;
-	PitView lpit_view;
-	PitView rpit_view;
-	Banner banner_left;
-	Banner banner_right;
-
-	std::ofstream replay_outstream;
-	Journal journal;
+	DrawGame m_draw;
 
 	void set_phase(GamePhase phase);
-	void add_banner(Point pit_loc, BannerFrame frame);
 	void seed(unsigned int rng_seed);
 
 	friend class IGamePhase;

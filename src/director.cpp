@@ -62,7 +62,7 @@ void BlockDirector::update(IContext& context)
 		BlockState state = block->state();
 
 		// block above top => game over
-		if(block->loc().y < pit->loc().y) {
+		if(block->rc().r < pit->top()) {
 			game_over();
 			break; // interrupt blocks logic because game_over might invalidate blocks list
 		}
@@ -208,7 +208,7 @@ void BlockDirector::spawn_previews()
 Block BlockDirector::spawn_block(RowCol rc)
 {
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + (*rndgen)() % 6);
-	auto block = std::make_shared<BlockImpl> (spawn_color, rc, pit);
+	auto block = std::make_shared<BlockImpl> (spawn_color, rc);
 
 	ordered_insert(pit->blocks(), block, y_greater);
 	pit->block(rc, block);

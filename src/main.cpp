@@ -34,14 +34,19 @@ public:
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
 	{
 		Texture texture = assets.texture(gfx, frame);
-		int x = loc.x;
-		int y = loc.y;
+		int x = loc.x + m_translate.x;
+		int y = loc.y + m_translate.y;
 		SDL_Rect dstrect { x, y, texture->width, texture->height };
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
 		SDL_Texture* tex = texture->tex.get();
 		int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
+	}
+
+	virtual void translate(Point offset) override
+	{
+		m_translate = offset;
 	}
 
 	virtual void clip(Point top_left, int width, int height) override
@@ -116,6 +121,7 @@ private:
 	SdlFactory factory;
 	Assets assets;
 
+	Point m_translate{0,0};
 	float m_fade = 1.f;
 	std::unique_ptr<SDL_Texture, SdlDeleter> fadetex; // solid pixel used for fading
 
@@ -187,7 +193,7 @@ public:
 	Main(Options options)
 		: m_options(std::move(options)),
 		  context(),
-		  game_screen(m_options.replay_file(), make_journal_file().c_str()),
+		  game_screen(m_options.replay_file(), make_journal_file().c_str(), context),
 		  keyboard(game_screen)
 	{
 	}
@@ -216,7 +222,7 @@ public:
 				float fraction = 1.0f - static_cast<float>((next_logic-now) * TPS) / freq;
 				SDL_assert((fraction >= 0) && (fraction <= 1));
 
-				game_screen.draw(context, fraction);
+				game_screen.draw(fraction);
 				context.render();
 				now = SDL_GetPerformanceCounter();
 			}
@@ -224,8 +230,7 @@ public:
 			keyboard.poll();
 
 			// run one frame of local logic
-			game_screen.animate();
-			game_screen.update(context);
+			game_screen.update();
 
 			tick++;
 			next_logic = t0 + (tick+1) * freq / TPS;
