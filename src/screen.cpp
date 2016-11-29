@@ -108,12 +108,12 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 	Point right_banner_loc = RPIT_LOC.offset(dx, dy);
 
 	if(0 == winner) {
-		banner_left.reset(new BannerImpl{left_banner_loc, BannerFrame::WIN});
-		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::LOSE});
+		banner_left.reset(new Banner{left_banner_loc, BannerFrame::WIN});
+		banner_right.reset(new Banner{right_banner_loc, BannerFrame::LOSE});
 	}
 	else {
-		banner_left.reset(new BannerImpl{left_banner_loc, BannerFrame::LOSE});
-		banner_right.reset(new BannerImpl{right_banner_loc, BannerFrame::WIN});
+		banner_left.reset(new Banner{left_banner_loc, BannerFrame::LOSE});
+		banner_right.reset(new Banner{right_banner_loc, BannerFrame::WIN});
 	}
 
 	m_screen->m_draw.show_cursors(false);

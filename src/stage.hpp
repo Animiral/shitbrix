@@ -214,15 +214,17 @@ public:
 
 enum class BannerFrame : size_t { WIN=0, LOSE=1 };
 
-class BannerImpl
+class Banner
 {
+
 public:
+
+	Banner(Point loc, BannerFrame frame) : loc(loc), frame(frame) {}
+
 	Point loc;
 	BannerFrame frame;
-	BannerImpl(Point loc, BannerFrame frame) : loc(loc), frame(frame) {}
-};
 
-using Banner = std::shared_ptr<BannerImpl>;
+};
 
 /**
  * Stage is a container for on-screen objects.

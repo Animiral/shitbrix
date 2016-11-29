@@ -110,8 +110,8 @@ public:
 
 private:
 
-	Banner banner_left;
-	Banner banner_right;
+	std::unique_ptr<Banner> banner_left;
+	std::unique_ptr<Banner> banner_right;
 
 };
 
