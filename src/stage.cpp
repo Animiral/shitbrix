@@ -243,7 +243,7 @@ void Garbage::dobreak()
 /**
  * Constructs a Pit at the specified draw location.
  */
-PitImpl::PitImpl(Point loc)
+Pit::Pit(Point loc)
 : m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
   m_peak(1), m_highlight_row(0)
 {
@@ -252,7 +252,7 @@ PitImpl::PitImpl(Point loc)
 /**
  * Returns the number of the top accessible row in the pit
  */
-int PitImpl::top() const
+int Pit::top() const
 {
 	return std::ceil(m_scroll / ROW_H);
 }
@@ -260,12 +260,12 @@ int PitImpl::top() const
 /**
  * Returns the number of the bottom accessible row in the pit
  */
-int PitImpl::bottom() const
+int Pit::bottom() const
 {
 	return std::floor((m_scroll + PIT_H) / ROW_H) - 1;
 }
 
-int PitImpl::peak() const
+int Pit::peak() const
 {
 	return m_peak;
 }
@@ -273,7 +273,7 @@ int PitImpl::peak() const
 /**
  * Return the block at the given location.
  */
-Block PitImpl::block_at(RowCol rc) const
+Block Pit::block_at(RowCol rc) const
 {
 	auto it = block_map.find(rc);
 	if(it == block_map.end())
@@ -285,7 +285,7 @@ Block PitImpl::block_at(RowCol rc) const
 /**
  * Return the garbage at the given location.
  */
-GarbagePtr PitImpl::garbage_at(RowCol rc) const
+GarbagePtr Pit::garbage_at(RowCol rc) const
 {
 	auto it = m_garbage_map.find(rc);
 	if(it == m_garbage_map.end())
@@ -294,14 +294,14 @@ GarbagePtr PitImpl::garbage_at(RowCol rc) const
 		return it->second;
 }
 
-bool PitImpl::anything_at(RowCol rc) const
+bool Pit::anything_at(RowCol rc) const
 {
 	return
 		block_map.find(rc) != block_map.end() || 
 		m_garbage_map.find(rc) != m_garbage_map.end();
 }
 
-GarbagePtr PitImpl::spawn_garbage(int columns, int rows)
+GarbagePtr Pit::spawn_garbage(int columns, int rows)
 {
 	int row = std::min(m_peak, top()) - 2;
 	// int col = (*rndgen)() % (PIT_COLS - columns + 1);
@@ -315,7 +315,7 @@ GarbagePtr PitImpl::spawn_garbage(int columns, int rows)
 /**
  * Set the given location to blocked.
  */
-void PitImpl::block(RowCol rc, Block block)
+void Pit::block(RowCol rc, Block block)
 {
 	auto result = block_map.emplace(std::make_pair(rc, block));
 	game_assert(result.second, "Attempt to block already blocked space in Pit.");
@@ -327,7 +327,7 @@ void PitImpl::block(RowCol rc, Block block)
 /**
  * Set the given location to blocked by garbage.
  */
-void PitImpl::block(GarbagePtr garbage)
+void Pit::block(GarbagePtr garbage)
 {
 	RowCol low_left = garbage->rc();
 	int low = low_left.r;
@@ -350,7 +350,7 @@ void PitImpl::block(GarbagePtr garbage)
 /**
  * Set the given location to not blocked.
  */
-void PitImpl::unblock(RowCol rc)
+void Pit::unblock(RowCol rc)
 {
 	size_t erased = block_map.erase(rc);
 	game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
@@ -375,7 +375,7 @@ peak_done:;
 /**
  * Set the given location to not blocked.
  */
-void PitImpl::unblock(GarbagePtr garbage)
+void Pit::unblock(GarbagePtr garbage)
 {
 	RowCol low_left = garbage->rc();
 	int low = low_left.r;
@@ -411,7 +411,7 @@ peak_done:;
 /**
  * Exchanges the blocks at lrc and rrc, including the absence of blocks.
  */
-void PitImpl::swap(RowCol lrc, RowCol rrc)
+void Pit::swap(RowCol lrc, RowCol rrc)
 {
 	auto left = block_map.find(lrc);
 	auto right = block_map.find(rrc);
@@ -430,7 +430,7 @@ void PitImpl::swap(RowCol lrc, RowCol rrc)
 	}
 }
 
-void PitImpl::highlight(int row)
+void Pit::highlight(int row)
 {
 	m_highlight_row = row;
 }
@@ -439,7 +439,7 @@ void PitImpl::highlight(int row)
  * The origin {0,0} location of all pit-related objects corresponds with row 0, column 0.
  * We have to transform the object into the pit and from there, apply the pit scrolling.
  */
-Point PitImpl::transform(Point point, float dt) const
+Point Pit::transform(Point point, float dt) const
 {
 	point.x += m_loc.x;
 	point.y += m_loc.y;
@@ -448,7 +448,7 @@ Point PitImpl::transform(Point point, float dt) const
 	return point;
 }
 
-void PitImpl::update(IContext& context)
+void Pit::update(IContext& context)
 {
 	for(auto b : m_blocks)
 		b->update(context);

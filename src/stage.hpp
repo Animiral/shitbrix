@@ -147,12 +147,12 @@ using GarbagePtr = std::shared_ptr<Garbage>;
  * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
  */
-class PitImpl : public ILogic
+class Pit : public ILogic
 {
 
 public:
 
-	PitImpl(Point loc);
+	Pit(Point loc);
 	Point loc() const { return m_loc; }
 	BlockVec& blocks() { return m_blocks; }
 	std::vector<GarbagePtr>& garbage() { return m_garbage; }
@@ -198,9 +198,7 @@ private:
 
 };
 
-using Pit = std::shared_ptr<PitImpl>;
-
-class CursorImpl
+class Cursor
 {
 
 public:
@@ -208,13 +206,11 @@ public:
 	RowCol rc;
 	int time;
 
-	CursorImpl(RowCol rc) : rc(rc), time(0) {}
+	Cursor(RowCol rc) : rc(rc), time(0) {}
 
 	void update() { time++; }
 
 };
-
-using Cursor = std::shared_ptr<CursorImpl>;
 
 enum class BannerFrame : size_t { WIN=0, LOSE=1 };
 
@@ -244,8 +240,8 @@ public:
 	{
 		PitCursor(Point loc);
 
-		PitImpl pit;
-		CursorImpl cursor;
+		Pit pit;
+		Cursor cursor;
 	};
 
 	using PitsVector = std::vector<std::unique_ptr<PitCursor>>;
@@ -274,10 +270,10 @@ class StageBuilder
 
 public:
 
-	PitImpl* left_pit;
-	PitImpl* right_pit;
-	CursorImpl* left_cursor;
-	CursorImpl* right_cursor;
+	Pit* left_pit;
+	Pit* right_pit;
+	Cursor* left_cursor;
+	Cursor* right_cursor;
 
 	Stage construct();
 

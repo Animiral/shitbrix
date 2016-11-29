@@ -28,7 +28,7 @@ public:
 	 * Add the specified pit to be drawn.
 	 * DrawGame always associates a cursor with the pit.
 	 */
-	void add_pit(const PitImpl& pit, const CursorImpl& cursor);
+	void add_pit(const Pit& pit, const Cursor& cursor);
 
 	/**
 	 * Removes all drawables known to this DrawGame object.
@@ -82,8 +82,8 @@ private:
 	 */
 	struct PitCursor
 	{
-		const PitImpl& pit;
-		const CursorImpl& cursor;
+		const Pit& pit;
+		const Cursor& cursor;
 	};
 
 	IContext& m_context;

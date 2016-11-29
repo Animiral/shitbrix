@@ -20,7 +20,7 @@ class MatchBuilder
 
 public:
 
-	MatchBuilder(const PitImpl& pit) : pit(pit) {}
+	MatchBuilder(const Pit& pit) : pit(pit) {}
 
 	void ignite(Block block);
 	const std::set<Block>& result() { return m_result; }
@@ -28,7 +28,7 @@ public:
 
 private:
 
-	const PitImpl& pit;
+	const Pit& pit;
 	std::set<Block> m_result;
 
 	// bool add_block(RowCol rc);
@@ -48,7 +48,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Stage stage, PitImpl& pit, RndGen rndgen) : stage(stage), pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
+	BlockDirector(Stage stage, Pit& pit, RndGen rndgen) : stage(stage), pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
 
 	bool over() const { return m_over; }
 	void update(IContext& context);
@@ -58,7 +58,7 @@ public:
 private:
 
 	Stage stage;
-	PitImpl& pit;
+	Pit& pit;
 	BlockVec previews; // blocks which are fresh spawns and currently inactive
 	BlockVec hots; // recently landed or arrived blocks that can start a match
 	int bottom; // lowest row that we have already spawned blocks for
@@ -92,9 +92,9 @@ class CursorDirector
 
 public:
 
-	CursorDirector(PitImpl& pit, CursorImpl& cursor) : pit(pit), m_cursor(cursor) {}
+	CursorDirector(Pit& pit, Cursor& cursor) : pit(pit), m_cursor(cursor) {}
 
-	CursorImpl& cursor() const { return m_cursor; }
+	Cursor& cursor() const { return m_cursor; }
 	RowCol rc() const { return m_cursor.rc; }
 
 	/**
@@ -106,7 +106,7 @@ public:
 
 private:
 
-	PitImpl& pit;
-	CursorImpl& m_cursor;
+	Pit& pit;
+	Cursor& m_cursor;
 
 };

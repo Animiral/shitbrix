@@ -11,11 +11,11 @@
 namespace
 {
 
-void draw_pit(const IContext& context, const PitImpl& pit, float dt);
-void draw_pit_debug_overlay(const IContext& context, const PitImpl& pit);
+void draw_pit(const IContext& context, const Pit& pit, float dt);
+void draw_pit_debug_overlay(const IContext& context, const Pit& pit);
 void draw_block(const IContext& context, const BlockImpl& block, float dt);
 void draw_garbage(const IContext& context, const Garbage& garbage, float dt);
-void draw_cursor(const IContext& context, const CursorImpl& cursor, float dt);
+void draw_cursor(const IContext& context, const Cursor& cursor, float dt);
 
 }
 
@@ -24,7 +24,7 @@ DrawGame::DrawGame(IContext& context)
 {
 }
 
-void DrawGame::add_pit(const PitImpl& pit, const CursorImpl& cursor)
+void DrawGame::add_pit(const Pit& pit, const Cursor& cursor)
 {
 	m_drawables.emplace_back(PitCursor{pit, cursor});
 }
@@ -52,7 +52,7 @@ void DrawGame::set_dt(float dt) const
 void DrawGame::draw_all() const
 {
 	for(const PitCursor drawable : m_drawables) {
-		const PitImpl& pit = drawable.pit;
+		const Pit& pit = drawable.pit;
 
 		m_context.clip(pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
 		m_context.translate(pit.transform(Point{0,0})); // draw all objects relative to pit origin
@@ -95,7 +95,7 @@ void DrawGame::toggle_pit_debug_highlight()
 namespace
 {
 
-void draw_pit(const IContext& context, const PitImpl& pit, float dt)
+void draw_pit(const IContext& context, const Pit& pit, float dt)
 {
 	for(const Block block : pit.blocks())
 		draw_block(context, *block, dt);
@@ -104,7 +104,7 @@ void draw_pit(const IContext& context, const PitImpl& pit, float dt)
 		draw_garbage(context, *garbage, dt);
 }
 
-void draw_pit_debug_overlay(const IContext& context, const PitImpl& pit)
+void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 {
 	for(const Block block : pit.blocks())
 	{
@@ -198,7 +198,7 @@ void draw_garbage(const IContext& context, const Garbage& garbage, float dt)
 	}
 }
 
-void draw_cursor(const IContext& context, const CursorImpl& cursor, float dt)
+void draw_cursor(const IContext& context, const Cursor& cursor, float dt)
 {
 	RowCol rc = cursor.rc;
 	float x = static_cast<float>(rc.c*COL_W - (CURSOR_W-2*COL_W)/2);
