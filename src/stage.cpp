@@ -461,38 +461,37 @@ void PitImpl::update(IContext& context)
 }
 
 
-void StageImpl::add(Logic logic)
-{
-	logics.push_back(logic);
-}
+StageImpl::PitCursor::PitCursor(Point loc)
+: pit(loc),
+  cursor(RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 })
+{}
 
-void StageImpl::remove(Logic logic)
+StageImpl::PitCursor& StageImpl::add_pit(Point loc)
 {
-	auto it = std::find(logics.begin(), logics.end(), logic);
-	SDL_assert(it != logics.end());
-	logics.erase(it);
+	m_pits.push_back(std::make_unique<PitCursor>(loc));
+	return *m_pits.back();
 }
 
 void StageImpl::update(IContext& context)
 {
-	for(auto& logic : logics) logic->update(context);
+	for(auto& pc : m_pits) {
+		pc->pit.update(context);
+		pc->cursor.update();
+	}
 }
+
 
 Stage StageBuilder::construct()
 {
 	Stage stage = std::make_shared<StageImpl>();
 
-	left_pit = std::make_shared<PitImpl>(LPIT_LOC);
-	right_pit = std::make_shared<PitImpl>(RPIT_LOC);
+	auto& left_pc = stage->add_pit(LPIT_LOC);
+	auto& right_pc = stage->add_pit(RPIT_LOC);
 
-	stage->add(left_pit);
-	stage->add(right_pit);
-
-	RowCol left_center { (left_pit->top()-left_pit->bottom())/2, PIT_COLS/2-1 };
-	left_cursor = std::make_shared<CursorImpl>(left_center);
-
-	RowCol right_center { (right_pit->top()-right_pit->bottom())/2, PIT_COLS/2-1 };
-	right_cursor = std::make_shared<CursorImpl>(right_center);
+	this->left_pit = &left_pc.pit;
+	this->right_pit = &right_pc.pit;
+	this->left_cursor = &left_pc.cursor;
+	this->right_cursor = &right_pc.cursor;
 
 	return stage;
 }

@@ -210,6 +210,7 @@ public:
 
 	CursorImpl(RowCol rc) : rc(rc), time(0) {}
 
+	void update() { time++; }
 
 };
 
@@ -238,14 +239,31 @@ public:
 
 	StageImpl() {}
 
-	void add(Logic logic);
-	void remove(Logic logic);
+	//! Helper struct for stage contents
+	struct PitCursor
+	{
+		PitCursor(Point loc);
 
+		PitImpl pit;
+		CursorImpl cursor;
+	};
+
+	using PitsVector = std::vector<std::unique_ptr<PitCursor>>;
+
+	/**
+	 * Add a pit to the stage to be displayed at the given point coordinates.
+	 * Caution: the returned reference is only valid as long as the Stage’s
+	 * list of pits remains unchanged, i.e. until the next call to add_pit!
+	 */
+	PitCursor& add_pit(Point loc);
 	void update(IContext& context);
+
+	PitsVector& pits() { return m_pits; }
+	const PitsVector& pits() const { return m_pits; }
 
 private:
 
-	std::vector< Logic > logics;
+	PitsVector m_pits;
 
 };
 
@@ -256,10 +274,10 @@ class StageBuilder
 
 public:
 
-	Pit left_pit;
-	Pit right_pit;
-	Cursor left_cursor;
-	Cursor right_cursor;
+	PitImpl* left_pit;
+	PitImpl* right_pit;
+	CursorImpl* left_cursor;
+	CursorImpl* right_cursor;
 
 	Stage construct();
 
