@@ -147,7 +147,7 @@ private:
 	Journal journal;
 
 	IContext& m_context;
-	Stage stage;
+	std::unique_ptr<Stage> stage;
 	std::unique_ptr<BlockDirector> left_blocks;
 	std::unique_ptr<BlockDirector> right_blocks;
 	std::unique_ptr<CursorDirector> left_cursor;

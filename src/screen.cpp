@@ -168,8 +168,8 @@ void GameScreen::reset()
 	auto builder = StageBuilder();
 	stage = builder.construct();
 
-	left_blocks = std::make_unique<BlockDirector>(stage, *builder.left_pit, rndgen);
-	right_blocks = std::make_unique<BlockDirector>(stage, *builder.right_pit, rndgen);
+	left_blocks = std::make_unique<BlockDirector>(*builder.left_pit, rndgen);
+	right_blocks = std::make_unique<BlockDirector>(*builder.right_pit, rndgen);
 	left_cursor = std::make_unique<CursorDirector>(*builder.left_pit, *builder.left_cursor);
 	right_cursor = std::make_unique<CursorDirector>(*builder.right_pit, *builder.right_cursor);
 

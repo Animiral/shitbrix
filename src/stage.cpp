@@ -461,18 +461,18 @@ void Pit::update(IContext& context)
 }
 
 
-StageImpl::PitCursor::PitCursor(Point loc)
+Stage::PitCursor::PitCursor(Point loc)
 : pit(loc),
   cursor(RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 })
 {}
 
-StageImpl::PitCursor& StageImpl::add_pit(Point loc)
+Stage::PitCursor& Stage::add_pit(Point loc)
 {
 	m_pits.push_back(std::make_unique<PitCursor>(loc));
 	return *m_pits.back();
 }
 
-void StageImpl::update(IContext& context)
+void Stage::update(IContext& context)
 {
 	for(auto& pc : m_pits) {
 		pc->pit.update(context);
@@ -481,9 +481,9 @@ void StageImpl::update(IContext& context)
 }
 
 
-Stage StageBuilder::construct()
+std::unique_ptr<Stage> StageBuilder::construct()
 {
-	Stage stage = std::make_shared<StageImpl>();
+	auto stage = std::make_unique<Stage>();
 
 	auto& left_pc = stage->add_pit(LPIT_LOC);
 	auto& right_pc = stage->add_pit(RPIT_LOC);

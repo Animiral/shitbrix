@@ -226,14 +226,15 @@ using Banner = std::shared_ptr<BannerImpl>;
 
 /**
  * Stage is a container for on-screen objects.
- * The Stage owns all its objects as shared_ptrs.
+ * The Stage owns all its contained objects.
  */
-class StageImpl
+class Stage
 {
 
 public:
 
-	StageImpl() {}
+	Stage() {}
+	Stage(const Stage& ) =delete;
 
 	//! Helper struct for stage contents
 	struct PitCursor
@@ -248,8 +249,6 @@ public:
 
 	/**
 	 * Add a pit to the stage to be displayed at the given point coordinates.
-	 * Caution: the returned reference is only valid as long as the Stage’s
-	 * list of pits remains unchanged, i.e. until the next call to add_pit!
 	 */
 	PitCursor& add_pit(Point loc);
 	void update(IContext& context);
@@ -263,8 +262,6 @@ private:
 
 };
 
-using Stage = std::shared_ptr<StageImpl>;
-
 class StageBuilder
 {
 
@@ -275,6 +272,6 @@ public:
 	Cursor* left_cursor;
 	Cursor* right_cursor;
 
-	Stage construct();
+	std::unique_ptr<Stage> construct();
 
 };

@@ -48,7 +48,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Stage stage, Pit& pit, RndGen rndgen) : stage(stage), pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
+	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
 
 	bool over() const { return m_over; }
 	void update(IContext& context);
@@ -57,7 +57,6 @@ public:
 
 private:
 
-	Stage stage;
 	Pit& pit;
 	BlockVec previews; // blocks which are fresh spawns and currently inactive
 	BlockVec hots; // recently landed or arrived blocks that can start a match
