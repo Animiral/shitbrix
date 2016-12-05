@@ -41,10 +41,10 @@ public:
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
-	BlockImpl(BlockCol col, RowCol rc)
+	BlockImpl(BlockCol col, RowCol rc, BlockState state)
 	:
 	col(col), offset{0,0}, time(0),
-	m_loc(from_rc(rc)), m_rc(rc), m_state(BlockState::PREVIEW)
+	m_loc(from_rc(rc)), m_rc(rc), m_state(state)
 	{}
 
 	virtual void update(IContext& context) override;
@@ -115,6 +115,7 @@ public:
 	RowCol rc() const { return m_rc; }
 	int rows() const { return m_rows; }
 	int columns() const { return m_columns; }
+	int shrink() { return --m_rows; }
 	void set_rc(RowCol rc);
 	State state() const { return m_state; }
 	void set_state(State state);
@@ -127,7 +128,7 @@ public:
 private:
 
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	RowCol m_rc;        // lower left row/col position, - is UP, + is DOWN
+	RowCol m_rc;        // upper left row/col position, - is UP, + is DOWN
 	int m_columns;      // width of this garbage in blocks
 	int m_rows;         // height of this garbage in blocks
 	Point m_target;     // target location - where the garbage really wants to be while it’s busy with an animation
@@ -153,25 +154,67 @@ class Pit : public ILogic
 public:
 
 	Pit(Point loc);
+
 	Point loc() const { return m_loc; }
+
 	BlockVec& blocks() { return m_blocks; }
 	std::vector<GarbagePtr>& garbage() { return m_garbage; }
 	const BlockVec& blocks() const { return m_blocks; }
 	const std::vector<GarbagePtr>& garbage() const { return m_garbage; }
-	int top() const;
-	int bottom() const;
-	int peak() const;
 	Block block_at(RowCol rc) const;
 	GarbagePtr garbage_at(RowCol rc) const;
 	bool anything_at(RowCol rc) const;
+
+	/**
+	 * Create a new Block with the specified properties in the Pit.
+	 * Caution! This may invalidate all existing references to Blocks in the Pit.
+	 *
+	 * @return a reference to the created Block
+	 */
+	BlockImpl& spawn_block(BlockCol color, RowCol rc, BlockState state);
+
+	/**
+	 * Create a new Garbage with the specified dimensions.
+	 * Caution! This may invalidate all existing references to Garbage in the Pit.
+	 *
+	 * @return a reference to the created Garbage
+	 */
+	Garbage& spawn_garbage(RowCol rc, int width, int height);
+
+	/**
+	 * Move the object located at the at-location to the to-location.
+	 * For larger objects (Garbage), only the at-location that corresponds
+	 * to the object’s own primary rc (lower left tile for Garbage), not
+	 * any location blocked by the object, is accepted.
+	 */
+	void move(RowCol at, RowCol to);
+
+	/**
+	 * Swap the locations of the Blocks at the specified coordinates.
+	 */
+	void swap(RowCol lrc, RowCol rrc);
+
+	/**
+	 * Remove the referenced Block from the Pit.
+	 * Caution! This may invalidate all existing references to Blocks in the Pit.
+	 */
+	void kill(const BlockImpl& block);
+
+	/**
+	 * Reduce the size of the referenced Garbage by one row from the bottom.
+	 * If that one row was the entire size of the Garbage, it is removed
+	 * completely.
+	 * Caution! This may invalidate all existing references to Garbage in the Pit.
+	 *
+	 * @return a pointer to the reduced Garbage, or nullptr if the Garbage is gone
+	 */
+	Garbage* shrink(Garbage& garbage);
+
+	int top() const;
+	int bottom() const;
+	int peak() const;
 	int highlight_row() const { return m_highlight_row; }
 
-	GarbagePtr spawn_garbage(int columns, int rows);
-	void block(RowCol rc, Block block);
-	void block(GarbagePtr garbage);
-	void unblock(RowCol rc);
-	void unblock(GarbagePtr garbage);
-	void swap(RowCol lrc, RowCol rrc);
 	void stop() { m_enabled = false; }
 	void start() { m_enabled = true; }
 
@@ -195,6 +238,12 @@ private:
 	std::map<RowCol, GarbagePtr> m_garbage_map; // sparse matrix of blocked spaces
 
 	int m_highlight_row;
+
+	void refresh_peak(); //!< Search for the new m_peak
+	void move_block(Block block, RowCol to); //!< Move the Block to the to-location.
+	void move_garbage(GarbagePtr garbage, RowCol to); //!< Move the Garbage to the to-location.
+	void block_garbage(GarbagePtr garbage); //!< Mark the garbage area as occupied.
+	void unblock_garbage(const Garbage& garbage); //!< Mark the garbage area as free.
 
 };
 

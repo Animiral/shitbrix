@@ -189,7 +189,8 @@ bool BlockDirector::swap(RowCol lrc)
 
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
-	pit.spawn_garbage(columns, rows);
+	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 2;
+	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
 }
 
 /**
@@ -212,12 +213,8 @@ void BlockDirector::spawn_previews()
 Block BlockDirector::spawn_block(RowCol rc)
 {
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + (*rndgen)() % 6);
-	auto block = std::make_shared<BlockImpl> (spawn_color, rc);
-
-	ordered_insert(pit.blocks(), block, y_greater);
-	pit.block(rc, block);
-
-	return block;
+	pit.spawn_block(spawn_color, rc, BlockState::PREVIEW);
+	return pit.block_at(rc);
 }
 
 /**
@@ -225,10 +222,8 @@ Block BlockDirector::spawn_block(RowCol rc)
  */
 Block BlockDirector::spawn_fake(RowCol rc)
 {
-	Block block = spawn_block(rc);
-	block->col = BlockCol::FAKE;
-	block->set_state(BlockState::REST);
-	return block;
+	pit.spawn_block(BlockCol::FAKE, rc, BlockState::REST);
+	return pit.block_at(rc);
 }
 
 void BlockDirector::block_arrive_fall(Block block)
@@ -244,7 +239,7 @@ void BlockDirector::block_arrive_fall(Block block)
 		hots.push_back(block);
 	}
 	else {
-		move_block(block, next);
+		pit.move(rc, next);
 	}
 }
 
@@ -260,7 +255,7 @@ void BlockDirector::garbage_arrive_fall(GarbagePtr garbage)
 		garbage->set_state(Garbage::State::LAND);
 	}
 	else {
-		move_garbage(garbage, next);
+		pit.move(rc, next);
 	}
 }
 
@@ -285,54 +280,24 @@ void BlockDirector::block_arrive_swap(Block block)
 	}
 	else {
 		block->set_state(BlockState::FALL);
-		move_block(block, next);
+		pit.move(rc, next);
 	}
-}
-
-/**
- * Changes a block’s logical location.
- * The block itself will adjust its offset to maintain the same draw-position.
- * An approach of the draw-position towards the actual block position always happens
- * gradually using the block’s state and animation.
- */
-void BlockDirector::move_block(Block block, RowCol to)
-{
-	pit.unblock(block->rc());
-	pit.block(to, block);
-	block->set_rc(to);
-}
-
-/**
- * Changes a garbage’s logical location.
- * The garbage itself will adjust its offset to maintain the same draw-position.
- * An approach of the draw-position towards the actual garbage position always happens
- * gradually using the garbage’s state and animation.
- */
-void BlockDirector::move_garbage(GarbagePtr garbage, RowCol to)
-{
-	pit.unblock(garbage);
-	garbage->set_rc(to);
-	pit.block(garbage);
 }
 
 BlockVec::iterator BlockDirector::reap_block(BlockVec::iterator it)
 {
-	Block block = *it;
-	RowCol rc = block->rc();
+	RowCol rc = (*it)->rc();
 
-	// remove from our own list
-	it = pit.blocks().erase(it);
-
-	// remove references from other containers
-	pit.unblock(rc);
+	// remove from the pit
+	pit.kill(**it);
 
 	// Release blockage & blocks above the dead block => fall down
 	RowCol prev { rc.r - 1, rc.c };
-	block = pit.block_at(prev);
+	Block block = pit.block_at(prev);
 
 	while (block && fallible(block)) {
 		block->set_state(BlockState::FALL);
-		move_block(block, rc);
+		pit.move(prev, rc);
 
 		// continue looking 1 block above
 		rc = prev;

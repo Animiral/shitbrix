@@ -73,8 +73,6 @@ private:
 	void garbage_arrive_fall(GarbagePtr garbage);
 	void block_arrive_swap(Block block);
 
-	void move_block(Block block, RowCol to);
-	void move_garbage(GarbagePtr garbage, RowCol to);
 	BlockVec::iterator reap_block(BlockVec::iterator it);
 
 	void activate_previews();

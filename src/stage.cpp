@@ -250,27 +250,6 @@ Pit::Pit(Point loc)
 }
 
 /**
- * Returns the number of the top accessible row in the pit
- */
-int Pit::top() const
-{
-	return std::ceil(m_scroll / ROW_H);
-}
-
-/**
- * Returns the number of the bottom accessible row in the pit
- */
-int Pit::bottom() const
-{
-	return std::floor((m_scroll + PIT_H) / ROW_H) - 1;
-}
-
-int Pit::peak() const
-{
-	return m_peak;
-}
-
-/**
  * Return the block at the given location.
  */
 Block Pit::block_at(RowCol rc) const
@@ -301,133 +280,120 @@ bool Pit::anything_at(RowCol rc) const
 		m_garbage_map.find(rc) != m_garbage_map.end();
 }
 
-GarbagePtr Pit::spawn_garbage(int columns, int rows)
+BlockImpl& Pit::spawn_block(BlockCol color, RowCol rc, BlockState state)
 {
-	int row = std::min(m_peak, top()) - 2;
-	// int col = (*rndgen)() % (PIT_COLS - columns + 1);
-	int col = 0;
-	GarbagePtr garbage = std::make_shared<Garbage>(RowCol{row, col}, columns, rows);
-	m_garbage.push_back(garbage);
-	block(garbage);
-	return garbage;
-}
+	game_assert(rc.c >= 0 && rc.c < PIT_COLS, "Attempt to spawn block out of bounds.");
+	game_assert(!anything_at(rc), "Attempt to spawn block at occupied location.");
 
-/**
- * Set the given location to blocked.
- */
-void Pit::block(RowCol rc, Block block)
-{
-	auto result = block_map.emplace(std::make_pair(rc, block));
+	auto block = std::make_shared<BlockImpl>(color, rc, state);
+	m_blocks.push_back(block);
+
+	auto result = block_map.emplace(rc, block);
 	game_assert(result.second, "Attempt to block already blocked space in Pit.");
 
 	if(rc.r < m_peak)
 		m_peak = rc.r;
+
+	return *m_blocks.back();
 }
 
-/**
- * Set the given location to blocked by garbage.
- */
-void Pit::block(GarbagePtr garbage)
+Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 {
-	RowCol low_left = garbage->rc();
-	int low = low_left.r;
-	int high = low - garbage->rows();
-	int left = low_left.c;
-	int right = left + garbage->columns();
+	// make sure the Garbage fits in the Pit
+	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");
 
-	for(int r = low; r > high; r--) {
-		for(int c = left; c < right; c++) {
-			RowCol rc{r, c};
-			auto result = m_garbage_map.emplace(std::make_pair(rc, garbage));
-			game_assert(result.second, "Attempt to block already blocked space in Pit.");
-		}
-	}
+	GarbagePtr garbage = std::make_shared<Garbage>(rc, width, height);
+	m_garbage.push_back(garbage);
 
-	if(high < m_peak)
-		m_peak = high;
+	block_garbage(garbage);
+
+	if(rc.r < m_peak)
+		m_peak = rc.r;
+
+	return *m_garbage.back();
 }
 
-/**
- * Set the given location to not blocked.
- */
-void Pit::unblock(RowCol rc)
+void Pit::move(RowCol at, RowCol to)
 {
-	size_t erased = block_map.erase(rc);
-	game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+	auto block = block_at(at);
+	auto garbage = garbage_at(at);
 
-	// maintain peak by linear search through the pit contents, if necessary
-	if(rc.r == m_peak) {
-		int lowest_row = this->bottom();
+	if(block) move_block(block, to);
+	else if(garbage) move_garbage(garbage, to);
+	else game_assert(false, "Attempt to move from empty coordinate in Pit.");
 
-		while(m_peak < lowest_row) {
-			for(int c = 0; c < PIT_COLS; c++) {
-				if(this->anything_at({m_peak, c}))
-					goto peak_done;
-			}
-
-			m_peak++; // try next row
-		}
-	}
-
-peak_done:;
+	if(at.r < to.r)
+		refresh_peak();
+	else if(to.r < m_peak)
+		m_peak = to.r;
 }
 
-/**
- * Set the given location to not blocked.
- */
-void Pit::unblock(GarbagePtr garbage)
-{
-	RowCol low_left = garbage->rc();
-	int low = low_left.r;
-	int high = low - garbage->rows();
-	int left = low_left.c;
-	int right = left + garbage->columns();
-
-	for(int r = low; r > high; r--) {
-		for(int c = left; c < right; c++) {
-			RowCol rc{r, c};
-			size_t erased = m_garbage_map.erase(rc);
-			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
-		}
-	}
-
-	// maintain peak by linear search through the pit contents, if necessary
-	if(low >= m_peak) {
-		int lowest_row = this->bottom();
-
-		while(m_peak < lowest_row) {
-			for(int c = 0; c < PIT_COLS; c++) {
-				if(this->anything_at({m_peak, c}))
-					goto peak_done;
-			}
-
-			m_peak++; // try next row
-		}
-	}
-
-peak_done:;
-}
-
-/**
- * Exchanges the blocks at lrc and rrc, including the absence of blocks.
- */
 void Pit::swap(RowCol lrc, RowCol rrc)
 {
 	auto left = block_map.find(lrc);
 	auto right = block_map.find(rrc);
 	auto end = block_map.end();
 
-	if(left != end && right != end) {
-		std::swap(left->second, right->second);
+	game_assert(left != end && right != end, "Attempt to swap nonexistant blocks.");
+
+	std::swap(left->second, right->second);
+	left->second->set_rc(rrc);
+	right->second->set_rc(lrc);
+}
+
+void Pit::kill(const BlockImpl& block)
+{
+	RowCol rc = block.rc();
+
+	size_t erased = block_map.erase(rc);
+	game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+
+	auto is_target = [rc] (Block block) { return block->rc() == rc; };
+	std::remove_if(m_blocks.begin(), m_blocks.end(), is_target);
+	refresh_peak();
+}
+
+Garbage* Pit::shrink(Garbage& garbage)
+{
+	RowCol rc = garbage.rc();
+	int low = rc.r + garbage.rows() - 1;
+
+	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
+		size_t erased = m_garbage_map.erase(RowCol{low, c});
+		game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
 	}
-	else if(left != end) {
-		block_map.emplace(std::make_pair(rrc, std::move(left->second)));
-		block_map.erase(lrc);
+
+	// The garbage loses one row. If that is all, remove it entirely.
+	if(garbage.shrink() <= 0) {
+		auto is_gone = [] (GarbagePtr gptr) { return gptr->rows() <= 0; };
+		std::remove_if(m_garbage.begin(), m_garbage.end(), is_gone);
+		refresh_peak();
+		return nullptr;
 	}
-	else if(right != end) {
-		block_map.emplace(std::make_pair(lrc, std::move(right->second)));
-		block_map.erase(rrc);
+	else {
+		return &garbage;
 	}
+}
+
+/**
+ * Returns the number of the top accessible row in the pit
+ */
+int Pit::top() const
+{
+	return std::ceil(m_scroll / ROW_H);
+}
+
+/**
+ * Returns the number of the bottom accessible row in the pit
+ */
+int Pit::bottom() const
+{
+	return std::floor((m_scroll + PIT_H) / ROW_H) - 1;
+}
+
+int Pit::peak() const
+{
+	return m_peak;
 }
 
 void Pit::highlight(int row)
@@ -458,6 +424,71 @@ void Pit::update(IContext& context)
 
 	if(m_enabled)
 		m_scroll += SCROLL_SPEED;
+}
+
+void Pit::refresh_peak()
+{
+	// maintain peak by linear search through the pit contents
+	int lowest_row = this->bottom();
+
+	while(m_peak < lowest_row) {
+		for(int c = 0; c < PIT_COLS; c++) {
+			if(this->anything_at({m_peak, c}))
+				return;
+		}
+
+		m_peak++; // try next row
+	}
+}
+
+void Pit::move_block(Block block, RowCol to)
+{
+	game_assert(to.c >= 0 && to.c < PIT_COLS, "Attempt to move block out of bounds.");
+	game_assert(!anything_at(to), "Attempt to move block to occupied location.");
+
+	RowCol rc = block->rc();
+
+	auto erased = block_map.erase(rc);
+	game_assert(1 == erased, "Block not found at expected space in Pit.");
+	auto emplace_result = block_map.emplace(to, block);
+	game_assert(emplace_result.second, "Attempt to block already blocked space in Pit.");
+	block->set_rc(to);
+}
+
+void Pit::move_garbage(GarbagePtr garbage, RowCol to)
+{
+	// make sure the Garbage fits at the target location
+	game_assert(to.c >= 0 && to.c + garbage->columns() <= PIT_COLS, "Attempt to move garbage out of bounds.");
+
+	unblock_garbage(*garbage);
+	garbage->set_rc(to);
+	block_garbage(garbage);
+}
+
+void Pit::block_garbage(GarbagePtr garbage)
+{
+	RowCol rc = garbage->rc();
+
+	for(int r = rc.r; r < rc.r + garbage->rows(); r++) {
+		for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
+			RowCol target{r, c};
+			auto result = m_garbage_map.emplace(std::make_pair(target, garbage));
+			game_assert(result.second, "Attempt to block already blocked space in Pit.");
+		}
+	}
+}
+
+void Pit::unblock_garbage(const Garbage& garbage)
+{
+	RowCol rc = garbage.rc();
+
+	for(int r = rc.r; r < rc.r + garbage.rows(); r++) {
+		for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
+			RowCol target{r, c};
+			size_t erased = m_garbage_map.erase(target);
+			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+		}
+	}
 }
 
 
