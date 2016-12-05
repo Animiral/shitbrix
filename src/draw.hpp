@@ -90,7 +90,7 @@ private:
 	std::vector<PitCursor> m_drawables;
 	mutable float m_dt;
 	bool m_show_cursors;
-	bool m_show_pit_debug_overlay;
-	bool m_show_pit_debug_highlight;
+	bool m_show_pit_debug_overlay = false;
+	bool m_show_pit_debug_highlight = false;
 
 };
