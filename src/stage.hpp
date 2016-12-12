@@ -157,9 +157,15 @@ public:
 
 	Point loc() const { return m_loc; }
 
-	BlockVec& blocks() { return m_blocks; }
-	std::vector<GarbagePtr>& garbage() { return m_garbage; }
-	const BlockVec& blocks() const { return m_blocks; }
+	auto blocks_begin() { return m_blocks.begin(); }
+	auto blocks_end() { return m_blocks.end(); }
+	auto garbage_begin() { return m_garbage.begin(); }
+	auto garbage_end() { return m_garbage.end(); }
+	auto blocks_begin() const { return m_blocks.begin(); }
+	auto blocks_end() const { return m_blocks.end(); }
+	auto garbage_begin() const { return m_garbage.begin(); }
+	auto garbage_end() const { return m_garbage.end(); }
+
 	const std::vector<GarbagePtr>& garbage() const { return m_garbage; }
 	Block block_at(RowCol rc) const;
 	GarbagePtr garbage_at(RowCol rc) const;

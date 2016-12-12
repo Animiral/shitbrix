@@ -97,17 +97,18 @@ namespace
 
 void draw_pit(const IContext& context, const Pit& pit, float dt)
 {
-	for(const Block block : pit.blocks())
-		draw_block(context, *block, dt);
+	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it)
+		draw_block(context, **it, dt);
 
-	for(const GarbagePtr garbage : pit.garbage())
-		draw_garbage(context, *garbage, dt);
+	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it)
+		draw_garbage(context, **it, dt);
 }
 
 void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 {
-	for(const Block block : pit.blocks())
+	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it)
 	{
+		Block block = *it;
 		BlockState state = block->state();
 		size_t frame = 0;
 		if(BlockState::FALL == state) frame = 1;
@@ -117,8 +118,9 @@ void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 		context.drawGfx(loc, Gfx::PITVIEW, frame);
 	}
 
-	for(const GarbagePtr garbage : pit.garbage())
+	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it)
 	{
+		GarbagePtr garbage = *it;
 		Garbage::State state = garbage->state();
 		size_t frame = 4;
 		if(Garbage::State::FALL == state) frame = 5;

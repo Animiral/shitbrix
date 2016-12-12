@@ -52,7 +52,8 @@ void BlockDirector::update(IContext& context)
 	bool have_dead = false; // true if pit needs to clean up
 	bool dead_sound = false; // true if there was at least one non-fake dead
 
-	for(Block block : pit.blocks()) {
+	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it) {
+		Block block = *it;
 		BlockState state = block->state();
 
 		// block above top => game over
@@ -83,8 +84,8 @@ void BlockDirector::update(IContext& context)
 
 			trigger_falls(block->rc());
 
-			auto breaking = std::find_if(pit.blocks().begin(), pit.blocks().end(), [] (Block b) { return b->state() == BlockState::BREAK; });
-			if(pit.blocks().end() == breaking) {
+			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (Block b) { return b->state() == BlockState::BREAK; });
+			if(pit.blocks_end() == breaking) {
 				pit.start();
 			}
 		}
