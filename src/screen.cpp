@@ -42,11 +42,11 @@ void GamePlay::update()
 	m_screen->right_blocks->update(m_screen->m_context);
 	m_screen->stage->update(m_screen->m_context);
 
-	// debug: spawn some garbage
-	if(m_screen->m_game_time % 400 == 0) {
-		m_screen->left_blocks->debug_spawn_garbage(3, 1);
-		m_screen->right_blocks->debug_spawn_garbage(6, 2);
-	}
+	// // debug: spawn some garbage
+	// if(m_screen->m_game_time % 400 == 0) {
+	// 	m_screen->left_blocks->debug_spawn_garbage(3, 1);
+	// 	m_screen->right_blocks->debug_spawn_garbage(6, 2);
+	// }
 
 	bool left_over = m_screen->left_blocks->over();
 	bool right_over = m_screen->right_blocks->over();
