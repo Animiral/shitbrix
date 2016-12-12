@@ -129,6 +129,14 @@ void BlockDirector::update(IContext& context)
 		++it;
 	}
 
+	if(have_dead)
+	{
+		pit.remove_dead();
+
+		if(dead_sound)
+			context.play(Snd::BREAK);
+	}
+
 	// make fallers fall
 	while(!fallers.empty()) {
 		bool changed = false;
@@ -148,14 +156,6 @@ void BlockDirector::update(IContext& context)
 		}
 
 		game_assert(changed, "falling blocks are stuck");
-	}
-
-	if(have_dead)
-	{
-		pit.remove_dead();
-
-		if(dead_sound)
-			context.play(Snd::BREAK);
 	}
 
 	// debug: show what the pit considers to be its peak row
