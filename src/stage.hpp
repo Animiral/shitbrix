@@ -182,12 +182,18 @@ public:
 	Garbage& spawn_garbage(RowCol rc, int width, int height);
 
 	/**
-	 * Move the object located at the at-location to the to-location.
+	 * Return true if it is acceptable to move the object located at the
+	 * from-location one row down, based on spaces blocked.
+	 */
+	bool can_fall(RowCol from) const;
+
+	/**
+	 * Move the object located at the at-location one row down.
 	 * For larger objects (Garbage), only the at-location that corresponds
 	 * to the object’s own primary rc (lower left tile for Garbage), not
 	 * any location blocked by the object, is accepted.
 	 */
-	void move(RowCol at, RowCol to);
+	void fall(RowCol from);
 
 	/**
 	 * Swap the locations of the Blocks at the specified coordinates.
@@ -195,10 +201,10 @@ public:
 	void swap(RowCol lrc, RowCol rrc);
 
 	/**
-	 * Remove the referenced Block from the Pit.
+	 * Remove dead Blocks from the Pit to clean it up.
 	 * Caution! This may invalidate all existing references to Blocks in the Pit.
 	 */
-	void kill(const BlockImpl& block);
+	void remove_dead();
 
 	/**
 	 * Reduce the size of the referenced Garbage by one row from the bottom.
@@ -209,6 +215,11 @@ public:
 	 * @return a pointer to the reduced Garbage, or nullptr if the Garbage is gone
 	 */
 	Garbage* shrink(Garbage& garbage);
+
+	/**
+	 * Remove all objects from the Pit.
+	 */
+	void clear();
 
 	int top() const;
 	int bottom() const;
@@ -240,8 +251,8 @@ private:
 	int m_highlight_row;
 
 	void refresh_peak(); //!< Search for the new m_peak
-	void move_block(Block block, RowCol to); //!< Move the Block to the to-location.
-	void move_garbage(GarbagePtr garbage, RowCol to); //!< Move the Garbage to the to-location.
+	void fall_block(Block block); //!< Move the Block to the to-location.
+	void fall_garbage(GarbagePtr garbage); //!< Move the Garbage to the to-location.
 	void block_garbage(GarbagePtr garbage); //!< Mark the garbage area as occupied.
 	void unblock_garbage(const Garbage& garbage); //!< Mark the garbage area as free.
 

@@ -313,19 +313,42 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 	return *m_garbage.back();
 }
 
-void Pit::move(RowCol at, RowCol to)
+bool Pit::can_fall(RowCol from) const
 {
-	auto block = block_at(at);
-	auto garbage = garbage_at(at);
+	auto block = block_at(from);
+	auto garbage = garbage_at(from);
+	RowCol to {from.r+1, from.c};
 
-	if(block) move_block(block, to);
-	else if(garbage) move_garbage(garbage, to);
-	else game_assert(false, "Attempt to move from empty coordinate in Pit.");
+	// there must be no obstacle at the target location and the
+	// target location must be a valid location in the pit
+	if(block) {
+		return !anything_at(to);
+	}
+	else if(garbage) {
+		for(int c = to.c; c < to.c + garbage->columns(); c++) {
+			RowCol target{to.r, c};
 
-	if(at.r < to.r)
-		refresh_peak();
-	else if(to.r < m_peak)
-		m_peak = to.r;
+			if(anything_at(target))
+				return false;
+		}
+	}
+	else {
+		game_assert(false, "Asking to fall from empty coordinate in Pit.");
+	}
+
+	return true;
+}
+
+void Pit::fall(RowCol from)
+{
+	auto block = block_at(from);
+	auto garbage = garbage_at(from);
+
+	if(block) fall_block(block);
+	else if(garbage) fall_garbage(garbage);
+	else game_assert(false, "Attempt to fall from empty coordinate in Pit.");
+
+	refresh_peak();
 }
 
 void Pit::swap(RowCol lrc, RowCol rrc)
@@ -341,16 +364,27 @@ void Pit::swap(RowCol lrc, RowCol rrc)
 	right->second->set_rc(lrc);
 }
 
-void Pit::kill(const BlockImpl& block)
+void Pit::remove_dead()
 {
-	RowCol rc = block.rc();
+	bool did_erase = false;
 
-	size_t erased = block_map.erase(rc);
-	game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+	for(auto it = m_blocks.begin(); it != m_blocks.end(); ) {
+		if(BlockState::DEAD == (*it)->state()) {
+			RowCol rc = (*it)->rc();
 
-	auto is_target = [rc] (Block block) { return block->rc() == rc; };
-	std::remove_if(m_blocks.begin(), m_blocks.end(), is_target);
-	refresh_peak();
+			size_t erased = block_map.erase(rc);
+			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+			did_erase = true;
+
+			it = m_blocks.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
+
+	if(did_erase)
+		refresh_peak();
 }
 
 Garbage* Pit::shrink(Garbage& garbage)
@@ -373,6 +407,15 @@ Garbage* Pit::shrink(Garbage& garbage)
 	else {
 		return &garbage;
 	}
+}
+
+void Pit::clear()
+{
+	m_blocks.clear();
+	m_garbage.clear();
+	block_map.clear();
+	m_garbage_map.clear();
+	m_peak = 1;
 }
 
 /**
@@ -441,12 +484,12 @@ void Pit::refresh_peak()
 	}
 }
 
-void Pit::move_block(Block block, RowCol to)
+void Pit::fall_block(Block block)
 {
-	game_assert(to.c >= 0 && to.c < PIT_COLS, "Attempt to move block out of bounds.");
-	game_assert(!anything_at(to), "Attempt to move block to occupied location.");
-
 	RowCol rc = block->rc();
+	RowCol to { rc.r+1, rc.c };
+
+	game_assert(!anything_at(to), "Attempt to move block to occupied location.");
 
 	auto erased = block_map.erase(rc);
 	game_assert(1 == erased, "Block not found at expected space in Pit.");
@@ -455,10 +498,10 @@ void Pit::move_block(Block block, RowCol to)
 	block->set_rc(to);
 }
 
-void Pit::move_garbage(GarbagePtr garbage, RowCol to)
+void Pit::fall_garbage(GarbagePtr garbage)
 {
-	// make sure the Garbage fits at the target location
-	game_assert(to.c >= 0 && to.c + garbage->columns() <= PIT_COLS, "Attempt to move garbage out of bounds.");
+	RowCol rc = garbage->rc();
+	RowCol to { rc.r+1, rc.c };
 
 	unblock_garbage(*garbage);
 	garbage->set_rc(to);

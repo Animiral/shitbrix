@@ -59,6 +59,7 @@ private:
 
 	Pit& pit;
 	BlockVec previews; // blocks which are fresh spawns and currently inactive
+	BlockVec fallers; // blocks which we want to start falling soon
 	BlockVec hots; // recently landed or arrived blocks that can start a match
 	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
@@ -73,7 +74,10 @@ private:
 	void garbage_arrive_fall(GarbagePtr garbage);
 	void block_arrive_swap(Block block);
 
-	BlockVec::iterator reap_block(BlockVec::iterator it);
+	/**
+	 * Make blocks above the recently-freed location fall down.
+	 */
+	void trigger_falls(RowCol free);
 
 	void activate_previews();
 	void game_over();

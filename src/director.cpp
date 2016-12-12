@@ -49,17 +49,10 @@ void BlockDirector::update(IContext& context)
 	spawn_previews();
 
 	// Handle individual logic for each block
-
-	// Maintain blocks sorted from bottom to top. This way, lower blocks in pillars of falling
-	// blocks will fall out of the way before upper blocks stumble over them.
-	// TODO: only do this after a block has moved
-	std::sort(pit.blocks().begin(), pit.blocks().end(), y_greater);
-
 	bool have_dead = false; // true if pit needs to clean up
 	bool dead_sound = false; // true if there was at least one non-fake dead
 
-	for(auto it = pit.blocks().begin(); it != pit.blocks().end(); ) {
-		Block block = *it;
+	for(Block block : pit.blocks()) {
 		BlockState state = block->state();
 
 		// block above top => game over
@@ -84,24 +77,18 @@ void BlockDirector::update(IContext& context)
 
 		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
 		if(BlockState::DEAD == state) {
-			have_dead = true;
+			have_dead = true; // don’t remove them just yet as it would mess up the iterators
 			if(BlockCol::FAKE != block->col)
 				dead_sound = true;
 
-			it = reap_block(it);
+			trigger_falls(block->rc());
 
 			auto breaking = std::find_if(pit.blocks().begin(), pit.blocks().end(), [] (Block b) { return b->state() == BlockState::BREAK; });
 			if(pit.blocks().end() == breaking) {
 				pit.start();
 			}
 		}
-		else {
-			++it;
-		}
 	}
-
-	if(dead_sound)
-		context.play(Snd::BREAK);
 
 	// Examine hots for matches
 	if(!hots.empty()) {
@@ -140,6 +127,35 @@ void BlockDirector::update(IContext& context)
 		}
 
 		++it;
+	}
+
+	// make fallers fall
+	while(!fallers.empty()) {
+		bool changed = false;
+
+		for(auto it = fallers.begin(); it != fallers.end(); ) {
+			Block block = *it;
+			RowCol rc = block->rc();
+			if(pit.can_fall(rc)) {
+				block->set_state(BlockState::FALL);
+				pit.fall(rc);
+				it = fallers.erase(it);
+				changed = true;
+			}
+			else {
+				++it;
+			}
+		}
+
+		game_assert(changed, "falling blocks are stuck");
+	}
+
+	if(have_dead)
+	{
+		pit.remove_dead();
+
+		if(dead_sound)
+			context.play(Snd::BREAK);
 	}
 
 	// debug: show what the pit considers to be its peak row
@@ -239,7 +255,7 @@ void BlockDirector::block_arrive_fall(Block block)
 		hots.push_back(block);
 	}
 	else {
-		pit.move(rc, next);
+		fallers.push_back(block);
 	}
 }
 
@@ -255,57 +271,42 @@ void BlockDirector::garbage_arrive_fall(GarbagePtr garbage)
 		garbage->set_state(Garbage::State::LAND);
 	}
 	else {
-		pit.move(rc, next);
+		pit.fall(rc);
 	}
 }
 
 void BlockDirector::block_arrive_swap(Block block)
 {
-	RowCol rc = block->rc();
-
 	// fake blocks are only for swapping and disappear right afterwards
 	if(BlockCol::FAKE == block->col) {
-		auto it = std::find(pit.blocks().begin(), pit.blocks().end(), block);
-		SDL_assert(it != pit.blocks().end());
 		block->set_state(BlockState::DEAD);
 		return;
 	}
 
-	RowCol next { rc.r + 1, rc.c };
-
 	// If the next space is free, the block starts falling. Otherwise, it rests.
-	if(pit.block_at(next)) {
+	if(pit.can_fall(block->rc())) {
+		fallers.push_back(block);
+	}
+	else {
 		block->set_state(BlockState::REST);
 		hots.push_back(block);
 	}
-	else {
-		block->set_state(BlockState::FALL);
-		pit.move(rc, next);
-	}
 }
 
-BlockVec::iterator BlockDirector::reap_block(BlockVec::iterator it)
+void BlockDirector::trigger_falls(RowCol free)
 {
-	RowCol rc = (*it)->rc();
-
-	// remove from the pit
-	pit.kill(**it);
-
 	// Release blockage & blocks above the dead block => fall down
-	RowCol prev { rc.r - 1, rc.c };
+	RowCol prev { free.r - 1, free.c };
 	Block block = pit.block_at(prev);
 
 	while (block && fallible(block)) {
-		block->set_state(BlockState::FALL);
-		pit.move(prev, rc);
+		fallers.push_back(block);
 
 		// continue looking 1 block above
-		rc = prev;
-		prev = RowCol{ rc.r - 1, rc.c };
+		free = prev;
+		prev = RowCol{ free.r - 1, free.c };
 		block = pit.block_at(prev);
 	}
-
-	return it;
 }
 
 /**
@@ -327,9 +328,7 @@ void BlockDirector::activate_previews()
  */
 void BlockDirector::game_over()
 {
-	for(auto it = pit.blocks().begin(); it != pit.blocks().end(); ) {
-		it = reap_block(it);
-	}
+	pit.clear();
 
 	m_over = true;
 }
