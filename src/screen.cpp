@@ -187,10 +187,8 @@ void GameScreen::draw(float dt) const
 
 void GameScreen::update()
 {
-	if(!m_pause) {
-		input_mixer.update(m_game_time);
-		game_phase->update();
-	}
+	if(!m_pause)
+		update_impl();
 
 	// auto-move cursor when scrolling out of bounds
 	left_cursor->move(Dir::NONE);
@@ -223,10 +221,11 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::DEBUG1:
 			m_draw.toggle_pit_debug_overlay();
+			m_draw.toggle_pit_debug_highlight();
 			break;
 
 		case Button::DEBUG2:
-			m_draw.toggle_pit_debug_highlight();
+			update_impl();
 			break;
 
 		case Button::NONE:
@@ -271,6 +270,12 @@ void GameScreen::set_phase(GamePhase phase)
 {
 	game_phase = std::move(phase);
 	input_mixer.set_game_sink(game_phase.get());
+}
+
+void GameScreen::update_impl()
+{
+	input_mixer.update(m_game_time);
+	game_phase->update();
 }
 
 void GameScreen::seed(unsigned int rng_seed)

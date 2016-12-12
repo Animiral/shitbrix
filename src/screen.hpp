@@ -158,6 +158,11 @@ private:
 	void set_phase(GamePhase phase);
 	void seed(unsigned int rng_seed);
 
+	/**
+	 * Pass on the update event to child objects.
+	 */
+	void update_impl();
+
 	friend class IGamePhase;
 	friend class GameIntro;
 	friend class GamePlay;
