@@ -1,6 +1,13 @@
 #include "screen.hpp"
 #include <sstream>
 
+namespace
+{
+
+void debug_print_pit(const Pit& pit);
+
+}
+
 IGamePhase::~IGamePhase() =default;
 
 void IGamePhase::draw() const
@@ -228,6 +235,15 @@ void GameScreen::input(ControllerInput cinput)
 			update_impl();
 			break;
 
+		case Button::DEBUG3:
+			debug_print_pit(stage->pits()[0]->pit);
+			break;
+
+		case Button::DEBUG4:
+		case Button::DEBUG5:
+			debug_print_pit(stage->pits()[1]->pit);
+			break;
+
 		case Button::NONE:
 		default:
 			SDL_assert_paranoid(false);
@@ -284,4 +300,52 @@ void GameScreen::seed(unsigned int rng_seed)
 	std::ostringstream stream;
 	stream << rng_seed;
 	journal << ReplayEvent::make_set("rng_seed", stream.str());
+}
+
+namespace
+{
+
+void debug_print_pit(const Pit& pit)
+{
+	std::cerr << "--- Pit blocks:\n\n";
+
+	for(int r = pit.top(); r <= pit.bottom()+1; r++)
+	for(int c = 0; c <= PIT_COLS; c++) {
+		Block block = pit.block_at(RowCol{r,c});
+		if(!block) continue;
+
+		BlockState state = block->state();
+		BlockCol color = block->col;
+		std::string state_str;
+		std::string color_str;
+
+		switch(state) {
+			case BlockState::INVALID: state_str = "INVALID"; break;
+			case BlockState::PREVIEW: state_str = "PREVIEW"; break;
+			case BlockState::REST: state_str = "REST"; break;
+			case BlockState::SWAP: state_str = "SWAP"; break;
+			case BlockState::FALL: state_str = "FALL"; break;
+			case BlockState::LAND: state_str = "LAND"; break;
+			case BlockState::BREAK: state_str = "BREAK"; break;
+			case BlockState::DEAD: state_str = "DEAD"; break;
+			default: ;
+		}
+
+		switch(color) {
+			case BlockCol::BLUE: color_str = "blue"; break;
+			case BlockCol::RED: color_str = "red"; break;
+			case BlockCol::YELLOW: color_str = "yellow"; break;
+			case BlockCol::GREEN: color_str = "green"; break;
+			case BlockCol::PURPLE: color_str = "purple"; break;
+			case BlockCol::ORANGE: color_str = "orange"; break;
+			case BlockCol::FAKE: color_str = "fake"; break;
+			default: ;
+		}
+
+		std::cerr << "r" << r << "c" << c << " " << state_str << " " << color_str << " block\n";
+	}
+
+	std::cerr << "\n";
+}
+
 }

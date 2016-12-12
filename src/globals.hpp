@@ -94,7 +94,11 @@ enum class Button
 	PAUSE,         // pause the game
 	RESET,         // restart the game
 	QUIT,          // exit the game
-	DEBUG1, DEBUG2 // debug functions
+	DEBUG1,        // debug functions
+	DEBUG2,
+	DEBUG3,
+	DEBUG4,
+	DEBUG5
 };
 
 /**

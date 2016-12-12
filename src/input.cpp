@@ -24,8 +24,11 @@ ControllerInput key_to_controller(SDL_Keycode key)
 		case SDLK_KP_8:  player = 1; button = Button::UP;    break;
 		case SDLK_KP_5:  player = 1; button = Button::DOWN;  break;
 		case SDLK_KP_0:  player = 1; button = Button::A;     break;
-		case SDLK_d:      button = Button::DEBUG1; break;
-		case SDLK_h:      button = Button::DEBUG2; break;
+		case SDLK_F1:     button = Button::DEBUG1; break;
+		case SDLK_F2:     button = Button::DEBUG2; break;
+		case SDLK_F3:     button = Button::DEBUG3; break;
+		case SDLK_F4:     button = Button::DEBUG4; break;
+		case SDLK_F5:     button = Button::DEBUG5; break;
 		case SDLK_RETURN: button = Button::RESET;  break;
 		case SDLK_SPACE:  button = Button::PAUSE;  break;
 		case SDLK_ESCAPE: button = Button::QUIT;   break;
