@@ -81,9 +81,13 @@ public:
 
 	virtual void highlight(Point top_left, int width, int height) override
 	{
-		int x = top_left.x;
-		int y = top_left.y;
-		SDL_Rect fill_rect{x, y, width, height};
+		Point loc = top_left.offset(m_translate.x, m_translate.y);
+		SDL_Rect fill_rect {
+			static_cast<int>(loc.x),
+			static_cast<int>(loc.y),
+			width,
+			height
+		};
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
 		int color_result = SDL_SetRenderDrawColor(renderer, 200, 200, 0, 150);
