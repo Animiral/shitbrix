@@ -43,7 +43,7 @@ private:
 	const Pit& pit;
 	BlockSet m_result;
 
-	bool match_at(RowCol rc, BlockCol color);
+	bool match_at(RowCol rc, Block::Color color);
 	void insert(RowCol rc);
 
 };

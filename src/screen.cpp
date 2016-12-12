@@ -317,31 +317,30 @@ void debug_print_pit(const Pit& pit)
 		Block* block = pit.block_at(RowCol{r,c});
 		if(!block) continue;
 
-		BlockState state = block->state();
-		BlockCol color = block->col;
+		Block::State state = block->state();
+		Block::Color color = block->col;
 		std::string state_str;
 		std::string color_str;
 
 		switch(state) {
-			case BlockState::INVALID: state_str = "INVALID"; break;
-			case BlockState::PREVIEW: state_str = "PREVIEW"; break;
-			case BlockState::REST: state_str = "REST"; break;
-			case BlockState::SWAP: state_str = "SWAP"; break;
-			case BlockState::FALL: state_str = "FALL"; break;
-			case BlockState::LAND: state_str = "LAND"; break;
-			case BlockState::BREAK: state_str = "BREAK"; break;
-			case BlockState::DEAD: state_str = "DEAD"; break;
+			case Block::State::DEAD: state_str = "DEAD"; break;
+			case Block::State::PREVIEW: state_str = "PREVIEW"; break;
+			case Block::State::REST: state_str = "REST"; break;
+			case Block::State::SWAP: state_str = "SWAP"; break;
+			case Block::State::FALL: state_str = "FALL"; break;
+			case Block::State::LAND: state_str = "LAND"; break;
+			case Block::State::BREAK: state_str = "BREAK"; break;
 			default: ;
 		}
 
 		switch(color) {
-			case BlockCol::BLUE: color_str = "blue"; break;
-			case BlockCol::RED: color_str = "red"; break;
-			case BlockCol::YELLOW: color_str = "yellow"; break;
-			case BlockCol::GREEN: color_str = "green"; break;
-			case BlockCol::PURPLE: color_str = "purple"; break;
-			case BlockCol::ORANGE: color_str = "orange"; break;
-			case BlockCol::FAKE: color_str = "fake"; break;
+			case Block::Color::FAKE: color_str = "fake"; break;
+			case Block::Color::BLUE: color_str = "blue"; break;
+			case Block::Color::RED: color_str = "red"; break;
+			case Block::Color::YELLOW: color_str = "yellow"; break;
+			case Block::Color::GREEN: color_str = "green"; break;
+			case Block::Color::PURPLE: color_str = "purple"; break;
+			case Block::Color::ORANGE: color_str = "orange"; break;
 			default: ;
 		}
 

@@ -6,7 +6,7 @@
 
 void MatchBuilder::ignite(Block& block)
 {
-	BlockCol color = block.col;
+	Block::Color color = block.col;
 	int row = block.rc().r;
 	int col = block.rc().c;
 
@@ -34,7 +34,7 @@ void MatchBuilder::ignite(Block& block)
 	}
 }
 
-bool MatchBuilder::match_at(RowCol rc, BlockCol color)
+bool MatchBuilder::match_at(RowCol rc, Block::Color color)
 {
 	Block* next = pit.block_at(rc);
 	return next && next->col == color && next->is_matchable();
@@ -62,7 +62,7 @@ void BlockDirector::update(IContext& context)
 
 	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it) {
 		Block& block = **it;
-		BlockState state = block.state();
+		Block::State state = block.state();
 
 		// block above top => game over
 		if(block.rc().r < pit.top()) {
@@ -71,7 +71,7 @@ void BlockDirector::update(IContext& context)
 		}
 
 		// falling blocks arrived at next row (center)
-		if(state == BlockState::FALL) {
+		if(state == Block::State::FALL) {
 			// land block?
 			if(block.is_arriving()) {
 				block_arrive_fall(block);
@@ -79,20 +79,20 @@ void BlockDirector::update(IContext& context)
 		}
 
 		// blocks finished swapping
-		if(BlockState::SWAP == state && block.time <= 0) {
+		if(Block::State::SWAP == state && block.time <= 0) {
 			block_arrive_swap(block);
 			state = block.state(); // NOTE: block_arrive_swap may change the state
 		}
 
 		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
-		if(BlockState::DEAD == state) {
+		if(Block::State::DEAD == state) {
 			have_dead = true; // don’t remove them just yet as it would mess up the iterators
-			if(BlockCol::FAKE != block.col)
+			if(Block::Color::FAKE != block.col)
 				dead_sound = true;
 
 			trigger_falls(block.rc());
 
-			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (std::unique_ptr<Block>& b) { return b->state() == BlockState::BREAK; });
+			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (std::unique_ptr<Block>& b) { return b->state() == Block::State::BREAK; });
 			if(pit.blocks_end() == breaking) {
 				pit.start();
 			}
@@ -115,7 +115,7 @@ void BlockDirector::update(IContext& context)
 
 			for(auto it = breaks.begin(); it != breaks.end(); ++it) {
 				Block& block = *it;
-				block.set_state(BlockState::BREAK);
+				block.set_state(Block::State::BREAK);
 			}
 		}
 
@@ -152,7 +152,7 @@ void BlockDirector::update(IContext& context)
 			Block& block = *it;
 			RowCol rc = block.rc();
 			if(pit.can_fall(rc)) {
-				block.set_state(BlockState::FALL);
+				block.set_state(Block::State::FALL);
 				pit.fall(rc);
 				it = fallers.erase(it);
 				changed = true;
@@ -233,8 +233,8 @@ void BlockDirector::spawn_previews()
 
 Block& BlockDirector::spawn_block(RowCol rc)
 {
-	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + (*rndgen)() % 6);
-	Block& block = pit.spawn_block(spawn_color, rc, BlockState::PREVIEW);
+	Block::Color spawn_color = static_cast<Block::Color>(static_cast<int>(Block::Color::BLUE) + (*rndgen)() % 6);
+	Block& block = pit.spawn_block(spawn_color, rc, Block::State::PREVIEW);
 	return block;
 }
 
@@ -243,7 +243,7 @@ Block& BlockDirector::spawn_block(RowCol rc)
  */
 Block& BlockDirector::spawn_fake(RowCol rc)
 {
-	Block& block = pit.spawn_block(BlockCol::FAKE, rc, BlockState::REST);
+	Block& block = pit.spawn_block(Block::Color::FAKE, rc, Block::State::REST);
 	return block;
 }
 
@@ -256,7 +256,7 @@ void BlockDirector::block_arrive_fall(Block& block)
 
 	// If the next space is free, the block goes on to fall. Otherwise, it lands.
 	if(pit.block_at(next)) {
-		block.set_state(BlockState::LAND);
+		block.set_state(Block::State::LAND);
 		hots.push_back(block);
 	}
 	else {
@@ -283,8 +283,8 @@ void BlockDirector::garbage_arrive_fall(GarbagePtr garbage)
 void BlockDirector::block_arrive_swap(Block& block)
 {
 	// fake blocks are only for swapping and disappear right afterwards
-	if(BlockCol::FAKE == block.col) {
-		block.set_state(BlockState::DEAD);
+	if(Block::Color::FAKE == block.col) {
+		block.set_state(Block::State::DEAD);
 		return;
 	}
 
@@ -292,7 +292,7 @@ void BlockDirector::block_arrive_swap(Block& block)
 		fallers.push_back(block);
 	}
 	else {
-		block.set_state(BlockState::REST);
+		block.set_state(Block::State::REST);
 		hots.push_back(block);
 	}
 }
@@ -320,7 +320,7 @@ void BlockDirector::trigger_falls(RowCol free)
 void BlockDirector::activate_previews()
 {
 	for(Block& block : previews) {
-		block.set_state(BlockState::REST);
+		block.set_state(Block::State::REST);
 		hots.push_back(block);
 	}
 

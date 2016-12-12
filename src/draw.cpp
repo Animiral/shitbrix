@@ -109,11 +109,11 @@ void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it)
 	{
 		Block& block = **it;
-		BlockState state = block.state();
+		Block::State state = block.state();
 		size_t frame = 0;
-		if(BlockState::FALL == state) frame = 1;
-		if(BlockState::BREAK == state) frame = 2;
-		if(BlockCol::FAKE == block.col) frame = 3;
+		if(Block::State::FALL == state) frame = 1;
+		if(Block::State::BREAK == state) frame = 2;
+		if(Block::Color::FAKE == block.col) frame = 3;
 		Point loc = block.loc();
 		context.drawGfx(loc, Gfx::PITVIEW, frame);
 	}
@@ -131,25 +131,23 @@ void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 
 void draw_block(const IContext& context, const Block& block, float dt)
 {
-	SDL_assert(block.col != BlockCol::INVALID);
-
-	if(BlockCol::FAKE == block.col) return;
+	if(Block::Color::FAKE == block.col) return;
 
 	Point draw_loc = block.loc();
 	int time = block.time;
 
 	// bounce when landing
-	if(BlockState::LAND == block.state()) {
+	if(Block::State::LAND == block.state()) {
 		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
 		int h = time > Block::LAND_TIME/2 ? Block::LAND_TIME-time : time;
 		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / Block::LAND_TIME;
 	}
 
-	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - BlockCol::BLUE);
+	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Block::Color::BLUE);
 
 	BlockFrame frame = BlockFrame::REST;
-	if(BlockState::PREVIEW == block.state()) frame = BlockFrame::PREVIEW;
-	if(BlockState::BREAK == block.state()) {
+	if(Block::State::PREVIEW == block.state()) frame = BlockFrame::PREVIEW;
+	if(Block::State::BREAK == block.state()) {
 		int begin = static_cast<int>(BlockFrame::BREAK_BEGIN);
 		int end = static_cast<int>(BlockFrame::BREAK_END);
 		frame = static_cast<BlockFrame>(begin + time % (end - begin));

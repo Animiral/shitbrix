@@ -7,11 +7,6 @@
 #include <algorithm>
 #include <functional>
 
-int operator-(BlockCol lhs, BlockCol rhs)
-{
-	return static_cast<int>(lhs) - static_cast<int>(rhs);
-}
-
 /**
  * State machine spaghetti for block behavior
  */
@@ -20,13 +15,13 @@ void Block::update(IContext& context)
 	time--;
 
 	switch(m_state) {
-		case BlockState::PREVIEW: break;
-		case BlockState::REST: break;
-		case BlockState::SWAP: swap(); break;
-		case BlockState::FALL: fall(); break;
-		case BlockState::LAND: land(); break;
-		case BlockState::BREAK: dobreak(); break;
-		case BlockState::DEAD: throw GameException("Cannot update() dead block.");
+		case State::PREVIEW: break;
+		case State::REST: break;
+		case State::SWAP: swap(); break;
+		case State::FALL: fall(); break;
+		case State::LAND: land(); break;
+		case State::BREAK: dobreak(); break;
+		case State::DEAD: throw GameException("Cannot update() dead block.");
 		default: SDL_assert_paranoid(false);
 	}
 }
@@ -42,15 +37,15 @@ void Block::set_rc(RowCol rc)
 	m_rc = rc;
 }
 
-void Block::set_state(BlockState state)
+void Block::set_state(State state)
 {
-	SDL_assert(state != BlockState::PREVIEW && state != BlockState::SWAP); // use swap_toward() instead
-	SDL_assert(m_state != BlockState::DEAD); // cannot change out of dead state
+	SDL_assert(state != State::PREVIEW && state != State::SWAP); // use swap_toward() instead
+	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
 
 	m_state = state;
 
 	switch(state) {
-		case BlockState::LAND:
+		case State::LAND:
 			// Correct the block by any eventual extra-pixels
 			m_loc.x -= offset.x;
 			m_loc.y -= offset.y;
@@ -58,7 +53,7 @@ void Block::set_state(BlockState state)
 			time = LAND_TIME;
 			break;
 
-		case BlockState::BREAK:
+		case State::BREAK:
 			time = BREAK_TIME;
 			m_anim = BlockFrame::BREAK_BEGIN;
 			break;
@@ -69,12 +64,12 @@ void Block::set_state(BlockState state)
 
 /**
  * Starts the swapping state & animation for this block.
- * This function replaces set_state(BlockState::SWAP) because of the additional
+ * This function replaces set_state(State::SWAP) because of the additional
  * information that must be conveyed in the target parameter.
  */
 void Block::swap_toward(RowCol target)
 {
-	m_state = BlockState::SWAP;
+	m_state = State::SWAP;
 	time = SWAP_TIME;
 	m_target = from_rc(target);
 }
@@ -84,25 +79,25 @@ void Block::swap_toward(RowCol target)
  */
 bool Block::is_arriving() const
 {
-	return BlockState::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+	return State::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
 }
 
 bool Block::is_fallible() const
 {
-	return BlockState::REST == m_state || BlockState::LAND == m_state;
+	return State::REST == m_state || State::LAND == m_state;
 }
 
 bool Block::is_swappable() const
 {
-	return BlockState::REST == m_state ||
-	       BlockState::SWAP == m_state ||
-	       BlockState::FALL == m_state ||
-	       BlockState::LAND == m_state;
+	return State::REST == m_state ||
+	       State::SWAP == m_state ||
+	       State::FALL == m_state ||
+	       State::LAND == m_state;
 }
 
 bool Block::is_matchable() const
 {
-	return BlockState::REST == m_state || BlockState::LAND == m_state;
+	return State::REST == m_state || State::LAND == m_state;
 }
 
 /**
@@ -139,7 +134,7 @@ void Block::fall()
 void Block::land()
 {
 	if(time < 0) {
-		set_state(BlockState::REST);
+		set_state(State::REST);
 		time = 10 - 10 * m_rc.r; // after which auto-breaks
 	}
 }
@@ -150,8 +145,13 @@ void Block::land()
 void Block::dobreak()
 {
 	if(time < 0) {
-		set_state(BlockState::DEAD);
+		set_state(State::DEAD);
 	}
+}
+
+int operator-(Block::Color lhs, Block::Color rhs)
+{
+	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
 
 /**
@@ -274,7 +274,7 @@ bool Pit::anything_at(RowCol rc) const
 		m_garbage_map.find(rc) != m_garbage_map.end();
 }
 
-Block& Pit::spawn_block(BlockCol color, RowCol rc, BlockState state)
+Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 {
 	game_assert(rc.c >= 0 && rc.c < PIT_COLS, "Attempt to spawn block out of bounds.");
 	game_assert(!anything_at(rc), "Attempt to spawn block at occupied location.");
@@ -364,7 +364,7 @@ void Pit::remove_dead()
 	bool did_erase = false;
 
 	for(auto it = m_blocks.begin(); it != m_blocks.end(); ) {
-		if(BlockState::DEAD == (*it)->state()) {
+		if(Block::State::DEAD == (*it)->state()) {
 			RowCol rc = (*it)->rc();
 
 			size_t erased = block_map.erase(rc);

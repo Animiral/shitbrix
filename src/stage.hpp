@@ -13,12 +13,6 @@
 #include <map>
 #include <random>
 
-enum class BlockCol { INVALID, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE, FAKE };
-enum class BlockState { INVALID, PREVIEW, REST, SWAP, FALL, LAND, BREAK, DEAD };
-
-// Allow operator- on BlockCol
-int operator-(BlockCol lhs, BlockCol rhs);
-
 /**
  * Single block, comes in 6 colors
  *
@@ -36,12 +30,15 @@ class Block : public ILogic
 
 public:
 
+	enum class Color { FAKE, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
+	enum class State { DEAD, PREVIEW, REST, SWAP, FALL, LAND, BREAK };
+
 	// Public properties - can be read/changed/corrected at will
-	BlockCol col;    // color
+	Color col;    // color
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
-	Block(BlockCol col, RowCol rc, BlockState state)
+	Block(Color col, RowCol rc, State state)
 	:
 	col(col), offset{0,0}, time(0),
 	m_loc(from_rc(rc)), m_rc(rc), m_state(state)
@@ -52,8 +49,8 @@ public:
 	Point loc() const { return m_loc; }
 	RowCol rc() const { return m_rc; }
 	void set_rc(RowCol rc);
-	BlockState state() const { return m_state; }
-	void set_state(BlockState state);
+	State state() const { return m_state; }
+	void set_state(State state);
 	void swap_toward(RowCol target);
 
 	bool is_arriving() const;
@@ -70,7 +67,7 @@ private:
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // row/col position, - is UP, + is DOWN
 	Point m_target;     // target location - where the block really wants to be while it’s busy with an animation like SWAP
-	BlockState m_state; // current block state
+	State m_state; // current block state
 	BlockFrame m_anim;  // current animation frame
 
 	void swap();
@@ -79,6 +76,9 @@ private:
 	void dobreak();
 	
 };
+
+// Allow operator- on Block::Color
+int operator-(Block::Color lhs, Block::Color rhs);
 
 bool y_greater(const Block& lhs, const Block& rhs);
 
@@ -173,7 +173,7 @@ public:
 	 *
 	 * @return a reference to the created Block
 	 */
-	Block& spawn_block(BlockCol color, RowCol rc, BlockState state);
+	Block& spawn_block(Block::Color color, RowCol rc, Block::State state);
 
 	/**
 	 * Create a new Garbage with the specified dimensions.
