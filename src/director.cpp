@@ -195,9 +195,7 @@ bool BlockDirector::swap(RowCol lrc)
 
 	// do swap
 	left->swap_toward(rrc);
-	left->set_rc(rrc);
 	right->swap_toward(lrc);
-	right->set_rc(lrc);
 	pit.swap(lrc, rrc);
 
 	return true;

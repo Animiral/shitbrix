@@ -359,9 +359,9 @@ void Pit::swap(RowCol lrc, RowCol rrc)
 
 	game_assert(left != end && right != end, "Attempt to swap nonexistant blocks.");
 
-	std::swap(left->second, right->second);
 	left->second->set_rc(rrc);
 	right->second->set_rc(lrc);
+	std::swap(left->second, right->second);
 }
 
 void Pit::remove_dead()
