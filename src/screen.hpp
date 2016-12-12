@@ -141,6 +141,7 @@ private:
 	GamePhase game_phase;
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
+	bool m_pause; // true if tick updates are supressed
 	GameInputMixer input_mixer;
 
 	std::ofstream replay_outstream;

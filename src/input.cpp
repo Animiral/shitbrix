@@ -27,6 +27,7 @@ ControllerInput key_to_controller(SDL_Keycode key)
 		case SDLK_d:      button = Button::DEBUG1; break;
 		case SDLK_h:      button = Button::DEBUG2; break;
 		case SDLK_RETURN: button = Button::RESET;  break;
+		case SDLK_SPACE:  button = Button::PAUSE;  break;
 		case SDLK_ESCAPE: button = Button::QUIT;   break;
 		default:          button = Button::NONE;   break;
 	}

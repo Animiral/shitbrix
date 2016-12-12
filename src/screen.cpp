@@ -143,7 +143,8 @@ void GameResult::update()
 
 
 GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context)
-: input_mixer(*this, replay_infile),
+: m_pause(false),
+  input_mixer(*this, replay_infile),
   replay_outstream(replay_outfile),
   journal(replay_outstream),
   m_context(context),
@@ -186,8 +187,10 @@ void GameScreen::draw(float dt) const
 
 void GameScreen::update()
 {
-	input_mixer.update(m_game_time);
-	game_phase->update();
+	if(!m_pause) {
+		input_mixer.update(m_game_time);
+		game_phase->update();
+	}
 
 	// auto-move cursor when scrolling out of bounds
 	left_cursor->move(Dir::NONE);
@@ -207,7 +210,7 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::PAUSE:
-			// TODO: pause game
+			m_pause = !m_pause;
 			break;
 
 		case Button::RESET:
