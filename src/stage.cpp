@@ -15,7 +15,7 @@ int operator-(BlockCol lhs, BlockCol rhs)
 /**
  * State machine spaghetti for block behavior
  */
-void BlockImpl::update(IContext& context)
+void Block::update(IContext& context)
 {
 	time--;
 
@@ -35,14 +35,14 @@ void BlockImpl::update(IContext& context)
  * Changes the block’s logical location while maintaining its draw position,
  * now relative to the new rc.
  */
-void BlockImpl::set_rc(RowCol rc)
+void Block::set_rc(RowCol rc)
 {
 	offset.x -= (rc.c - m_rc.c) * COL_W;
 	offset.y -= (rc.r - m_rc.r) * ROW_H;
 	m_rc = rc;
 }
 
-void BlockImpl::set_state(BlockState state)
+void Block::set_state(BlockState state)
 {
 	SDL_assert(state != BlockState::PREVIEW && state != BlockState::SWAP); // use swap_toward() instead
 	SDL_assert(m_state != BlockState::DEAD); // cannot change out of dead state
@@ -72,7 +72,7 @@ void BlockImpl::set_state(BlockState state)
  * This function replaces set_state(BlockState::SWAP) because of the additional
  * information that must be conveyed in the target parameter.
  */
-void BlockImpl::swap_toward(RowCol target)
+void Block::swap_toward(RowCol target)
 {
 	m_state = BlockState::SWAP;
 	time = SWAP_TIME;
@@ -82,15 +82,33 @@ void BlockImpl::swap_toward(RowCol target)
 /**
  * Returns true if the block is just now arriving at the center of a new row.
  */
-bool BlockImpl::is_arriving()
+bool Block::is_arriving() const
 {
 	return BlockState::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+}
+
+bool Block::is_fallible() const
+{
+	return BlockState::REST == m_state || BlockState::LAND == m_state;
+}
+
+bool Block::is_swappable() const
+{
+	return BlockState::REST == m_state ||
+	       BlockState::SWAP == m_state ||
+	       BlockState::FALL == m_state ||
+	       BlockState::LAND == m_state;
+}
+
+bool Block::is_matchable() const
+{
+	return BlockState::REST == m_state || BlockState::LAND == m_state;
 }
 
 /**
  * Update this swapping block
  */
-void BlockImpl::swap()
+void Block::swap()
 {
 	if(time > 0.f) {
 		float adv_x = (m_target.x - m_loc.x) / time;
@@ -109,7 +127,7 @@ void BlockImpl::swap()
 /**
  * Update this falling block
  */
-void BlockImpl::fall()
+void Block::fall()
 {
 	m_loc.y += FALL_SPEED;
 	offset.y += FALL_SPEED;
@@ -118,7 +136,7 @@ void BlockImpl::fall()
 /**
  * Update this landing block
  */
-void BlockImpl::land()
+void Block::land()
 {
 	if(time < 0) {
 		set_state(BlockState::REST);
@@ -129,7 +147,7 @@ void BlockImpl::land()
 /**
  * Update this breaking block
  */
-void BlockImpl::dobreak()
+void Block::dobreak()
 {
 	if(time < 0) {
 		set_state(BlockState::DEAD);
@@ -141,28 +159,7 @@ void BlockImpl::dobreak()
  */
 bool y_greater(const Block& lhs, const Block& rhs)
 {
-	return rhs->rc().r < lhs->rc().r;
-}
-
-bool fallible(Block block)
-{
-	BlockState state = block->state();
-	return BlockState::REST == state || BlockState::LAND == state;
-}
-
-bool swappable(Block block)
-{
-	BlockState state = block->state();
-	return BlockState::REST == state ||
-	       BlockState::SWAP == state ||
-	       BlockState::FALL == state ||
-	       BlockState::LAND == state;
-}
-
-bool matchable(Block block)
-{
-	BlockState state = block->state();
-	return BlockState::REST == state || BlockState::LAND == state;
+	return rhs.rc().r < lhs.rc().r;
 }
 
 
@@ -252,7 +249,7 @@ Pit::Pit(Point loc)
 /**
  * Return the block at the given location.
  */
-Block Pit::block_at(RowCol rc) const
+Block* Pit::block_at(RowCol rc) const
 {
 	auto it = block_map.find(rc);
 	if(it == block_map.end())
@@ -261,16 +258,13 @@ Block Pit::block_at(RowCol rc) const
 		return it->second;
 }
 
-/**
- * Return the garbage at the given location.
- */
-GarbagePtr Pit::garbage_at(RowCol rc) const
+Garbage* Pit::garbage_at(RowCol rc) const
 {
 	auto it = m_garbage_map.find(rc);
 	if(it == m_garbage_map.end())
 		return nullptr;
 	else
-		return it->second;
+		return it->second.get();
 }
 
 bool Pit::anything_at(RowCol rc) const
@@ -280,21 +274,22 @@ bool Pit::anything_at(RowCol rc) const
 		m_garbage_map.find(rc) != m_garbage_map.end();
 }
 
-BlockImpl& Pit::spawn_block(BlockCol color, RowCol rc, BlockState state)
+Block& Pit::spawn_block(BlockCol color, RowCol rc, BlockState state)
 {
 	game_assert(rc.c >= 0 && rc.c < PIT_COLS, "Attempt to spawn block out of bounds.");
 	game_assert(!anything_at(rc), "Attempt to spawn block at occupied location.");
 
-	auto block = std::make_shared<BlockImpl>(color, rc, state);
-	m_blocks.push_back(block);
+	auto block = std::make_unique<Block>(color, rc, state);
+	Block* block_ptr = block.get();
+	m_blocks.push_back(std::move(block));
 
-	auto result = block_map.emplace(rc, block);
+	auto result = block_map.emplace(rc, block_ptr);
 	game_assert(result.second, "Attempt to block already blocked space in Pit.");
 
 	if(rc.r < m_peak)
 		m_peak = rc.r;
 
-	return *m_blocks.back();
+	return *block_ptr;
 }
 
 Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
@@ -305,7 +300,7 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 	GarbagePtr garbage = std::make_shared<Garbage>(rc, width, height);
 	m_garbage.push_back(garbage);
 
-	block_garbage(garbage);
+	block_garbage(*garbage);
 
 	if(rc.r < m_peak)
 		m_peak = rc.r;
@@ -344,8 +339,8 @@ void Pit::fall(RowCol from)
 	auto block = block_at(from);
 	auto garbage = garbage_at(from);
 
-	if(block) fall_block(block);
-	else if(garbage) fall_garbage(garbage);
+	if(block) fall_block(*block);
+	else if(garbage) fall_garbage(*garbage);
 	else game_assert(false, "Attempt to fall from empty coordinate in Pit.");
 
 	refresh_peak();
@@ -459,10 +454,10 @@ Point Pit::transform(Point point, float dt) const
 
 void Pit::update(IContext& context)
 {
-	for(auto b : m_blocks)
+	for(auto& b : m_blocks)
 		b->update(context);
 
-	for(auto g : m_garbage)
+	for(auto& g : m_garbage)
 		g->update(context);
 
 	if(m_enabled)
@@ -484,38 +479,38 @@ void Pit::refresh_peak()
 	}
 }
 
-void Pit::fall_block(Block block)
+void Pit::fall_block(Block& block)
 {
-	RowCol rc = block->rc();
+	RowCol rc = block.rc();
 	RowCol to { rc.r+1, rc.c };
 
 	game_assert(!anything_at(to), "Attempt to move block to occupied location.");
 
 	auto erased = block_map.erase(rc);
 	game_assert(1 == erased, "Block not found at expected space in Pit.");
-	auto emplace_result = block_map.emplace(to, block);
+	auto emplace_result = block_map.emplace(to, &block);
 	game_assert(emplace_result.second, "Attempt to block already blocked space in Pit.");
-	block->set_rc(to);
+	block.set_rc(to);
 }
 
-void Pit::fall_garbage(GarbagePtr garbage)
+void Pit::fall_garbage(Garbage& garbage)
 {
-	RowCol rc = garbage->rc();
+	RowCol rc = garbage.rc();
 	RowCol to { rc.r+1, rc.c };
 
-	unblock_garbage(*garbage);
-	garbage->set_rc(to);
+	unblock_garbage(garbage);
+	garbage.set_rc(to);
 	block_garbage(garbage);
 }
 
-void Pit::block_garbage(GarbagePtr garbage)
+void Pit::block_garbage(Garbage& garbage)
 {
-	RowCol rc = garbage->rc();
+	RowCol rc = garbage.rc();
 
-	for(int r = rc.r; r < rc.r + garbage->rows(); r++) {
-		for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
+	for(int r = rc.r; r < rc.r + garbage.rows(); r++) {
+		for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
 			RowCol target{r, c};
-			auto result = m_garbage_map.emplace(std::make_pair(target, garbage));
+			auto result = m_garbage_map.emplace(std::make_pair(target, &garbage));
 			game_assert(result.second, "Attempt to block already blocked space in Pit.");
 		}
 	}

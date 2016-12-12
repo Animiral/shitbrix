@@ -18,21 +18,33 @@ using RndGen = std::shared_ptr<std::mt19937>;
 class MatchBuilder
 {
 
+private:
+
+	/**
+	 * Helper struct to enable a std::set of blocks
+	 */
+	struct BlockLess
+	{
+		bool operator()(const Block& lhs, const Block& rhs) const { return lhs.rc() < rhs.rc(); }
+	};
+
 public:
+
+	using BlockSet = std::set<std::reference_wrapper<Block>, BlockLess>;
 
 	MatchBuilder(const Pit& pit) : pit(pit) {}
 
-	void ignite(Block block);
-	const std::set<Block>& result() { return m_result; }
+	void ignite(Block& block);
+	const BlockSet& result() { return m_result; }
 	int combo() { return m_result.size(); }
 
 private:
 
 	const Pit& pit;
-	std::set<Block> m_result;
+	BlockSet m_result;
 
-	// bool add_block(RowCol rc);
 	bool match_at(RowCol rc, BlockCol color);
+	void insert(RowCol rc);
 
 };
 
@@ -57,22 +69,25 @@ public:
 
 private:
 
+	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
+	using BlockIt = decltype(std::declval<Pit>().blocks_begin());
+
 	Pit& pit;
-	BlockVec previews; // blocks which are fresh spawns and currently inactive
-	BlockVec fallers; // blocks which we want to start falling soon
-	BlockVec hots; // recently landed or arrived blocks that can start a match
+	BlockRefVec previews; // blocks which are fresh spawns and currently inactive
+	BlockRefVec fallers; // blocks which we want to start falling soon
+	BlockRefVec hots; // recently landed or arrived blocks that can start a match
 	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
 
 	RndGen rndgen;     // block colors are generated randomly
 
 	void spawn_previews();
-	Block spawn_block(RowCol rc);
-	Block spawn_fake(RowCol rc);
+	Block& spawn_block(RowCol rc);
+	Block& spawn_fake(RowCol rc);
 
-	void block_arrive_fall(Block block);
+	void block_arrive_fall(Block& block);
 	void garbage_arrive_fall(GarbagePtr garbage);
-	void block_arrive_swap(Block block);
+	void block_arrive_swap(Block& block);
 
 	/**
 	 * Make blocks above the recently-freed location fall down.

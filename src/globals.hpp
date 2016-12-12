@@ -150,8 +150,8 @@ struct RowCol
 {
 	int r, c;
 
-	// Order function required by std::map to use as key type and
-	// BlockDirector::update() sort. Sorts bottom-to-top.
+	// Order function required e.g. by std::map to use as key type.
+	// Sorts bottom-to-top.
 	bool operator<(const RowCol& rhs) const { return (r == rhs.r) ? c > rhs.c : r > rhs.r; }
 
 	bool operator==(const RowCol& rhs) const { return r == rhs.r && c == rhs.c; }

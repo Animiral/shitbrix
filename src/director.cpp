@@ -4,11 +4,11 @@
 
 #include "director.hpp"
 
-void MatchBuilder::ignite(Block block)
+void MatchBuilder::ignite(Block& block)
 {
-	BlockCol color = block->col;
-	int row = block->rc().r;
-	int col = block->rc().c;
+	BlockCol color = block.col;
+	int row = block.rc().r;
+	int col = block.rc().c;
 
 	// extents of match
 	int left = col;
@@ -24,21 +24,29 @@ void MatchBuilder::ignite(Block block)
 	// horizontal match >= 3 blocks
 	if(right-left-1 >= 3) {
 		for(int c = left+1; c < right; c++)
-			m_result.insert(pit.block_at({row,c}));
+			insert({row,c});
 	}
 
 	// vertical match
 	if(bottom-top-1 >= 3) {
 		for(int r = top+1; r < bottom; r++)
-			m_result.insert(pit.block_at({r,col}));
+			insert({r,col});
 	}
 }
 
 bool MatchBuilder::match_at(RowCol rc, BlockCol color)
 {
-	Block next = pit.block_at(rc);
-	return next && next->col == color && matchable(next);
+	Block* next = pit.block_at(rc);
+	return next && next->col == color && next->is_matchable();
 }
+
+void MatchBuilder::insert(RowCol rc)
+{
+	Block* match_block = pit.block_at(rc);
+	game_assert(match_block, "MatchBuilder: expected block not present");
+	m_result.insert(*match_block);
+}
+
 
 /**
  * Spawn blocks at regular intervals, clean up dead blocks
@@ -53,11 +61,11 @@ void BlockDirector::update(IContext& context)
 	bool dead_sound = false; // true if there was at least one non-fake dead
 
 	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it) {
-		Block block = *it;
-		BlockState state = block->state();
+		Block& block = **it;
+		BlockState state = block.state();
 
 		// block above top => game over
-		if(block->rc().r < pit.top()) {
+		if(block.rc().r < pit.top()) {
 			game_over();
 			break; // interrupt blocks logic because game_over might invalidate blocks list
 		}
@@ -65,26 +73,26 @@ void BlockDirector::update(IContext& context)
 		// falling blocks arrived at next row (center)
 		if(state == BlockState::FALL) {
 			// land block?
-			if(block->is_arriving()) {
+			if(block.is_arriving()) {
 				block_arrive_fall(block);
 			}
 		}
 
 		// blocks finished swapping
-		if(BlockState::SWAP == state && block->time <= 0) {
+		if(BlockState::SWAP == state && block.time <= 0) {
 			block_arrive_swap(block);
-			state = block->state(); // NOTE: block_arrive_swap may change the state
+			state = block.state(); // NOTE: block_arrive_swap may change the state
 		}
 
 		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
 		if(BlockState::DEAD == state) {
 			have_dead = true; // don’t remove them just yet as it would mess up the iterators
-			if(BlockCol::FAKE != block->col)
+			if(BlockCol::FAKE != block.col)
 				dead_sound = true;
 
-			trigger_falls(block->rc());
+			trigger_falls(block.rc());
 
-			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (Block b) { return b->state() == BlockState::BREAK; });
+			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (std::unique_ptr<Block>& b) { return b->state() == BlockState::BREAK; });
 			if(pit.blocks_end() == breaking) {
 				pit.start();
 			}
@@ -106,8 +114,8 @@ void BlockDirector::update(IContext& context)
 			pit.stop();
 
 			for(auto it = breaks.begin(); it != breaks.end(); ++it) {
-				Block block = *it;
-				block->set_state(BlockState::BREAK);
+				Block& block = *it;
+				block.set_state(BlockState::BREAK);
 			}
 		}
 
@@ -115,7 +123,7 @@ void BlockDirector::update(IContext& context)
 	}
 
 	// Handle individual logic for each garbage
-	for(auto it = pit.garbage().begin(); it != pit.garbage().end(); ) {
+	for(auto it = pit.garbage_begin(); it != pit.garbage_end(); ++it) {
 		GarbagePtr garbage = *it;
 		Garbage::State state = garbage->state();
 
@@ -126,8 +134,6 @@ void BlockDirector::update(IContext& context)
 				garbage_arrive_fall(garbage);
 			}
 		}
-
-		++it;
 	}
 
 	if(have_dead)
@@ -143,10 +149,10 @@ void BlockDirector::update(IContext& context)
 		bool changed = false;
 
 		for(auto it = fallers.begin(); it != fallers.end(); ) {
-			Block block = *it;
-			RowCol rc = block->rc();
+			Block& block = *it;
+			RowCol rc = block.rc();
 			if(pit.can_fall(rc)) {
-				block->set_state(BlockState::FALL);
+				block.set_state(BlockState::FALL);
 				pit.fall(rc);
 				it = fallers.erase(it);
 				changed = true;
@@ -179,20 +185,20 @@ bool BlockDirector::swap(RowCol lrc)
 
 	RowCol rrc {lrc.r, lrc.c+1};
 
-	Block left = pit.block_at(lrc);
-	Block right = pit.block_at(rrc);
+	Block* left = pit.block_at(lrc);
+	Block* right = pit.block_at(rrc);
 
 	if(!left && !right) return false; // 2 spaces
 
-	bool left_swappable = !left || swappable(left);
-	bool right_swappable = !right || swappable(right);
+	bool left_swappable = !left || left->is_swappable();
+	bool right_swappable = !right || right->is_swappable();
 
 	if(!left_swappable || !right_swappable) return false;
 
 	// fake blocks - they last only for the duration of the swap, blocking other
 	// falling blocks from going through the space.
-	if(!left) left = spawn_fake(lrc);
-	if(!right) right = spawn_fake(rrc);
+	if(!left) left = &spawn_fake(lrc);
+	if(!right) right = &spawn_fake(rrc);
 
 	// do swap
 	left->swap_toward(rrc);
@@ -219,38 +225,38 @@ void BlockDirector::spawn_previews()
 		bottom++;
 		for(int i = 0; i < PIT_COLS; i++) {
 			RowCol rc {bottom, i};
-			Block block = spawn_block(rc);
+			Block& block = spawn_block(rc);
 			previews.push_back(block);
 		}
 	}
 }
 
-Block BlockDirector::spawn_block(RowCol rc)
+Block& BlockDirector::spawn_block(RowCol rc)
 {
 	BlockCol spawn_color = static_cast<BlockCol>(static_cast<int>(BlockCol::BLUE) + (*rndgen)() % 6);
-	pit.spawn_block(spawn_color, rc, BlockState::PREVIEW);
-	return pit.block_at(rc);
+	Block& block = pit.spawn_block(spawn_color, rc, BlockState::PREVIEW);
+	return block;
 }
 
 /**
  * Fake blocks are used to replace empty spaces for the duration of a swap().
  */
-Block BlockDirector::spawn_fake(RowCol rc)
+Block& BlockDirector::spawn_fake(RowCol rc)
 {
-	pit.spawn_block(BlockCol::FAKE, rc, BlockState::REST);
-	return pit.block_at(rc);
+	Block& block = pit.spawn_block(BlockCol::FAKE, rc, BlockState::REST);
+	return block;
 }
 
-void BlockDirector::block_arrive_fall(Block block)
+void BlockDirector::block_arrive_fall(Block& block)
 {
-	RowCol rc = block->rc();
+	RowCol rc = block.rc();
 	RowCol next { rc.r + 1, rc.c };
 
 	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
 
 	// If the next space is free, the block goes on to fall. Otherwise, it lands.
 	if(pit.block_at(next)) {
-		block->set_state(BlockState::LAND);
+		block.set_state(BlockState::LAND);
 		hots.push_back(block);
 	}
 	else {
@@ -274,20 +280,19 @@ void BlockDirector::garbage_arrive_fall(GarbagePtr garbage)
 	}
 }
 
-void BlockDirector::block_arrive_swap(Block block)
+void BlockDirector::block_arrive_swap(Block& block)
 {
 	// fake blocks are only for swapping and disappear right afterwards
-	if(BlockCol::FAKE == block->col) {
-		block->set_state(BlockState::DEAD);
+	if(BlockCol::FAKE == block.col) {
+		block.set_state(BlockState::DEAD);
 		return;
 	}
 
-	// If the next space is free, the block starts falling. Otherwise, it rests.
-	if(pit.can_fall(block->rc())) {
+	if(pit.can_fall(block.rc())) {
 		fallers.push_back(block);
 	}
 	else {
-		block->set_state(BlockState::REST);
+		block.set_state(BlockState::REST);
 		hots.push_back(block);
 	}
 }
@@ -296,10 +301,10 @@ void BlockDirector::trigger_falls(RowCol free)
 {
 	// Release blockage & blocks above the dead block => fall down
 	RowCol prev { free.r - 1, free.c };
-	Block block = pit.block_at(prev);
+	Block* block = pit.block_at(prev);
 
-	while (block && fallible(block)) {
-		fallers.push_back(block);
+	while (block && block->is_fallible()) {
+		fallers.push_back(*block);
 
 		// continue looking 1 block above
 		free = prev;
@@ -314,8 +319,8 @@ void BlockDirector::trigger_falls(RowCol free)
  */
 void BlockDirector::activate_previews()
 {
-	for(auto block : previews) {
-		block->set_state(BlockState::REST);
+	for(Block& block : previews) {
+		block.set_state(BlockState::REST);
 		hots.push_back(block);
 	}
 

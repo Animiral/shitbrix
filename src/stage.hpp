@@ -31,7 +31,7 @@ int operator-(BlockCol lhs, BlockCol rhs);
  *  * BREAK: the block has been matched and is in the process of destruction
  *  * DEAD: should be removed from the game asap as it is an error to logic update() a dead block
  */
-class BlockImpl : public ILogic
+class Block : public ILogic
 {
 
 public:
@@ -41,7 +41,7 @@ public:
 	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
-	BlockImpl(BlockCol col, RowCol rc, BlockState state)
+	Block(BlockCol col, RowCol rc, BlockState state)
 	:
 	col(col), offset{0,0}, time(0),
 	m_loc(from_rc(rc)), m_rc(rc), m_state(state)
@@ -56,7 +56,10 @@ public:
 	void set_state(BlockState state);
 	void swap_toward(RowCol target);
 
-	bool is_arriving();
+	bool is_arriving() const;
+	bool is_fallible() const;
+	bool is_swappable() const;
+	bool is_matchable() const;
 
 	static constexpr int SWAP_TIME = 6; // number of ticks to swap two blocks
 	static constexpr int LAND_TIME = 20; // number of ticks in a block’s landing animation
@@ -67,7 +70,7 @@ private:
 	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
 	RowCol m_rc;        // row/col position, - is UP, + is DOWN
 	Point m_target;     // target location - where the block really wants to be while it’s busy with an animation like SWAP
-	BlockState m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
+	BlockState m_state; // current block state
 	BlockFrame m_anim;  // current animation frame
 
 	void swap();
@@ -77,13 +80,7 @@ private:
 	
 };
 
-using Block = std::shared_ptr<BlockImpl>;
-using BlockVec = std::vector<Block>;
-
 bool y_greater(const Block& lhs, const Block& rhs);
-bool fallible(Block block);
-bool swappable(Block block);
-bool matchable(Block block);
 
 /**
  * Garbage block.
@@ -132,7 +129,7 @@ private:
 	int m_columns;      // width of this garbage in blocks
 	int m_rows;         // height of this garbage in blocks
 	Point m_target;     // target location - where the garbage really wants to be while it’s busy with an animation
-	State m_state; // current block state. On state time out, tell an IStateSubscriber (previously saved via BlockImpl::subscribe()) with notify()
+	State m_state;      // current garbage state
 
 	void fall();
 	void land();
@@ -166,9 +163,8 @@ public:
 	auto garbage_begin() const { return m_garbage.begin(); }
 	auto garbage_end() const { return m_garbage.end(); }
 
-	const std::vector<GarbagePtr>& garbage() const { return m_garbage; }
-	Block block_at(RowCol rc) const;
-	GarbagePtr garbage_at(RowCol rc) const;
+	Block* block_at(RowCol rc) const;
+	Garbage* garbage_at(RowCol rc) const;
 	bool anything_at(RowCol rc) const;
 
 	/**
@@ -177,7 +173,7 @@ public:
 	 *
 	 * @return a reference to the created Block
 	 */
-	BlockImpl& spawn_block(BlockCol color, RowCol rc, BlockState state);
+	Block& spawn_block(BlockCol color, RowCol rc, BlockState state);
 
 	/**
 	 * Create a new Garbage with the specified dimensions.
@@ -245,21 +241,23 @@ public:
 
 private:
 
+	using BlockVec = std::vector<std::unique_ptr<Block>>;
+
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
 	float m_scroll;  // y-offset for view on pit contents
 	int m_peak;      // highest blocked row (may be above visible space)
 	BlockVec m_blocks; // list of all blocks in the pit
 	std::vector<GarbagePtr> m_garbage; // list of all garbage in the pit
-	std::map<RowCol, Block> block_map; // sparse matrix of blocked spaces
+	std::map<RowCol, Block*> block_map; // sparse matrix of blocked spaces
 	std::map<RowCol, GarbagePtr> m_garbage_map; // sparse matrix of blocked spaces
 
 	int m_highlight_row;
 
 	void refresh_peak(); //!< Search for the new m_peak
-	void fall_block(Block block); //!< Move the Block to the to-location.
-	void fall_garbage(GarbagePtr garbage); //!< Move the Garbage to the to-location.
-	void block_garbage(GarbagePtr garbage); //!< Mark the garbage area as occupied.
+	void fall_block(Block& block); //!< Move the Block to the to-location.
+	void fall_garbage(Garbage& garbage); //!< Move the Garbage to the to-location.
+	void block_garbage(Garbage& garbage); //!< Mark the garbage area as occupied.
 	void unblock_garbage(const Garbage& garbage); //!< Mark the garbage area as free.
 
 };

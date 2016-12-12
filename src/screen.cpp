@@ -314,7 +314,7 @@ void debug_print_pit(const Pit& pit)
 
 	for(int r = pit.top(); r <= pit.bottom()+1; r++)
 	for(int c = 0; c <= PIT_COLS; c++) {
-		Block block = pit.block_at(RowCol{r,c});
+		Block* block = pit.block_at(RowCol{r,c});
 		if(!block) continue;
 
 		BlockState state = block->state();

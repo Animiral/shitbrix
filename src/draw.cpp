@@ -13,7 +13,7 @@ namespace
 
 void draw_pit(const IContext& context, const Pit& pit, float dt);
 void draw_pit_debug_overlay(const IContext& context, const Pit& pit);
-void draw_block(const IContext& context, const BlockImpl& block, float dt);
+void draw_block(const IContext& context, const Block& block, float dt);
 void draw_garbage(const IContext& context, const Garbage& garbage, float dt);
 void draw_cursor(const IContext& context, const Cursor& cursor, float dt);
 
@@ -108,28 +108,28 @@ void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 {
 	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it)
 	{
-		Block block = *it;
-		BlockState state = block->state();
+		Block& block = **it;
+		BlockState state = block.state();
 		size_t frame = 0;
 		if(BlockState::FALL == state) frame = 1;
 		if(BlockState::BREAK == state) frame = 2;
-		if(BlockCol::FAKE == block->col) frame = 3;
-		Point loc = block->loc();
+		if(BlockCol::FAKE == block.col) frame = 3;
+		Point loc = block.loc();
 		context.drawGfx(loc, Gfx::PITVIEW, frame);
 	}
 
 	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it)
 	{
-		GarbagePtr garbage = *it;
-		Garbage::State state = garbage->state();
+		Garbage& garbage = **it;
+		Garbage::State state = garbage.state();
 		size_t frame = 4;
 		if(Garbage::State::FALL == state) frame = 5;
-		Point loc = garbage->loc();
+		Point loc = garbage.loc();
 		context.drawGfx(loc, Gfx::PITVIEW, frame);
 	}
 }
 
-void draw_block(const IContext& context, const BlockImpl& block, float dt)
+void draw_block(const IContext& context, const Block& block, float dt)
 {
 	SDL_assert(block.col != BlockCol::INVALID);
 
@@ -141,8 +141,8 @@ void draw_block(const IContext& context, const BlockImpl& block, float dt)
 	// bounce when landing
 	if(BlockState::LAND == block.state()) {
 		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
-		int h = time > BlockImpl::LAND_TIME/2 ? BlockImpl::LAND_TIME-time : time;
-		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / BlockImpl::LAND_TIME;
+		int h = time > Block::LAND_TIME/2 ? Block::LAND_TIME-time : time;
+		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / Block::LAND_TIME;
 	}
 
 	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - BlockCol::BLUE);
