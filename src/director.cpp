@@ -124,13 +124,13 @@ void BlockDirector::update(IContext& context)
 
 	// Handle individual logic for each garbage
 	for(auto it = pit.garbage_begin(); it != pit.garbage_end(); ++it) {
-		GarbagePtr garbage = *it;
-		Garbage::State state = garbage->state();
+		Garbage& garbage = **it;
+		Garbage::State state = garbage.state();
 
 		// falling blocks arrived at next row (center)
 		if(state == Garbage::State::FALL) {
 			// land block?
-			if(garbage->is_arriving()) {
+			if(garbage.is_arriving()) {
 				garbage_arrive_fall(garbage);
 			}
 		}
@@ -264,16 +264,16 @@ void BlockDirector::block_arrive_fall(Block& block)
 	}
 }
 
-void BlockDirector::garbage_arrive_fall(GarbagePtr garbage)
+void BlockDirector::garbage_arrive_fall(Garbage& garbage)
 {
-	RowCol rc = garbage->rc();
+	RowCol rc = garbage.rc();
 	RowCol next { rc.r + 1, rc.c };
 
 	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
 
 	// If the next space is free, the block goes on to fall. Otherwise, it lands.
 	if(pit.anything_at(next)) {
-		garbage->set_state(Garbage::State::LAND);
+		garbage.set_state(Garbage::State::LAND);
 	}
 	else {
 		pit.fall(rc);

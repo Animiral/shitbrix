@@ -86,7 +86,7 @@ private:
 	Block& spawn_fake(RowCol rc);
 
 	void block_arrive_fall(Block& block);
-	void garbage_arrive_fall(GarbagePtr garbage);
+	void garbage_arrive_fall(Garbage& garbage);
 	void block_arrive_swap(Block& block);
 
 	/**

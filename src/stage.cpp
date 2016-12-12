@@ -264,7 +264,7 @@ Garbage* Pit::garbage_at(RowCol rc) const
 	if(it == m_garbage_map.end())
 		return nullptr;
 	else
-		return it->second.get();
+		return it->second;
 }
 
 bool Pit::anything_at(RowCol rc) const
@@ -297,15 +297,16 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 	// make sure the Garbage fits in the Pit
 	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");
 
-	GarbagePtr garbage = std::make_shared<Garbage>(rc, width, height);
-	m_garbage.push_back(garbage);
+	auto garbage = std::make_unique<Garbage>(rc, width, height);
+	Garbage* garbage_ptr = garbage.get();
+	m_garbage.push_back(std::move(garbage));
 
-	block_garbage(*garbage);
+	block_garbage(*garbage_ptr);
 
 	if(rc.r < m_peak)
 		m_peak = rc.r;
 
-	return *m_garbage.back();
+	return *garbage_ptr;
 }
 
 bool Pit::can_fall(RowCol from) const
@@ -394,7 +395,7 @@ Garbage* Pit::shrink(Garbage& garbage)
 
 	// The garbage loses one row. If that is all, remove it entirely.
 	if(garbage.shrink() <= 0) {
-		auto is_gone = [] (GarbagePtr gptr) { return gptr->rows() <= 0; };
+		auto is_gone = [] (GarbageVec::reference gptr) { return gptr->rows() <= 0; };
 		std::remove_if(m_garbage.begin(), m_garbage.end(), is_gone);
 		refresh_peak();
 		return nullptr;

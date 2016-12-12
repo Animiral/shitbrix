@@ -137,8 +137,6 @@ private:
 
 };
 
-using GarbagePtr = std::shared_ptr<Garbage>;
-
 /**
  * A pit is the playing area where one player’s blocks fall down.
  * The pit owns and updates its contained blocks and garbage.
@@ -242,15 +240,16 @@ public:
 private:
 
 	using BlockVec = std::vector<std::unique_ptr<Block>>;
+	using GarbageVec = std::vector<std::unique_ptr<Garbage>>;
 
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
 	float m_scroll;  // y-offset for view on pit contents
 	int m_peak;      // highest blocked row (may be above visible space)
 	BlockVec m_blocks; // list of all blocks in the pit
-	std::vector<GarbagePtr> m_garbage; // list of all garbage in the pit
+	GarbageVec m_garbage; // list of all garbage in the pit
 	std::map<RowCol, Block*> block_map; // sparse matrix of blocked spaces
-	std::map<RowCol, GarbagePtr> m_garbage_map; // sparse matrix of blocked spaces
+	std::map<RowCol, Garbage*> m_garbage_map; // sparse matrix of blocked spaces
 
 	int m_highlight_row;
 
