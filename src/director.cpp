@@ -55,7 +55,8 @@ void BlockDirector::update(IContext& context)
 	// TODO: only do this after a block has moved
 	std::sort(pit.blocks().begin(), pit.blocks().end(), y_greater);
 
-	bool have_dead = false;
+	bool have_dead = false; // true if pit needs to clean up
+	bool dead_sound = false; // true if there was at least one non-fake dead
 
 	for(auto it = pit.blocks().begin(); it != pit.blocks().end(); ) {
 		Block block = *it;
@@ -84,6 +85,9 @@ void BlockDirector::update(IContext& context)
 		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
 		if(BlockState::DEAD == state) {
 			have_dead = true;
+			if(BlockCol::FAKE != block->col)
+				dead_sound = true;
+
 			it = reap_block(it);
 
 			auto breaking = std::find_if(pit.blocks().begin(), pit.blocks().end(), [] (Block b) { return b->state() == BlockState::BREAK; });
@@ -96,7 +100,7 @@ void BlockDirector::update(IContext& context)
 		}
 	}
 
-	if(have_dead)
+	if(dead_sound)
 		context.play(Snd::BREAK);
 
 	// Examine hots for matches
