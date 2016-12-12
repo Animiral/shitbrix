@@ -236,10 +236,13 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG3:
-			debug_print_pit(stage->pits()[0]->pit);
+			for(int i = 0; i < 8; i++) update_impl();
 			break;
 
 		case Button::DEBUG4:
+			debug_print_pit(stage->pits()[0]->pit);
+			break;
+
 		case Button::DEBUG5:
 			debug_print_pit(stage->pits()[1]->pit);
 			break;
