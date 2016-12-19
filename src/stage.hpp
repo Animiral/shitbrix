@@ -102,7 +102,7 @@ public:
 	Garbage(RowCol rc, int columns, int rows)
 	:
 	offset{0,0}, time(0),
-	m_loc(from_rc(RowCol{rc.r + rows - 1, rc.c})), m_rc(rc),
+	m_loc(from_rc(rc)), m_rc(rc),
 	m_columns(columns), m_rows(rows), m_state(State::FALL)
 	{}
 
@@ -118,6 +118,7 @@ public:
 	void set_state(State state);
 
 	bool is_arriving();
+	bool is_fallible() const;
 
 	static constexpr int LAND_TIME = 20; // number of ticks in a garbage’s landing animation
 	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to break

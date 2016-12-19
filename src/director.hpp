@@ -71,11 +71,14 @@ private:
 
 	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
 	using BlockIt = decltype(std::declval<Pit>().blocks_begin());
+	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
+	using GarbageIt = decltype(std::declval<Pit>().garbage_begin());
 
 	Pit& pit;
 	BlockRefVec previews; // blocks which are fresh spawns and currently inactive
 	BlockRefVec fallers; // blocks which we want to start falling soon
 	BlockRefVec hots; // recently landed or arrived blocks that can start a match
+	GarbageRefVec garbage_fallers; // garbage which we want to start falling soon
 	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
 
@@ -93,6 +96,7 @@ private:
 	 * Make blocks above the recently-freed location fall down.
 	 */
 	void trigger_falls(RowCol free);
+	void trigger_falls_impl(RowCol rc);
 
 	void activate_previews();
 	void game_over();

@@ -60,6 +60,7 @@ void BlockDirector::update(IContext& context)
 	bool have_dead = false; // true if pit needs to clean up
 	bool dead_sound = false; // true if there was at least one non-fake dead
 
+	// Blocks
 	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it) {
 		Block& block = **it;
 		Block::State state = block.state();
@@ -95,6 +96,20 @@ void BlockDirector::update(IContext& context)
 			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (std::unique_ptr<Block>& b) { return b->state() == Block::State::BREAK; });
 			if(pit.blocks_end() == breaking) {
 				pit.start();
+			}
+		}
+	}
+
+	// Garbage
+	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it) {
+		Garbage& garbage = **it;
+		Garbage::State state = garbage.state();
+
+		// falling garbage arrived at next row (center)
+		if(state == Garbage::State::FALL) {
+			// land garbage?
+			if(garbage.is_arriving()) {
+				garbage_arrive_fall(garbage);
 			}
 		}
 	}
@@ -145,7 +160,7 @@ void BlockDirector::update(IContext& context)
 	}
 
 	// make fallers fall
-	while(!fallers.empty()) {
+	while(!fallers.empty() || !garbage_fallers.empty()) {
 		bool changed = false;
 
 		for(auto it = fallers.begin(); it != fallers.end(); ) {
@@ -162,7 +177,24 @@ void BlockDirector::update(IContext& context)
 			}
 		}
 
-		game_assert(changed, "falling blocks are stuck");
+		for(auto it = garbage_fallers.begin(); it != garbage_fallers.end(); ) {
+			Garbage& garbage = *it;
+			RowCol rc = garbage.rc();
+			if(pit.can_fall(rc)) {
+				garbage.set_state(Garbage::State::FALL);
+				pit.fall(rc);
+				it = garbage_fallers.erase(it);
+				changed = true;
+			}
+			else {
+				++it;
+			}
+		}
+
+		if(!changed) {
+			garbage_fallers.clear();
+			game_assert(fallers.empty(), "falling blocks are stuck");
+		}
 	}
 
 	// debug: show what the pit considers to be its peak row
@@ -267,16 +299,23 @@ void BlockDirector::block_arrive_fall(Block& block)
 void BlockDirector::garbage_arrive_fall(Garbage& garbage)
 {
 	RowCol rc = garbage.rc();
-	RowCol next { rc.r + 1, rc.c };
+	int next_row = rc.r + garbage.rows();
 
-	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
+	SDL_assert(next_row <= bottom); // can never fall lower than the preview row of blocks
 
-	// If the next space is free, the block goes on to fall. Otherwise, it lands.
-	if(pit.anything_at(next)) {
+	// If the next space is free, the garbage goes on to fall. Otherwise, it lands.
+	bool something_there = false;
+	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
+		if(pit.anything_at(RowCol{next_row,c})) {
+			something_there = true;
+		}
+	}
+
+	if(something_there) {
 		garbage.set_state(Garbage::State::LAND);
 	}
 	else {
-		pit.fall(rc);
+		garbage_fallers.push_back(garbage);
 	}
 }
 
@@ -300,16 +339,32 @@ void BlockDirector::block_arrive_swap(Block& block)
 void BlockDirector::trigger_falls(RowCol free)
 {
 	// Release blockage & blocks above the dead block => fall down
-	RowCol prev { free.r - 1, free.c };
-	Block* block = pit.block_at(prev);
+	trigger_falls_impl(RowCol{free.r - 1, free.c});
+}
 
-	while (block && block->is_fallible()) {
-		fallers.push_back(*block);
+// Helper function to trigger falling blocks while we don’t yet have base class Physical
+void BlockDirector::trigger_falls_impl(RowCol rc)
+{
+	Block* block = pit.block_at(rc);
 
-		// continue looking 1 block above
-		free = prev;
-		prev = RowCol{ free.r - 1, free.c };
-		block = pit.block_at(prev);
+	if(block) {
+		if(block->is_fallible()) {
+			fallers.push_back(*block);
+			trigger_falls_impl(RowCol{rc.r - 1, rc.c});
+		}
+	}
+
+	Garbage* garbage = pit.garbage_at(rc);
+
+	if(garbage) {
+		if(garbage->is_fallible()) {
+			garbage_fallers.push_back(*garbage);
+
+			rc = garbage->rc();
+			for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
+				trigger_falls_impl(RowCol{rc.r - 1, c});
+			}
+		}
 	}
 }
 

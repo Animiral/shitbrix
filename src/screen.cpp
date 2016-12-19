@@ -240,11 +240,13 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG4:
-			debug_print_pit(stage->pits()[0]->pit);
+			left_blocks->debug_spawn_garbage(3, 1);
+			// debug_print_pit(stage->pits()[0]->pit);
 			break;
 
 		case Button::DEBUG5:
-			debug_print_pit(stage->pits()[1]->pit);
+			right_blocks->debug_spawn_garbage(6, 2);
+			// debug_print_pit(stage->pits()[1]->pit);
 			break;
 
 		case Button::NONE:
