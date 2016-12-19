@@ -216,6 +216,11 @@ bool Garbage::is_arriving()
 	return State::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
 }
 
+bool Garbage::is_fallible() const
+{
+	return State::REST == m_state || State::LAND == m_state;
+}
+
 void Garbage::fall()
 {
 	m_loc.y += FALL_SPEED;
@@ -313,14 +318,15 @@ bool Pit::can_fall(RowCol from) const
 {
 	auto block = block_at(from);
 	auto garbage = garbage_at(from);
-	RowCol to {from.r+1, from.c};
 
 	// there must be no obstacle at the target location and the
 	// target location must be a valid location in the pit
 	if(block) {
+		RowCol to {from.r+1, from.c};
 		return !anything_at(to);
 	}
 	else if(garbage) {
+		RowCol to {from.r + garbage->rows(), from.c};
 		for(int c = to.c; c < to.c + garbage->columns(); c++) {
 			RowCol target{to.r, c};
 
