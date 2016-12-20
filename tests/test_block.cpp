@@ -2,7 +2,7 @@
  * Tests for game-object behavior
  */
 
-#include "block.hpp"
+#include "stage.hpp"
 #include "mock.hpp"
 #include "gtest/gtest.h"
 
@@ -13,9 +13,7 @@ TEST(BlockTest, Fall)
 {
 	// setup
 	auto context = MockContext();
-	auto transform = std::make_shared<MockTransform>();
-	BlockImpl block(BlockCol::BLUE, RowCol{3,3}, transform);
-	block.set_state(BlockState::FALL);
+	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::FALL);
 
 	Point loc0 = block.loc(); // current location
 	const int TICKS = 3; // block updates in this test
