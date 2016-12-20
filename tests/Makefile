@@ -30,8 +30,8 @@ game.a:
 	$(MAKE) -C $(SRC_DIR) game.a
 	ln -s $(SRC_DIR)/game.a 2>/dev/null || true
 
-test_block.o: test_block.cpp mock.hpp
-test_pit.o: test_pit.cpp
+test_block.o: test_block.cpp mock.hpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
+test_pit.o: test_pit.cpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
 test_replay.o: test_replay.cpp
 
 clean:

@@ -12,18 +12,104 @@
 #include "mock.hpp"
 #include "gtest/gtest.h"
 
+class PitTest : public ::testing::Test
+{
+
+protected:
+
+	virtual void SetUp()
+	{
+		pit = std::make_unique<Pit>(Point{0,0});
+	}
+
+	// virtual void TearDown() {}
+
+	std::unique_ptr<Pit> pit;
+
+};
+
+/**
+ * Returns true if the pit contains exactly the given number of objects.
+ */
+bool contains_n(const Pit& pit, size_t blocks, size_t garbages)
+{
+	size_t actual_blocks = 0;
+
+	for(auto it = pit.blocks_begin(); it != pit.blocks_end(); ++it)
+		actual_blocks++;
+
+	if(actual_blocks != blocks)
+		return false;
+
+
+	size_t actual_garbages = 0;
+
+	for(auto it = pit.garbage_begin(); it != pit.garbage_end(); ++it)
+		actual_garbages++;
+
+	if(actual_garbages != garbages)
+		return false;
+
+
+	return true;
+}
+
+/**
+ * Returns the number of objects in the pit whose presence or absence
+ * differs from the given content_str.
+ * content_str must contain five pit rows represented by characters.
+ * ' ' is an empty coordinate.
+ * 'B' is a block.
+ * 'G' is garbage.
+ */
+int contents_mismatch(const Pit& pit, const char* content_str)
+{
+	int difference = 0;
+
+	for(int row = 0; row < 5; row++)
+	for(int col = 0; col < PIT_COLS; col++) {
+		RowCol rc{row, col};
+
+		switch(content_str[row*PIT_COLS+col]) {
+			case ' ': difference += pit.at(rc) ? 1 : 0;
+			case 'B': difference += pit.block_at(rc) ? 0 : 1;
+			case 'G': difference += pit.garbage_at(rc) ? 0 : 1;
+			default: return -1; // error code
+		}
+	}
+
+	return difference;
+}
+
 /**
  * Tests whether a Block correctly appears in the Pit on spawn.
  */
-TEST(PitTest, SpawnBlock)
+TEST_F(PitTest, SpawnBlock)
 {
-	FAIL();
+	RowCol red_rc{1, 2};
+	RowCol green_rc{3, 2};
+	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
+	auto& green_block = pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
+
+	EXPECT_TRUE(pit->at(red_rc));
+	EXPECT_TRUE(pit->at(green_rc));
+	EXPECT_EQ(&red_block, &pit->block_at(red_rc));
+	EXPECT_EQ(&green_block, &pit->block_at(green_rc));
+	EXPECT_TRUE(contains_n(*pit, 2, 0));
+
+	const char* content_str =
+		"      "
+		"  B   "
+		"      "
+		"  B   "
+		"      ";
+	EXPECT_EQ(0, contents_mismatch(pit, content_str));
 }
 
 /**
  * Tests whether an illegal Block gets rejected in spawning.
  */
-TEST(PitTest, SpawnBlockOutOfBounds)
+TEST_F(PitTest, SpawnBlockOutOfBounds)
 {
 	FAIL();
 }
@@ -31,7 +117,7 @@ TEST(PitTest, SpawnBlockOutOfBounds)
 /**
  * Tests whether a Garbage correctly appears in the Pit on spawn.
  */
-TEST(PitTest, SpawnGarbage)
+TEST_F(PitTest, SpawnGarbage)
 {
 	FAIL();
 }
@@ -39,7 +125,7 @@ TEST(PitTest, SpawnGarbage)
 /**
  * Tests whether an illegal Garbage gets rejected in spawning.
  */
-TEST(PitTest, SpawnGarbageOutOfBounds)
+TEST_F(PitTest, SpawnGarbageOutOfBounds)
 {
 	FAIL();
 }
@@ -47,7 +133,7 @@ TEST(PitTest, SpawnGarbageOutOfBounds)
 /**
  * Tests whether can_fall() correctly indicates true when space is free.
  */
-TEST(PitTest, CanFallBlockYes)
+TEST_F(PitTest, CanFallBlockYes)
 {
 	FAIL();
 }
@@ -55,7 +141,7 @@ TEST(PitTest, CanFallBlockYes)
 /**
  * Tests whether can_fall() correctly indicates false when space is blocked.
  */
-TEST(PitTest, CanFallBlockNo)
+TEST_F(PitTest, CanFallBlockNo)
 {
 	FAIL();
 }
@@ -63,7 +149,7 @@ TEST(PitTest, CanFallBlockNo)
 /**
  * Tests whether can_fall() correctly indicates true when space is free.
  */
-TEST(PitTest, CanFallGarbageYes)
+TEST_F(PitTest, CanFallGarbageYes)
 {
 	FAIL();
 }
@@ -71,7 +157,7 @@ TEST(PitTest, CanFallGarbageYes)
 /**
  * Tests whether can_fall() correctly indicates false when space is blocked.
  */
-TEST(PitTest, CanFallGarbageNo)
+TEST_F(PitTest, CanFallGarbageNo)
 {
 	FAIL();
 }
@@ -79,7 +165,7 @@ TEST(PitTest, CanFallGarbageNo)
 /**
  * Tests whether a Block correctly falls.
  */
-TEST(PitTest, FallBlock)
+TEST_F(PitTest, FallBlock)
 {
 	FAIL();
 }
@@ -87,7 +173,7 @@ TEST(PitTest, FallBlock)
 /**
  * Tests error when a Block cannot fall because the space below is blocked.
  */
-TEST(PitTest, FallBlockFail)
+TEST_F(PitTest, FallBlockFail)
 {
 	FAIL();
 }
@@ -95,7 +181,7 @@ TEST(PitTest, FallBlockFail)
 /**
  * Tests whether a Garbage correctly falls.
  */
-TEST(PitTest, FallGarbage)
+TEST_F(PitTest, FallGarbage)
 {
 	FAIL();
 }
@@ -103,7 +189,7 @@ TEST(PitTest, FallGarbage)
 /**
  * Tests error when a Garbage cannot fall because one space below is blocked.
  */
-TEST(PitTest, FallGarbageFail)
+TEST_F(PitTest, FallGarbageFail)
 {
 	FAIL();
 }
@@ -111,7 +197,7 @@ TEST(PitTest, FallGarbageFail)
 /**
  * Tests whether a Block can be removed.
  */
-TEST(PitTest, KillBlock)
+TEST_F(PitTest, KillBlock)
 {
 	FAIL();
 }
@@ -119,7 +205,7 @@ TEST(PitTest, KillBlock)
 /**
  * Tests whether a Garbage can be shrunk and still exist.
  */
-TEST(PitTest, ShrinkGarbage)
+TEST_F(PitTest, ShrinkGarbage)
 {
 	FAIL();
 }
@@ -127,7 +213,7 @@ TEST(PitTest, ShrinkGarbage)
 /**
  * Tests whether a Garbage disappears when it shrinks to 0 rows.
  */
-TEST(PitTest, KillGarbage)
+TEST_F(PitTest, KillGarbage)
 {
 	FAIL();
 }
