@@ -1,3 +1,4 @@
+CXXFLAGS=-g -Wall
 TESTBIN=../bin/test_shitbrix
 SRC_DIR=../src
 

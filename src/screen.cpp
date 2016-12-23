@@ -319,7 +319,7 @@ void debug_print_pit(const Pit& pit)
 		Block* block = pit.block_at(RowCol{r,c});
 		if(!block) continue;
 
-		Block::State state = block->state();
+		Block::State state = block->block_state();
 		Block::Color color = block->col;
 		std::string state_str;
 		std::string color_str;

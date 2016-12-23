@@ -34,24 +34,16 @@ protected:
 bool contains_n(const Pit& pit, size_t blocks, size_t garbages)
 {
 	size_t actual_blocks = 0;
-
-	for(auto it = pit.blocks_begin(); it != pit.blocks_end(); ++it)
-		actual_blocks++;
-
-	if(actual_blocks != blocks)
-		return false;
-
-
 	size_t actual_garbages = 0;
 
-	for(auto it = pit.garbage_begin(); it != pit.garbage_end(); ++it)
-		actual_garbages++;
+	for(auto& physical : pit.contents()) {
+		if(dynamic_cast<Block*>(&*physical))
+			actual_blocks++;
+		else if(dynamic_cast<Block*>(&*physical))
+			actual_garbages++;
+	}
 
-	if(actual_garbages != garbages)
-		return false;
-
-
-	return true;
+	return actual_blocks == blocks && actual_garbages == garbages;
 }
 
 /**
@@ -71,9 +63,9 @@ int contents_mismatch(const Pit& pit, const char* content_str)
 		RowCol rc{row, col};
 
 		switch(content_str[row*PIT_COLS+col]) {
-			case ' ': difference += pit.at(rc) ? 1 : 0;
-			case 'B': difference += pit.block_at(rc) ? 0 : 1;
-			case 'G': difference += pit.garbage_at(rc) ? 0 : 1;
+			case ' ': difference += pit.at(rc) ? 1 : 0; break;
+			case 'B': difference += pit.block_at(rc) ? 0 : 1; break;
+			case 'G': difference += pit.garbage_at(rc) ? 0 : 1; break;
 			default: return -1; // error code
 		}
 	}
@@ -93,8 +85,8 @@ TEST_F(PitTest, SpawnBlock)
 
 	EXPECT_TRUE(pit->at(red_rc));
 	EXPECT_TRUE(pit->at(green_rc));
-	EXPECT_EQ(&red_block, &pit->block_at(red_rc));
-	EXPECT_EQ(&green_block, &pit->block_at(green_rc));
+	EXPECT_EQ(&red_block, pit->block_at(red_rc));
+	EXPECT_EQ(&green_block, pit->block_at(green_rc));
 	EXPECT_TRUE(contains_n(*pit, 2, 0));
 
 	const char* content_str =
@@ -103,7 +95,7 @@ TEST_F(PitTest, SpawnBlock)
 		"      "
 		"  B   "
 		"      ";
-	EXPECT_EQ(0, contents_mismatch(pit, content_str));
+	EXPECT_EQ(0, contents_mismatch(*pit, content_str));
 }
 
 /**

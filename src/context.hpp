@@ -68,12 +68,11 @@ public:
 class ILogic
 {
 public:
-	ILogic() =default;
+	ILogic() noexcept =default;
 	ILogic(const ILogic& ) =delete;
 	ILogic(const ILogic&& ) =delete;
+	virtual ~ILogic() noexcept =default;
 	virtual void update(IContext& context) =0; // advance the object by one tick
 };
 
 class IHistoryObject {}; // interface go-back etc.
-
-using Logic = std::shared_ptr<ILogic>;

@@ -14,73 +14,138 @@
 #include <random>
 
 /**
- * Single block, comes in 6 colors
- *
- * # Block states
- *  * INVALID: no block should ever have this non-state
- *  * PREVIEW: init state. (Partially) visible, but not yet subject to matches and swapping
- *  * REST: the block is inactive and stationary. Only resting blocks can match.
- *  * FALL: on its way down the pit at FALL_SPEED
- *  * LAND: for a short period of time, after its fall stops, the block holds out on matches & can be swapped
- *  * BREAK: the block has been matched and is in the process of destruction
- *  * DEAD: should be removed from the game asap as it is an error to logic update() a dead block
+ * Base class for game objects that can be placed in the Pit.
+ * All Physical objects occupy space according to their extents (rows and columns).
  */
-class Block : public ILogic
+class Physical : public ILogic
+{
+
+public:
+
+	/**
+	 * Common states of Physical objects.
+	 * The derived classes intentionally extend this definition
+	 * by properly defining the placeholder X-states.
+	 */
+	enum class State { DEAD, REST, FALL, LAND, BREAK, X1, X2 };
+
+	Physical(RowCol rc, State state)
+	: m_loc(from_rc(rc)), m_rc(rc), m_offset{0,0}, m_state(state)
+	{}
+	virtual ~Physical() noexcept =default;
+
+	Point loc() const noexcept { return m_loc; }
+	RowCol rc() const noexcept { return m_rc; }
+
+	/**
+	 * Changes the Physical’s logical location while maintaining its draw position,
+	 * now relative to the new rc.
+	 */
+	void set_rc(RowCol rc);
+	State physical_state() const noexcept { return m_state; }
+
+	virtual int rows() const noexcept =0;
+	virtual int columns() const noexcept =0;
+	virtual void set_state(State state);
+
+protected:
+
+	Point m_loc;    // logical location, upper left corner relative to view (not necessarily sprite draw location)
+	RowCol m_rc;    // row/col position, - is UP, + is DOWN
+	Point m_offset; // x/y offset from draw center of r/c location
+	Point m_target; // target location - where the block really wants to be while it’s busy with an animation like SWAP
+	State m_state;  // current block state
+
+};
+
+/**
+ * Single block, comes in 6 colors
+ */
+class Block : public Physical
 {
 
 public:
 
 	enum class Color { FAKE, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
-	enum class State { DEAD, PREVIEW, REST, SWAP, FALL, LAND, BREAK };
 
-	// Public properties - can be read/changed/corrected at will
+	/*
+	 * Block states.
+	 *  * DEAD: should be removed from the pit asap as it is an error to logic update() a dead block
+	 *  * REST: the block is inactive and stationary. Only resting blocks can match.
+	 *  * FALL: on its way down the pit at FALL_SPEED
+	 *  * LAND: for a short period of time, after its fall stops, the block holds out on matches & can be swapped
+	 *  * BREAK: the block has been matched and is in the process of destruction
+	 *  * SWAP: the block is moving to another location by swapping
+	 *  * PREVIEW: init state. (Partially) visible, but not yet subject to matches and swapping
+	 */
+	enum class State { DEAD, REST, FALL, LAND, BREAK, SWAP, PREVIEW };
+
 	Color col;    // color
-	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
 	Block(Color col, RowCol rc, State state)
 	:
-	col(col), offset{0,0}, time(0),
-	m_loc(from_rc(rc)), m_rc(rc), m_state(state)
+	Physical(rc, static_cast<Physical::State>(state)), col(col), time(0)
 	{}
+	virtual ~Block() noexcept =default;
 
 	virtual void update(IContext& context) override;
 
-	Point loc() const { return m_loc; }
-	RowCol rc() const { return m_rc; }
-	void set_rc(RowCol rc);
-	State state() const { return m_state; }
-	void set_state(State state);
-	void swap_toward(RowCol target);
+	virtual int rows() const noexcept override { return 1; }
+	virtual int columns() const noexcept override { return 1; }
+	virtual void set_state(Physical::State state) override;
 
-	bool is_arriving() const;
-	bool is_fallible() const;
-	bool is_swappable() const;
-	bool is_matchable() const;
+	State block_state() const noexcept { return static_cast<State>(m_state); }
+
+	/**
+	 * Starts the swapping state & animation for this block.
+	 * This function replaces set_state(State::SWAP) because of the additional
+	 * information that must be conveyed in the target parameter.
+	 */
+	void swap_toward(RowCol target) noexcept;
+
+	/**
+	 * Returns true if the block is just now arriving at the center of a new row.
+	 */
+	bool is_arriving() const noexcept;
+	bool is_fallible() const noexcept;
+	bool is_swappable() const noexcept;
+	bool is_matchable() const noexcept;
 
 	static constexpr int SWAP_TIME = 6; // number of ticks to swap two blocks
-	static constexpr int LAND_TIME = 20; // number of ticks in a block’s landing animation
 	static constexpr int BREAK_TIME = 30; // number of ticks for a block to break
+	static constexpr int LAND_TIME = 20; // number of ticks in a block’s landing animation
 
 private:
 
-	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	RowCol m_rc;        // row/col position, - is UP, + is DOWN
-	Point m_target;     // target location - where the block really wants to be while it’s busy with an animation like SWAP
-	State m_state; // current block state
 	BlockFrame m_anim;  // current animation frame
 
+	/**
+	 * Update this swapping block
+	 */
 	void swap();
+
+	/**
+	 * Update this falling block
+	 */
 	void fall();
+
+	/**
+	 * Update this landing block
+	 */
 	void land();
+
+	/**
+	 * Update this breaking block
+	 */
 	void dobreak();
 	
 };
 
 // Allow operator- on Block::Color
-int operator-(Block::Color lhs, Block::Color rhs);
+int operator-(Block::Color lhs, Block::Color rhs) noexcept;
 
-bool y_greater(const Block& lhs, const Block& rhs);
+bool y_greater(const Block& lhs, const Block& rhs) noexcept;
 
 /**
  * Garbage block.
@@ -88,49 +153,37 @@ bool y_greater(const Block& lhs, const Block& rhs);
  * in the pit. Garbage blocks span multiple spaces. They never spawn from the
  * bottom, always falling from above.
  */
-class Garbage : public ILogic
+class Garbage : public Physical
 {
 
 public:
 
-	enum class State { REST, FALL, LAND, DISSOLVE, DEAD };
-
-	// Public properties - can be read/changed/corrected at will
-	Point offset;    // x/y offset from draw center of r/c location
 	int time;        // number of ticks until we consider a state switch
 
 	Garbage(RowCol rc, int columns, int rows)
-	:
-	offset{0,0}, time(0),
-	m_loc(from_rc(rc)), m_rc(rc),
-	m_columns(columns), m_rows(rows), m_state(State::FALL)
+	: Physical(rc, State::FALL), time(0), m_columns(columns), m_rows(rows)
 	{}
+	virtual ~Garbage() noexcept =default;
 
 	virtual void update(IContext& context) override;
 
-	Point loc() const { return m_loc; }
-	RowCol rc() const { return m_rc; }
-	int rows() const { return m_rows; }
-	int columns() const { return m_columns; }
+	virtual int rows() const noexcept override { return m_rows; }
+	virtual int columns() const noexcept override { return m_columns; }
+	virtual void set_state(State state) override;
+
 	int shrink() { return --m_rows; }
-	void set_rc(RowCol rc);
-	State state() const { return m_state; }
-	void set_state(State state);
 
-	bool is_arriving();
-	bool is_fallible() const;
+	bool is_arriving() noexcept;
+	bool is_fallible() const noexcept;
 
+	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to dissolve
 	static constexpr int LAND_TIME = 20; // number of ticks in a garbage’s landing animation
-	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to break
 
 private:
 
-	Point m_loc;        // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	RowCol m_rc;        // upper left row/col position, - is UP, + is DOWN
-	int m_columns;      // width of this garbage in blocks
-	int m_rows;         // height of this garbage in blocks
-	Point m_target;     // target location - where the garbage really wants to be while it’s busy with an animation
-	State m_state;      // current garbage state
+	int m_columns;  // width of this garbage in blocks
+	int m_rows;     // height of this garbage in blocks
+	Point m_target; // target location - where the garbage really wants to be while it’s busy with an animation
 
 	void fall();
 	void land();
@@ -149,22 +202,49 @@ class Pit : public ILogic
 
 public:
 
-	Pit(Point loc);
+	Pit(Point loc) noexcept;
 
-	Point loc() const { return m_loc; }
+	Point loc() const noexcept { return m_loc; }
 
-	auto blocks_begin() { return m_blocks.begin(); }
-	auto blocks_end() { return m_blocks.end(); }
-	auto garbage_begin() { return m_garbage.begin(); }
-	auto garbage_end() { return m_garbage.end(); }
-	auto blocks_begin() const { return m_blocks.begin(); }
-	auto blocks_end() const { return m_blocks.end(); }
-	auto garbage_begin() const { return m_garbage.begin(); }
-	auto garbage_end() const { return m_garbage.end(); }
+	/**
+	 * Pit-internal storage class
+	 */
+	using PhysVec = std::vector<std::unique_ptr<Physical>>;
 
-	Block* block_at(RowCol rc) const;
-	Garbage* garbage_at(RowCol rc) const;
-	bool anything_at(RowCol rc) const;
+	/**
+	 * Full access to the Pit’s contents.
+	 * This method saves lots of boilerplate code. In exchange, it breaks
+	 * encapsulation in every way imaginable. Use with caution!
+	 * Do not modify the container! Do not replace the contents!
+	 */
+	PhysVec& contents() noexcept { return m_contents; }
+
+	/**
+	 * Full access to the const Pit’s contents.
+	 */
+	const PhysVec& contents() const noexcept { return m_contents; }
+
+	/**
+	 * Return the object contained in the Pit at the given location.
+	 *
+	 * @return a pointer to the object or nullptr if the space is empty
+	 */
+	Physical* at(RowCol rc) const noexcept;
+
+	/**
+	 * Return the Block contained in the Pit at the given location.
+	 *
+	 * @return a pointer to the Block or nullptr if there is no Block at rc
+	 */
+	Block* block_at(RowCol rc) const noexcept;
+
+	/**
+	 * Return the Garbage contained in the Pit at the given location.
+	 *
+	 * @return a pointer to the Garbage or nullptr if there is no Garbage at rc
+	 */
+	Garbage* garbage_at(RowCol rc) const noexcept;
+
 
 	/**
 	 * Create a new Block with the specified properties in the Pit.
@@ -180,30 +260,29 @@ public:
 	 *
 	 * @return a reference to the created Garbage
 	 */
-	Garbage& spawn_garbage(RowCol rc, int width, int height);
+	Garbage& spawn_garbage(RowCol rc, int columns, int rows);
 
 	/**
-	 * Return true if it is acceptable to move the object located at the
-	 * from-location one row down, based on spaces blocked.
+	 * Return true if it is acceptable to move the object
+	 * one row down, based on spaces blocked.
 	 */
-	bool can_fall(RowCol from) const;
+	bool can_fall(Physical& physical) const noexcept;
 
 	/**
-	 * Move the object located at the at-location one row down.
-	 * For larger objects (Garbage), only the at-location that corresponds
-	 * to the object’s own primary rc (lower left tile for Garbage), not
-	 * any location blocked by the object, is accepted.
+	 * Move the object one row down.
+	 * If the object cannot fall (because something is in the way), throw
+	 * a GameException.
 	 */
-	void fall(RowCol from);
+	void fall(Physical& physical);
 
 	/**
-	 * Swap the locations of the Blocks at the specified coordinates.
+	 * Swap the locations of the two Blocks.
 	 */
-	void swap(RowCol lrc, RowCol rrc);
+	void swap(Block& left, Block& right) noexcept;
 
 	/**
-	 * Remove dead Blocks from the Pit to clean it up.
-	 * Caution! This may invalidate all existing references to Blocks in the Pit.
+	 * Remove dead Physicals from the Pit to clean it up.
+	 * Caution! This may invalidate all existing references to Physicals in the Pit.
 	 */
 	void remove_dead();
 
@@ -222,43 +301,51 @@ public:
 	 */
 	void clear();
 
-	int top() const;
-	int bottom() const;
-	int peak() const;
-	int highlight_row() const { return m_highlight_row; }
+	/**
+	 * Returns the number of the top accessible row in the pit
+	 */
+	int top() const noexcept;
 
-	void stop() { m_enabled = false; }
-	void start() { m_enabled = true; }
+	/**
+	 * Returns the number of the bottom accessible row in the pit
+	 */
+	int bottom() const noexcept;
+	int peak() const noexcept;
+	int highlight_row() const noexcept { return m_highlight_row; }
+
+	void stop() noexcept { m_enabled = false; }
+	void start() noexcept { m_enabled = true; }
 
 	/**
 	 * Put a debug highlight on a row
 	 */
-	void highlight(int row);
+	void highlight(int row) noexcept;
 
-	Point transform(Point point, float dt=0.f) const;
+	/**
+	 * The origin {0,0} location of all pit-related objects corresponds with row 0, column 0.
+	 * We have to transform the object into the pit and from there, apply the pit scrolling.
+	 */
+	Point transform(Point point, float dt=0.f) const noexcept;
 	virtual void update(IContext& context) override;
 
 private:
 
-	using BlockVec = std::vector<std::unique_ptr<Block>>;
-	using GarbageVec = std::vector<std::unique_ptr<Garbage>>;
+	using PhysMap = std::map<RowCol, Physical*>;
 
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
 	float m_scroll;  // y-offset for view on pit contents
 	int m_peak;      // highest blocked row (may be above visible space)
-	BlockVec m_blocks; // list of all blocks in the pit
-	GarbageVec m_garbage; // list of all garbage in the pit
-	std::map<RowCol, Block*> block_map; // sparse matrix of blocked spaces
-	std::map<RowCol, Garbage*> m_garbage_map; // sparse matrix of blocked spaces
+	PhysVec m_contents; // list of all blocks in the pit
+	PhysMap m_content_map; // sparse matrix of blocked spaces
 
 	int m_highlight_row;
 
-	void refresh_peak(); //!< Search for the new m_peak
+	void refresh_peak() noexcept; //!< Search for the new m_peak
 	void fall_block(Block& block); //!< Move the Block to the to-location.
 	void fall_garbage(Garbage& garbage); //!< Move the Garbage to the to-location.
-	void block_garbage(Garbage& garbage); //!< Mark the garbage area as occupied.
-	void unblock_garbage(const Garbage& garbage); //!< Mark the garbage area as free.
+	void fill_area(Physical& physical); //!< Mark the area as occupied.
+	void clear_area(const Physical& physical); //!< Mark the area as not occupied.
 
 };
 
