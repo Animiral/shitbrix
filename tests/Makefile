@@ -13,7 +13,7 @@ CXXFLAGS+=-pthread
 # for functions like SDL_assert().
 LDLIBS+=-lpthread $$(sdl2-config --libs)
 
-TEST_O=test_block.o test_pit.o test_replay.o
+TEST_O=test_block.o test_pit.o test_replay.o test_blockdirector.o
 
 .all: $(TESTBIN)
 .PHONY: game.a clean run
@@ -34,6 +34,7 @@ game.a:
 test_block.o: test_block.cpp mock.hpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
 test_pit.o: test_pit.cpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
 test_replay.o: test_replay.cpp
+test_blockdirector.o: test_blockdirector.cpp $(wildcard $(SRC_DIR)/{director.{c,h}pp,stage.hpp,context.hpp,globals.hpp})
 
 clean:
 	rm -f $(TESTBIN) $(TEST_O) game.a
