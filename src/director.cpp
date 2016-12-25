@@ -60,13 +60,15 @@ void BlockDirector::update(IContext& context)
 	bool have_dead = false; // true if pit needs to clean up
 	bool dead_sound = false; // true if there was at least one non-fake dead
 
+	auto& pit_contents = pit.contents();
+
 	// Blocks
-	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it) {
-		Block& block = **it;
-		Block::State state = block.state();
+	for(auto& physical : pit_contents)
+	if(Block* block = dynamic_cast<Block*>(&*physical)) {
+		Block::State state = block->block_state();
 
 		// block above top => game over
-		if(block.rc().r < pit.top()) {
+		if(block->rc().r < pit.top()) {
 			game_over();
 			break; // interrupt blocks logic because game_over might invalidate blocks list
 		}
@@ -74,42 +76,43 @@ void BlockDirector::update(IContext& context)
 		// falling blocks arrived at next row (center)
 		if(state == Block::State::FALL) {
 			// land block?
-			if(block.is_arriving()) {
-				block_arrive_fall(block);
+			if(block->is_arriving()) {
+				block_arrive_fall(*block);
 			}
 		}
 
 		// blocks finished swapping
-		if(Block::State::SWAP == state && block.time <= 0) {
-			block_arrive_swap(block);
-			state = block.state(); // NOTE: block_arrive_swap may change the state
+		if(Block::State::SWAP == state && block->time <= 0) {
+			block_arrive_swap(*block);
+			state = block->block_state(); // NOTE: block_arrive_swap may change the state
 		}
 
 		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
 		if(Block::State::DEAD == state) {
 			have_dead = true; // don’t remove them just yet as it would mess up the iterators
-			if(Block::Color::FAKE != block.col)
+			if(Block::Color::FAKE != block->col)
 				dead_sound = true;
 
-			trigger_falls(block.rc());
+			trigger_falls(block->rc());
 
-			auto breaking = std::find_if(pit.blocks_begin(), pit.blocks_end(), [] (std::unique_ptr<Block>& b) { return b->state() == Block::State::BREAK; });
-			if(pit.blocks_end() == breaking) {
+			auto is_breaking = [] (std::unique_ptr<Physical>& p) { return p->physical_state() == Physical::State::BREAK; };
+			auto breaking = std::find_if(pit_contents.begin(), pit_contents.end(), is_breaking);
+			if(pit_contents.end() == breaking) {
 				pit.start();
 			}
 		}
 	}
 
 	// Garbage
-	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it) {
-		Garbage& garbage = **it;
-		Garbage::State state = garbage.state();
+	for(auto& physical : pit.contents())
+	if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
+		Physical::State state = garbage->physical_state();
 
 		// falling garbage arrived at next row (center)
-		if(state == Garbage::State::FALL) {
+		if(state == Physical::State::FALL) {
 			// land garbage?
-			if(garbage.is_arriving()) {
-				garbage_arrive_fall(garbage);
+			if(garbage->is_arriving()) {
+				garbage_arrive_fall(*garbage);
 			}
 		}
 	}
@@ -130,7 +133,7 @@ void BlockDirector::update(IContext& context)
 
 			for(auto it = breaks.begin(); it != breaks.end(); ++it) {
 				Block& block = *it;
-				block.set_state(Block::State::BREAK);
+				block.set_state(Physical::State::BREAK);
 			}
 		}
 
@@ -138,15 +141,15 @@ void BlockDirector::update(IContext& context)
 	}
 
 	// Handle individual logic for each garbage
-	for(auto it = pit.garbage_begin(); it != pit.garbage_end(); ++it) {
-		Garbage& garbage = **it;
-		Garbage::State state = garbage.state();
+	for(auto& physical : pit.contents())
+	if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
+		Physical::State state = garbage->physical_state();
 
 		// falling blocks arrived at next row (center)
-		if(state == Garbage::State::FALL) {
+		if(state == Physical::State::FALL) {
 			// land block?
-			if(garbage.is_arriving()) {
-				garbage_arrive_fall(garbage);
+			if(garbage->is_arriving()) {
+				garbage_arrive_fall(*garbage);
 			}
 		}
 	}
@@ -165,10 +168,9 @@ void BlockDirector::update(IContext& context)
 
 		for(auto it = fallers.begin(); it != fallers.end(); ) {
 			Block& block = *it;
-			RowCol rc = block.rc();
-			if(pit.can_fall(rc)) {
-				block.set_state(Block::State::FALL);
-				pit.fall(rc);
+			if(pit.can_fall(block)) {
+				block.set_state(Physical::State::FALL);
+				pit.fall(block);
 				it = fallers.erase(it);
 				changed = true;
 			}
@@ -179,10 +181,9 @@ void BlockDirector::update(IContext& context)
 
 		for(auto it = garbage_fallers.begin(); it != garbage_fallers.end(); ) {
 			Garbage& garbage = *it;
-			RowCol rc = garbage.rc();
-			if(pit.can_fall(rc)) {
-				garbage.set_state(Garbage::State::FALL);
-				pit.fall(rc);
+			if(pit.can_fall(garbage)) {
+				garbage.set_state(Physical::State::FALL);
+				pit.fall(garbage);
 				it = garbage_fallers.erase(it);
 				changed = true;
 			}
@@ -235,7 +236,7 @@ bool BlockDirector::swap(RowCol lrc)
 	// do swap
 	left->swap_toward(rrc);
 	right->swap_toward(lrc);
-	pit.swap(lrc, rrc);
+	pit.swap(*left, *right);
 
 	return true;
 }
@@ -288,7 +289,7 @@ void BlockDirector::block_arrive_fall(Block& block)
 
 	// If the next space is free, the block goes on to fall. Otherwise, it lands.
 	if(pit.block_at(next)) {
-		block.set_state(Block::State::LAND);
+		block.set_state(Physical::State::LAND);
 		hots.push_back(block);
 	}
 	else {
@@ -306,13 +307,13 @@ void BlockDirector::garbage_arrive_fall(Garbage& garbage)
 	// If the next space is free, the garbage goes on to fall. Otherwise, it lands.
 	bool something_there = false;
 	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
-		if(pit.anything_at(RowCol{next_row,c})) {
+		if(pit.at(RowCol{next_row,c})) {
 			something_there = true;
 		}
 	}
 
 	if(something_there) {
-		garbage.set_state(Garbage::State::LAND);
+		garbage.set_state(Physical::State::LAND);
 	}
 	else {
 		garbage_fallers.push_back(garbage);
@@ -323,15 +324,15 @@ void BlockDirector::block_arrive_swap(Block& block)
 {
 	// fake blocks are only for swapping and disappear right afterwards
 	if(Block::Color::FAKE == block.col) {
-		block.set_state(Block::State::DEAD);
+		block.set_state(Physical::State::DEAD);
 		return;
 	}
 
-	if(pit.can_fall(block.rc())) {
+	if(pit.can_fall(block)) {
 		fallers.push_back(block);
 	}
 	else {
-		block.set_state(Block::State::REST);
+		block.set_state(Physical::State::REST);
 		hots.push_back(block);
 	}
 }
@@ -375,7 +376,7 @@ void BlockDirector::trigger_falls_impl(RowCol rc)
 void BlockDirector::activate_previews()
 {
 	for(Block& block : previews) {
-		block.set_state(Block::State::REST);
+		block.set_state(Physical::State::REST);
 		hots.push_back(block);
 	}
 

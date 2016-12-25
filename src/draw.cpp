@@ -97,35 +97,35 @@ namespace
 
 void draw_pit(const IContext& context, const Pit& pit, float dt)
 {
-	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it)
-		draw_block(context, **it, dt);
-
-	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it)
-		draw_garbage(context, **it, dt);
+	for(auto& physical : pit.contents()) {
+		if(Block* block = dynamic_cast<Block*>(&*physical)) {
+			draw_block(context, *block, dt);
+		}
+		else if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
+			draw_garbage(context, *garbage, dt);
+		}
+	}
 }
 
 void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 {
-	for(auto it = pit.blocks_begin(), end = pit.blocks_end(); it != end; ++it)
-	{
-		Block& block = **it;
-		Block::State state = block.state();
-		size_t frame = 0;
-		if(Block::State::FALL == state) frame = 1;
-		if(Block::State::BREAK == state) frame = 2;
-		if(Block::Color::FAKE == block.col) frame = 3;
-		Point loc = block.loc();
-		context.drawGfx(loc, Gfx::PITVIEW, frame);
-	}
-
-	for(auto it = pit.garbage_begin(), end = pit.garbage_end(); it != end; ++it)
-	{
-		Garbage& garbage = **it;
-		Garbage::State state = garbage.state();
-		size_t frame = 4;
-		if(Garbage::State::FALL == state) frame = 5;
-		Point loc = garbage.loc();
-		context.drawGfx(loc, Gfx::PITVIEW, frame);
+	for(auto& physical : pit.contents()) {
+		if(Block* block = dynamic_cast<Block*>(&*physical)) {
+			Block::State state = block->block_state();
+			size_t frame = 0;
+			if(Block::State::FALL == state) frame = 1;
+			if(Block::State::BREAK == state) frame = 2;
+			if(Block::Color::FAKE == block->col) frame = 3;
+			Point loc = block->loc();
+			context.drawGfx(loc, Gfx::PITVIEW, frame);
+		}
+		else if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
+			Physical::State state = garbage->physical_state();
+			size_t frame = 4;
+			if(Physical::State::FALL == state) frame = 5;
+			Point loc = garbage->loc();
+			context.drawGfx(loc, Gfx::PITVIEW, frame);
+		}
 	}
 }
 
@@ -135,9 +135,10 @@ void draw_block(const IContext& context, const Block& block, float dt)
 
 	Point draw_loc = block.loc();
 	int time = block.time;
+	Block::State state = block.block_state();
 
 	// bounce when landing
-	if(Block::State::LAND == block.state()) {
+	if(Block::State::LAND == state) {
 		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
 		int h = time > Block::LAND_TIME/2 ? Block::LAND_TIME-time : time;
 		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / Block::LAND_TIME;
@@ -146,8 +147,8 @@ void draw_block(const IContext& context, const Block& block, float dt)
 	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Block::Color::BLUE);
 
 	BlockFrame frame = BlockFrame::REST;
-	if(Block::State::PREVIEW == block.state()) frame = BlockFrame::PREVIEW;
-	if(Block::State::BREAK == block.state()) {
+	if(Block::State::PREVIEW == state) frame = BlockFrame::PREVIEW;
+	if(Block::State::BREAK == state) {
 		int begin = static_cast<int>(BlockFrame::BREAK_BEGIN);
 		int end = static_cast<int>(BlockFrame::BREAK_END);
 		frame = static_cast<BlockFrame>(begin + time % (end - begin));
@@ -170,7 +171,7 @@ void draw_garbage(const IContext& context, const Garbage& garbage, float dt)
 
 	// Animation, for a garbage block, primarily means the part where it dissolves
 	// and turns into small blocks.
-	if(Garbage::State::DISSOLVE == garbage.state()) {
+	if(Physical::State::BREAK == garbage.physical_state()) {
 		// TODO: animate garbage block
 	}
 

@@ -70,9 +70,7 @@ public:
 private:
 
 	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
-	using BlockIt = decltype(std::declval<Pit>().blocks_begin());
 	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
-	using GarbageIt = decltype(std::declval<Pit>().garbage_begin());
 
 	Pit& pit;
 	BlockRefVec previews; // blocks which are fresh spawns and currently inactive

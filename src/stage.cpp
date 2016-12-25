@@ -7,6 +7,33 @@
 #include <algorithm>
 #include <functional>
 
+void Physical::set_rc(RowCol rc)
+{
+	m_offset.x -= (rc.c - m_rc.c) * COL_W;
+	m_offset.y -= (rc.r - m_rc.r) * ROW_H;
+	m_rc = rc;
+}
+
+void Physical::set_state(State state)
+{
+	SDL_assert(State::DEAD == state ||
+	           State::REST == state ||
+	           State::FALL == state ||
+	           State::LAND == state ||
+	           State::BREAK == state);
+	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
+
+	m_state = state;
+
+	// Correct the object by any eventual extra-pixels
+	if(State::LAND == state) {
+		m_loc.x -= m_offset.x;
+		m_loc.y -= m_offset.y;
+		m_offset = Point{0,0};
+	}
+}
+
+
 /**
  * State machine spaghetti for block behavior
  */
@@ -14,7 +41,7 @@ void Block::update(IContext& context)
 {
 	time--;
 
-	switch(m_state) {
+	switch(block_state()) {
 		case State::PREVIEW: break;
 		case State::REST: break;
 		case State::SWAP: swap(); break;
@@ -26,83 +53,54 @@ void Block::update(IContext& context)
 	}
 }
 
-/**
- * Changes the block’s logical location while maintaining its draw position,
- * now relative to the new rc.
- */
-void Block::set_rc(RowCol rc)
+void Block::set_state(Physical::State state)
 {
-	offset.x -= (rc.c - m_rc.c) * COL_W;
-	offset.y -= (rc.r - m_rc.r) * ROW_H;
-	m_rc = rc;
-}
+	Physical::set_state(state);
+	State bstate = block_state();
 
-void Block::set_state(State state)
-{
-	SDL_assert(state != State::PREVIEW && state != State::SWAP); // use swap_toward() instead
-	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
-
-	m_state = state;
-
-	switch(state) {
-		case State::LAND:
-			// Correct the block by any eventual extra-pixels
-			m_loc.x -= offset.x;
-			m_loc.y -= offset.y;
-			offset = Point{0,0};
-			time = LAND_TIME;
-			break;
-
-		case State::BREAK:
-			time = BREAK_TIME;
-			m_anim = BlockFrame::BREAK_BEGIN;
-			break;
-
-		default: break;
+	if(State::BREAK == bstate) {
+		time = BREAK_TIME;
+		m_anim = BlockFrame::BREAK_BEGIN;
+	}
+	else if(State::LAND == bstate) {
+		time = LAND_TIME;
 	}
 }
 
-/**
- * Starts the swapping state & animation for this block.
- * This function replaces set_state(State::SWAP) because of the additional
- * information that must be conveyed in the target parameter.
- */
-void Block::swap_toward(RowCol target)
+void Block::swap_toward(RowCol target) noexcept
 {
-	m_state = State::SWAP;
+	m_state = static_cast<Physical::State>(State::SWAP);
 	time = SWAP_TIME;
 	m_target = from_rc(target);
 }
 
-/**
- * Returns true if the block is just now arriving at the center of a new row.
- */
-bool Block::is_arriving() const
+bool Block::is_arriving() const noexcept
 {
-	return State::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+	return State::FALL == block_state() && m_offset.y >= 0 && m_offset.y < FALL_SPEED;
 }
 
-bool Block::is_fallible() const
+bool Block::is_fallible() const noexcept
 {
-	return State::REST == m_state || State::LAND == m_state;
+	State state = block_state();
+	return State::REST == state || State::LAND == state;
 }
 
-bool Block::is_swappable() const
+bool Block::is_swappable() const noexcept
 {
-	return State::REST == m_state ||
-	       State::SWAP == m_state ||
-	       State::FALL == m_state ||
-	       State::LAND == m_state;
+	State state = block_state();
+
+	return State::REST == state ||
+	       State::SWAP == state ||
+	       State::FALL == state ||
+	       State::LAND == state;
 }
 
-bool Block::is_matchable() const
+bool Block::is_matchable() const noexcept
 {
-	return State::REST == m_state || State::LAND == m_state;
+	State state = block_state();
+	return State::REST == state || State::LAND == state;
 }
 
-/**
- * Update this swapping block
- */
 void Block::swap()
 {
 	if(time > 0.f) {
@@ -110,46 +108,38 @@ void Block::swap()
 		float adv_y = (m_target.y - m_loc.y) / time;
 		m_loc.x += adv_x;
 		m_loc.y += adv_y;
-		offset.x += adv_x;
-		offset.y += adv_y;
+		m_offset.x += adv_x;
+		m_offset.y += adv_y;
 	}
 	else {
 		m_loc = m_target;
-		offset = Point{0,0};
+		m_offset = Point{0,0};
 	}
 }
 
-/**
- * Update this falling block
- */
+
 void Block::fall()
 {
 	m_loc.y += FALL_SPEED;
-	offset.y += FALL_SPEED;
+	m_offset.y += FALL_SPEED;
 }
 
-/**
- * Update this landing block
- */
 void Block::land()
 {
 	if(time < 0) {
-		set_state(State::REST);
+		set_state(Physical::State::REST);
 		time = 10 - 10 * m_rc.r; // after which auto-breaks
 	}
 }
 
-/**
- * Update this breaking block
- */
 void Block::dobreak()
 {
 	if(time < 0) {
-		set_state(State::DEAD);
+		set_state(Physical::State::DEAD);
 	}
 }
 
-int operator-(Block::Color lhs, Block::Color rhs)
+int operator-(Block::Color lhs, Block::Color rhs) noexcept
 {
 	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
@@ -157,7 +147,7 @@ int operator-(Block::Color lhs, Block::Color rhs)
 /**
  * Comparison predicate for ordering blocks bottom-to-top.
  */
-bool y_greater(const Block& lhs, const Block& rhs)
+bool y_greater(const Block& lhs, const Block& rhs) noexcept
 {
 	return rhs.rc().r < lhs.rc().r;
 }
@@ -171,52 +161,30 @@ void Garbage::update(IContext& context)
 		case State::REST: break;
 		case State::FALL: fall(); break;
 		case State::LAND: land(); break;
-		case State::DISSOLVE: dobreak(); break;
+		case State::BREAK: dobreak(); break;
 		case State::DEAD: throw GameException("Cannot update() dead garbage.");
 		default: SDL_assert_paranoid(false);
 	}
 }
 
-/**
- * Changes the garbage’s logical location while maintaining its draw position,
- * now relative to the new rc.
- */
-void Garbage::set_rc(RowCol rc)
-{
-	offset.x -= (rc.c - m_rc.c) * COL_W;
-	offset.y -= (rc.r - m_rc.r) * ROW_H;
-	m_rc = rc;
-}
-
 void Garbage::set_state(State state)
 {
-	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
+	Physical::set_state(state);
 
-	m_state = state;
-
-	switch(state) {
-		case State::LAND:
-			// Correct the garbage by any eventual extra-pixels
-			m_loc.x -= offset.x;
-			m_loc.y -= offset.y;
-			offset = Point{0,0};
-			time = LAND_TIME;
-			break;
-
-		case State::DISSOLVE:
-			time = DISSOLVE_TIME;
-			break;
-
-		default: break;
+	if(State::BREAK == state) {
+		time = DISSOLVE_TIME;
+	}
+	else if(State::LAND == state) {
+		time = LAND_TIME;
 	}
 }
 
-bool Garbage::is_arriving()
+bool Garbage::is_arriving() noexcept
 {
-	return State::FALL == m_state && offset.y >= 0 && offset.y < FALL_SPEED;
+	return State::FALL == m_state && m_offset.y >= 0 && m_offset.y < FALL_SPEED;
 }
 
-bool Garbage::is_fallible() const
+bool Garbage::is_fallible() const noexcept
 {
 	return State::REST == m_state || State::LAND == m_state;
 }
@@ -224,7 +192,7 @@ bool Garbage::is_fallible() const
 void Garbage::fall()
 {
 	m_loc.y += FALL_SPEED;
-	offset.y += FALL_SPEED;
+	m_offset.y += FALL_SPEED;
 }
 
 void Garbage::land()
@@ -242,59 +210,46 @@ void Garbage::dobreak()
 }
 
 
-/**
- * Constructs a Pit at the specified draw location.
- */
-Pit::Pit(Point loc)
+Pit::Pit(Point loc) noexcept
 : m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
   m_peak(1), m_highlight_row(0)
 {
 }
 
-/**
- * Return the block at the given location.
- */
-Block* Pit::block_at(RowCol rc) const
+Physical* Pit::at(RowCol rc) const noexcept
 {
-	auto it = block_map.find(rc);
-	if(it == block_map.end())
+	auto it = m_content_map.find(rc);
+	if(it == m_content_map.end())
 		return nullptr;
 	else
 		return it->second;
 }
 
-Garbage* Pit::garbage_at(RowCol rc) const
+Block* Pit::block_at(RowCol rc) const noexcept
 {
-	auto it = m_garbage_map.find(rc);
-	if(it == m_garbage_map.end())
-		return nullptr;
-	else
-		return it->second;
+	return dynamic_cast<Block*>(at(rc));
 }
 
-bool Pit::anything_at(RowCol rc) const
+Garbage* Pit::garbage_at(RowCol rc) const noexcept
 {
-	return
-		block_map.find(rc) != block_map.end() || 
-		m_garbage_map.find(rc) != m_garbage_map.end();
+	return dynamic_cast<Garbage*>(at(rc));
 }
 
 Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 {
 	game_assert(rc.c >= 0 && rc.c < PIT_COLS, "Attempt to spawn block out of bounds.");
-	game_assert(!anything_at(rc), "Attempt to spawn block at occupied location.");
+	game_assert(!at(rc), "Attempt to spawn block at occupied location.");
 
 	auto block = std::make_unique<Block>(color, rc, state);
-	Block* block_ptr = block.get();
-	m_blocks.push_back(std::move(block));
+	Block* raw_block = block.get();
+	fill_area(*raw_block);
 
-	auto result = block_map.emplace(rc, block_ptr);
-	game_assert(result.second, "Attempt to block already blocked space in Pit.");
+	m_contents.push_back(std::move(block));
 
 	if(rc.r < m_peak)
 		m_peak = rc.r;
 
-	return *block_ptr;
+	return *raw_block;
 }
 
 Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
@@ -303,82 +258,73 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");
 
 	auto garbage = std::make_unique<Garbage>(rc, width, height);
-	Garbage* garbage_ptr = garbage.get();
-	m_garbage.push_back(std::move(garbage));
+	Garbage* raw_garbage = garbage.get();
+	fill_area(*raw_garbage);
 
-	block_garbage(*garbage_ptr);
+	m_contents.push_back(std::move(garbage));
 
 	if(rc.r < m_peak)
 		m_peak = rc.r;
 
-	return *garbage_ptr;
+	return *raw_garbage;
 }
 
-bool Pit::can_fall(RowCol from) const
+bool Pit::can_fall(Physical& physical) const noexcept
 {
-	auto block = block_at(from);
-	auto garbage = garbage_at(from);
+	RowCol rc = physical.rc();
 
 	// there must be no obstacle at the target location and the
 	// target location must be a valid location in the pit
-	if(block) {
-		RowCol to {from.r+1, from.c};
-		return !anything_at(to);
-	}
-	else if(garbage) {
-		RowCol to {from.r + garbage->rows(), from.c};
-		for(int c = to.c; c < to.c + garbage->columns(); c++) {
-			RowCol target{to.r, c};
+	RowCol to {rc.r + physical.rows(), rc.c};
 
-			if(anything_at(target))
-				return false;
-		}
-	}
-	else {
-		game_assert(false, "Asking to fall from empty coordinate in Pit.");
+	for(int c = to.c; c < to.c + physical.columns(); c++) {
+		RowCol target{to.r, c};
+
+		if(at(target))
+			return false;
 	}
 
 	return true;
 }
 
-void Pit::fall(RowCol from)
+void Pit::fall(Physical& physical)
 {
-	auto block = block_at(from);
-	auto garbage = garbage_at(from);
+	Block* block = dynamic_cast<Block*>(&physical);
+	Garbage* garbage = dynamic_cast<Garbage*>(&physical);
 
 	if(block) fall_block(*block);
 	else if(garbage) fall_garbage(*garbage);
-	else game_assert(false, "Attempt to fall from empty coordinate in Pit.");
+	else game_assert(false, "Attempt to fall unknown object.");
 
 	refresh_peak();
 }
 
-void Pit::swap(RowCol lrc, RowCol rrc)
+void Pit::swap(Block& left, Block& right) noexcept
 {
-	auto left = block_map.find(lrc);
-	auto right = block_map.find(rrc);
-	auto end = block_map.end();
+	RowCol lrc = left.rc();
+	RowCol rrc = right.rc();
 
-	game_assert(left != end && right != end, "Attempt to swap nonexistant blocks.");
+	auto left_entry = m_content_map.find(lrc);
+	auto right_entry = m_content_map.find(rrc);
+	auto end = m_content_map.end();
 
-	left->second->set_rc(rrc);
-	right->second->set_rc(lrc);
-	std::swap(left->second, right->second);
+	game_assert(left_entry != end && right_entry != end, "Attempt to swap nonexistant blocks.");
+
+	left.set_rc(rrc);
+	right.set_rc(lrc);
+	std::swap(left_entry->second, right_entry->second);
 }
 
 void Pit::remove_dead()
 {
 	bool did_erase = false;
 
-	for(auto it = m_blocks.begin(); it != m_blocks.end(); ) {
-		if(Block::State::DEAD == (*it)->state()) {
-			RowCol rc = (*it)->rc();
-
-			size_t erased = block_map.erase(rc);
-			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+	for(auto it = m_contents.begin(); it != m_contents.end(); ) {
+		if(Physical::State::DEAD == (*it)->physical_state()) {
+			clear_area(**it);
 			did_erase = true;
 
-			it = m_blocks.erase(it);
+			it = m_contents.erase(it);
 		}
 		else {
 			++it;
@@ -395,14 +341,14 @@ Garbage* Pit::shrink(Garbage& garbage)
 	int low = rc.r + garbage.rows() - 1;
 
 	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
-		size_t erased = m_garbage_map.erase(RowCol{low, c});
+		size_t erased = m_content_map.erase(RowCol{low, c});
 		game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
 	}
 
 	// The garbage loses one row. If that is all, remove it entirely.
 	if(garbage.shrink() <= 0) {
-		auto is_gone = [] (GarbageVec::reference gptr) { return gptr->rows() <= 0; };
-		std::remove_if(m_garbage.begin(), m_garbage.end(), is_gone);
+		auto is_gone = [] (PhysVec::reference ptr) { return ptr->rows() <= 0; };
+		std::remove_if(m_contents.begin(), m_contents.end(), is_gone);
 		refresh_peak();
 		return nullptr;
 	}
@@ -413,44 +359,32 @@ Garbage* Pit::shrink(Garbage& garbage)
 
 void Pit::clear()
 {
-	m_blocks.clear();
-	m_garbage.clear();
-	block_map.clear();
-	m_garbage_map.clear();
+	m_contents.clear();
+	m_content_map.clear();
 	m_peak = 1;
 }
 
-/**
- * Returns the number of the top accessible row in the pit
- */
-int Pit::top() const
+int Pit::top() const noexcept
 {
 	return std::ceil(m_scroll / ROW_H);
 }
 
-/**
- * Returns the number of the bottom accessible row in the pit
- */
-int Pit::bottom() const
+int Pit::bottom() const noexcept
 {
 	return std::floor((m_scroll + PIT_H) / ROW_H) - 1;
 }
 
-int Pit::peak() const
+int Pit::peak() const noexcept
 {
 	return m_peak;
 }
 
-void Pit::highlight(int row)
+void Pit::highlight(int row) noexcept
 {
 	m_highlight_row = row;
 }
 
-/**
- * The origin {0,0} location of all pit-related objects corresponds with row 0, column 0.
- * We have to transform the object into the pit and from there, apply the pit scrolling.
- */
-Point Pit::transform(Point point, float dt) const
+Point Pit::transform(Point point, float dt) const noexcept
 {
 	point.x += m_loc.x;
 	point.y += m_loc.y;
@@ -461,24 +395,21 @@ Point Pit::transform(Point point, float dt) const
 
 void Pit::update(IContext& context)
 {
-	for(auto& b : m_blocks)
-		b->update(context);
-
-	for(auto& g : m_garbage)
-		g->update(context);
+	for(auto& p : m_contents)
+		p->update(context);
 
 	if(m_enabled)
 		m_scroll += SCROLL_SPEED;
 }
 
-void Pit::refresh_peak()
+void Pit::refresh_peak() noexcept
 {
 	// maintain peak by linear search through the pit contents
 	int lowest_row = this->bottom();
 
 	while(m_peak < lowest_row) {
 		for(int c = 0; c < PIT_COLS; c++) {
-			if(this->anything_at({m_peak, c}))
+			if(this->at({m_peak, c}))
 				return;
 		}
 
@@ -491,11 +422,11 @@ void Pit::fall_block(Block& block)
 	RowCol rc = block.rc();
 	RowCol to { rc.r+1, rc.c };
 
-	game_assert(!anything_at(to), "Attempt to move block to occupied location.");
+	game_assert(!at(to), "Attempt to move block to occupied location.");
 
-	auto erased = block_map.erase(rc);
+	auto erased = m_content_map.erase(rc);
 	game_assert(1 == erased, "Block not found at expected space in Pit.");
-	auto emplace_result = block_map.emplace(to, &block);
+	auto emplace_result = m_content_map.emplace(to, &block);
 	game_assert(emplace_result.second, "Attempt to block already blocked space in Pit.");
 	block.set_rc(to);
 }
@@ -505,32 +436,32 @@ void Pit::fall_garbage(Garbage& garbage)
 	RowCol rc = garbage.rc();
 	RowCol to { rc.r+1, rc.c };
 
-	unblock_garbage(garbage);
+	clear_area(garbage);
 	garbage.set_rc(to);
-	block_garbage(garbage);
+	fill_area(garbage);
 }
 
-void Pit::block_garbage(Garbage& garbage)
+void Pit::fill_area(Physical& physical)
 {
-	RowCol rc = garbage.rc();
+	RowCol rc = physical.rc();
 
-	for(int r = rc.r; r < rc.r + garbage.rows(); r++) {
-		for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
+	for(int r = rc.r; r < rc.r + physical.rows(); r++) {
+		for(int c = rc.c; c < rc.c + physical.columns(); c++) {
 			RowCol target{r, c};
-			auto result = m_garbage_map.emplace(std::make_pair(target, &garbage));
+			auto result = m_content_map.emplace(std::make_pair(target, &physical));
 			game_assert(result.second, "Attempt to block already blocked space in Pit.");
 		}
 	}
 }
 
-void Pit::unblock_garbage(const Garbage& garbage)
+void Pit::clear_area(const Physical& physical)
 {
-	RowCol rc = garbage.rc();
+	RowCol rc = physical.rc();
 
-	for(int r = rc.r; r < rc.r + garbage.rows(); r++) {
-		for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
+	for(int r = rc.r; r < rc.r + physical.rows(); r++) {
+		for(int c = rc.c; c < rc.c + physical.columns(); c++) {
 			RowCol target{r, c};
-			size_t erased = m_garbage_map.erase(target);
+			size_t erased = m_content_map.erase(target);
 			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
 		}
 	}
