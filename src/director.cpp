@@ -142,6 +142,7 @@ void BlockDirector::update(IContext& context)
 			int garbage_columns = garbage.columns();
 			int garbage_rows = garbage.rows();
 			bool survived = pit.shrink(garbage);
+
 			for(int c = 0; c < garbage_columns; c++) {
 				RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
 				Block& block = spawn_random_block(block_rc, Block::State::FALL);
@@ -153,8 +154,12 @@ void BlockDirector::update(IContext& context)
 				}
 			}
 
-			if(survived && can_fall(garbage)) {
-				fallers.push_back(garbage);
+			if(survived) {
+				garbage.set_state(Physical::State::REST);
+
+				if(can_fall(garbage)) {
+					fallers.push_back(garbage);
+				}
 			}
 
 		}
