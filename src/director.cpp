@@ -323,9 +323,13 @@ bool BlockDirector::can_fall(Physical& physical)
 	for(int c = to.c; c < to.c + physical.columns(); c++) {
 		RowCol target{to.r, c};
 
-		// TODO: consider can_fall below (time <= 0).
-		if(pit.at(target))
-			return false;
+		// special case: we can fall into dead blocks while they disappear
+		Physical* at_target = pit.at(target);
+		if(at_target) {
+			Block* block_at_target = pit.block_at(target);
+			if(!(block_at_target && Block::State::DEAD == block_at_target->block_state()))
+				return false;
+		}
 	}
 
 	return true;

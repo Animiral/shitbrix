@@ -166,8 +166,12 @@ void VisualDemo::scenario_dissolve_garbage()
 	right_block.swap_toward(lrc);
 	pit->swap(left_block, right_block);
 
-	const int DISSOLVE_T = 52; // ticks until block landed, garbage has shrunk, blocks have fallen down
+	// ticks until block landed, garbage has shrunk, blocks have fallen down
+	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
 	run_game_ticks(DISSOLVE_T);
+
+	// signal to user that test-case time is up
+	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
 
 	const int DEMO_T = 500; // observation ticks
 	run_game_ticks(DEMO_T);
