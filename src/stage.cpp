@@ -134,7 +134,7 @@ void Block::land()
 
 void Block::dobreak()
 {
-	if(time < 0) {
+	if(time <= 0) {
 		set_state(Physical::State::DEAD);
 	}
 }

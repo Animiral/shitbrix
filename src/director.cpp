@@ -130,7 +130,7 @@ void BlockDirector::update(IContext& context)
 		}
 
 		// shrink garbage if necessary
-		if(Physical::State::BREAK == state && garbage->time < 0) {
+		if(Physical::State::BREAK == state && garbage->time <= 0) {
 			dissolvers.push_back(*garbage);
 		}
 	}
