@@ -34,6 +34,24 @@ void MatchBuilder::ignite(Block& block)
 	}
 }
 
+void MatchBuilder::find_touch_garbage()
+{
+	auto insert_if_garbage_at = [this] (RowCol rc)
+	{
+		Garbage* garbage = pit.garbage_at(rc);
+		if(garbage)
+			m_touched_garbage.insert(*garbage);
+	};
+
+	for(Block& block : m_result) {
+		RowCol rc = block.rc();
+		insert_if_garbage_at(RowCol{rc.r-1, rc.c});
+		insert_if_garbage_at(RowCol{rc.r+1, rc.c});
+		insert_if_garbage_at(RowCol{rc.r, rc.c-1});
+		insert_if_garbage_at(RowCol{rc.r, rc.c+1});
+	}
+}
+
 bool MatchBuilder::match_at(RowCol rc, Block::Color color)
 {
 	Block* next = pit.block_at(rc);
@@ -77,7 +95,7 @@ void BlockDirector::update(IContext& context)
 		if(state == Block::State::FALL) {
 			// land block?
 			if(block->is_arriving()) {
-				block_arrive_fall(*block);
+				arrive_fall(*block);
 			}
 		}
 
@@ -94,17 +112,12 @@ void BlockDirector::update(IContext& context)
 				dead_sound = true;
 
 			trigger_falls(block->rc());
-
-			auto is_breaking = [] (std::unique_ptr<Physical>& p) { return p->physical_state() == Physical::State::BREAK; };
-			auto breaking = std::find_if(pit_contents.begin(), pit_contents.end(), is_breaking);
-			if(pit_contents.end() == breaking) {
-				pit.start();
-			}
+			try_resume_pitscroll();
 		}
 	}
 
 	// Garbage
-	for(auto& physical : pit.contents())
+	for(auto& physical : pit_contents)
 	if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
 		Physical::State state = garbage->physical_state();
 
@@ -112,9 +125,49 @@ void BlockDirector::update(IContext& context)
 		if(state == Physical::State::FALL) {
 			// land garbage?
 			if(garbage->is_arriving()) {
-				garbage_arrive_fall(*garbage);
+				arrive_fall(*garbage);
 			}
 		}
+
+		// shrink garbage if necessary
+		if(Physical::State::BREAK == state && garbage->time < 0) {
+			dissolvers.push_back(*garbage);
+		}
+	}
+
+	if(!dissolvers.empty()) {
+		for(Garbage& garbage : dissolvers) {
+			// BUG! invalidates pit_contents
+			RowCol garbage_rc = garbage.rc();
+			int garbage_columns = garbage.columns();
+			int garbage_rows = garbage.rows();
+			bool survived = pit.shrink(garbage);
+			for(int c = 0; c < garbage_columns; c++) {
+				RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
+				Block& block = spawn_random_block(block_rc, Block::State::FALL);
+				if(can_fall(block)) {
+					fallers.push_back(block);
+				}
+				else {
+					block.set_state(Physical::State::REST);
+				}
+			}
+
+			if(survived && can_fall(garbage)) {
+				fallers.push_back(garbage);
+			}
+
+		}
+		try_resume_pitscroll();
+		dissolvers.clear();
+	}
+
+	if(have_dead)
+	{
+		pit.remove_dead();
+
+		if(dead_sound)
+			context.play(Snd::BREAK);
 	}
 
 	// Examine hots for matches
@@ -138,39 +191,23 @@ void BlockDirector::update(IContext& context)
 		}
 
 		hots.clear();
-	}
 
-	// Handle individual logic for each garbage
-	for(auto& physical : pit.contents())
-	if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
-		Physical::State state = garbage->physical_state();
+		builder.find_touch_garbage();
 
-		// falling blocks arrived at next row (center)
-		if(state == Physical::State::FALL) {
-			// land block?
-			if(garbage->is_arriving()) {
-				garbage_arrive_fall(*garbage);
-			}
+		for(auto& garbage : builder.touched_garbage()) {
+			garbage.get().set_state(Physical::State::BREAK);
 		}
 	}
 
-	if(have_dead)
-	{
-		pit.remove_dead();
-
-		if(dead_sound)
-			context.play(Snd::BREAK);
-	}
-
 	// make fallers fall
-	while(!fallers.empty() || !garbage_fallers.empty()) {
+	while(!fallers.empty()) {
 		bool changed = false;
 
 		for(auto it = fallers.begin(); it != fallers.end(); ) {
-			Block& block = *it;
-			if(pit.can_fall(block)) {
-				block.set_state(Physical::State::FALL);
-				pit.fall(block);
+			Physical& physical = *it;
+			if(pit.can_fall(physical)) {
+				physical.set_state(Physical::State::FALL);
+				pit.fall(physical);
 				it = fallers.erase(it);
 				changed = true;
 			}
@@ -179,23 +216,8 @@ void BlockDirector::update(IContext& context)
 			}
 		}
 
-		for(auto it = garbage_fallers.begin(); it != garbage_fallers.end(); ) {
-			Garbage& garbage = *it;
-			if(pit.can_fall(garbage)) {
-				garbage.set_state(Physical::State::FALL);
-				pit.fall(garbage);
-				it = garbage_fallers.erase(it);
-				changed = true;
-			}
-			else {
-				++it;
-			}
-		}
-
-		if(!changed) {
-			garbage_fallers.clear();
-			game_assert(fallers.empty(), "falling blocks are stuck");
-		}
+		if(!changed)
+			fallers.clear();
 	}
 
 	// debug: show what the pit considers to be its peak row
@@ -230,8 +252,8 @@ bool BlockDirector::swap(RowCol lrc)
 
 	// fake blocks - they last only for the duration of the swap, blocking other
 	// falling blocks from going through the space.
-	if(!left) left = &spawn_fake(lrc);
-	if(!right) right = &spawn_fake(rrc);
+	if(!left) left = &spawn_fake_block(lrc);
+	if(!right) right = &spawn_fake_block(rrc);
 
 	// do swap
 	left->swap_toward(rrc);
@@ -258,65 +280,66 @@ void BlockDirector::spawn_previews()
 		bottom++;
 		for(int i = 0; i < PIT_COLS; i++) {
 			RowCol rc {bottom, i};
-			Block& block = spawn_block(rc);
+			Block& block = spawn_random_block(rc, Block::State::PREVIEW);
 			previews.push_back(block);
 		}
 	}
 }
 
-Block& BlockDirector::spawn_block(RowCol rc)
+Block& BlockDirector::spawn_random_block(RowCol rc, Block::State state)
 {
-	Block::Color spawn_color = static_cast<Block::Color>(static_cast<int>(Block::Color::BLUE) + (*rndgen)() % 6);
-	Block& block = pit.spawn_block(spawn_color, rc, Block::State::PREVIEW);
+	Block::Color block_color = static_cast<Block::Color>(static_cast<int>(Block::Color::BLUE) + (*rndgen)() % 6);
+	Block& block = pit.spawn_block(block_color, rc, state);
 	return block;
 }
 
-/**
- * Fake blocks are used to replace empty spaces for the duration of a swap().
- */
-Block& BlockDirector::spawn_fake(RowCol rc)
+Block& BlockDirector::spawn_fake_block(RowCol rc)
 {
 	Block& block = pit.spawn_block(Block::Color::FAKE, rc, Block::State::REST);
 	return block;
 }
 
-void BlockDirector::block_arrive_fall(Block& block)
+void BlockDirector::try_resume_pitscroll()
 {
-	RowCol rc = block.rc();
-	RowCol next { rc.r + 1, rc.c };
+	auto& pit_contents = pit.contents();
+	auto is_breaking = [] (std::unique_ptr<Physical>& p) { return p->physical_state() == Physical::State::BREAK; };
 
-	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
-
-	// If the next space is free, the block goes on to fall. Otherwise, it lands.
-	if(pit.block_at(next)) {
-		block.set_state(Physical::State::LAND);
-		hots.push_back(block);
-	}
-	else {
-		fallers.push_back(block);
+	auto breaking = std::find_if(pit_contents.begin(), pit_contents.end(), is_breaking);
+	if(pit_contents.end() == breaking) {
+		pit.start();
 	}
 }
 
-void BlockDirector::garbage_arrive_fall(Garbage& garbage)
+bool BlockDirector::can_fall(Physical& physical)
 {
-	RowCol rc = garbage.rc();
-	int next_row = rc.r + garbage.rows();
+	RowCol rc = physical.rc();
+	RowCol to {rc.r + physical.rows(), rc.c};
 
-	SDL_assert(next_row <= bottom); // can never fall lower than the preview row of blocks
+	for(int c = to.c; c < to.c + physical.columns(); c++) {
+		RowCol target{to.r, c};
 
-	// If the next space is free, the garbage goes on to fall. Otherwise, it lands.
-	bool something_there = false;
-	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
-		if(pit.at(RowCol{next_row,c})) {
-			something_there = true;
-		}
+		// TODO: consider can_fall below (time <= 0).
+		if(pit.at(target))
+			return false;
 	}
 
-	if(something_there) {
-		garbage.set_state(Physical::State::LAND);
+	return true;
+}
+
+void BlockDirector::arrive_fall(Physical& physical)
+{
+	// can never fall lower than the preview row of blocks
+	SDL_assert(physical.rc().r + physical.rows() <= bottom);
+
+	// If the next space is free, the physical goes on to fall. Otherwise, it lands.
+	if(can_fall(physical)) {
+		fallers.push_back(physical);
 	}
 	else {
-		garbage_fallers.push_back(garbage);
+		if(Block* block = dynamic_cast<Block*>(&physical))
+			hots.push_back(*block);
+
+		physical.set_state(Physical::State::LAND);
 	}
 }
 
@@ -359,7 +382,7 @@ void BlockDirector::trigger_falls_impl(RowCol rc)
 
 	if(garbage) {
 		if(garbage->is_fallible()) {
-			garbage_fallers.push_back(*garbage);
+			fallers.push_back(*garbage);
 
 			rc = garbage->rc();
 			for(int c = rc.c; c < rc.c + garbage->columns(); c++) {

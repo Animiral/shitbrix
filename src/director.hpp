@@ -21,27 +21,39 @@ class MatchBuilder
 private:
 
 	/**
-	 * Helper struct to enable a std::set of blocks
+	 * Helper struct to enable a std::set of blocks and garbage
 	 */
-	struct BlockLess
+	struct PhysicalLess
 	{
-		bool operator()(const Block& lhs, const Block& rhs) const { return lhs.rc() < rhs.rc(); }
+		bool operator()(const Physical& lhs, const Physical& rhs) const { return lhs.rc() < rhs.rc(); }
 	};
 
 public:
 
-	using BlockSet = std::set<std::reference_wrapper<Block>, BlockLess>;
+	using BlockSet = std::set<std::reference_wrapper<Block>, PhysicalLess>;
+	using GarbageSet = std::set<std::reference_wrapper<Garbage>, PhysicalLess>;
 
 	MatchBuilder(const Pit& pit) : pit(pit) {}
 
 	void ignite(Block& block);
 	const BlockSet& result() { return m_result; }
+
+	/**
+	 * For each block in the result set of the MatchBuilder,
+	 * examine the adjacent locations for Garbage blocks.
+	 * The set of garbage bricks found in this manner is marked
+	 * and available via @ref touched_garbage.
+	 */
+	void find_touch_garbage();
+	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
+
 	int combo() { return m_result.size(); }
 
 private:
 
 	const Pit& pit;
 	BlockSet m_result;
+	GarbageSet m_touched_garbage;
 
 	bool match_at(RowCol rc, Block::Color color);
 	void insert(RowCol rc);
@@ -69,25 +81,55 @@ public:
 
 private:
 
+	using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
 	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
 	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
 
 	Pit& pit;
 	BlockRefVec previews; // blocks which are fresh spawns and currently inactive
-	BlockRefVec fallers; // blocks which we want to start falling soon
+	PhysicalRefVec fallers; // objects which we want to start falling soon
+	GarbageRefVec dissolvers; // blocks which are shrinking or dying
 	BlockRefVec hots; // recently landed or arrived blocks that can start a match
-	GarbageRefVec garbage_fallers; // garbage which we want to start falling soon
 	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
 
 	RndGen rndgen;     // block colors are generated randomly
 
 	void spawn_previews();
-	Block& spawn_block(RowCol rc);
-	Block& spawn_fake(RowCol rc);
 
-	void block_arrive_fall(Block& block);
-	void garbage_arrive_fall(Garbage& garbage);
+	/**
+	 * Put a block of random color at the specified location with the state.
+	 */
+	Block& spawn_random_block(RowCol rc, Block::State state);
+
+	/**
+	 * Fake blocks are used to replace empty spaces for the duration of a swap().
+	 */
+	Block& spawn_fake_block(RowCol rc);
+
+	/**
+	 * Split the garbage block into matchable blocks and the
+	 * smaller remains of the garbage brick.
+	 * All objects involved may fall down immediately.
+	 */
+	void dissolve_garbage(Garbage& garbage);
+
+	/**
+	 * Examine the pit contents for stalling elements, such as blocks in the
+	 * process of breaking up. If no such elements are found, re-enable
+	 * time-based automatic scrolling of the pit.
+	 */
+	void try_resume_pitscroll();
+
+	/**
+	 * Return true if the physical has space to fall down.
+	 * In contrast to @ref Pit::can_fall, which determines whether the object
+	 * can move into the space below immediately, this function tests whether
+	 * it is fit to be placed in the set of “fallers”, to begin falling soon.
+	 */
+	bool can_fall(Physical& physical);
+
+	void arrive_fall(Physical& physical);
 	void block_arrive_swap(Block& block);
 
 	/**

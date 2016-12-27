@@ -155,15 +155,14 @@ bool y_greater(const Block& lhs, const Block& rhs) noexcept
 
 void Garbage::update(IContext& context)
 {
+	game_assert(State::DEAD != m_state, "Cannot update() dead garbage.");
+
 	time--;
 
 	switch(m_state) {
-		case State::REST: break;
 		case State::FALL: fall(); break;
 		case State::LAND: land(); break;
-		case State::BREAK: dobreak(); break;
-		case State::DEAD: throw GameException("Cannot update() dead garbage.");
-		default: SDL_assert_paranoid(false);
+		default: break;
 	}
 }
 
@@ -199,13 +198,6 @@ void Garbage::land()
 {
 	if(time < 0) {
 		set_state(State::REST);
-	}
-}
-
-void Garbage::dobreak()
-{
-	if(time < 0) {
-		set_state(State::DEAD);
 	}
 }
 
@@ -348,7 +340,9 @@ Garbage* Pit::shrink(Garbage& garbage)
 	// The garbage loses one row. If that is all, remove it entirely.
 	if(garbage.shrink() <= 0) {
 		auto is_gone = [] (PhysVec::reference ptr) { return ptr->rows() <= 0; };
-		std::remove_if(m_contents.begin(), m_contents.end(), is_gone);
+		auto new_end = std::remove_if(m_contents.begin(), m_contents.end(), is_gone);
+		m_contents.erase(new_end, m_contents.end());
+
 		refresh_peak();
 		return nullptr;
 	}
