@@ -128,12 +128,12 @@ private:
 void VisualDemo::scenario_dissolve_garbage()
 {
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
-		pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::PREVIEW);
-		pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::PREVIEW);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{0, 2}, Block::State::PREVIEW);
-		pit->spawn_block(Block::Color::GREEN, RowCol{0, 3}, Block::State::PREVIEW);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{0, 4}, Block::State::PREVIEW);
-		pit->spawn_block(Block::Color::ORANGE, RowCol{0, 5}, Block::State::PREVIEW);
+		pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
+		pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
+		pit->spawn_block(Block::Color::YELLOW, RowCol{0, 2}, Block::State::REST);
+		pit->spawn_block(Block::Color::GREEN, RowCol{0, 3}, Block::State::REST);
+		pit->spawn_block(Block::Color::PURPLE, RowCol{0, 4}, Block::State::REST);
+		pit->spawn_block(Block::Color::ORANGE, RowCol{0, 5}, Block::State::REST);
 
 		pit->spawn_block(Block::Color::ORANGE, RowCol{-1, 0}, Block::State::REST);
 		pit->spawn_block(Block::Color::BLUE, RowCol{-1, 1}, Block::State::REST);
