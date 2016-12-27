@@ -23,7 +23,7 @@ stage.o: stage.cpp stage.hpp context.hpp globals.hpp
 draw.o: draw.cpp draw.hpp context.hpp stage.hpp globals.hpp
 director.o: director.cpp director.hpp globals.hpp stage.hpp context.hpp
 screen.o: screen.cpp screen.hpp director.hpp globals.hpp input.hpp stage.hpp context.hpp replay.hpp draw.hpp
-main.o: main.cpp globals.hpp stage.hpp context.hpp asset.hpp sdl_helper.hpp director.hpp screen.hpp draw.hpp
+main.o: main.cpp globals.hpp stage.hpp context.hpp sdl_context.hpp asset.hpp sdl_helper.hpp director.hpp screen.hpp draw.hpp
 # main.o needs less?
 
 clean:
