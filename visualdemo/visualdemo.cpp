@@ -166,8 +166,6 @@ void VisualDemo::scenario_dissolve_garbage()
 	right_block.swap_toward(lrc);
 	pit->swap(left_block, right_block);
 
-	left_block.set_state(Physical::State::FALL); // make block hot for match	
-
 	const int DISSOLVE_T = 52; // ticks until block landed, garbage has shrunk, blocks have fallen down
 	run_game_ticks(DISSOLVE_T);
 

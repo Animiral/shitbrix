@@ -96,17 +96,51 @@ TEST_F(BlockDirectorTest, DissolveGarbage)
 	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
-	auto& left_block = *pit->block_at(RowCol{-2,2});
-	auto& right_block = *pit->block_at(RowCol{-2,3});
-	pit->swap(left_block, right_block); // 3 in a row
-	left_block.set_state(Physical::State::FALL); // make block hot for match	
+	RowCol lrc = RowCol{-2,2};
+	RowCol rrc = RowCol{-2,3};
+	auto& left_block = *pit->block_at(lrc);
+	auto& right_block = *pit->block_at(rrc);
+
+	// 3 in a row
+	left_block.swap_toward(rrc);
+	right_block.swap_toward(lrc);
+	pit->swap(left_block, right_block);
 
 	const int DISSOLVE_T = 52; // ticks until block landed, garbage has shrunk, blocks have fallen down
 	run_game_ticks(DISSOLVE_T);
 
 	EXPECT_EQ(1, garbage.rows());
 	EXPECT_FALSE(pit->garbage_at(RowCol{-4, 3})); // garbage shrunk
-	EXPECT_TRUE(pit->block_at(RowCol{-4, 3})); // block remains
+	EXPECT_TRUE(pit->block_at(RowCol{-4, 2})); // block remains
 	EXPECT_FALSE(pit->block_at(RowCol{-4, 0})); // this block should be falling
 	EXPECT_TRUE(pit->block_at(RowCol{-3, 0})); // down to here
+}
+
+/**
+ * Tests whether blocks spawned from a dissolving garbage correctly fall down.
+ * In particular, there is an issue when blocks are supposed to fall where the
+ * garbage-touching match blocks are being removed.
+ */
+TEST_F(BlockDirectorTest, DissolveAndFall)
+{
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	garbage.set_state(Physical::State::REST);
+
+	RowCol lrc = RowCol{-2,2};
+	RowCol rrc = RowCol{-2,3};
+	auto& left_block = *pit->block_at(lrc);
+	auto& right_block = *pit->block_at(rrc);
+
+	// 3 in a row
+	left_block.swap_toward(rrc);
+	right_block.swap_toward(lrc);
+	pit->swap(left_block, right_block);
+
+	// ticks until block landed, garbage has shrunk, blocks have fallen down
+	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	run_game_ticks(DISSOLVE_T);
+
+	EXPECT_FALSE(pit->at(rrc)); // blocks have matched away
+	EXPECT_FALSE(pit->block_at(RowCol{-4, 3})); // this block has fallen
+	EXPECT_TRUE(pit->block_at(RowCol{-3, 3})); // down to here
 }
