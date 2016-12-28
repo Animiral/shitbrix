@@ -12,7 +12,7 @@ LDLIBS+=-lpthread $$(sdl2-config --libs) -lSDL2_image
 VISUAL_O=visualdemo.o
 
 .all: $(VISUAL_BIN)
-.PHONY: game.a clean run
+.PHONY: $(SRC_DIR)/game.a clean run
 
 # gtest_main.a is the compiled archive of googletest functions
 # including a main() definition. It must be provided manually.
