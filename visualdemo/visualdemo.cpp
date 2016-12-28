@@ -38,7 +38,10 @@ public:
 
 	// virtual void TearDown() {}
 
+	void common_setup(); // creates some blocks to work with, like BlockDirectorTest::SetUp()
+
 	void scenario_dissolve_garbage();
+	void scenario_fall_after_shrink();
 
 private:
 
@@ -125,33 +128,38 @@ private:
 	}
 };
 
+void VisualDemo::common_setup()
+{
+	// 1 preview row, 2 normal rows, 1 half row, match-ready
+	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{0, 2}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::PURPLE, RowCol{0, 4}, Block::State::REST);
+	pit->spawn_block(Block::Color::ORANGE, RowCol{0, 5}, Block::State::REST);
+
+	pit->spawn_block(Block::Color::ORANGE, RowCol{-1, 0}, Block::State::REST);
+	pit->spawn_block(Block::Color::BLUE, RowCol{-1, 1}, Block::State::REST);
+	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-1, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{-1, 4}, Block::State::REST);
+	pit->spawn_block(Block::Color::PURPLE, RowCol{-1, 5}, Block::State::REST);
+
+	pit->spawn_block(Block::Color::BLUE, RowCol{-2, 0}, Block::State::REST);
+	pit->spawn_block(Block::Color::RED, RowCol{-2, 1}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-2, 2}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{-2, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::PURPLE, RowCol{-2, 4}, Block::State::REST);
+	pit->spawn_block(Block::Color::ORANGE, RowCol{-2, 5}, Block::State::REST);
+
+	pit->spawn_block(Block::Color::RED, RowCol{-3, 2}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
+}
+
 void VisualDemo::scenario_dissolve_garbage()
 {
-		// 1 preview row, 2 normal rows, 1 half row, match-ready
-		pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-		pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{0, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{0, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{0, 4}, Block::State::REST);
-		pit->spawn_block(Block::Color::ORANGE, RowCol{0, 5}, Block::State::REST);
-
-		pit->spawn_block(Block::Color::ORANGE, RowCol{-1, 0}, Block::State::REST);
-		pit->spawn_block(Block::Color::BLUE, RowCol{-1, 1}, Block::State::REST);
-		pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{-1, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{-1, 4}, Block::State::REST);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{-1, 5}, Block::State::REST);
-
-		pit->spawn_block(Block::Color::BLUE, RowCol{-2, 0}, Block::State::REST);
-		pit->spawn_block(Block::Color::RED, RowCol{-2, 1}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{-2, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{-2, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{-2, 4}, Block::State::REST);
-		pit->spawn_block(Block::Color::ORANGE, RowCol{-2, 5}, Block::State::REST);
-
-		pit->spawn_block(Block::Color::RED, RowCol{-3, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
+	common_setup();
 
 	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
@@ -175,12 +183,38 @@ void VisualDemo::scenario_dissolve_garbage()
 
 	const int DEMO_T = 500; // observation ticks
 	run_game_ticks(DEMO_T);
+}
 
-	// EXPECT_EQ(1, garbage.rows());
-	// EXPECT_FALSE(pit->garbage_at(RowCol{-4, 3})); // garbage shrunk
-	// EXPECT_TRUE(pit->block_at(RowCol{-4, 3})); // block remains
-	// EXPECT_FALSE(pit->block_at(RowCol{-4, 0})); // this block should be falling
-	// EXPECT_TRUE(pit->block_at(RowCol{-3, 0})); // down to here
+void VisualDemo::scenario_fall_after_shrink()
+{
+	common_setup();
+
+	RowCol garbage_rc{-6,0};
+	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2); // chain garbage
+	garbage.set_state(Physical::State::REST);
+
+	// vertical match just under the garbage
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
+
+	RowCol lrc = RowCol{-3,2};
+	RowCol rrc = RowCol{-3,3};
+	auto& left_block = *pit->block_at(lrc);
+	auto& right_block = *pit->block_at(rrc);
+
+	// 3 in a row
+	left_block.swap_toward(rrc);
+	right_block.swap_toward(lrc);
+	pit->swap(left_block, right_block);
+
+	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
+	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	run_game_ticks(DISSOLVE_T);
+
+	// signal to user that test-case time is up
+	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+
+	const int DEMO_T = 500; // observation ticks
+	run_game_ticks(DEMO_T);
 }
 
 class Options
@@ -241,6 +275,10 @@ int main(int argc, const char* argv[])
 		default:
 		case 0:
 			demo.scenario_dissolve_garbage();
+			break;
+
+		case 1:
+			demo.scenario_fall_after_shrink();
 			break;
 	}
 }
