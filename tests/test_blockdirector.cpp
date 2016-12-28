@@ -144,3 +144,35 @@ TEST_F(BlockDirectorTest, DissolveAndFall)
 	EXPECT_FALSE(pit->block_at(RowCol{-4, 3})); // this block has fallen
 	EXPECT_TRUE(pit->block_at(RowCol{-3, 3})); // down to here
 }
+
+/**
+ * Tests whether a partially dissolved garbage block itself correctly falls
+ * down when there is immediately no support to hold it up after dissolving it.
+ */
+TEST_F(BlockDirectorTest, FallAfterShrink)
+{
+	RowCol garbage_rc{-6,0};
+	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2); // chain garbage
+	garbage.set_state(Physical::State::REST);
+
+	// vertical match just under the garbage
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
+
+	RowCol lrc = RowCol{-3,2};
+	RowCol rrc = RowCol{-3,3};
+	auto& left_block = *pit->block_at(lrc);
+	auto& right_block = *pit->block_at(rrc);
+
+	// 3 in a row
+	left_block.swap_toward(rrc);
+	right_block.swap_toward(lrc);
+	pit->swap(left_block, right_block);
+
+	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
+	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	run_game_ticks(DISSOLVE_T);
+
+	EXPECT_EQ(Physical::State::FALL, garbage.physical_state()); // garbage has moved
+	EXPECT_FALSE(pit->garbage_at(garbage_rc)); // garbage has fallen
+	EXPECT_EQ(&garbage, pit->garbage_at(RowCol{-5, 3})); // down to here
+}
