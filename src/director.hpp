@@ -72,74 +72,22 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
+	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), m_over(false), rndgen(rndgen) {}
 
 	bool over() const { return m_over; }
+
+	/**
+	 * Run one tick of game logic over the game state.
+	 */
 	void update(IContext& context);
 	bool swap(RowCol lrc);
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
 private:
 
-	using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
-	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
-	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
-
 	Pit& pit;
-	BlockRefVec previews; // blocks which are fresh spawns and currently inactive
-	PhysicalRefVec fallers; // objects which we want to start falling soon
-	GarbageRefVec dissolvers; // blocks which are shrinking or dying
-	BlockRefVec hots; // recently landed or arrived blocks that can start a match
-	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
-
 	RndGen rndgen;     // block colors are generated randomly
-
-	void spawn_previews();
-
-	/**
-	 * Put a block of random color at the specified location with the state.
-	 */
-	Block& spawn_random_block(RowCol rc, Block::State state);
-
-	/**
-	 * Fake blocks are used to replace empty spaces for the duration of a swap().
-	 */
-	Block& spawn_fake_block(RowCol rc);
-
-	/**
-	 * Split the garbage block into matchable blocks and the
-	 * smaller remains of the garbage brick.
-	 * All objects involved may fall down immediately.
-	 */
-	void dissolve_garbage(Garbage& garbage);
-
-	/**
-	 * Examine the pit contents for stalling elements, such as blocks in the
-	 * process of breaking up. If no such elements are found, re-enable
-	 * time-based automatic scrolling of the pit.
-	 */
-	void try_resume_pitscroll();
-
-	/**
-	 * Return true if the physical has space to fall down.
-	 * In contrast to @ref Pit::can_fall, which determines whether the object
-	 * can move into the space below immediately, this function tests whether
-	 * it is fit to be placed in the set of “fallers”, to begin falling soon.
-	 */
-	bool can_fall(Physical& physical);
-
-	void arrive_fall(Physical& physical);
-	void block_arrive_swap(Block& block);
-
-	/**
-	 * Make blocks above the recently-freed location fall down.
-	 */
-	void trigger_falls(RowCol free);
-	void trigger_falls_impl(RowCol rc);
-
-	void activate_previews();
-	void game_over();
 
 };
 

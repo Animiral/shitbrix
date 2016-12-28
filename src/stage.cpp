@@ -14,6 +14,16 @@ void Physical::set_rc(RowCol rc)
 	m_rc = rc;
 }
 
+bool Physical::is_arriving() const noexcept
+{
+	return State::FALL == m_state && m_offset.y >= 0 && m_offset.y < FALL_SPEED;
+}
+
+bool Physical::is_fallible() const noexcept
+{
+	return State::REST == m_state || State::LAND == m_state;
+}
+
 void Physical::set_state(State state)
 {
 	SDL_assert(State::DEAD == state ||
@@ -72,17 +82,6 @@ void Block::swap_toward(RowCol target) noexcept
 	m_state = static_cast<Physical::State>(State::SWAP);
 	time = SWAP_TIME;
 	m_target = from_rc(target);
-}
-
-bool Block::is_arriving() const noexcept
-{
-	return State::FALL == block_state() && m_offset.y >= 0 && m_offset.y < FALL_SPEED;
-}
-
-bool Block::is_fallible() const noexcept
-{
-	State state = block_state();
-	return State::REST == state || State::LAND == state;
 }
 
 bool Block::is_swappable() const noexcept
@@ -176,16 +175,6 @@ void Garbage::set_state(State state)
 	else if(State::LAND == state) {
 		time = LAND_TIME;
 	}
-}
-
-bool Garbage::is_arriving() noexcept
-{
-	return State::FALL == m_state && m_offset.y >= 0 && m_offset.y < FALL_SPEED;
-}
-
-bool Garbage::is_fallible() const noexcept
-{
-	return State::REST == m_state || State::LAND == m_state;
 }
 
 void Garbage::fall()
