@@ -222,3 +222,53 @@ TEST_F(BlockDirectorTest, FallAfterShrink)
 	EXPECT_FALSE(pit->garbage_at(garbage_rc)); // garbage has fallen
 	EXPECT_EQ(&garbage, pit->garbage_at(RowCol{-5, 3})); // down to here
 }
+
+/**
+ * Tests whether a swapping block correctly falls down after it arrives in a
+ * space with nothing below. All blocks above must fall with it.
+ */
+TEST_F(BlockDirectorTest, FallAfterSwap)
+{
+	// This is the block that is going to do the swapping (to the right).
+	// At the last moment before it completes the swap, a green block lands
+	// on the red block. The red block notices it doesn’t have ground and falls.
+	// The green block immediately falls with it.
+	Block& red_block = pit->spawn_block(Block::Color::RED, RowCol{-4, 4}, Block::State::REST);
+	Block* green_block = nullptr;
+	bool swapping = false;
+
+	const int SWAP_T = Block::SWAP_TIME;
+	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED);
+	const int LAND_MOMENT = std::max(SWAP_T, FALL_T) + 1;
+	const int SWAP_START = LAND_MOMENT - SWAP_T;
+	const int SPAWN_MOMENT = LAND_MOMENT - FALL_T - 1;
+
+	for(int t = 0; t < LAND_MOMENT; t++) {
+		if(SWAP_START == t) {
+			swapping = director->swap(RowCol{-4,4});
+		}
+		if(SPAWN_MOMENT == t) {
+			green_block = &pit->spawn_block(Block::Color::GREEN, RowCol{-6, 5}, Block::State::FALL);
+		}
+
+		if(LAND_MOMENT-1 == t) {
+			EXPECT_EQ(1, red_block.time);
+			EXPECT_EQ(Block::State::SWAP, red_block.block_state());
+			EXPECT_EQ(Block::State::LAND, green_block->block_state());
+		}
+
+		run_game_ticks(1);
+	}
+
+	// both events must have occurred
+	ASSERT_TRUE(swapping);
+	ASSERT_TRUE(green_block);
+
+	// both blocks are now falling
+	RowCol expected_red_rc{-3,5};
+	RowCol expected_green_rc{-4,5};
+	EXPECT_EQ(expected_red_rc, red_block.rc());
+	EXPECT_EQ(Block::State::FALL, red_block.block_state());
+	EXPECT_EQ(expected_green_rc, green_block->rc());
+	EXPECT_EQ(Block::State::FALL, green_block->block_state());
+}
