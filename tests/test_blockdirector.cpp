@@ -73,7 +73,8 @@ TEST_F(BlockDirectorTest, LandAndMatch)
 	auto& top_block = pit->spawn_block(Block::Color::RED, RowCol{-7, 2}, Block::State::FALL);
 	auto& mid_block = pit->spawn_block(Block::Color::RED, RowCol{-5, 2}, Block::State::FALL);
 
-	const int FALL_T = ((BLOCK_H/FALL_SPEED)+2)*2; // ticks until blocks landed and match
+	// wait until blocks landed and match
+	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)*2/FALL_SPEED);
 	run_game_ticks(FALL_T);
 
 	EXPECT_EQ(Block::State::BREAK, top_block.block_state());
@@ -85,6 +86,51 @@ TEST_F(BlockDirectorTest, LandAndMatch)
 	run_game_ticks(Block::BREAK_TIME);
 	EXPECT_FALSE(pit->at(top_final_rc)); // matched blocks are gone
 	EXPECT_FALSE(pit->at(mid_final_rc));
+}
+
+/**
+ * Tests whether blocks correctly cause a match when one lands next
+ * to others of the same color. This test is more rigorous than LandAndMatch.
+ */
+TEST_F(BlockDirectorTest, HorizontalMatch)
+{
+	pit->spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
+	auto& fall_block = pit->spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
+	const RowCol swap_target_rc{-4,1};
+	bool swapping = director->swap(swap_target_rc);
+	ASSERT_TRUE(swapping);
+	ASSERT_EQ(swap_target_rc, fall_block.rc());
+	ASSERT_EQ(Block::State::SWAP, fall_block.block_state());
+
+	// wait until block has swapped above the gap
+	const int SWAP_T = Block::SWAP_TIME;
+	ASSERT_EQ(SWAP_T, fall_block.time);
+	run_game_ticks(SWAP_T-1);
+	EXPECT_EQ(swap_target_rc, fall_block.rc());
+	EXPECT_EQ(Block::State::SWAP, fall_block.block_state());
+	run_game_ticks(1);
+	const RowCol fall_target_rc{-3,1};
+	EXPECT_EQ(fall_target_rc, fall_block.rc());
+	EXPECT_EQ(Block::State::FALL, fall_block.block_state());
+
+	// wait until block lands and matches
+	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED);
+	// EXPECT_EQ(FALL_T, fall_block.time); // NOTE: falling does not run on time (yet)
+	run_game_ticks(FALL_T-1);
+	EXPECT_EQ(Block::State::FALL, fall_block.block_state());
+	run_game_ticks(1);
+	EXPECT_EQ(Block::State::BREAK, fall_block.block_state());
+
+	const int BREAK_T = Block::BREAK_TIME;
+	EXPECT_EQ(BREAK_T, fall_block.time);
+	run_game_ticks(BREAK_T-1);
+	EXPECT_EQ(1, fall_block.time);
+	run_game_ticks(1);
+
+	// matched blocks are gone
+	EXPECT_FALSE(pit->at(RowCol{-3,0}));
+	EXPECT_FALSE(pit->at(RowCol{-3,1}));
+	EXPECT_FALSE(pit->at(RowCol{-3,2}));
 }
 
 /**
