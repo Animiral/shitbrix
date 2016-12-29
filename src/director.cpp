@@ -386,6 +386,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		// Block-specifics
 		if(Block* block = dynamic_cast<Block*>(&*physical)) {
 			Block::State state = block->block_state();
+			bool above_fall = false; // whether objects above this one might fall
 
 			// blocks finished swapping
 			if(Block::State::SWAP == state && block->time <= 0) {
@@ -397,6 +398,8 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 				else {
 					*fallers++ = *block;
 					*hots++ = *block;
+
+					above_fall = true;
 				}
 			}
 
@@ -407,6 +410,10 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 				if(Block::Color::FAKE != block->col)
 					dead_sound = true;
 
+				above_fall = true;
+			}
+
+			if(above_fall) {
 				RowCol rc = block->rc();
 				rc.r--;
 				trigger_falls(pit, rc, fallers);
