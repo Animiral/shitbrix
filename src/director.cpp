@@ -227,15 +227,6 @@ void BlockDirector::update(IContext& context)
 	pit.highlight(pit.peak());
 }
 
-/**
- * Attempt to set the block or space at lrc to swap with the one to the right of it.
- *
- * The following conditions must be met for success:
- *  - Both blocks must be in a swappable state. These are REST, SWAP, FALL, LAND.
- *  - A block can swap with a space, but two spaces cannot be swapped.
- *
- * Returns true if the swap was successful, false otherwise.
- */
 bool BlockDirector::swap(RowCol lrc)
 {
 	// bounds check
@@ -369,7 +360,6 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		Physical::State state = physical->physical_state();
 
 		if(Physical::State::FALL == state && physical->is_arriving()) {
-
 			// can never fall lower than the preview row of blocks
 			game_assert(physical->rc().r + physical->rows() - 1 <= pit.bottom(), "Object falls too low");
 
@@ -396,6 +386,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		// Block-specifics
 		if(Block* block = dynamic_cast<Block*>(&*physical)) {
 			Block::State state = block->block_state();
+			bool above_fall = false; // whether objects above this one might fall
 
 			// blocks finished swapping
 			if(Block::State::SWAP == state && block->time <= 0) {
@@ -407,6 +398,8 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 				else {
 					*fallers++ = *block;
 					*hots++ = *block;
+
+					above_fall = true;
 				}
 			}
 
@@ -417,6 +410,10 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 				if(Block::Color::FAKE != block->col)
 					dead_sound = true;
 
+				above_fall = true;
+			}
+
+			if(above_fall) {
 				RowCol rc = block->rc();
 				rc.r--;
 				trigger_falls(pit, rc, fallers);
@@ -492,6 +489,10 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 			physical.set_state(Physical::State::REST);
 		}
 	}
+
+	// blocks cannot match if they are falling down!
+	auto is_falling = [](Physical& p) { return Physical::State::FALL == p.physical_state(); };
+	hots_end = std::remove_if(std::begin(hots), std::end(hots), is_falling);
 }
 
 template<typename Hots>
