@@ -21,27 +21,39 @@ class MatchBuilder
 private:
 
 	/**
-	 * Helper struct to enable a std::set of blocks
+	 * Helper struct to enable a std::set of blocks and garbage
 	 */
-	struct BlockLess
+	struct PhysicalLess
 	{
-		bool operator()(const Block& lhs, const Block& rhs) const { return lhs.rc() < rhs.rc(); }
+		bool operator()(const Physical& lhs, const Physical& rhs) const { return lhs.rc() < rhs.rc(); }
 	};
 
 public:
 
-	using BlockSet = std::set<std::reference_wrapper<Block>, BlockLess>;
+	using BlockSet = std::set<std::reference_wrapper<Block>, PhysicalLess>;
+	using GarbageSet = std::set<std::reference_wrapper<Garbage>, PhysicalLess>;
 
 	MatchBuilder(const Pit& pit) : pit(pit) {}
 
 	void ignite(Block& block);
 	const BlockSet& result() { return m_result; }
+
+	/**
+	 * For each block in the result set of the MatchBuilder,
+	 * examine the adjacent locations for Garbage blocks.
+	 * The set of garbage bricks found in this manner is marked
+	 * and available via @ref touched_garbage.
+	 */
+	void find_touch_garbage();
+	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
+
 	int combo() { return m_result.size(); }
 
 private:
 
 	const Pit& pit;
 	BlockSet m_result;
+	GarbageSet m_touched_garbage;
 
 	bool match_at(RowCol rc, Block::Color color);
 	void insert(RowCol rc);
@@ -60,44 +72,22 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), bottom(0), m_over(false), rndgen(rndgen) {}
+	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), m_over(false), rndgen(rndgen) {}
 
 	bool over() const { return m_over; }
+
+	/**
+	 * Run one tick of game logic over the game state.
+	 */
 	void update(IContext& context);
 	bool swap(RowCol lrc);
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
 private:
 
-	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
-	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
-
 	Pit& pit;
-	BlockRefVec previews; // blocks which are fresh spawns and currently inactive
-	BlockRefVec fallers; // blocks which we want to start falling soon
-	BlockRefVec hots; // recently landed or arrived blocks that can start a match
-	GarbageRefVec garbage_fallers; // garbage which we want to start falling soon
-	int bottom; // lowest row that we have already spawned blocks for
 	bool m_over; // whether the game is over (the player with this Director loses)
-
 	RndGen rndgen;     // block colors are generated randomly
-
-	void spawn_previews();
-	Block& spawn_block(RowCol rc);
-	Block& spawn_fake(RowCol rc);
-
-	void block_arrive_fall(Block& block);
-	void garbage_arrive_fall(Garbage& garbage);
-	void block_arrive_swap(Block& block);
-
-	/**
-	 * Make blocks above the recently-freed location fall down.
-	 */
-	void trigger_falls(RowCol free);
-	void trigger_falls_impl(RowCol rc);
-
-	void activate_previews();
-	void game_over();
 
 };
 

@@ -354,3 +354,21 @@ TEST_F(PitTest, KillGarbage)
 		"GGGGGG";
 	EXPECT_EQ(0, contents_mismatch(*pit, content_str));
 }
+
+/**
+ * Tests whether a Garbage block is really gone when shrunk.
+ */
+TEST_F(PitTest, KillAndErase)
+{
+	RowCol combo_rc{1, 2};
+	RowCol chain_rc{3, 0};
+	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
+	pit->spawn_garbage(chain_rc, 6, 2);
+
+	pit->shrink(combo_gb);
+
+	for(auto it = pit->contents().begin(), end = pit->contents().end(); it != end; ++it)
+		EXPECT_TRUE(*it); // no nullptr objects left over
+
+	EXPECT_EQ(1, pit->contents().size());
+}

@@ -44,6 +44,12 @@ public:
 	void set_rc(RowCol rc);
 	State physical_state() const noexcept { return m_state; }
 
+	/**
+	 * Returns true if the Physical is just now arriving at the center of a new row.
+	 */
+	bool is_arriving() const noexcept;
+	bool is_fallible() const noexcept;
+
 	virtual int rows() const noexcept =0;
 	virtual int columns() const noexcept =0;
 	virtual void set_state(State state);
@@ -104,11 +110,6 @@ public:
 	 */
 	void swap_toward(RowCol target) noexcept;
 
-	/**
-	 * Returns true if the block is just now arriving at the center of a new row.
-	 */
-	bool is_arriving() const noexcept;
-	bool is_fallible() const noexcept;
 	bool is_swappable() const noexcept;
 	bool is_matchable() const noexcept;
 
@@ -172,9 +173,6 @@ public:
 	virtual void set_state(State state) override;
 
 	int shrink() { return --m_rows; }
-
-	bool is_arriving() noexcept;
-	bool is_fallible() const noexcept;
 
 	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to dissolve
 	static constexpr int LAND_TIME = 20; // number of ticks in a garbage’s landing animation

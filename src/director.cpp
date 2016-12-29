@@ -34,6 +34,24 @@ void MatchBuilder::ignite(Block& block)
 	}
 }
 
+void MatchBuilder::find_touch_garbage()
+{
+	auto insert_if_garbage_at = [this] (RowCol rc)
+	{
+		Garbage* garbage = pit.garbage_at(rc);
+		if(garbage)
+			m_touched_garbage.insert(*garbage);
+	};
+
+	for(Block& block : m_result) {
+		RowCol rc = block.rc();
+		insert_if_garbage_at(RowCol{rc.r-1, rc.c});
+		insert_if_garbage_at(RowCol{rc.r+1, rc.c});
+		insert_if_garbage_at(RowCol{rc.r, rc.c-1});
+		insert_if_garbage_at(RowCol{rc.r, rc.c+1});
+	}
+}
+
 bool MatchBuilder::match_at(RowCol rc, Block::Color color)
 {
 	Block* next = pit.block_at(rc);
@@ -47,156 +65,163 @@ void MatchBuilder::insert(RowCol rc)
 	m_result.insert(*match_block);
 }
 
+// elemental game logic functions
+namespace
+{
 
 /**
- * Spawn blocks at regular intervals, clean up dead blocks
+ * Put a block of random color at the specified location with the state.
  */
+template<typename RndGen>
+Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, RndGen& rndgen);
+
+/**
+ * Fake blocks are used to replace empty spaces for the duration of a swap().
+ */
+Block& spawn_fake_block(Pit& pit, RowCol rc);
+
+/**
+ * Mark all objects at the given location and above as potentially falling.
+ */
+template<typename OutIt>
+void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers);
+
+/**
+ * Examine the pit contents and start the pit scrolling, if desired.
+ * We look for stalling elements, such as blocks in the process of breaking up.
+ * If no such elements are found, re-enable time-based automatic scrolling of
+ * the pit.
+ */
+void try_resume_pitscroll(Pit& pit);
+
+/**
+ * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
+ * At the same time, the previous previews become normal blocks at rest.
+ * In this instant, they are added to the *hots* set.
+ *
+ * @param pit Pit object
+ * @param hots Output iterator for blocks that have become hot (match-ready)
+ * @param rndgen Pseudo-random number source for new blocks
+ */
+template<typename OutIt, typename RndGen>
+void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
+
+/**
+ * Classify Physicals whose states are “running out”.
+ * For example, an object’s internal timer can run out while they are falling,
+ * indicating that they have reached their target location.
+ *
+ * @param pit Pit object
+ * @param dissolvers Output iterator for Garbage that is breaking down
+ * @param fallers Output iterator for objects that may fall down
+ * @param hots Output iterator for blocks that have become hot (match-ready)
+ * @param[out] panic Flag which indicates true if pit objects have stacked to the top
+ * @param[out] dead_physical Flag which indicates true if there are new dead physicals
+ * @param[out] dead_block Flag which indicates true if there are new dead blocks
+ * @param[out] dead_sound Flag which indicates true if there are non-fake dead blocks
+ */
+template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>
+void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
+                    BlockOutIt hots, bool& panic, bool& dead_physical,
+                    bool& dead_block, bool& dead_sound);
+
+/**
+ * Shrink or remove expired garbage blocks from the *dissolvers* set.
+ *
+ * @param pit Pit object
+ * @param dissolvers Set of broken Garbage bricks to dissolve
+ * @param fallers Output iterator for objects that may fall down
+ * @param hots Output iterator for blocks that have become hot (match-ready)
+ * @param rndgen Pseudo-random number source for new blocks
+ */
+template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt, typename RndGen>
+void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
+                     BlockOutIt hots, bool& dead_physical, RndGen& rndgen);
+
+/**
+ * All physicals in the *fallers* set now actually enter the *fall*
+ * state if possible.
+ * Successful fallers can not match and are therefore removed from
+ * the *hots* set.
+ * Since the actual container is generic, the contents are merely rearranged
+ * using std::remove. The new end iterator output must be used by the
+ * client to actually erase those items.
+ *
+ * @param pit Pit object
+ * @param fallers Set of Physical objects that might fall
+ * @param hots Set of Blocks marked as hot
+ * @param[out] hots_end New end iterator for reduced set of hots; see std::remove
+ */
+template<typename Fallers, typename Hots>
+void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
+                    typename Hots::iterator& hots_end);
+
+/**
+ * All matching blocks and all adjacent garbage bricks enter the *break* state.
+ *
+ * @param pit Pit object
+ * @param hots Set of Blocks marked as hot
+ * @param[out] have_match Flag which indicates true if there is at least one match
+ * @param[out] combo Counter for the number of blocks matched
+ * @param[out] chain Counter for the N-th match in a row
+ */
+template<typename Hots>
+void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain);
+
+}
+
 void BlockDirector::update(IContext& context)
 {
-	// spawn blocks from below
-	spawn_previews();
+	using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
+	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
+	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
 
-	// Handle individual logic for each block
-	bool have_dead = false; // true if pit needs to clean up
-	bool dead_sound = false; // true if there was at least one non-fake dead
+	BlockRefVec previews;     // blocks which are fresh spawns and currently inactive
+	GarbageRefVec dissolvers; // blocks which are shrinking or dying
+	PhysicalRefVec fallers;   // objects which we want to start falling soon
+	BlockRefVec hots;         // recently landed or arrived blocks that can start a match
 
-	auto& pit_contents = pit.contents();
+	bool panic = false;         // true if game over is threatened
+	bool dead_physical = false; // true if pit needs to resume scrolling
+	bool dead_block = false;    // true if pit needs to clean up
+	bool dead_sound = false;    // true if there was at least one non-fake dead
 
-	// Blocks
-	for(auto& physical : pit_contents)
-	if(Block* block = dynamic_cast<Block*>(&*physical)) {
-		Block::State state = block->block_state();
+	spawn_previews(pit, std::back_inserter(hots), *rndgen);
 
-		// block above top => game over
-		if(block->rc().r < pit.top()) {
-			game_over();
-			break; // interrupt blocks logic because game_over might invalidate blocks list
-		}
+	examine_finish(pit, std::back_inserter(dissolvers), std::back_inserter(fallers),
+	               std::back_inserter(hots), panic, dead_physical, dead_block,
+	               dead_sound);
 
-		// falling blocks arrived at next row (center)
-		if(state == Block::State::FALL) {
-			// land block?
-			if(block->is_arriving()) {
-				block_arrive_fall(*block);
-			}
-		}
+	// game over check
+	if(panic)
+		m_over = true;
 
-		// blocks finished swapping
-		if(Block::State::SWAP == state && block->time <= 0) {
-			block_arrive_swap(*block);
-			state = block->block_state(); // NOTE: block_arrive_swap may change the state
-		}
+	convert_garbage(pit, dissolvers, std::back_inserter(fallers),
+	                std::back_inserter(hots), dead_physical, *rndgen);
 
-		// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
-		if(Block::State::DEAD == state) {
-			have_dead = true; // don’t remove them just yet as it would mess up the iterators
-			if(Block::Color::FAKE != block->col)
-				dead_sound = true;
+	if(dead_physical)
+		try_resume_pitscroll(pit);
 
-			trigger_falls(block->rc());
+	for(Physical& phys : fallers)
+		game_assert(Physical::State::DEAD != phys.physical_state(), "dead blocks cannot fall");
 
-			auto is_breaking = [] (std::unique_ptr<Physical>& p) { return p->physical_state() == Physical::State::BREAK; };
-			auto breaking = std::find_if(pit_contents.begin(), pit_contents.end(), is_breaking);
-			if(pit_contents.end() == breaking) {
-				pit.start();
-			}
-		}
-	}
-
-	// Garbage
-	for(auto& physical : pit.contents())
-	if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
-		Physical::State state = garbage->physical_state();
-
-		// falling garbage arrived at next row (center)
-		if(state == Physical::State::FALL) {
-			// land garbage?
-			if(garbage->is_arriving()) {
-				garbage_arrive_fall(*garbage);
-			}
-		}
-	}
-
-	// Examine hots for matches
-	if(!hots.empty()) {
-		auto builder = MatchBuilder(pit);
-
-		for(auto it = hots.begin(); it != hots.end(); ++it) {
-			builder.ignite(*it);	
-		}
-
-		auto& breaks = builder.result();
-
-		if(!breaks.empty()) {
-			context.play(Snd::MATCH);
-			pit.stop();
-
-			for(auto it = breaks.begin(); it != breaks.end(); ++it) {
-				Block& block = *it;
-				block.set_state(Physical::State::BREAK);
-			}
-		}
-
-		hots.clear();
-	}
-
-	// Handle individual logic for each garbage
-	for(auto& physical : pit.contents())
-	if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
-		Physical::State state = garbage->physical_state();
-
-		// falling blocks arrived at next row (center)
-		if(state == Physical::State::FALL) {
-			// land block?
-			if(garbage->is_arriving()) {
-				garbage_arrive_fall(*garbage);
-			}
-		}
-	}
-
-	if(have_dead)
-	{
+	if(dead_block)
 		pit.remove_dead();
 
-		if(dead_sound)
-			context.play(Snd::BREAK);
-	}
+	if(dead_sound)
+		context.play(Snd::BREAK);
 
-	// make fallers fall
-	while(!fallers.empty() || !garbage_fallers.empty()) {
-		bool changed = false;
+	BlockRefVec::iterator hots_end = hots.end();
+	handle_fallers(pit, fallers, hots, hots_end);
+	hots.erase(hots_end, hots.end());
 
-		for(auto it = fallers.begin(); it != fallers.end(); ) {
-			Block& block = *it;
-			if(pit.can_fall(block)) {
-				block.set_state(Physical::State::FALL);
-				pit.fall(block);
-				it = fallers.erase(it);
-				changed = true;
-			}
-			else {
-				++it;
-			}
-		}
+	int combo = 0;
+	int chain = 0;
+	bool have_match = false;
+	handle_hots(pit, hots, have_match, combo, chain);
 
-		for(auto it = garbage_fallers.begin(); it != garbage_fallers.end(); ) {
-			Garbage& garbage = *it;
-			if(pit.can_fall(garbage)) {
-				garbage.set_state(Physical::State::FALL);
-				pit.fall(garbage);
-				it = garbage_fallers.erase(it);
-				changed = true;
-			}
-			else {
-				++it;
-			}
-		}
-
-		if(!changed) {
-			garbage_fallers.clear();
-			game_assert(fallers.empty(), "falling blocks are stuck");
-		}
-	}
+	if(have_match)
+		context.play(Snd::MATCH);
 
 	// debug: show what the pit considers to be its peak row
 	pit.highlight(pit.peak());
@@ -230,8 +255,8 @@ bool BlockDirector::swap(RowCol lrc)
 
 	// fake blocks - they last only for the duration of the swap, blocking other
 	// falling blocks from going through the space.
-	if(!left) left = &spawn_fake(lrc);
-	if(!right) right = &spawn_fake(rrc);
+	if(!left) left = &spawn_fake_block(pit, lrc);
+	if(!right) right = &spawn_fake_block(pit, rrc);
 
 	// do swap
 	left->swap_toward(rrc);
@@ -247,152 +272,6 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
 }
 
-/**
- * Bring up a new row of preview blocks and enable the previous row, if necessary.
- */
-void BlockDirector::spawn_previews()
-{
-	while(bottom <= pit.bottom()) {
-		activate_previews();
-
-		bottom++;
-		for(int i = 0; i < PIT_COLS; i++) {
-			RowCol rc {bottom, i};
-			Block& block = spawn_block(rc);
-			previews.push_back(block);
-		}
-	}
-}
-
-Block& BlockDirector::spawn_block(RowCol rc)
-{
-	Block::Color spawn_color = static_cast<Block::Color>(static_cast<int>(Block::Color::BLUE) + (*rndgen)() % 6);
-	Block& block = pit.spawn_block(spawn_color, rc, Block::State::PREVIEW);
-	return block;
-}
-
-/**
- * Fake blocks are used to replace empty spaces for the duration of a swap().
- */
-Block& BlockDirector::spawn_fake(RowCol rc)
-{
-	Block& block = pit.spawn_block(Block::Color::FAKE, rc, Block::State::REST);
-	return block;
-}
-
-void BlockDirector::block_arrive_fall(Block& block)
-{
-	RowCol rc = block.rc();
-	RowCol next { rc.r + 1, rc.c };
-
-	SDL_assert(next.r <= bottom); // can never fall lower than the preview row of blocks
-
-	// If the next space is free, the block goes on to fall. Otherwise, it lands.
-	if(pit.block_at(next)) {
-		block.set_state(Physical::State::LAND);
-		hots.push_back(block);
-	}
-	else {
-		fallers.push_back(block);
-	}
-}
-
-void BlockDirector::garbage_arrive_fall(Garbage& garbage)
-{
-	RowCol rc = garbage.rc();
-	int next_row = rc.r + garbage.rows();
-
-	SDL_assert(next_row <= bottom); // can never fall lower than the preview row of blocks
-
-	// If the next space is free, the garbage goes on to fall. Otherwise, it lands.
-	bool something_there = false;
-	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
-		if(pit.at(RowCol{next_row,c})) {
-			something_there = true;
-		}
-	}
-
-	if(something_there) {
-		garbage.set_state(Physical::State::LAND);
-	}
-	else {
-		garbage_fallers.push_back(garbage);
-	}
-}
-
-void BlockDirector::block_arrive_swap(Block& block)
-{
-	// fake blocks are only for swapping and disappear right afterwards
-	if(Block::Color::FAKE == block.col) {
-		block.set_state(Physical::State::DEAD);
-		return;
-	}
-
-	if(pit.can_fall(block)) {
-		fallers.push_back(block);
-	}
-	else {
-		block.set_state(Physical::State::REST);
-		hots.push_back(block);
-	}
-}
-
-void BlockDirector::trigger_falls(RowCol free)
-{
-	// Release blockage & blocks above the dead block => fall down
-	trigger_falls_impl(RowCol{free.r - 1, free.c});
-}
-
-// Helper function to trigger falling blocks while we don’t yet have base class Physical
-void BlockDirector::trigger_falls_impl(RowCol rc)
-{
-	Block* block = pit.block_at(rc);
-
-	if(block) {
-		if(block->is_fallible()) {
-			fallers.push_back(*block);
-			trigger_falls_impl(RowCol{rc.r - 1, rc.c});
-		}
-	}
-
-	Garbage* garbage = pit.garbage_at(rc);
-
-	if(garbage) {
-		if(garbage->is_fallible()) {
-			garbage_fallers.push_back(*garbage);
-
-			rc = garbage->rc();
-			for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
-				trigger_falls_impl(RowCol{rc.r - 1, c});
-			}
-		}
-	}
-}
-
-/**
- * Make all blocks from the preview row into regular matchable resting blocks.
- * This assumes that they have now fully scrolled into view.
- */
-void BlockDirector::activate_previews()
-{
-	for(Block& block : previews) {
-		block.set_state(Physical::State::REST);
-		hots.push_back(block);
-	}
-
-	previews.clear();
-}
-
-/**
- * Preliminary game over implementation: kill all blocks and just continue
- */
-void BlockDirector::game_over()
-{
-	pit.clear();
-
-	m_over = true;
-}
-
 
 void CursorDirector::move(Dir dir)
 {
@@ -406,4 +285,240 @@ void CursorDirector::move(Dir dir)
 		case Dir::DOWN: if(rc.r < pit.bottom()) m_cursor.rc.r++; break;
 		default: SDL_assert(false);
 	}
+}
+
+// --- implementation of module-specific functions ---
+
+namespace
+{
+
+template<typename RndGen>
+Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, RndGen& rndgen)
+{
+	Block::Color block_color = static_cast<Block::Color>(static_cast<int>(Block::Color::BLUE) + rndgen() % 6);
+	Block& block = pit.spawn_block(block_color, rc, state);
+	return block;
+}
+
+Block& spawn_fake_block(Pit& pit, RowCol rc)
+{
+	Block& block = pit.spawn_block(Block::Color::FAKE, rc, Block::State::REST);
+	return block;
+}
+
+template<typename OutIt>
+void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers)
+{
+	if(Physical* physical = pit.at(rc)) {
+		if(physical->is_fallible()) {
+			if(Physical::State::DEAD != physical->physical_state())
+				*fallers++ = *physical;
+
+			rc = physical->rc();
+			for(int c = rc.c; c < rc.c + physical->columns(); c++) {
+				trigger_falls(pit, RowCol{rc.r - 1, c}, fallers);
+			}
+		}
+	}
+}
+
+void try_resume_pitscroll(Pit& pit)
+{
+	auto& pit_contents = pit.contents();
+	auto is_breaking = [] (std::unique_ptr<Physical>& p) { return p->physical_state() == Physical::State::BREAK; };
+
+	auto breaking = std::find_if(pit_contents.begin(), pit_contents.end(), is_breaking);
+	if(pit_contents.end() == breaking) {
+		pit.start();
+	}
+}
+
+template<typename OutIt, typename RndGen>
+void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
+{
+	// If there are no blocks in the pit’s bottom row, refill previews.
+	// For gameplay to work properly, the pit scroll speed must be less
+	// than one full row per tick.
+	int bottom_row = pit.bottom() + 1;
+	RowCol bottom_rc{bottom_row, 0};
+
+	if(!pit.at(bottom_rc)) {
+		for(int c = 0; c < PIT_COLS; c++) {
+			RowCol spawn_rc{bottom_row, c};
+			spawn_random_block(pit, spawn_rc, Block::State::PREVIEW, rndgen);
+
+			RowCol above_rc{bottom_row-1, c};
+			Block* above = pit.block_at(above_rc);
+
+			// in the first spawn_previews, there might not be blocks above.
+			if(above && Block::State::PREVIEW == above->block_state()) {
+				above->set_state(Physical::State::REST);
+				*hots++ = *above;
+			}
+		}
+	}
+}
+
+template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>
+void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
+                    BlockOutIt hots, bool& panic, bool& dead_physical,
+                    bool& dead_block, bool& dead_sound)
+{
+	for(auto& physical : pit.contents())
+	{
+		Physical::State state = physical->physical_state();
+
+		if(Physical::State::FALL == state && physical->is_arriving()) {
+
+			// can never fall lower than the preview row of blocks
+			game_assert(physical->rc().r + physical->rows() - 1 <= pit.bottom(), "Object falls too low");
+
+			// Re-enter the object as a candidate for falling and hots.
+			// Since falling blocks are automatically excluded from hots,
+			// this only takes effect with blocks that actually land.
+			*fallers++ = *physical;
+			if(Block* block = dynamic_cast<Block*>(&*physical))
+				*hots++ = *block;
+		}
+
+		if(Physical::State::REST == state && physical->rc().r < pit.top())
+			panic = true;
+
+		// Garbage-specifics
+		if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
+			// shrink garbage if necessary
+			if(Physical::State::BREAK == garbage->physical_state() &&
+			   garbage->time <= 0) {
+				*dissolvers++ = *garbage;
+			}
+		}
+
+		// Block-specifics
+		if(Block* block = dynamic_cast<Block*>(&*physical)) {
+			Block::State state = block->block_state();
+
+			// blocks finished swapping
+			if(Block::State::SWAP == state && block->time <= 0) {
+				// fake blocks are only for swapping and disappear right afterwards
+				if(Block::Color::FAKE == block->col) {
+					block->set_state(Physical::State::DEAD);
+					state = block->block_state(); // NOTE: remember changed state!
+				}
+				else {
+					*fallers++ = *block;
+					*hots++ = *block;
+				}
+			}
+
+			// cleanup dead blocks, resume scrolling if there are no more BREAK blocks
+			if(Block::State::DEAD == state) {
+				dead_physical = true;
+				dead_block = true;
+				if(Block::Color::FAKE != block->col)
+					dead_sound = true;
+
+				RowCol rc = block->rc();
+				rc.r--;
+				trigger_falls(pit, rc, fallers);
+			}
+		}
+	}
+}
+
+template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt, typename RndGen>
+void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
+                     BlockOutIt hots, bool& dead_physical, RndGen& rndgen)
+{
+	for(Garbage& garbage : dissolvers) {
+		RowCol garbage_rc = garbage.rc();
+		int garbage_columns = garbage.columns();
+		int garbage_rows = garbage.rows();
+		bool survived = pit.shrink(garbage);
+
+		for(int c = 0; c < garbage_columns; c++) {
+			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
+			Block& block = spawn_random_block(pit, block_rc, Block::State::FALL, rndgen);
+			*fallers++ = block;
+			*hots++ = block;
+		}
+
+		if(survived) {
+			// get rid of the break state, it stops the pit from scrolling
+			garbage.set_state(Physical::State::REST);
+			*fallers++ = garbage;
+		}
+	}
+
+	if(!dissolvers.empty())
+		dead_physical = true;
+}
+
+template<typename Fallers, typename Hots>
+void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
+                    typename Hots::iterator& hots_end)
+{
+	bool changed = true;
+	auto begin = std::begin(fallers);
+	auto end = std::end(fallers);
+
+	while(changed) {
+		changed = false;
+
+		for(auto it = begin; it != end; ) {
+			Physical& physical = *it;
+			if(pit.can_fall(physical)) {
+				physical.set_state(Physical::State::FALL);
+				pit.fall(physical);
+
+				// erase the element from our consideration of fallers
+				std::swap(*it, *--end);
+
+				changed = true;
+			}
+			else {
+				++it;
+			}
+		}
+	}
+
+	for(auto it = begin; it != end; ++it) {
+		Physical& physical = *it;
+		Physical::State state = physical.physical_state();
+
+		if(Physical::State::FALL == state) {
+			physical.set_state(Physical::State::LAND);
+		}
+		else {
+			physical.set_state(Physical::State::REST);
+		}
+	}
+}
+
+template<typename Hots>
+void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain)
+{
+	if(!hots.empty()) {
+		auto builder = MatchBuilder(pit);
+
+		for(auto& block : hots)
+			builder.ignite(block);	
+
+		auto& breaks = builder.result();
+
+		if(!breaks.empty()) {
+			have_match = true;
+			pit.stop();
+
+			for(Block& breaking : breaks)
+				breaking.set_state(Physical::State::BREAK);
+		}
+
+		builder.find_touch_garbage();
+
+		for(auto& garbage : builder.touched_garbage()) {
+			garbage.get().set_state(Physical::State::BREAK);
+		}
+	}
+}
+
 }
