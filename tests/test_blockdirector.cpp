@@ -52,8 +52,8 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		for(int t = 0; t < ticks; t++) {
-			director->update(context);
 			pit->update(context);
+			director->update(context);
 		}
 	}
 

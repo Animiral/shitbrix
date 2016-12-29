@@ -41,6 +41,7 @@ public:
 	void common_setup(); // creates some blocks to work with, like BlockDirectorTest::SetUp()
 
 	void scenario_dissolve_garbage();
+	void scenario_match_horizontal();
 	void scenario_fall_after_shrink();
 
 private:
@@ -113,8 +114,8 @@ private:
 			if(pause && !step) {
 				t--;
 			} else {
-				director->update(context);
 				pit->update(context);
+				director->update(context);
 				draw();
 			}
 
@@ -182,6 +183,39 @@ void VisualDemo::scenario_dissolve_garbage()
 	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
 
 	const int DEMO_T = 500; // observation ticks
+	run_game_ticks(DEMO_T);
+}
+
+void VisualDemo::scenario_match_horizontal()
+{
+	common_setup();
+
+	pit->spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
+	pit->spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
+	const RowCol swap_target_rc{-4,1};
+	director->swap(swap_target_rc);
+
+	// wait until block has swapped above the gap
+	const int SWAP_T = Block::SWAP_TIME;
+	run_game_ticks(SWAP_T);
+
+	// signal to user that test-case time is up
+	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+
+	// wait until block lands and matches
+	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED);
+	run_game_ticks(FALL_T);
+
+	// signal to user that test-case time is up
+	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,4}, Block::State::REST);
+
+	const int BREAK_T = Block::BREAK_TIME;
+	run_game_ticks(BREAK_T);
+
+	// signal to user that test-case time is up
+	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,5}, Block::State::REST);
+
+	const int DEMO_T = 200; // observation ticks
 	run_game_ticks(DEMO_T);
 }
 
@@ -278,6 +312,10 @@ int main(int argc, const char* argv[])
 			break;
 
 		case 1:
+			demo.scenario_match_horizontal();
+			break;
+
+		case 2:
 			demo.scenario_fall_after_shrink();
 			break;
 	}

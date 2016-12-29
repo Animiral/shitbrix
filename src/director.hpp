@@ -80,6 +80,16 @@ public:
 	 * Run one tick of game logic over the game state.
 	 */
 	void update(IContext& context);
+
+	/**
+	 * Attempt to set the block or space at lrc to swap with the one to the right of it.
+	 *
+	 * The following conditions must be met for success:
+	 *  - Both blocks must be in a swappable state. These are REST, SWAP, FALL, LAND.
+	 *  - A block can swap with a space, but two spaces cannot be swapped.
+	 *
+	 * Returns true if the swap was successful, false otherwise.
+	 */
 	bool swap(RowCol lrc);
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 

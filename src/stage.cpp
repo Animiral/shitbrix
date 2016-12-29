@@ -16,7 +16,7 @@ void Physical::set_rc(RowCol rc)
 
 bool Physical::is_arriving() const noexcept
 {
-	return State::FALL == m_state && m_offset.y >= 0 && m_offset.y < FALL_SPEED;
+	return State::FALL == m_state && m_offset.y >= 0;
 }
 
 bool Physical::is_fallible() const noexcept

@@ -45,9 +45,9 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 
 void GamePlay::update()
 {
+	m_screen->stage->update(m_screen->m_context);
 	m_screen->left_blocks->update(m_screen->m_context);
 	m_screen->right_blocks->update(m_screen->m_context);
-	m_screen->stage->update(m_screen->m_context);
 
 	// // debug: spawn some garbage
 	// if(m_screen->m_game_time % 400 == 0) {
