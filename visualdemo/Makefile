@@ -1,5 +1,6 @@
 CXXFLAGS=-g -Wall
-VISUAL_BIN=../bin/visualdemo
+BINDIR=../bin
+VISUAL_BIN=$(BINDIR)/visualdemo
 SRC_DIR=../src
 
 CPPFLAGS+=-I$(SRC_DIR)
@@ -16,8 +17,11 @@ VISUAL_O=visualdemo.o
 
 # gtest_main.a is the compiled archive of googletest functions
 # including a main() definition. It must be provided manually.
-$(VISUAL_BIN): $(VISUAL_O) game.a
+$(VISUAL_BIN): $(VISUAL_O) game.a | $(BINDIR)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BINDIR):
+	mkdir $@
 
 $(SRC_DIR)/game.a:
 	$(MAKE) -C $(SRC_DIR) game.a

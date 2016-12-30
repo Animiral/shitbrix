@@ -1,5 +1,6 @@
 CXXFLAGS=-g -Wall
-TESTBIN=../bin/test_shitbrix
+BINDIR=../bin
+TESTBIN=$(BINDIR)/test_shitbrix
 SRC_DIR=../src
 
 # The googletest directory is not included in the shitbrix archive
@@ -20,8 +21,11 @@ TEST_O=test_block.o test_pit.o test_replay.o test_blockdirector.o
 
 # gtest_main.a is the compiled archive of googletest functions
 # including a main() definition. It must be provided manually.
-$(TESTBIN): $(TEST_O) game.a gtest_main.a
+$(TESTBIN): $(TEST_O) game.a gtest_main.a | $(BINDIR)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BINDIR):
+	mkdir $@
 
 $(SRC_DIR)/game.a:
 	$(MAKE) -C $(SRC_DIR) game.a

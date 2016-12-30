@@ -1,14 +1,19 @@
 CXXFLAGS=-g -Wall
 LDLIBS+=$$(sdl2-config --libs) -lSDL2_image
 GAME_O=globals.o sdl_helper.o replay.o input.o stage.o draw.o director.o screen.o
-BIN=../bin/shitbrix
+BINDIR=../bin
+BIN=$(BINDIR)/shitbrix
 GAME_A=game.a
 CXXFLAGS+=-std=c++1z
 
-.all: $(BIN) $(GAME_A)
+.all: $(BIN)
 
-$(BIN): $(GAME_O) main.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+# order-only prerequisite, requires GNU make 3.80 or higher!
+$(BIN): main.o $(GAME_A) | $(BINDIR)
+	$(CXX) $(LDFLAGS) -o $@ main.o $(GAME_A) $(LDLIBS)
+
+$(BINDIR):
+	mkdir $@
 
 # This archive of all game implementation code except main
 # is created for testing purposes. See the separate test project.
@@ -27,7 +32,7 @@ main.o: main.cpp globals.hpp stage.hpp context.hpp sdl_context.hpp asset.hpp sdl
 # main.o needs less?
 
 clean:
-	rm -f $(BIN) $(GAME_O) main.o
+	rm -f $(BIN) $(GAME_A) $(GAME_O) main.o
 
 run:
 	(cd .. && src/$(BIN))
