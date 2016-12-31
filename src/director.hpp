@@ -3,6 +3,7 @@
  */
 
 #include "stage.hpp"
+#include "gameevent.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
 #include <set>
@@ -74,6 +75,11 @@ public:
 
 	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), m_over(false), rndgen(rndgen) {}
 
+	/**
+	 * Set the handler for game events from this director.
+	 */
+	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
+
 	bool over() const { return m_over; }
 
 	/**
@@ -96,6 +102,7 @@ public:
 private:
 
 	Pit& pit;
+	evt::IGameEvent* m_handler;
 	bool m_over; // whether the game is over (the player with this Director loses)
 	RndGen rndgen;     // block colors are generated randomly
 
@@ -112,6 +119,11 @@ public:
 
 	CursorDirector(Pit& pit, Cursor& cursor) : pit(pit), m_cursor(cursor) {}
 
+	/**
+	 * Set the handler for game events from this director.
+	 */
+	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
+
 	Cursor& cursor() const { return m_cursor; }
 	RowCol rc() const { return m_cursor.rc; }
 
@@ -126,5 +138,6 @@ private:
 
 	Pit& pit;
 	Cursor& m_cursor;
+	evt::IGameEvent* m_handler;
 
 };
