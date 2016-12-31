@@ -199,6 +199,9 @@ void BlockDirector::update(IContext& context)
 	convert_garbage(pit, dissolvers, std::back_inserter(fallers),
 	                std::back_inserter(hots), dead_physical, *rndgen);
 
+	if(!dissolvers.empty() && m_handler)
+		m_handler->fire(evt::GarbageDissolves());
+
 	if(dead_physical)
 		try_resume_pitscroll(pit);
 
@@ -208,8 +211,9 @@ void BlockDirector::update(IContext& context)
 	if(dead_block)
 		pit.remove_dead();
 
-	if(dead_sound)
-		context.play(Snd::BREAK);
+	if(dead_sound && m_handler)
+		m_handler->fire(evt::BlockDies());
+		// context.play(Snd::BREAK);
 
 	BlockRefVec::iterator hots_end = hots.end();
 	handle_fallers(pit, fallers, hots, hots_end);
@@ -220,8 +224,9 @@ void BlockDirector::update(IContext& context)
 	bool have_match = false;
 	handle_hots(pit, hots, have_match, combo, chain);
 
-	if(have_match)
-		context.play(Snd::MATCH);
+	if(have_match && m_handler)
+		m_handler->fire(evt::Match{combo, chain});
+		// context.play(Snd::MATCH);
 
 	// debug: show what the pit considers to be its peak row
 	pit.highlight(pit.peak());
@@ -234,13 +239,18 @@ bool BlockDirector::swap(RowCol lrc)
 
 	RowCol rrc {lrc.r, lrc.c+1};
 
-	Block* left = pit.block_at(lrc);
-	Block* right = pit.block_at(rrc);
+	Physical* left_phys = pit.at(lrc);
+	Physical* right_phys = pit.at(rrc);
+	Block* left = dynamic_cast<Block*>(left_phys);
+	Block* right = dynamic_cast<Block*>(right_phys);
 
-	if(!left && !right) return false; // 2 spaces
+	if(!left && !right) return false; // 2 non-blocks
 
-	bool left_swappable = !left || left->is_swappable();
-	bool right_swappable = !right || right->is_swappable();
+	// Both locations must be swappable. For a location to be swappable,
+	// it must either contain a swappable block or nothing at all
+	// (so that we can substitute a fake block).
+	bool left_swappable = left ? left->is_swappable() : !left_phys;
+	bool right_swappable = right ? right->is_swappable() : !right_phys;
 
 	if(!left_swappable || !right_swappable) return false;
 
@@ -253,6 +263,9 @@ bool BlockDirector::swap(RowCol lrc)
 	left->swap_toward(rrc);
 	right->swap_toward(lrc);
 	pit.swap(*left, *right);
+
+	if(m_handler)
+		m_handler->fire(evt::Swap());
 
 	return true;
 }
@@ -276,6 +289,9 @@ void CursorDirector::move(Dir dir)
 		case Dir::DOWN: if(rc.r < pit.bottom()) m_cursor.rc.r++; break;
 		default: SDL_assert(false);
 	}
+
+	if(m_handler && dir != Dir::NONE)
+		m_handler->fire(evt::CursorMoves());
 }
 
 // --- implementation of module-specific functions ---

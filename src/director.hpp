@@ -73,7 +73,8 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), m_over(false), rndgen(rndgen) {}
+	BlockDirector(Pit& pit, RndGen rndgen)
+	: pit(pit), m_handler(nullptr), m_over(false), rndgen(rndgen) {}
 
 	/**
 	 * Set the handler for game events from this director.
@@ -117,7 +118,9 @@ class CursorDirector
 
 public:
 
-	CursorDirector(Pit& pit, Cursor& cursor) : pit(pit), m_cursor(cursor) {}
+	CursorDirector(Pit& pit, Cursor& cursor)
+	: pit(pit), m_cursor(cursor), m_handler(nullptr)
+	{}
 
 	/**
 	 * Set the handler for game events from this director.
