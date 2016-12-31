@@ -170,7 +170,7 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain)
 
 }
 
-void BlockDirector::update(IContext& context)
+void BlockDirector::update()
 {
 	using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
 	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
@@ -213,7 +213,6 @@ void BlockDirector::update(IContext& context)
 
 	if(dead_sound && m_handler)
 		m_handler->fire(evt::BlockDies());
-		// context.play(Snd::BREAK);
 
 	BlockRefVec::iterator hots_end = hots.end();
 	handle_fallers(pit, fallers, hots, hots_end);
@@ -226,7 +225,6 @@ void BlockDirector::update(IContext& context)
 
 	if(have_match && m_handler)
 		m_handler->fire(evt::Match{combo, chain});
-		// context.play(Snd::MATCH);
 
 	// debug: show what the pit considers to be its peak row
 	pit.highlight(pit.peak());

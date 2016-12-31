@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include "context.hpp"
+
 namespace evt
 {
 
@@ -111,6 +113,28 @@ private:
 	}
 
 	std::vector<std::reference_wrapper<IGameEvent>> m_handlers;
+
+};
+
+/**
+ * A handler for game events that cause sound outputs.
+ */
+class SoundEffects : public IGameEvent
+{
+
+public:
+
+	SoundEffects(IContext& context) : m_context(context) {}
+
+	virtual void fire(CursorMoves event) override {}
+	virtual void fire(Swap event) override { m_context.play(Snd::SWAP); }
+	virtual void fire(Match event) override { m_context.play(Snd::MATCH); }
+	virtual void fire(BlockDies event) override { m_context.play(Snd::BREAK); }
+	virtual void fire(GarbageDissolves event) override { m_context.play(Snd::BREAK); }
+
+private:
+
+	IContext& m_context;
 
 };
 

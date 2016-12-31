@@ -56,7 +56,7 @@ protected:
 	{
 		for(int t = 0; t < ticks; t++) {
 			pit->update(context);
-			block_director->update(context);
+			block_director->update();
 		}
 	}
 

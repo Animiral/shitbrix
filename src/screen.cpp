@@ -46,14 +46,8 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 void GamePlay::update()
 {
 	m_screen->stage->update(m_screen->m_context);
-	m_screen->left_blocks->update(m_screen->m_context);
-	m_screen->right_blocks->update(m_screen->m_context);
-
-	// // debug: spawn some garbage
-	// if(m_screen->m_game_time % 400 == 0) {
-	// 	m_screen->left_blocks->debug_spawn_garbage(3, 1);
-	// 	m_screen->right_blocks->debug_spawn_garbage(6, 2);
-	// }
+	m_screen->left_blocks->update();
+	m_screen->right_blocks->update();
 
 	bool left_over = m_screen->left_blocks->over();
 	bool right_over = m_screen->right_blocks->over();
@@ -155,8 +149,12 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IC
   replay_outstream(replay_outfile),
   journal(replay_outstream),
   m_context(context),
-  m_draw(context)
+  m_draw(context),
+  m_event_hub(),
+  m_sound_effects(context)
 {
+	m_event_hub.append(m_sound_effects);
+
 	if(!replay_infile) {
 		std::random_device rdev;
 		seed(rdev());
@@ -180,6 +178,9 @@ void GameScreen::reset()
 	right_blocks = std::make_unique<BlockDirector>(*builder.right_pit, rndgen);
 	left_cursor = std::make_unique<CursorDirector>(*builder.left_pit, *builder.left_cursor);
 	right_cursor = std::make_unique<CursorDirector>(*builder.right_pit, *builder.right_cursor);
+
+	left_blocks->set_handler(m_event_hub);
+	right_blocks->set_handler(m_event_hub);
 
 	m_draw.add_pit(*builder.left_pit, *builder.left_cursor);
 	m_draw.add_pit(*builder.right_pit, *builder.right_cursor);

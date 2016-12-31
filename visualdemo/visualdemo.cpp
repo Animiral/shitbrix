@@ -115,7 +115,7 @@ private:
 				t--;
 			} else {
 				pit->update(context);
-				director->update(context);
+				director->update();
 				draw();
 			}
 

@@ -86,7 +86,7 @@ public:
 	/**
 	 * Run one tick of game logic over the game state.
 	 */
-	void update(IContext& context);
+	void update();
 
 	/**
 	 * Attempt to set the block or space at lrc to swap with the one to the right of it.

@@ -154,6 +154,8 @@ private:
 	std::unique_ptr<CursorDirector> left_cursor;
 	std::unique_ptr<CursorDirector> right_cursor;
 	DrawGame m_draw;
+	evt::GameEventHub m_event_hub;
+	evt::SoundEffects m_sound_effects;
 
 	void set_phase(GamePhase phase);
 	void seed(unsigned int rng_seed);
