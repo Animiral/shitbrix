@@ -86,8 +86,9 @@ public:
 	 */
 	enum class State { DEAD, REST, FALL, LAND, BREAK, SWAP, PREVIEW };
 
-	Color col;    // color
-	int time;        // number of ticks until we consider a state switch
+	Color col; // color
+	int time;  // number of ticks until we consider a state switch
+	bool chaining; // Whether this block is chaining (falling down from a match)
 
 	Block(Color col, RowCol rc, State state)
 	:

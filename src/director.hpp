@@ -34,7 +34,7 @@ public:
 	using BlockSet = std::set<std::reference_wrapper<Block>, PhysicalLess>;
 	using GarbageSet = std::set<std::reference_wrapper<Garbage>, PhysicalLess>;
 
-	MatchBuilder(const Pit& pit) : pit(pit) {}
+	MatchBuilder(const Pit& pit) : pit(pit), m_chain(0) {}
 
 	void ignite(Block& block);
 	const BlockSet& result() { return m_result; }
@@ -49,11 +49,13 @@ public:
 	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
 
 	int combo() { return m_result.size(); }
+	int chain() { return m_chain; }
 
 private:
 
 	const Pit& pit;
 	BlockSet m_result;
+	int m_chain;
 	GarbageSet m_touched_garbage;
 
 	bool match_at(RowCol rc, Block::Color color);

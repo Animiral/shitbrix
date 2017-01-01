@@ -32,6 +32,8 @@ void MatchBuilder::ignite(Block& block)
 		for(int r = top+1; r < bottom; r++)
 			insert({r,col});
 	}
+
+	m_chain = 1;
 }
 
 void MatchBuilder::find_touch_garbage()
@@ -512,27 +514,30 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 template<typename Hots>
 void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain)
 {
-	if(!hots.empty()) {
-		auto builder = MatchBuilder(pit);
+	if(hots.empty())
+		return;
 
-		for(auto& block : hots)
-			builder.ignite(block);	
+	auto builder = MatchBuilder(pit);
 
-		auto& breaks = builder.result();
+	for(auto& block : hots)
+		builder.ignite(block);
 
-		if(!breaks.empty()) {
-			have_match = true;
-			pit.stop();
+	auto& breaks = builder.result();
+	combo = builder.combo();
+	chain = builder.chain();
 
-			for(Block& breaking : breaks)
-				breaking.set_state(Physical::State::BREAK);
-		}
+	if(!breaks.empty()) {
+		have_match = true;
+		pit.stop();
 
-		builder.find_touch_garbage();
+		for(Block& breaking : breaks)
+			breaking.set_state(Physical::State::BREAK);
+	}
 
-		for(auto& garbage : builder.touched_garbage()) {
-			garbage.get().set_state(Physical::State::BREAK);
-		}
+	builder.find_touch_garbage();
+
+	for(auto& garbage : builder.touched_garbage()) {
+		garbage.get().set_state(Physical::State::BREAK);
 	}
 }
 
