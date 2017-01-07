@@ -26,7 +26,17 @@ struct Swap {};
 struct Match
 {
 	int combo; //!< combo counter, >= 3
-	int chain; //!< chain counter, >= 1
+	bool chaining; //!< chain indicator: whether a chaining block was involved
+};
+
+/**
+ * Event that occurs when a chain has finished.
+ * A chain is finished when no blocks are chaining (all of them have come to rest).
+ * Even a single match causes a chain event, albeit with a counter of 0.
+ */
+struct Chain
+{
+	int counter; //!< chain counter: how many chaining matches there were
 };
 
 /**
@@ -70,6 +80,12 @@ public:
 	virtual void fire(Match matched) {}
 
 	/**
+	 * Signal that a chain has finished.
+	 */
+	virtual void fire(Chain chained) {}
+
+
+	/**
 	 * Signal that a block has finished breaking and will be removed.
 	 */
 	virtual void fire(BlockDies died) {}
@@ -100,6 +116,7 @@ public:
 	virtual void fire(CursorMoves event) override { fire_all(event); }
 	virtual void fire(Swap event) override { fire_all(event); }
 	virtual void fire(Match event) override { fire_all(event); }
+	virtual void fire(Chain event) override { fire_all(event); }
 	virtual void fire(BlockDies event) override { fire_all(event); }
 	virtual void fire(GarbageDissolves event) override { fire_all(event); }
 
@@ -129,6 +146,7 @@ public:
 	virtual void fire(CursorMoves event) override {}
 	virtual void fire(Swap event) override { m_context.play(Snd::SWAP); }
 	virtual void fire(Match event) override { m_context.play(Snd::MATCH); }
+	// virtual void fire(Chain event) override { }
 	virtual void fire(BlockDies event) override { m_context.play(Snd::BREAK); }
 	virtual void fire(GarbageDissolves event) override { m_context.play(Snd::BREAK); }
 
