@@ -32,8 +32,6 @@ void MatchBuilder::ignite(Block& block)
 		for(int r = top+1; r < bottom; r++)
 			insert({r,col});
 	}
-
-	m_chain = 1;
 }
 
 void MatchBuilder::find_touch_garbage()
@@ -65,6 +63,7 @@ void MatchBuilder::insert(RowCol rc)
 	Block* match_block = pit.block_at(rc);
 	game_assert(match_block, "MatchBuilder: expected block not present");
 	m_result.insert(*match_block);
+	m_chaining |= match_block->chaining;
 }
 
 // elemental game logic functions
@@ -168,7 +167,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
  * @param[out] chain Counter for the N-th match in a row
  */
 template<typename Hots>
-void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain);
+void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chaining);
 
 }
 
@@ -221,12 +220,12 @@ void BlockDirector::update()
 	hots.erase(hots_end, hots.end());
 
 	int combo = 0;
-	int chain = 0;
+	bool chaining = false;
 	bool have_match = false;
-	handle_hots(pit, hots, have_match, combo, chain);
+	handle_hots(pit, hots, have_match, combo, chaining);
 
 	if(have_match && m_handler)
-		m_handler->fire(evt::Match{combo, chain});
+		m_handler->fire(evt::Match{combo, chaining});
 
 	// debug: show what the pit considers to be its peak row
 	pit.highlight(pit.peak());
@@ -522,7 +521,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 }
 
 template<typename Hots>
-void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain)
+void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chaining)
 {
 	if(hots.empty())
 		return;
@@ -534,7 +533,7 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain)
 
 	auto& breaks = builder.result();
 	combo = builder.combo();
-	chain = builder.chain();
+	chaining = builder.chaining();
 
 	if(!breaks.empty()) {
 		have_match = true;
