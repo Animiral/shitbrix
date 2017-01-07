@@ -272,3 +272,99 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 	EXPECT_EQ(expected_green_rc, green_block->rc());
 	EXPECT_EQ(Block::State::FALL, green_block->block_state());
 }
+
+/**
+ * Tests whether a block falling down from above a completed match
+ * is correctly marked as chaining by the director.
+ * When the falling blocks come to rest, they are no longer chaining.
+ */
+TEST_F(BlockDirectorTest, ChainingFallBlock)
+{
+	Block* red_block = pit->block_at(RowCol{-3,2}); // to fall down
+	ASSERT_TRUE(red_block);
+
+	bool swapping = director->swap(RowCol{-1,2}); // match yellow blocks vertically
+	ASSERT_TRUE(swapping);
+
+	// wait until the yellow blocks have cleared and the red one falls down
+	const int PRERUN_T = Block::SWAP_TIME + Block::BREAK_TIME;
+	run_game_ticks(PRERUN_T);
+
+	RowCol expected_rc{-2,2};
+	EXPECT_EQ(expected_rc, red_block->rc());
+	EXPECT_EQ(Block::State::FALL, red_block->block_state());
+	EXPECT_TRUE(red_block->chaining);
+
+	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H*3) / FALL_SPEED);
+	run_game_ticks(FALL_T);
+	expected_rc = RowCol{0,2};
+	EXPECT_EQ(expected_rc, red_block->rc());
+	EXPECT_EQ(Block::State::LAND, red_block->block_state());
+	EXPECT_FALSE(red_block->chaining);
+}
+
+/**
+ * Tests whether a block falling down from a dissolved garbage
+ * is correctly marked as chaining by the director.
+ */
+TEST_F(BlockDirectorTest, ChainingGarbageBlock)
+{
+	const int GARBAGE_COLS = 6;
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
+	garbage.set_state(Physical::State::REST);
+	bool swapping = director->swap(RowCol{-2,2}); // match yellow blocks vertically
+	ASSERT_TRUE(swapping);
+
+	// ticks until block landed, garbage has shrunk, blocks have fallen down
+	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME;
+	run_game_ticks(DISSOLVE_T);
+
+	auto expect_chaining = [this] (RowCol rc, bool expected) {
+		Block* block = pit->block_at(rc);
+		ASSERT_TRUE(block);
+		EXPECT_EQ(expected, block->chaining);
+	};
+
+	// Those blocks from the garbage which land on top of resting blocks
+	// and do not enter a match will also immediately stop chaining
+	expect_chaining(RowCol{-3, 0}, true);
+	expect_chaining(RowCol{-3, 1}, true);
+	expect_chaining(RowCol{-4, 2}, false);
+	expect_chaining(RowCol{-3, 3}, true);
+	expect_chaining(RowCol{-4, 4}, false);
+	expect_chaining(RowCol{-3, 5}, true);
+}
+
+/**
+ * Tests whether block swapping correctly swaps the chaining markers
+ * of the blocks, even if it happens mid-fall.
+ */
+TEST_F(BlockDirectorTest, ChainingSwapBlock)
+{
+	Block* red_block = pit->block_at(RowCol{-3,2}); // to fall down
+	ASSERT_TRUE(red_block);
+
+	bool swapping = director->swap(RowCol{-1,2}); // match yellow blocks vertically
+	ASSERT_TRUE(swapping);
+
+	const int BREAK_T = Block::SWAP_TIME + Block::BREAK_TIME;
+	run_game_ticks(BREAK_T);
+
+	ASSERT_EQ(Block::State::FALL, red_block->block_state());
+
+	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H*2)/FALL_SPEED) + 1;
+	run_game_ticks(FALL_T);
+
+	RowCol expected_rc{0,2};
+	ASSERT_EQ(expected_rc, red_block->rc());
+	ASSERT_EQ(Block::State::FALL, red_block->block_state());
+	EXPECT_TRUE(red_block->chaining);
+
+	Block* green_block = pit->block_at(RowCol{0,3});
+	ASSERT_TRUE(green_block);
+
+	swapping = director->swap(RowCol{0,2}); // skill-chain move
+	ASSERT_TRUE(swapping);
+	EXPECT_FALSE(red_block->chaining);
+	EXPECT_TRUE(green_block->chaining);
+}
