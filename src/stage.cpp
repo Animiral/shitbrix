@@ -294,6 +294,9 @@ void Pit::swap(Block& left, Block& right) noexcept
 	left.set_rc(rrc);
 	right.set_rc(lrc);
 	std::swap(left_entry->second, right_entry->second);
+
+	// To enable skill chains, the chaining marker stays with the falling block
+	std::swap(left.chaining, right.chaining);
 }
 
 void Pit::remove_dead()

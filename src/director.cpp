@@ -86,7 +86,7 @@ Block& spawn_fake_block(Pit& pit, RowCol rc);
  * Mark all objects at the given location and above as potentially falling.
  */
 template<typename OutIt>
-void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers);
+void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining);
 
 /**
  * Examine the pit contents and start the pit scrolling, if desired.
@@ -314,16 +314,21 @@ Block& spawn_fake_block(Pit& pit, RowCol rc)
 }
 
 template<typename OutIt>
-void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers)
+void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining)
 {
 	if(Physical* physical = pit.at(rc)) {
 		if(physical->is_fallible()) {
-			if(Physical::State::DEAD != physical->physical_state())
+			if(Physical::State::DEAD != physical->physical_state()) {
+				if(Block* block = dynamic_cast<Block*>(physical)) {
+					block->chaining = true;
+				}
+
 				*fallers++ = *physical;
+			}
 
 			rc = physical->rc();
 			for(int c = rc.c; c < rc.c + physical->columns(); c++) {
-				trigger_falls(pit, RowCol{rc.r - 1, c}, fallers);
+				trigger_falls(pit, RowCol{rc.r - 1, c}, fallers, chaining);
 			}
 		}
 	}
@@ -403,6 +408,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		if(Block* block = dynamic_cast<Block*>(&*physical)) {
 			Block::State state = block->block_state();
 			bool above_fall = false; // whether objects above this one might fall
+			bool chaining = false; // whether objects above chain when they fall
 
 			// blocks finished swapping
 			if(Block::State::SWAP == state && block->time <= 0) {
@@ -423,8 +429,11 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			if(Block::State::DEAD == state) {
 				dead_physical = true;
 				dead_block = true;
-				if(Block::Color::FAKE != block->col)
+
+				if(Block::Color::FAKE != block->col) {
 					dead_sound = true;
+					chaining = true;
+				}
 
 				above_fall = true;
 			}
@@ -432,7 +441,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			if(above_fall) {
 				RowCol rc = block->rc();
 				rc.r--;
-				trigger_falls(pit, rc, fallers);
+				trigger_falls(pit, rc, fallers, chaining);
 			}
 		}
 	}
@@ -451,6 +460,7 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
 		for(int c = 0; c < garbage_columns; c++) {
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
 			Block& block = spawn_random_block(pit, block_rc, Block::State::FALL, rndgen);
+			block.chaining = true;
 			*fallers++ = block;
 			*hots++ = block;
 		}
@@ -533,6 +543,10 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, int& chain)
 		for(Block& breaking : breaks)
 			breaking.set_state(Physical::State::BREAK);
 	}
+
+	// There is only 1 chance per block to make a chain
+	for(Block& block : hots)
+		block.chaining = false;
 
 	builder.find_touch_garbage();
 
