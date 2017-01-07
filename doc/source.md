@@ -110,3 +110,17 @@ The combo counter for the match is the total number of blocks involved in a matc
 The chain counter of the match is the maximum of all the involved blocks’ internal chain counters.
 These counters are emitted in a match event.
 
+# Combos and Chains
+Combos and chains are block match configurations which give extra points and benefits to the player.
+
+They are mostly detected and handled during match-generation, implemented in `class MatchBuilder` (director.hpp).
+
+The combo is simply the number of blocks in a single match. Everything above the minimum 3 yields a bonus.
+
+Chains aggregate over a series of different match events. Every block that falls down as a result of a completed match or dissolved garbage is a *chaining block*. While a chaining block falls down, the player can exchange its chaining property with another block by swapping them mid-fall (“skill chains”).
+
+Every match which involves a chaining block increases the *chain counter* of the player. When the last chaining block comes to rest, the chain is finished and yields a bonus. The magnitude of the bonus corresponds to the value of the chain counter at the time of completion of the chain. The chain counter resets to 0 afterwards.
+
+The combos and chains detected by the MatchBuilder are exposed by its user, the BlockDirector (see chapter on Game Logic), in *game events*. A game event is a function call sent to the director’s registered game event handler. The director sends game events when a match happens and when a chain finishes, among other circumstances.
+
+While there is at least one chaining block in the pit, the pit’s scrolling is disabled. Chaining can stave off the player’s losing the game.
