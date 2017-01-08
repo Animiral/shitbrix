@@ -11,6 +11,9 @@ vgcore.*
 # Google Test directory (must be provided by user)
 tests/googletest
 
+# Stray garbage directory/-ies
+screenshots/*
+
 # Compiled Object files
 *.slo
 *.lo
