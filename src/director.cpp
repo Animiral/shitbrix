@@ -363,21 +363,21 @@ Block& spawn_fake_block(Pit& pit, RowCol rc)
 template<typename OutIt>
 void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining)
 {
-	if(Physical* physical = pit.at(rc)) {
-		if(physical->is_fallible()) {
-			if(Physical::State::DEAD != physical->physical_state()) {
-				if(Block* block = dynamic_cast<Block*>(physical)) {
-					block->chaining = true;
-				}
+	Physical* physical = pit.at(rc);
 
-				*fallers++ = *physical;
-			}
+	if(!physical ||
+	   !physical->is_fallible() ||
+	   Physical::State::DEAD == physical->physical_state())
+		return;
 
-			rc = physical->rc();
-			for(int c = rc.c; c < rc.c + physical->columns(); c++) {
-				trigger_falls(pit, RowCol{rc.r - 1, c}, fallers, chaining);
-			}
-		}
+	if(Block* block = dynamic_cast<Block*>(physical))
+		block->chaining |= chaining;
+
+	*fallers++ = *physical;
+
+	rc = physical->rc();
+	for(int c = rc.c; c < rc.c + physical->columns(); c++) {
+		trigger_falls(pit, RowCol{rc.r - 1, c}, fallers, chaining);
 	}
 }
 
