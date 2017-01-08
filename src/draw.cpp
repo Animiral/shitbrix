@@ -65,7 +65,7 @@ void DrawGame::draw_all() const
 		if(m_show_pit_debug_highlight) {
 			// draw the highlighted row for debugging
 			Point top_left{0, static_cast<float>(pit.highlight_row() * ROW_H)};
-			m_context.highlight(top_left, PIT_W, ROW_H);
+			m_context.highlight(top_left, PIT_W, ROW_H, 200, 200, 0, 150);
 		}
 
 		if(m_show_cursors)
@@ -157,6 +157,11 @@ void draw_block(const IContext& context, const Block& block, float dt)
 	}
 
 	context.drawGfx(draw_loc, gfx, static_cast<size_t>(frame));
+
+	if(block.chaining) {
+		uint8_t colv = 255 * block.time % 2;
+		context.highlight(draw_loc, BLOCK_W, BLOCK_H, colv, colv, colv, 150);
+	}
 }
 
 /**
