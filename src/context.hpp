@@ -17,14 +17,6 @@ class IContext
 public:
 
 	/**
-	 * Draws a texture to the screen at a given position.
-	 * @param loc The target location in screen pixels, from the top left.
-	 * @param gfx The source texture identifier as recognized by Assets
-	 * @param frame The source frame seq. nr. from the sprite sheet
-	 */
-	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const =0;
-
-	/**
 	 * Sets the translation offset for all future drawGfx calls.
 	 * There is no transform stack. To reset, just translate(0).
 	 * Does not affect clip() parameter coordinates.
@@ -48,15 +40,29 @@ public:
 	virtual void fade(float fraction) =0;
 
 	/**
+	 * Sets the alpha factor by which all graphics drawn afterwards
+	 * will be affected.
+	 */
+	virtual void set_alpha(uint8_t alpha) =0;
+
+	/**
 	 * Start playback of the indicated sound as recognized by Assets.
 	 */
 	virtual void play(Snd snd) =0;
 
 	/**
-	 * Highlights a rectangular area of the screen with alpha-blended yellow.
-	 * Used for debugging.
+	 * Draws a texture to the screen at a given position.
+	 * @param loc The target location in screen pixels, from the top left.
+	 * @param gfx The source texture identifier as recognized by Assets
+	 * @param frame The source frame seq. nr. from the sprite sheet
 	 */
-	virtual void highlight(Point top_left, int width, int height) =0;
+	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const =0;
+
+	/**
+	 * Highlights a rectangular area of the screen with an alpha-blended color.
+	 */
+	virtual void highlight(Point top_left, int width, int height,
+	                       uint8_t r, uint8_t g, uint8_t b, uint8_t a) const =0;
 
 };
 

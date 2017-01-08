@@ -71,8 +71,6 @@ protected:
 
 };
 
-using GamePhase = std::unique_ptr<IGamePhase>;
-
 class GameIntro : public IGamePhase
 {
 public:
@@ -137,25 +135,53 @@ public:
 
 private:
 
+	/**
+	 * Assorted objects that are required on this screen once per player.
+	 */
+	struct PlayerObjects
+	{
+		PlayerObjects(RndGen& rndgen, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
+		: block_director(pit, rndgen), cursor_director(pit, cursor), event_hub(),
+		  garbage_throw(other_pit), bonus_throw(bonus)
+		{
+			block_director.set_handler(event_hub);
+			event_hub.append(garbage_throw);
+			event_hub.append(bonus_throw);
+		}
+
+		// default move would leave dangling references!
+		PlayerObjects(const PlayerObjects& ) = delete;
+		PlayerObjects(PlayerObjects&& ) = delete;
+		PlayerObjects& operator=(const PlayerObjects& ) = delete;
+		PlayerObjects& operator=(PlayerObjects&& ) = delete;
+
+		BlockDirector block_director;
+		CursorDirector cursor_director;
+		evt::GameEventHub event_hub;
+		GarbageThrow garbage_throw; // event handler for generating garbage bricks
+		BonusThrow bonus_throw; // event handler for displaying stars
+	};
+
 	RndGen rndgen;
-	GamePhase game_phase;
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
 	bool m_pause; // true if tick updates are supressed
 	GameInputMixer input_mixer;
+
+	std::unique_ptr<IGamePhase> m_game_phase;
+	std::unique_ptr<IGamePhase> m_next_phase;
 
 	std::ofstream replay_outstream;
 	Journal journal;
 
 	IContext& m_context;
 	std::unique_ptr<Stage> stage;
-	std::unique_ptr<BlockDirector> left_blocks;
-	std::unique_ptr<BlockDirector> right_blocks;
-	std::unique_ptr<CursorDirector> left_cursor;
-	std::unique_ptr<CursorDirector> right_cursor;
 	DrawGame m_draw;
+	evt::SoundEffects m_sound_effects;
+	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
 
-	void set_phase(GamePhase phase);
+	void change_phase(std::unique_ptr<IGamePhase> phase);
+	void change_phase_impl();
 	void seed(unsigned int rng_seed);
 
 	/**

@@ -4,6 +4,7 @@
 namespace
 {
 
+int opponent(int player);
 void debug_print_pit(const Pit& pit);
 
 }
@@ -33,7 +34,7 @@ void GameIntro::update()
 {
 	if(0 == --countdown) {
 		auto phase = std::make_unique<GamePlay>(m_screen);
-		m_screen->set_phase(std::move(phase));
+		m_screen->change_phase(std::move(phase));
 	}
 }
 
@@ -46,21 +47,17 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 void GamePlay::update()
 {
 	m_screen->stage->update(m_screen->m_context);
-	m_screen->left_blocks->update(m_screen->m_context);
-	m_screen->right_blocks->update(m_screen->m_context);
 
-	// // debug: spawn some garbage
-	// if(m_screen->m_game_time % 400 == 0) {
-	// 	m_screen->left_blocks->debug_spawn_garbage(3, 1);
-	// 	m_screen->right_blocks->debug_spawn_garbage(6, 2);
-	// }
+	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
+		auto& pobjs = m_screen->m_pobjects[i];
+		pobjs->block_director.update();
 
-	bool left_over = m_screen->left_blocks->over();
-	bool right_over = m_screen->right_blocks->over();
-	if(left_over || right_over) {
-		int winner = left_over ? 1 : 0;
-		auto phase = std::make_unique<GameResult>(m_screen, winner);
-		m_screen->set_phase(std::move(phase));
+		if(pobjs->block_director.over()) {
+			int winner = opponent(i);
+			auto phase = std::make_unique<GameResult>(m_screen, winner);
+			m_screen->change_phase(std::move(phase));
+			break;
+		}
 	}
 
 	m_screen->m_game_time++;
@@ -70,6 +67,8 @@ void GamePlay::input(GameInput ginput)
 {
 	m_screen->journal << ReplayEvent::make_input(m_screen->m_game_time, ginput);
 
+	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
+
 	switch(ginput.button) {
 		case GameButton::LEFT:
 		case GameButton::RIGHT:
@@ -77,21 +76,17 @@ void GamePlay::input(GameInput ginput)
 		case GameButton::DOWN:
 			{
 				Dir dir = static_cast<Dir>(ginput.button);
-
-				if(0 == ginput.player)
-					m_screen->left_cursor->move(dir);
-				else if(1 == ginput.player)
-					m_screen->right_cursor->move(dir);
+				pobjs.cursor_director.move(dir);
 			}
 
 			break;
 
 		case GameButton::SWAP:
 		case GameButton::RAISE: // TODO: implement raise
-			if(0 == ginput.player)
-				m_screen->left_blocks->swap(m_screen->left_cursor->rc());
-			else if(1 == ginput.player)
-				m_screen->right_blocks->swap(m_screen->right_cursor->rc());
+			{
+				RowCol swap_rc = pobjs.cursor_director.rc();
+				pobjs.block_director.swap(swap_rc);
+			}
 
 			break;
 
@@ -155,7 +150,8 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IC
   replay_outstream(replay_outfile),
   journal(replay_outstream),
   m_context(context),
-  m_draw(context)
+  m_draw(context),
+  m_sound_effects(context)
 {
 	if(!replay_infile) {
 		std::random_device rdev;
@@ -168,28 +164,40 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IC
 void GameScreen::reset()
 {
 	m_draw.clear();
+	m_pobjects.clear();
 
-	set_phase(std::make_unique<GameIntro>(this));
+	change_phase(std::make_unique<GameIntro>(this));
+	change_phase_impl();
 	m_game_time = 0L;
 	m_done = false;
 
 	auto builder = StageBuilder();
 	stage = builder.construct();
 
-	left_blocks = std::make_unique<BlockDirector>(*builder.left_pit, rndgen);
-	right_blocks = std::make_unique<BlockDirector>(*builder.right_pit, rndgen);
-	left_cursor = std::make_unique<CursorDirector>(*builder.left_pit, *builder.left_cursor);
-	right_cursor = std::make_unique<CursorDirector>(*builder.right_pit, *builder.right_cursor);
+	Pit& left_pit = *builder.left_pit;
+	Cursor& left_cursor = *builder.left_cursor;
+	BonusIndicator& left_bonus = *builder.left_bonus;
 
-	m_draw.add_pit(*builder.left_pit, *builder.left_cursor);
-	m_draw.add_pit(*builder.right_pit, *builder.right_cursor);
+	Pit& right_pit = *builder.right_pit;
+	Cursor& right_cursor = *builder.right_cursor;
+	BonusIndicator& right_bonus = *builder.right_bonus;
+
+	auto left_pobjs = std::make_unique<PlayerObjects>(rndgen, left_pit, left_cursor, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(rndgen, right_pit, right_cursor, left_pit, right_bonus);
+	m_pobjects.push_back(std::move(left_pobjs));
+	m_pobjects.push_back(std::move(right_pobjs));
+	m_draw.add_pit(left_pit, left_cursor, left_bonus);
+	m_draw.add_pit(right_pit, right_cursor, right_bonus);
+
+	for(auto& pobjs : m_pobjects)
+		pobjs->event_hub.append(m_sound_effects);
 }
 
 void GameScreen::draw(float dt) const
 {
 	m_draw.set_dt(dt);
 	m_context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
-	game_phase->draw();
+	m_game_phase->draw();
 }
 
 void GameScreen::update()
@@ -198,8 +206,8 @@ void GameScreen::update()
 		update_impl();
 
 	// auto-move cursor when scrolling out of bounds
-	left_cursor->move(Dir::NONE);
-	right_cursor->move(Dir::NONE);
+	for(auto& pobjs : m_pobjects)
+		pobjs->cursor_director.move(Dir::NONE);
 }
 
 void GameScreen::input(ControllerInput cinput)
@@ -240,12 +248,13 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG4:
-			left_blocks->debug_spawn_garbage(3, 1);
+			m_pobjects[0]->block_director.debug_no_gameover ^= true;
+			m_pobjects[1]->block_director.debug_no_gameover ^= true;
 			// debug_print_pit(stage->pits()[0]->pit);
 			break;
 
 		case Button::DEBUG5:
-			right_blocks->debug_spawn_garbage(6, 2);
+			m_pobjects[1]->block_director.debug_spawn_garbage(6, 2);
 			// debug_print_pit(stage->pits()[1]->pit);
 			break;
 
@@ -287,16 +296,24 @@ void GameScreen::handle(const ReplayEvent& event)
 	}
 }
 
-void GameScreen::set_phase(GamePhase phase)
+void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
 {
-	game_phase = std::move(phase);
-	input_mixer.set_game_sink(game_phase.get());
+	m_next_phase = std::move(phase);
+}
+
+void GameScreen::change_phase_impl()
+{
+	input_mixer.set_game_sink(m_next_phase.get());
+	m_game_phase = std::move(m_next_phase);
 }
 
 void GameScreen::update_impl()
 {
 	input_mixer.update(m_game_time);
-	game_phase->update();
+	m_game_phase->update();
+
+	if(m_next_phase)
+		change_phase_impl();
 }
 
 void GameScreen::seed(unsigned int rng_seed)
@@ -309,6 +326,12 @@ void GameScreen::seed(unsigned int rng_seed)
 
 namespace
 {
+
+int opponent(int player)
+{
+	SDL_assert(0 == player || 1 == player);
+	return 0 == player ? 1 : 0;
+}
 
 void debug_print_pit(const Pit& pit)
 {

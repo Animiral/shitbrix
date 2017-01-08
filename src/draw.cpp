@@ -16,17 +16,19 @@ void draw_pit_debug_overlay(const IContext& context, const Pit& pit);
 void draw_block(const IContext& context, const Block& block, float dt);
 void draw_garbage(const IContext& context, const Garbage& garbage, float dt);
 void draw_cursor(const IContext& context, const Cursor& cursor, float dt);
+void draw_bonus(IContext& context, const BonusIndicator& bonus, float dt);
 
 }
+
 
 DrawGame::DrawGame(IContext& context)
 : m_context(context), m_dt(0.), m_show_cursors(false), m_show_pit_debug_overlay(false)
 {
 }
 
-void DrawGame::add_pit(const Pit& pit, const Cursor& cursor)
+void DrawGame::add_pit(const Pit& pit, const Cursor& cursor, BonusIndicator& indicator)
 {
-	m_drawables.emplace_back(PitCursor{pit, cursor});
+	m_drawables.emplace_back(PlayerDrawables{pit, cursor, indicator});
 }
 
 void DrawGame::clear()
@@ -51,7 +53,7 @@ void DrawGame::set_dt(float dt) const
 
 void DrawGame::draw_all() const
 {
-	for(const PitCursor drawable : m_drawables) {
+	for(const PlayerDrawables& drawable : m_drawables) {
 		const Pit& pit = drawable.pit;
 
 		m_context.clip(pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
@@ -65,7 +67,7 @@ void DrawGame::draw_all() const
 		if(m_show_pit_debug_highlight) {
 			// draw the highlighted row for debugging
 			Point top_left{0, static_cast<float>(pit.highlight_row() * ROW_H)};
-			m_context.highlight(top_left, PIT_W, ROW_H);
+			m_context.highlight(top_left, PIT_W, ROW_H, 200, 200, 0, 150);
 		}
 
 		if(m_show_cursors)
@@ -73,6 +75,8 @@ void DrawGame::draw_all() const
 
 		m_context.translate(Point{0,0}); // reset to screen origin
 		m_context.unclip(); // unrestrict drawing
+
+		draw_bonus(m_context, drawable.indicator, m_dt);
 	}
 }
 
@@ -157,6 +161,11 @@ void draw_block(const IContext& context, const Block& block, float dt)
 	}
 
 	context.drawGfx(draw_loc, gfx, static_cast<size_t>(frame));
+
+	if(block.chaining) {
+		uint8_t colv = 255 * block.time % 2;
+		context.highlight(draw_loc, BLOCK_W, BLOCK_H, colv, colv, colv, 150);
+	}
 }
 
 /**
@@ -208,6 +217,34 @@ void draw_cursor(const IContext& context, const Cursor& cursor, float dt)
 
 	size_t frame = (cursor.time / DrawGame::CURSOR_FRAME_TIME) % DrawGame::CURSOR_FRAMES;
 	context.drawGfx(loc, Gfx::CURSOR, frame);
+}
+
+void draw_bonus(IContext& context, const BonusIndicator& bonus, float dt)
+{
+	Point origin = bonus.origin();
+
+	int combo = 0;
+	uint8_t combo_fade = 0;
+	int chain = 0;
+	uint8_t chain_fade = 0;
+
+	bonus.get_indication(combo, combo_fade, chain, chain_fade);
+
+	context.set_alpha(combo_fade);
+
+	for(int i = 0; i < combo; i++) {
+		Point star_loc = origin.offset(0, -BONUS_H * (i + 1));
+		context.drawGfx(star_loc, Gfx::BONUS, static_cast<int>(BonusFrame::COMBO));
+	}
+
+	context.set_alpha(chain_fade);
+
+	for(int i = 0; i < chain; i++) {
+		Point star_loc = origin.offset(BONUS_W, -BONUS_H * (i + 1));
+		context.drawGfx(star_loc, Gfx::BONUS, static_cast<int>(BonusFrame::CHAIN));
+	}
+
+	context.set_alpha(255);
 }
 
 }

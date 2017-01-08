@@ -5,6 +5,7 @@
 #pragma once
 
 #include "stage.hpp"
+#include "gameevent.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -28,7 +29,7 @@ public:
 	 * Add the specified pit to be drawn.
 	 * DrawGame always associates a cursor with the pit.
 	 */
-	void add_pit(const Pit& pit, const Cursor& cursor);
+	void add_pit(const Pit& pit, const Cursor& cursor, BonusIndicator& indicator);
 
 	/**
 	 * Removes all drawables known to this DrawGame object.
@@ -80,14 +81,15 @@ private:
 	 * Helper type for draw compound.
 	 * We always draw a pit with a cursor in it.
 	 */
-	struct PitCursor
+	struct PlayerDrawables
 	{
 		const Pit& pit;
 		const Cursor& cursor;
+		BonusIndicator& indicator;
 	};
 
 	IContext& m_context;
-	std::vector<PitCursor> m_drawables;
+	std::vector<PlayerDrawables> m_drawables;
 	mutable float m_dt;
 	bool m_show_cursors;
 	bool m_show_pit_debug_overlay = false;

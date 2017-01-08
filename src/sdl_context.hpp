@@ -32,19 +32,6 @@ public:
 		game_assert(0 == drawblend_result, SDL_GetError());
 	}
 
-	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
-	{
-		Texture texture = assets.texture(gfx, frame);
-		int x = loc.x + m_translate.x;
-		int y = loc.y + m_translate.y;
-		SDL_Rect dstrect { x, y, texture->width, texture->height };
-
-		SDL_Renderer* renderer = factory.get_renderer().get();
-		SDL_Texture* tex = texture->tex.get();
-		int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
-		game_assert(0 == render_result, SDL_GetError());
-	}
-
 	virtual void translate(Point offset) override
 	{
 		m_translate = offset;
@@ -73,6 +60,11 @@ public:
 		m_fade = fraction;
 	}
 
+	virtual void set_alpha(uint8_t alpha) override
+	{
+		m_alpha = alpha;
+	}
+
 	virtual void play(Snd snd) override
 	{
 		Sound sound = assets.sound(snd);
@@ -80,7 +72,25 @@ public:
 		audio->play(sound);
 	}
 
-	virtual void highlight(Point top_left, int width, int height) override
+	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
+	{
+		Texture texture = assets.texture(gfx, frame);
+		int x = loc.x + m_translate.x;
+		int y = loc.y + m_translate.y;
+		SDL_Rect dstrect { x, y, texture->width, texture->height };
+
+		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Texture* tex = texture->tex.get();
+
+		int alpha_result = SDL_SetTextureAlphaMod(tex, m_alpha);
+		game_assert(0 == alpha_result, SDL_GetError());
+
+		int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
+		game_assert(0 == render_result, SDL_GetError());
+	}
+
+	virtual void highlight(Point top_left, int width, int height,
+	                       uint8_t r, uint8_t g, uint8_t b, uint8_t a) const override
 	{
 		Point loc = top_left.offset(m_translate.x, m_translate.y);
 		SDL_Rect fill_rect {
@@ -91,7 +101,7 @@ public:
 		};
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
-		int color_result = SDL_SetRenderDrawColor(renderer, 200, 200, 0, 150);
+		int color_result = SDL_SetRenderDrawColor(renderer, r, g, b, a);
 		game_assert(0 == color_result, SDL_GetError());
 		int fill_result = SDL_RenderFillRect(renderer, &fill_rect);
 		game_assert(0 == fill_result, SDL_GetError());
@@ -128,6 +138,7 @@ private:
 
 	Point m_translate{0,0};
 	float m_fade = 1.f;
+	uint8_t m_alpha = 255;
 	std::unique_ptr<SDL_Texture, SdlDeleter> fadetex; // solid pixel used for fading
 
 };

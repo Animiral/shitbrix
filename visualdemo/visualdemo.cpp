@@ -43,6 +43,7 @@ public:
 	void scenario_dissolve_garbage();
 	void scenario_match_horizontal();
 	void scenario_fall_after_shrink();
+	void scenario_chaining_garbage();
 
 private:
 
@@ -115,7 +116,7 @@ private:
 				t--;
 			} else {
 				pit->update(context);
-				director->update(context);
+				director->update();
 				draw();
 			}
 
@@ -251,6 +252,26 @@ void VisualDemo::scenario_fall_after_shrink()
 	run_game_ticks(DEMO_T);
 }
 
+void VisualDemo::scenario_chaining_garbage()
+{
+	common_setup();
+
+	const int GARBAGE_COLS = 6;
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
+	garbage.set_state(Physical::State::REST);
+	director->swap(RowCol{-2,2}); // match yellow blocks vertically
+
+	// ticks until block landed, garbage has shrunk, blocks have fallen down
+	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME;
+	run_game_ticks(DISSOLVE_T);
+
+	// signal to user that test-case time is up
+	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+
+	const int DEMO_T = 500; // observation ticks
+	run_game_ticks(DEMO_T);
+}
+
 class Options
 {
 
@@ -317,6 +338,10 @@ int main(int argc, const char* argv[])
 
 		case 2:
 			demo.scenario_fall_after_shrink();
+			break;
+
+		case 3:
+			demo.scenario_chaining_garbage();
 			break;
 	}
 }

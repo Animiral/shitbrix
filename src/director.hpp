@@ -3,6 +3,7 @@
  */
 
 #include "stage.hpp"
+#include "gameevent.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
 #include <set>
@@ -33,7 +34,7 @@ public:
 	using BlockSet = std::set<std::reference_wrapper<Block>, PhysicalLess>;
 	using GarbageSet = std::set<std::reference_wrapper<Garbage>, PhysicalLess>;
 
-	MatchBuilder(const Pit& pit) : pit(pit) {}
+	MatchBuilder(const Pit& pit) : pit(pit), m_chaining(false) {}
 
 	void ignite(Block& block);
 	const BlockSet& result() { return m_result; }
@@ -48,11 +49,13 @@ public:
 	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
 
 	int combo() { return m_result.size(); }
+	bool chaining() { return m_chaining; }
 
 private:
 
 	const Pit& pit;
 	BlockSet m_result;
+	bool m_chaining;
 	GarbageSet m_touched_garbage;
 
 	bool match_at(RowCol rc, Block::Color color);
@@ -72,14 +75,20 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, RndGen rndgen) : pit(pit), m_over(false), rndgen(rndgen) {}
+	BlockDirector(Pit& pit, RndGen rndgen)
+	: pit(pit), m_handler(nullptr), m_chain(0), m_over(false), rndgen(rndgen) {}
+
+	/**
+	 * Set the handler for game events from this director.
+	 */
+	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
 	bool over() const { return m_over; }
 
 	/**
 	 * Run one tick of game logic over the game state.
 	 */
-	void update(IContext& context);
+	void update();
 
 	/**
 	 * Attempt to set the block or space at lrc to swap with the one to the right of it.
@@ -93,9 +102,13 @@ public:
 	bool swap(RowCol lrc);
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
+	bool debug_no_gameover = false;
+
 private:
 
 	Pit& pit;
+	evt::IGameEvent* m_handler;
+	int m_chain; //!< chain counter
 	bool m_over; // whether the game is over (the player with this Director loses)
 	RndGen rndgen;     // block colors are generated randomly
 
@@ -110,7 +123,14 @@ class CursorDirector
 
 public:
 
-	CursorDirector(Pit& pit, Cursor& cursor) : pit(pit), m_cursor(cursor) {}
+	CursorDirector(Pit& pit, Cursor& cursor)
+	: pit(pit), m_cursor(cursor), m_handler(nullptr)
+	{}
+
+	/**
+	 * Set the handler for game events from this director.
+	 */
+	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
 	Cursor& cursor() const { return m_cursor; }
 	RowCol rc() const { return m_cursor.rc; }
@@ -126,5 +146,51 @@ private:
 
 	Pit& pit;
 	Cursor& m_cursor;
+	evt::IGameEvent* m_handler;
+
+};
+
+/**
+ * A game event handler that converts combos and chains into garbage spawns.
+ * It is attached to a source BlockDirector as event handler. Every
+ * combo and chain event that the director raises is converted into
+ * garbage block dimensions. The garbage is then spawned / dropped
+ * in a target pit (the pit of the other player).
+ */
+class GarbageThrow : public evt::IGameEvent
+{
+
+public:
+
+	GarbageThrow(Pit& pit) : m_pit(pit) {}
+
+	virtual void fire(evt::Match event) override;
+	virtual void fire(evt::Chain event) override;
+
+private:
+
+	Pit& m_pit;
+
+	void spawn(int columns, int rows, bool right_side);
+
+};
+
+/**
+ * This glue class connects combo and chain events reported by the director (logic)
+ * with the BonusIndicator display class.
+ */
+class BonusThrow : public evt::IGameEvent
+{
+
+public:
+
+	BonusThrow(BonusIndicator& indicator) : m_indicator(indicator) {}
+
+	virtual void fire(evt::Match event) override;
+	virtual void fire(evt::Chain event) override;
+
+private:
+
+	BonusIndicator& m_indicator;
 
 };
