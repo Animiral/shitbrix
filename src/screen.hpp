@@ -71,8 +71,6 @@ protected:
 
 };
 
-using GamePhase = std::unique_ptr<IGamePhase>;
-
 class GameIntro : public IGamePhase
 {
 public:
@@ -163,11 +161,13 @@ private:
 	};
 
 	RndGen rndgen;
-	GamePhase game_phase;
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
 	bool m_pause; // true if tick updates are supressed
 	GameInputMixer input_mixer;
+
+	std::unique_ptr<IGamePhase> m_game_phase;
+	std::unique_ptr<IGamePhase> m_next_phase;
 
 	std::ofstream replay_outstream;
 	Journal journal;
@@ -178,7 +178,8 @@ private:
 	evt::SoundEffects m_sound_effects;
 	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
 
-	void set_phase(GamePhase phase);
+	void change_phase(std::unique_ptr<IGamePhase> phase);
+	void change_phase_impl();
 	void seed(unsigned int rng_seed);
 
 	/**

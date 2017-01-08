@@ -34,7 +34,7 @@ void GameIntro::update()
 {
 	if(0 == --countdown) {
 		auto phase = std::make_unique<GamePlay>(m_screen);
-		m_screen->set_phase(std::move(phase));
+		m_screen->change_phase(std::move(phase));
 	}
 }
 
@@ -55,7 +55,7 @@ void GamePlay::update()
 		if(pobjs->block_director.over()) {
 			int winner = opponent(i);
 			auto phase = std::make_unique<GameResult>(m_screen, winner);
-			m_screen->set_phase(std::move(phase));
+			m_screen->change_phase(std::move(phase));
 			break;
 		}
 	}
@@ -166,7 +166,8 @@ void GameScreen::reset()
 	m_draw.clear();
 	m_pobjects.clear();
 
-	set_phase(std::make_unique<GameIntro>(this));
+	change_phase(std::make_unique<GameIntro>(this));
+	change_phase_impl();
 	m_game_time = 0L;
 	m_done = false;
 
@@ -193,7 +194,7 @@ void GameScreen::draw(float dt) const
 {
 	m_draw.set_dt(dt);
 	m_context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
-	game_phase->draw();
+	m_game_phase->draw();
 }
 
 void GameScreen::update()
@@ -291,16 +292,24 @@ void GameScreen::handle(const ReplayEvent& event)
 	}
 }
 
-void GameScreen::set_phase(GamePhase phase)
+void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
 {
-	game_phase = std::move(phase);
-	input_mixer.set_game_sink(game_phase.get());
+	m_next_phase = std::move(phase);
+}
+
+void GameScreen::change_phase_impl()
+{
+	input_mixer.set_game_sink(m_next_phase.get());
+	m_game_phase = std::move(m_next_phase);
 }
 
 void GameScreen::update_impl()
 {
 	input_mixer.update(m_game_time);
-	game_phase->update();
+	m_game_phase->update();
+
+	if(m_next_phase)
+		change_phase_impl();
 }
 
 void GameScreen::seed(unsigned int rng_seed)
