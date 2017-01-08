@@ -329,7 +329,8 @@ void GarbageThrow::fire(evt::Match event)
 
 void GarbageThrow::fire(evt::Chain event)
 {
-	spawn(PIT_COLS, event.counter+1, false);
+	if(event.counter > 0)
+		spawn(PIT_COLS, event.counter, false);
 }
 
 void GarbageThrow::spawn(int columns, int rows, bool right_side)
