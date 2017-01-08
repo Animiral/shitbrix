@@ -92,7 +92,7 @@ public:
 
 	Block(Color col, RowCol rc, State state)
 	:
-	Physical(rc, static_cast<Physical::State>(state)), col(col), time(0)
+	Physical(rc, static_cast<Physical::State>(state)), col(col), time(0), chaining(false)
 	{}
 	virtual ~Block() noexcept =default;
 

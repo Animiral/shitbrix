@@ -137,6 +137,31 @@ public:
 
 private:
 
+	/**
+	 * Assorted objects that are required on this screen once per player.
+	 */
+	struct PlayerObjects
+	{
+		PlayerObjects(RndGen& rndgen, Pit& pit, Cursor& cursor, Pit& other_pit)
+		: block_director(pit, rndgen), cursor_director(pit, cursor), event_hub(),
+		  garbage_throw(other_pit)
+		{
+			block_director.set_handler(event_hub);
+			event_hub.append(garbage_throw);
+		}
+
+		// default move would leave dangling references!
+		PlayerObjects(const PlayerObjects& ) = delete;
+		PlayerObjects(PlayerObjects&& ) = delete;
+		PlayerObjects& operator=(const PlayerObjects& ) = delete;
+		PlayerObjects& operator=(PlayerObjects&& ) = delete;
+
+		BlockDirector block_director;
+		CursorDirector cursor_director;
+		evt::GameEventHub event_hub;
+		GarbageThrow garbage_throw; // event handler for combos and chains
+	};
+
 	RndGen rndgen;
 	GamePhase game_phase;
 	long m_game_time; // starts at 0 with each game round
@@ -149,13 +174,9 @@ private:
 
 	IContext& m_context;
 	std::unique_ptr<Stage> stage;
-	std::unique_ptr<BlockDirector> left_blocks;
-	std::unique_ptr<BlockDirector> right_blocks;
-	std::unique_ptr<CursorDirector> left_cursor;
-	std::unique_ptr<CursorDirector> right_cursor;
 	DrawGame m_draw;
-	evt::GameEventHub m_event_hub;
 	evt::SoundEffects m_sound_effects;
+	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
 
 	void set_phase(GamePhase phase);
 	void seed(unsigned int rng_seed);
