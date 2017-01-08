@@ -312,6 +312,35 @@ void CursorDirector::move(Dir dir)
 		m_handler->fire(evt::CursorMoves());
 }
 
+void GarbageThrow::fire(evt::Match event)
+{
+	int combo = event.combo - 3;
+	bool right_side = false;
+
+	while(combo > 0) {
+		if(1 == combo) spawn(3, 1, right_side);
+		else if(2 == combo) spawn(4, 1, right_side);
+		else spawn(5, 1, right_side);
+
+		combo -= 3;
+		right_side = !right_side;
+	}
+}
+
+void GarbageThrow::fire(evt::Chain event)
+{
+	spawn(PIT_COLS, event.counter+1, false);
+}
+
+void GarbageThrow::spawn(int columns, int rows, bool right_side)
+{
+	SDL_assert(columns > 0 && columns <= PIT_COLS);
+
+	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 2;
+	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
+	m_pit.spawn_garbage(rc, columns, rows);
+}
+
 // --- implementation of module-specific functions ---
 
 namespace
