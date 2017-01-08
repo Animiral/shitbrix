@@ -31,7 +31,8 @@ enum class Gfx
 	PITVIEW,  // debug gfx
 	CURSOR,
 	BANNER,
-	GARBAGE
+	GARBAGE,
+	BONUS
 };
 
 /**
@@ -71,6 +72,12 @@ enum class GarbageFrame : size_t
 	LOW_LEFT,
 	LOW,
 	LOW_RIGHT
+};
+
+enum class BonusFrame : size_t
+{
+	COMBO,
+	CHAIN
 };
 
 // Allow prefix operator++ on BlockFrame
@@ -174,9 +181,13 @@ constexpr int GARBAGE_W = BLOCK_W/2; // width of one drawable piece of garbage
 constexpr int GARBAGE_H = BLOCK_H/2; // height of one drawable piece of garbage
 constexpr int CURSOR_W = 88; // width of the cursor texture
 constexpr int CURSOR_H = 48; // height of the cursor texture
+constexpr int BONUS_W = 16; // width of the combo/chain star
+constexpr int BONUS_H = 16; // height of the combo/chain star
 
 constexpr Point LPIT_LOC = { 32, 48 };
 constexpr Point RPIT_LOC = { 368, 48 };
+constexpr Point LBONUS_LOC = { 320-32-5, 400 };
+constexpr Point RBONUS_LOC = { 320+5, 400 };
 constexpr int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
 constexpr int PIT_ROWS = 10; // number of blocks that fit in a pit on top of each other
 constexpr int COL_W = BLOCK_W; // width of a single column in the pit

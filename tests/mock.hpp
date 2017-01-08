@@ -13,6 +13,7 @@ public:
 	virtual void clip(Point top_left, int width, int height) override {}
 	virtual void unclip() override {}
 	virtual void fade(float fraction) override {}
+	virtual void set_alpha(uint8_t alpha) override {}
 	virtual void play(Snd snd) override {}
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override {}
 	virtual void highlight(Point top_left, int width, int height,

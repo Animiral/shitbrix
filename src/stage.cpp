@@ -454,14 +454,43 @@ void Pit::clear_area(const Physical& physical)
 }
 
 
-Stage::PitCursor::PitCursor(Point loc)
+void BonusIndicator::display_combo(int combo) noexcept
+{
+	m_combo = combo;
+	m_combo_time = DISPLAY_TIME;
+}
+
+void BonusIndicator::display_chain(int chain) noexcept
+{
+	m_chain = chain;
+	m_chain_time = DISPLAY_TIME;
+}
+
+void BonusIndicator::get_indication(int& combo, uint8_t& combo_fade, int& chain, uint8_t& chain_fade) const noexcept
+{
+	combo = m_combo;
+	combo_fade = static_cast<uint8_t>(std::max(0, std::min(255, 255 + 255 * m_combo_time / FADE_TIME)));
+
+	chain = m_chain;
+	chain_fade = static_cast<uint8_t>(std::max(0, std::min(255, 255 + 255 * m_chain_time / FADE_TIME)));
+}
+
+void BonusIndicator::update() noexcept
+{
+	m_combo_time--;
+	m_chain_time--;
+}
+
+
+Stage::PitCursor::PitCursor(Point loc, Point bonus_loc)
 : pit(loc),
-  cursor(RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 })
+  cursor(RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }),
+  bonus(bonus_loc)
 {}
 
-Stage::PitCursor& Stage::add_pit(Point loc)
+Stage::PitCursor& Stage::add_pit(Point loc, Point bonus_loc)
 {
-	m_pits.push_back(std::make_unique<PitCursor>(loc));
+	m_pits.push_back(std::make_unique<PitCursor>(loc, bonus_loc));
 	return *m_pits.back();
 }
 
@@ -470,6 +499,7 @@ void Stage::update(IContext& context)
 	for(auto& pc : m_pits) {
 		pc->pit.update(context);
 		pc->cursor.update();
+		pc->bonus.update();
 	}
 }
 
@@ -478,13 +508,16 @@ std::unique_ptr<Stage> StageBuilder::construct()
 {
 	auto stage = std::make_unique<Stage>();
 
-	auto& left_pc = stage->add_pit(LPIT_LOC);
-	auto& right_pc = stage->add_pit(RPIT_LOC);
+	auto& left_pc = stage->add_pit(LPIT_LOC, LBONUS_LOC);
+	auto& right_pc = stage->add_pit(RPIT_LOC, RBONUS_LOC);
 
 	this->left_pit = &left_pc.pit;
-	this->right_pit = &right_pc.pit;
 	this->left_cursor = &left_pc.cursor;
+	this->left_bonus = &left_pc.bonus;
+
+	this->right_pit = &right_pc.pit;
 	this->right_cursor = &right_pc.cursor;
+	this->right_bonus = &right_pc.bonus;
 
 	return stage;
 }

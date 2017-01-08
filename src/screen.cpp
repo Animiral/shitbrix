@@ -175,16 +175,19 @@ void GameScreen::reset()
 	stage = builder.construct();
 
 	Pit& left_pit = *builder.left_pit;
-	Pit& right_pit = *builder.right_pit;
 	Cursor& left_cursor = *builder.left_cursor;
-	Cursor& right_cursor = *builder.right_cursor;
+	BonusIndicator& left_bonus = *builder.left_bonus;
 
-	auto left_pobjs = std::make_unique<PlayerObjects>(rndgen, left_pit, left_cursor, right_pit);
-	auto right_pobjs = std::make_unique<PlayerObjects>(rndgen, right_pit, right_cursor, left_pit);
+	Pit& right_pit = *builder.right_pit;
+	Cursor& right_cursor = *builder.right_cursor;
+	BonusIndicator& right_bonus = *builder.right_bonus;
+
+	auto left_pobjs = std::make_unique<PlayerObjects>(rndgen, left_pit, left_cursor, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(rndgen, right_pit, right_cursor, left_pit, right_bonus);
 	m_pobjects.push_back(std::move(left_pobjs));
 	m_pobjects.push_back(std::move(right_pobjs));
-	m_draw.add_pit(left_pit, left_cursor);
-	m_draw.add_pit(right_pit, right_cursor);
+	m_draw.add_pit(left_pit, left_cursor, left_bonus);
+	m_draw.add_pit(right_pit, right_cursor, right_bonus);
 
 	for(auto& pobjs : m_pobjects)
 		pobjs->event_hub.append(m_sound_effects);

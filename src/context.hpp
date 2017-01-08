@@ -40,6 +40,12 @@ public:
 	virtual void fade(float fraction) =0;
 
 	/**
+	 * Sets the alpha factor by which all graphics drawn afterwards
+	 * will be affected.
+	 */
+	virtual void set_alpha(uint8_t alpha) =0;
+
+	/**
 	 * Start playback of the indicated sound as recognized by Assets.
 	 */
 	virtual void play(Snd snd) =0;

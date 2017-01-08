@@ -60,6 +60,11 @@ public:
 		m_fade = fraction;
 	}
 
+	virtual void set_alpha(uint8_t alpha) override
+	{
+		m_alpha = alpha;
+	}
+
 	virtual void play(Snd snd) override
 	{
 		Sound sound = assets.sound(snd);
@@ -76,6 +81,10 @@ public:
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
 		SDL_Texture* tex = texture->tex.get();
+
+		int alpha_result = SDL_SetTextureAlphaMod(tex, m_alpha);
+		game_assert(0 == alpha_result, SDL_GetError());
+
 		int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
 		game_assert(0 == render_result, SDL_GetError());
 	}
@@ -129,6 +138,7 @@ private:
 
 	Point m_translate{0,0};
 	float m_fade = 1.f;
+	uint8_t m_alpha = 255;
 	std::unique_ptr<SDL_Texture, SdlDeleter> fadetex; // solid pixel used for fading
 
 };

@@ -312,6 +312,7 @@ void CursorDirector::move(Dir dir)
 		m_handler->fire(evt::CursorMoves());
 }
 
+
 void GarbageThrow::fire(evt::Match event)
 {
 	int combo = event.combo - 3;
@@ -341,6 +342,20 @@ void GarbageThrow::spawn(int columns, int rows, bool right_side)
 	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
 	m_pit.spawn_garbage(rc, columns, rows);
 }
+
+
+void BonusThrow::fire(evt::Match event)
+{
+	if(event.combo > 3)
+		m_indicator.display_combo(event.combo);
+}
+
+void BonusThrow::fire(evt::Chain event)
+{
+	if(event.counter > 0)
+		m_indicator.display_chain(event.counter + 1);
+}
+
 
 // --- implementation of module-specific functions ---
 

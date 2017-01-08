@@ -140,12 +140,13 @@ private:
 	 */
 	struct PlayerObjects
 	{
-		PlayerObjects(RndGen& rndgen, Pit& pit, Cursor& cursor, Pit& other_pit)
+		PlayerObjects(RndGen& rndgen, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
 		: block_director(pit, rndgen), cursor_director(pit, cursor), event_hub(),
-		  garbage_throw(other_pit)
+		  garbage_throw(other_pit), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
 			event_hub.append(garbage_throw);
+			event_hub.append(bonus_throw);
 		}
 
 		// default move would leave dangling references!
@@ -157,7 +158,8 @@ private:
 		BlockDirector block_director;
 		CursorDirector cursor_director;
 		evt::GameEventHub event_hub;
-		GarbageThrow garbage_throw; // event handler for combos and chains
+		GarbageThrow garbage_throw; // event handler for generating garbage bricks
+		BonusThrow bonus_throw; // event handler for displaying stars
 	};
 
 	RndGen rndgen;

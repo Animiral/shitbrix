@@ -172,3 +172,23 @@ private:
 	void spawn(int columns, int rows, bool right_side);
 
 };
+
+/**
+ * This glue class connects combo and chain events reported by the director (logic)
+ * with the BonusIndicator display class.
+ */
+class BonusThrow : public evt::IGameEvent
+{
+
+public:
+
+	BonusThrow(BonusIndicator& indicator) : m_indicator(indicator) {}
+
+	virtual void fire(evt::Match event) override;
+	virtual void fire(evt::Chain event) override;
+
+private:
+
+	BonusIndicator& m_indicator;
+
+};
