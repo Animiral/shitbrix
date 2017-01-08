@@ -205,7 +205,7 @@ void BlockDirector::update()
 	               dead_sound, chainstop);
 
 	// game over check
-	if(panic)
+	if(panic && !debug_no_gameover)
 		m_over = true;
 
 	convert_garbage(pit, dissolvers, std::back_inserter(fallers),

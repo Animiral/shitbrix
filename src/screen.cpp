@@ -248,7 +248,8 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG4:
-			m_pobjects[0]->block_director.debug_spawn_garbage(3, 1);
+			m_pobjects[0]->block_director.debug_no_gameover ^= true;
+			m_pobjects[1]->block_director.debug_no_gameover ^= true;
 			// debug_print_pit(stage->pits()[0]->pit);
 			break;
 

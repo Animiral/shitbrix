@@ -102,6 +102,8 @@ public:
 	bool swap(RowCol lrc);
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
+	bool debug_no_gameover = false;
+
 private:
 
 	Pit& pit;
