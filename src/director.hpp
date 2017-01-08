@@ -76,7 +76,7 @@ class BlockDirector
 public:
 
 	BlockDirector(Pit& pit, RndGen rndgen)
-	: pit(pit), m_handler(nullptr), m_over(false), rndgen(rndgen) {}
+	: pit(pit), m_handler(nullptr), m_chain(0), m_over(false), rndgen(rndgen) {}
 
 	/**
 	 * Set the handler for game events from this director.
@@ -106,6 +106,7 @@ private:
 
 	Pit& pit;
 	evt::IGameEvent* m_handler;
+	int m_chain; //!< chain counter
 	bool m_over; // whether the game is over (the player with this Director loses)
 	RndGen rndgen;     // block colors are generated randomly
 

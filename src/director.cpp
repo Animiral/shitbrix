@@ -96,6 +96,14 @@ void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining);
 void try_resume_pitscroll(Pit& pit);
 
 /**
+ * Examine the pit contents for chaining blocks.
+ * A chain progresses until the last chaining block in the pit disappears
+ * or loses its chaining property.
+ * @return true if there is an active chain in progress
+ */
+bool any_chaining(const Pit& pit);
+
+/**
  * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
  * At the same time, the previous previews become normal blocks at rest.
  * In this instant, they are added to the *hots* set.
@@ -120,11 +128,12 @@ void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
  * @param[out] dead_physical Flag which indicates true if there are new dead physicals
  * @param[out] dead_block Flag which indicates true if there are new dead blocks
  * @param[out] dead_sound Flag which indicates true if there are non-fake dead blocks
+ * @param[out] chainstop Flag which indicates true if a chain might be finished
  */
 template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>
 void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
                     BlockOutIt hots, bool& panic, bool& dead_physical,
-                    bool& dead_block, bool& dead_sound);
+                    bool& dead_block, bool& dead_sound, bool& chainstop);
 
 /**
  * Shrink or remove expired garbage blocks from the *dissolvers* set.
@@ -164,10 +173,11 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
  * @param hots Set of Blocks marked as hot
  * @param[out] have_match Flag which indicates true if there is at least one match
  * @param[out] combo Counter for the number of blocks matched
- * @param[out] chain Counter for the N-th match in a row
+ * @param[out] chaining Flag which indicates true if there is a match involving chaining blocks
+ * @param[out] chainstop Flag which indicates true if chaining blocks have come to rest
  */
 template<typename Hots>
-void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chaining);
+void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chaining, bool& chainstop);
 
 }
 
@@ -186,12 +196,13 @@ void BlockDirector::update()
 	bool dead_physical = false; // true if pit needs to resume scrolling
 	bool dead_block = false;    // true if pit needs to clean up
 	bool dead_sound = false;    // true if there was at least one non-fake dead
+	bool chainstop = false;     // true if the pit should be examined for chain finish
 
 	spawn_previews(pit, std::back_inserter(hots), *rndgen);
 
 	examine_finish(pit, std::back_inserter(dissolvers), std::back_inserter(fallers),
 	               std::back_inserter(hots), panic, dead_physical, dead_block,
-	               dead_sound);
+	               dead_sound, chainstop);
 
 	// game over check
 	if(panic)
@@ -202,9 +213,6 @@ void BlockDirector::update()
 
 	if(!dissolvers.empty() && m_handler)
 		m_handler->fire(evt::GarbageDissolves());
-
-	if(dead_physical)
-		try_resume_pitscroll(pit);
 
 	for(Physical& phys : fallers)
 		game_assert(Physical::State::DEAD != phys.physical_state(), "dead blocks cannot fall");
@@ -219,13 +227,24 @@ void BlockDirector::update()
 	handle_fallers(pit, fallers, hots, hots_end);
 	hots.erase(hots_end, hots.end());
 
-	int combo = 0;
-	bool chaining = false;
 	bool have_match = false;
-	handle_hots(pit, hots, have_match, combo, chaining);
+	bool chaining = false;
+	int combo = 0;
+	handle_hots(pit, hots, have_match, combo, chaining, chainstop);
 
 	if(have_match && m_handler)
 		m_handler->fire(evt::Match{combo, chaining});
+
+	if(chaining)
+		m_chain++;
+
+	if(chainstop && m_handler && !any_chaining(pit)) {
+		m_handler->fire(evt::Chain{m_chain});
+		m_chain = 0;
+	}
+
+	if(dead_physical || chainstop)
+		try_resume_pitscroll(pit);
 
 	// debug: show what the pit considers to be its peak row
 	pit.highlight(pit.peak());
@@ -335,13 +354,31 @@ void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining)
 
 void try_resume_pitscroll(Pit& pit)
 {
-	auto& pit_contents = pit.contents();
-	auto is_breaking = [] (std::unique_ptr<Physical>& p) { return p->physical_state() == Physical::State::BREAK; };
+	// a chain in progress stops the pit
+	if(any_chaining(pit))
+		return;
 
-	auto breaking = std::find_if(pit_contents.begin(), pit_contents.end(), is_breaking);
-	if(pit_contents.end() == breaking) {
+	auto& pit_contents = pit.contents();
+	auto is_breaking = [] (std::unique_ptr<Physical>& p)
+	{
+		return p->physical_state() == Physical::State::BREAK;
+	};
+
+	if(std::none_of(pit_contents.begin(), pit_contents.end(), is_breaking)) {
 		pit.start();
 	}
+}
+
+bool any_chaining(const Pit& pit)
+{
+	auto& pit_contents = pit.contents();
+	auto is_chaining = [] (const std::unique_ptr<Physical>& p)
+	{
+		Block* b = dynamic_cast<Block*>(p.get());
+		return b && b->chaining;
+	};
+
+	return std::any_of(pit_contents.begin(), pit_contents.end(), is_chaining);
 }
 
 template<typename OutIt, typename RndGen>
@@ -373,7 +410,7 @@ void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
 template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>
 void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
                     BlockOutIt hots, bool& panic, bool& dead_physical,
-                    bool& dead_block, bool& dead_sound)
+                    bool& dead_block, bool& dead_sound, bool& chainstop)
 {
 	for(auto& physical : pit.contents())
 	{
@@ -431,7 +468,11 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 
 				if(Block::Color::FAKE != block->col) {
 					dead_sound = true;
-					chaining = true;
+					chaining = true; // blocks to fall from above should get the chaining flag
+
+					// dead blocks can finish chains by being the last chaining blocks to disappear
+					if(block->chaining)
+						chainstop = true;
 				}
 
 				above_fall = true;
@@ -521,7 +562,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 }
 
 template<typename Hots>
-void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chaining)
+void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chaining, bool& chainstop)
 {
 	if(hots.empty())
 		return;
@@ -544,8 +585,14 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 	}
 
 	// There is only 1 chance per block to make a chain
-	for(Block& block : hots)
-		block.chaining = false;
+	for(Block& block : hots) {
+		// Chaining blocks which come to rest can finish a chain.
+		// Blocks which have now matched are still carrying the chain.
+		if(block.chaining && Block::State::BREAK != block.block_state()) {
+			block.chaining = false;
+			chainstop = true;
+		}
+	}
 
 	builder.find_touch_garbage();
 
