@@ -338,6 +338,7 @@ int opponent(int player)
 	return 0 == player ? 1 : 0;
 }
 
+[[ maybe_unused, gnu::unused ]]
 void debug_print_pit(const Pit& pit)
 {
 	std::cerr << "--- Pit blocks:\n\n";

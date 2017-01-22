@@ -1,4 +1,4 @@
-CXXFLAGS=-g -Wall
+CXXFLAGS=-g -Wall -Wno-attributes
 LDLIBS+=$$(sdl2-config --libs) -lSDL2_image
 GAME_O=globals.o sdl_helper.o replay.o input.o stage.o draw.o director.o screen.o
 BINDIR=../bin

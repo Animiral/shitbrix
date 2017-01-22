@@ -214,17 +214,6 @@ constexpr float RAISE_SPEED = 3; // pit speed when raising the stack (max speed)
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
 
 /**
- * Insert an element into a container in a specified sorted order.
- * The elements in the container must already be ordered.
- */
-template< class Container, class Elem = typename Container::value_type, class Order = std::less<Elem> >
-void ordered_insert(Container& container, Elem&& elem, Order order = Order())
-{
-	auto it = std::upper_bound(std::begin(container), std::end(container), elem, order);
-	container.insert(it, std::forward<Elem>(elem));
-}
-
-/**
  * General exception for errors that occur in the game.
  */
 class GameException : public std::exception
