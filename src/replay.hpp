@@ -41,6 +41,7 @@ private:
 
 const char* replay_event_type_string(ReplayEvent::Type type);
 const char* game_button_string(GameButton button);
+const char* button_action_string(ButtonAction action);
 
 /**
  * Writes a replay file event by event.

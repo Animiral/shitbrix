@@ -71,6 +71,15 @@ const char* game_button_string(GameButton button)
 	}
 }
 
+const char* button_action_string(ButtonAction action)
+{
+	switch(action) {
+		case ButtonAction::UP: return "up";
+		case ButtonAction::DOWN: return "down";
+		default: SDL_assert_paranoid(false); return nullptr;
+	}
+}
+
 namespace
 {
 
@@ -94,6 +103,13 @@ GameButton string_to_game_button(const std::string& str)
 	else throw GameException("Invalid game button string.");
 }
 
+ButtonAction string_to_button_action(const std::string& str)
+{
+	if("up" == str) return ButtonAction::UP;
+	else if("down" == str) return ButtonAction::DOWN;
+	else throw GameException("Invalid button action string.");
+}
+
 }
 
 Journal& Journal::operator<<(ReplayEvent event)
@@ -109,9 +125,13 @@ Journal& Journal::operator<<(ReplayEvent event)
 
 		case ReplayEvent::Type::INPUT:
 			{
-				int player = event.input().player;
-				GameButton button = event.input().button;
-				m_stream << " " << player << " " << game_button_string(button);
+				GameInput input = event.input();
+				int player = input.player;
+				GameButton button = input.button;
+				ButtonAction action = input.action;
+				m_stream << " " << player
+				         << " " << game_button_string(button)
+				         << " " << button_action_string(action);
 			}
 			break;
 
@@ -160,9 +180,13 @@ Replay& Replay::operator>>(ReplayEvent& event)
 			{
 				int player;
 				std::string button_str;
-				tokenizer >> player >> button_str;
+				std::string action_str;
+
+				tokenizer >> player >> button_str >> action_str;
 				GameButton button = string_to_game_button(button_str);
-				GameInput input{player, button};
+				ButtonAction action = string_to_button_action(action_str);
+				GameInput input{player, button, action};
+
 				event = ReplayEvent::make_input(time, input);
 			}
 			break;

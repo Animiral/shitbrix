@@ -20,11 +20,11 @@ TEST(ReplayTest, WriteJournal)
 		ReplayEvent::make_set("rng_seed", "4711"),
 		ReplayEvent::make_set("winner", "1"),
 		ReplayEvent::make_start(),
-		ReplayEvent::make_input(3, GameInput{0, GameButton::LEFT}),
-		ReplayEvent::make_input(5, GameInput{1, GameButton::UP}),
-		ReplayEvent::make_input(8, GameInput{0, GameButton::RAISE}),
-		ReplayEvent::make_input(10, GameInput{0, GameButton::LEFT}),
-		ReplayEvent::make_input(10, GameInput{1, GameButton::SWAP}),
+		ReplayEvent::make_input(3, GameInput{0, GameButton::LEFT, ButtonAction::DOWN}),
+		ReplayEvent::make_input(5, GameInput{1, GameButton::UP, ButtonAction::DOWN}),
+		ReplayEvent::make_input(8, GameInput{0, GameButton::RAISE, ButtonAction::DOWN}),
+		ReplayEvent::make_input(10, GameInput{0, GameButton::LEFT, ButtonAction::DOWN}),
+		ReplayEvent::make_input(10, GameInput{1, GameButton::SWAP, ButtonAction::DOWN}),
 		ReplayEvent::make_end(20)
 	};
 
@@ -37,11 +37,11 @@ TEST(ReplayTest, WriteJournal)
 R"(0 set rng_seed 4711
 0 set winner 1
 0 start
-3 input 0 left
-5 input 1 up
-8 input 0 raise
-10 input 0 left
-10 input 1 swap
+3 input 0 left down
+5 input 1 up down
+8 input 0 raise down
+10 input 0 left down
+10 input 1 swap down
 20 end
 )";
 
@@ -56,7 +56,7 @@ TEST(ReplayTest, ReadBasic)
 	std::string replay_str =
 R"(0 set rng_seed 4711
 0 start
-10 input 1 swap
+10 input 1 swap down
 20 end
 )";
 	std::istringstream stream(replay_str);
