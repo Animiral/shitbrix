@@ -113,7 +113,7 @@ bool any_chaining(const Pit& pit);
  * @param rndgen Pseudo-random number source for new blocks
  */
 template<typename OutIt, typename RndGen>
-void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
+bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
 
 /**
  * Classify Physicals whose states are “running out”.
@@ -198,7 +198,11 @@ void BlockDirector::update()
 	bool dead_sound = false;    // true if there was at least one non-fake dead
 	bool chainstop = false;     // true if the pit should be examined for chain finish
 
-	spawn_previews(pit, std::back_inserter(hots), *rndgen);
+	bool new_row = spawn_previews(pit, std::back_inserter(hots), *rndgen);
+
+	// raise until new row, except if player is holding down the button
+	if(new_row && !m_raise)
+		pit.set_speed(SCROLL_SPEED);
 
 	examine_finish(pit, std::back_inserter(dissolvers), std::back_inserter(fallers),
 	               std::back_inserter(hots), panic, dead_physical, dead_block,
@@ -286,6 +290,14 @@ bool BlockDirector::swap(RowCol lrc)
 		m_handler->fire(evt::Swap());
 
 	return true;
+}
+
+void BlockDirector::set_raise(bool raise)
+{
+	m_raise = raise;
+
+	if(raise)
+		pit.set_speed(RAISE_SPEED);
 }
 
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
@@ -427,7 +439,7 @@ bool any_chaining(const Pit& pit)
 }
 
 template<typename OutIt, typename RndGen>
-void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
+bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
 {
 	// If there are no blocks in the pit’s bottom row, refill previews.
 	// For gameplay to work properly, the pit scroll speed must be less
@@ -435,21 +447,25 @@ void spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
 	int bottom_row = pit.bottom() + 1;
 	RowCol bottom_rc{bottom_row, 0};
 
-	if(!pit.at(bottom_rc)) {
-		for(int c = 0; c < PIT_COLS; c++) {
-			RowCol spawn_rc{bottom_row, c};
-			spawn_random_block(pit, spawn_rc, Block::State::PREVIEW, rndgen);
+	// If the bottom of the pit contains blocks, do not add a new row.
+	if(pit.at(bottom_rc))
+		return false;
 
-			RowCol above_rc{bottom_row-1, c};
-			Block* above = pit.block_at(above_rc);
+	for(int c = 0; c < PIT_COLS; c++) {
+		RowCol spawn_rc{bottom_row, c};
+		spawn_random_block(pit, spawn_rc, Block::State::PREVIEW, rndgen);
 
-			// in the first spawn_previews, there might not be blocks above.
-			if(above && Block::State::PREVIEW == above->block_state()) {
-				above->set_state(Physical::State::REST);
-				*hots++ = *above;
-			}
+		RowCol above_rc{bottom_row-1, c};
+		Block* above = pit.block_at(above_rc);
+
+		// in the first spawn_previews, there might not be blocks above.
+		if(above && Block::State::PREVIEW == above->block_state()) {
+			above->set_state(Physical::State::REST);
+			*hots++ = *above;
 		}
 	}
+
+	return true;
 }
 
 template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>

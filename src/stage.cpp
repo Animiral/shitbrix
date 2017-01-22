@@ -193,7 +193,7 @@ void Garbage::land()
 
 Pit::Pit(Point loc) noexcept
 : m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
-  m_peak(1), m_highlight_row(0)
+  m_speed(SCROLL_SPEED), m_peak(1), m_highlight_row(0)
 {
 }
 
@@ -385,7 +385,7 @@ void Pit::update(IContext& context)
 		p->update(context);
 
 	if(m_enabled)
-		m_scroll += SCROLL_SPEED;
+		m_scroll += m_speed;
 }
 
 void Pit::refresh_peak() noexcept

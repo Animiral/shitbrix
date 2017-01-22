@@ -76,7 +76,7 @@ class BlockDirector
 public:
 
 	BlockDirector(Pit& pit, RndGen rndgen)
-	: pit(pit), m_handler(nullptr), m_chain(0), m_over(false), rndgen(rndgen) {}
+	: pit(pit), m_handler(nullptr), m_chain(0), m_over(false), m_raise(false), rndgen(rndgen) {}
 
 	/**
 	 * Set the handler for game events from this director.
@@ -100,6 +100,15 @@ public:
 	 * Returns true if the swap was successful, false otherwise.
 	 */
 	bool swap(RowCol lrc);
+
+	/**
+	 * Set the block raise mode. If raise mode is on, the pit will scroll upwards
+	 * at an accelerated speed, revealing more block material in a short time.
+	 * Raise mode will always last until the next whole row of blocks turns from
+	 * preview to normal, even after just a short tap of the raise button.
+	 */
+	void set_raise(bool raise);
+
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
 	bool debug_no_gameover = false;
@@ -110,6 +119,7 @@ private:
 	evt::IGameEvent* m_handler;
 	int m_chain; //!< chain counter
 	bool m_over; // whether the game is over (the player with this Director loses)
+	bool m_raise; //!< whether the pit should scroll in new blocks as fast as possible
 	RndGen rndgen;     // block colors are generated randomly
 
 };

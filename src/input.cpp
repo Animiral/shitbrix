@@ -8,7 +8,7 @@
 namespace
 {
 
-ControllerInput key_to_controller(SDL_Keycode key)
+ControllerInput key_to_controller(SDL_Keycode key, Uint8 state)
 {
 	int player = NOONE;
 	Button button;
@@ -19,11 +19,13 @@ ControllerInput key_to_controller(SDL_Keycode key)
 		case SDLK_UP:    player = 0; button = Button::UP;    break;
 		case SDLK_DOWN:  player = 0; button = Button::DOWN;  break;
 		case SDLK_z:     player = 0; button = Button::A;     break;
+		case SDLK_x:     player = 0; button = Button::B;     break;
 		case SDLK_KP_4:  player = 1; button = Button::LEFT;  break;
 		case SDLK_KP_6:  player = 1; button = Button::RIGHT; break;
 		case SDLK_KP_8:  player = 1; button = Button::UP;    break;
 		case SDLK_KP_5:  player = 1; button = Button::DOWN;  break;
 		case SDLK_KP_0:  player = 1; button = Button::A;     break;
+		case SDLK_KP_1:  player = 1; button = Button::B;     break;
 		case SDLK_F1:     button = Button::DEBUG1; break;
 		case SDLK_F2:     button = Button::DEBUG2; break;
 		case SDLK_F3:     button = Button::DEBUG3; break;
@@ -35,7 +37,9 @@ ControllerInput key_to_controller(SDL_Keycode key)
 		default:          button = Button::NONE;   break;
 	}
 
-	return ControllerInput { player, button };
+	ButtonAction action = state == SDL_RELEASED ? ButtonAction::UP : ButtonAction::DOWN;
+
+	return ControllerInput { player, button, action };
 }
 
 }
@@ -48,12 +52,17 @@ void Keyboard::poll()
 		switch(event.type) {
 
 		case SDL_QUIT:
-			m_sink.input(ControllerInput{NOONE, Button::QUIT});
+			m_sink.input(ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN});
 			break;
 
+		case SDL_KEYUP:
 		case SDL_KEYDOWN:
 			if(!event.key.repeat) {
-				ControllerInput input = key_to_controller(event.key.keysym.sym);
+				ControllerInput input = key_to_controller(event.key.keysym.sym, event.key.state);
+
+				// with function keys, we only care about press, not release
+				if(NOONE == input.player && ButtonAction::UP == input.action)
+					break;
 
 				if(input.button != Button::NONE)
 					m_sink.input(input);
@@ -90,6 +99,7 @@ void GameInputMixer::input(ControllerInput input)
 			GameInput ginput;
 			ginput.player = input.player; // TODO: properly map dev to player
 			ginput.button = static_cast<GameButton>(input.button);
+			ginput.action = input.action;
 			m_game_sink->input(ginput);
 			break;
 
