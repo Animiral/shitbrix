@@ -74,6 +74,7 @@ void GamePlay::input(GameInput ginput)
 		case GameButton::RIGHT:
 		case GameButton::UP:
 		case GameButton::DOWN:
+			if(ButtonAction::DOWN == ginput.action)
 			{
 				Dir dir = static_cast<Dir>(ginput.button);
 				pobjs.cursor_director.move(dir);
@@ -82,12 +83,16 @@ void GamePlay::input(GameInput ginput)
 			break;
 
 		case GameButton::SWAP:
-		case GameButton::RAISE: // TODO: implement raise
+			if(ButtonAction::DOWN == ginput.action)
 			{
 				RowCol swap_rc = pobjs.cursor_director.rc();
 				pobjs.block_director.swap(swap_rc);
 			}
 
+			break;
+
+		case GameButton::RAISE:
+			pobjs.block_director.set_raise(ButtonAction::DOWN == ginput.action);
 			break;
 
 		case GameButton::NONE:

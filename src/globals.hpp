@@ -116,6 +116,12 @@ enum class Button
  */
 enum class GameButton { NONE, LEFT, RIGHT, UP, DOWN, SWAP, RAISE };
 
+/**
+ * Enumeration of the sorts of inputs that the player can perform on a button.
+ * For some buttons (e.g. PAUSE), only DOWN may be registered.
+ */
+enum class ButtonAction { DOWN, UP };
+
 constexpr int NOONE = -1; // not-a player id
 
 /**
@@ -125,6 +131,7 @@ struct ControllerInput
 {
 	int player; // 0-based player index
 	Button button;
+	ButtonAction action;
 };
 
 /**
@@ -134,6 +141,7 @@ struct GameInput
 {
 	int player; // 0-based player index
 	GameButton button;
+	ButtonAction action;
 };
 
 /**
@@ -201,6 +209,7 @@ constexpr int BANNER_H = 140; // height of the win/lose banner in canvas pixels
 // Gameplay constants
 constexpr float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
 constexpr float SCROLL_SPEED = 1; // .4f; // pixels per update that the pit moves up
+constexpr float RAISE_SPEED = 3; // pit speed when raising the stack (max speed)
 
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
 

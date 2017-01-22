@@ -314,6 +314,7 @@ public:
 
 	void stop() noexcept { m_enabled = false; }
 	void start() noexcept { m_enabled = true; }
+	void set_speed(float delta) { m_speed = delta; }
 
 	/**
 	 * Put a debug highlight on a row
@@ -334,6 +335,7 @@ private:
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
 	float m_scroll;  // y-offset for view on pit contents
+	float m_speed;   // per-update delta for m_scroll
 	int m_peak;      // highest blocked row (may be above visible space)
 	PhysVec m_contents; // list of all blocks in the pit
 	PhysMap m_content_map; // sparse matrix of blocked spaces
