@@ -13,7 +13,7 @@ Physical::Physical(RowCol rc, State state)
   m_target(m_loc),
   m_rc(rc),
   m_state(state),
-  m_time(0),
+  m_time(1),
   m_speed(1)
 {
 	// exclude locations that are well-known to lie out of bounds
@@ -53,21 +53,35 @@ bool Physical::is_fallible() const noexcept
 
 void Physical::update()
 {
+	SDL_assert(State::DEAD != m_state);
+
 	m_time -= m_speed;
 	update_impl();
+
+	if(State::FALL == m_state) {
+		// because FALL_SPEED is in points and m_loc, m_offset are pixels,
+		// adjust it based on the known pixel height of a row.
+		m_loc.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
+		m_offset.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
+	}
+	else if(State::LAND == m_state) {
+		if(is_arriving()) {
+			set_state(State::REST);
+		}
+	}
 }
 
-
-void Physical::set_state(State state)
+void Physical::set_state(State state, int time, int speed) noexcept
 {
-	SDL_assert(State::DEAD == state ||
-	           State::REST == state ||
-	           State::FALL == state ||
-	           State::LAND == state ||
-	           State::BREAK == state);
 	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
+	SDL_assert(time >= 1); // state must last at least one tick
+	SDL_assert(speed >= 1); // time must run out, not in
+
+	set_state_impl(state, time, speed);
 
 	m_state = state;
+	m_time = time;
+	m_speed = speed;
 
 	// Correct the object by any eventual extra-pixels
 	if(State::LAND == state) {
@@ -75,19 +89,6 @@ void Physical::set_state(State state)
 		m_loc.y -= m_offset.y;
 		m_offset = Point{0,0};
 	}
-	else if(State::FALL == state) {
-		m_time = ROW_HEIGHT;
-		m_speed = FALL_SPEED;
-	}
-}
-
-void Physical::set_timeout(int time, int speed)
-{
-	SDL_assert(time >= 1);
-	SDL_assert(speed >= 1);
-
-	m_time = time;
-	m_speed = speed;
 }
 
 
@@ -98,24 +99,9 @@ Block::Block(Color col, RowCol rc, State state)
   m_anim(BlockFrame::REST)
 {}
 
-void Block::set_state(Physical::State state)
-{
-	Physical::set_state(state);
-	State bstate = block_state();
-
-	if(State::BREAK == bstate) {
-		set_timeout(BREAK_TIME);
-		m_anim = BlockFrame::BREAK_BEGIN;
-	}
-	else if(State::LAND == bstate) {
-		set_timeout(LAND_TIME);
-	}
-}
-
 void Block::swap_toward(RowCol target) noexcept
 {
-	m_state = static_cast<Physical::State>(State::SWAP);
-	set_timeout(SWAP_TIME);
+	set_state(static_cast<Physical::State>(State::SWAP), SWAP_TIME);
 	m_target = from_rc(target);
 }
 
@@ -137,15 +123,22 @@ bool Block::is_matchable() const noexcept
 
 void Block::update_impl()
 {
-	switch(block_state()) {
-		case State::PREVIEW: break;
-		case State::REST: break;
-		case State::SWAP: swap(); break;
-		case State::FALL: fall(); break;
-		case State::LAND: land(); break;
-		case State::BREAK: dobreak(); break;
-		case State::DEAD: throw GameException("Cannot update() dead block.");
-		default: SDL_assert_paranoid(false);
+	State bstate = block_state();
+
+	if(State::SWAP == bstate) {
+		swap();
+	}
+	else if(State::BREAK == bstate) {
+		dobreak();
+	}
+}
+
+void Block::set_state_impl(Physical::State state, int, int) noexcept
+{
+	SDL_assert(State::PREVIEW != static_cast<State>(state));
+
+	if(Physical::State::BREAK == state) {
+		m_anim = BlockFrame::BREAK_BEGIN;
 	}
 }
 
@@ -168,24 +161,9 @@ void Block::swap()
 }
 
 
-void Block::fall()
-{
-	// because FALL_SPEED is in points and m_loc, m_offset are pixels,
-	// adjust it based on the known pixel height of a row.
-	m_loc.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
-	m_offset.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
-}
-
-void Block::land()
-{
-	if(eta() < 0) {
-		set_state(Physical::State::REST);
-	}
-}
-
 void Block::dobreak()
 {
-	if(eta() <= 0) {
+	if(is_arriving()) {
 		set_state(Physical::State::DEAD);
 	}
 }
@@ -206,44 +184,6 @@ Garbage::Garbage(RowCol rc, int columns, int rows)
   m_columns(columns),
   m_rows(rows)
 {}
-
-void Garbage::set_state(State state)
-{
-	Physical::set_state(state);
-
-	if(State::BREAK == state) {
-		set_timeout(DISSOLVE_TIME);
-	}
-	else if(State::LAND == state) {
-		set_timeout(LAND_TIME);
-	}
-}
-
-void Garbage::update_impl()
-{
-	game_assert(State::DEAD != m_state, "Cannot update() dead garbage.");
-
-	switch(m_state) {
-		case State::FALL: fall(); break;
-		case State::LAND: land(); break;
-		default: break;
-	}
-}
-
-void Garbage::fall()
-{
-	// because FALL_SPEED is in points and m_loc, m_offset are pixels,
-	// adjust it based on the known pixel height of a row.
-	m_loc.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
-	m_offset.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
-}
-
-void Garbage::land()
-{
-	if(eta() < 0) {
-		set_state(State::REST);
-	}
-}
 
 
 Pit::Pit(Point loc) noexcept

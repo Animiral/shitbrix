@@ -591,7 +591,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 		for(auto it = begin; it != end; ) {
 			Physical& physical = *it;
 			if(pit.can_fall(physical)) {
-				physical.set_state(Physical::State::FALL);
+				physical.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 				pit.fall(physical);
 
 				// erase the element from our consideration of fallers
@@ -610,7 +610,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 		Physical::State state = physical.physical_state();
 
 		if(Physical::State::FALL == state) {
-			physical.set_state(Physical::State::LAND);
+			physical.set_state(Physical::State::LAND, LAND_TIME);
 		}
 		else {
 			physical.set_state(Physical::State::REST);
@@ -642,7 +642,7 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 		pit.stop();
 
 		for(Block& breaking : breaks)
-			breaking.set_state(Physical::State::BREAK);
+			breaking.set_state(Physical::State::BREAK, BREAK_TIME);
 	}
 
 	// There is only 1 chance per block to make a chain
@@ -658,7 +658,7 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 	builder.find_touch_garbage();
 
 	for(auto& garbage : builder.touched_garbage()) {
-		garbage.get().set_state(Physical::State::BREAK);
+		garbage.get().set_state(Physical::State::BREAK, DISSOLVE_TIME);
 	}
 }
 

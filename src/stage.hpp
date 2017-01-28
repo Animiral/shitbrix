@@ -73,7 +73,15 @@ public:
 
 
 	State physical_state() const noexcept { return m_state; }
-	virtual void set_state(State state);
+
+	/**
+	 * Change the state of the Physical object.
+	 *
+	 * @param state the new state to change into
+	 * @param time the duration of the state until @ref is_arriving
+	 * @param speed how much time to deduct from the state every @ref update
+	 */
+	void set_state(State state, int time = 1, int speed = 1) noexcept;
 
 protected:
 
@@ -90,9 +98,9 @@ protected:
 	virtual void update_impl() {}
 
 	/**
-	 * Set the time and speed until the state is finished.
+	 * Template method for subclass state logic implementation.
 	 */
-	void set_timeout(int time, int speed = 1);
+	virtual void set_state_impl(State state, int time, int speed) noexcept {}
 
 private:
 
@@ -131,7 +139,6 @@ public:
 
 	virtual int rows() const noexcept override { return 1; }
 	virtual int columns() const noexcept override { return 1; }
-	virtual void set_state(Physical::State state) override;
 
 	State block_state() const noexcept { return static_cast<State>(m_state); }
 
@@ -139,7 +146,10 @@ public:
 	 * Starts the swapping state & animation for this block.
 	 * This function replaces set_state(State::SWAP) because of the additional
 	 * information that must be conveyed in the target parameter.
+	 * ToDo: the block will soon not care where it is swapping towards.
+	 *       That is the concern of the user and @ref set_rc.
 	 */
+	[[deprecated]]
 	void swap_toward(RowCol target) noexcept;
 
 	bool is_swappable() const noexcept;
@@ -155,19 +165,14 @@ private:
 	virtual void update_impl() override;
 
 	/**
+	 * Block-specific state logic implementation.
+	 */
+	virtual void set_state_impl(Physical::State state, int, int) noexcept override;
+
+	/**
 	 * Update this swapping block
 	 */
 	void swap();
-
-	/**
-	 * Update this falling block
-	 */
-	void fall();
-
-	/**
-	 * Update this landing block
-	 */
-	void land();
 
 	/**
 	 * Update this breaking block
@@ -202,7 +207,6 @@ public:
 
 	virtual int rows() const noexcept override { return m_rows; }
 	virtual int columns() const noexcept override { return m_columns; }
-	virtual void set_state(State state) override;
 
 	int shrink() { return --m_rows; }
 
@@ -210,15 +214,6 @@ private:
 
 	int m_columns;  // width of this garbage in blocks
 	int m_rows;     // height of this garbage in blocks
-
-	/**
-	 * Garbage-specific tick update implementation.
-	 */
-	virtual void update_impl() override;
-
-	void fall();
-	void land();
-	void dobreak();
 
 };
 
