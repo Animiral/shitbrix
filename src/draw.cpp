@@ -138,14 +138,14 @@ void draw_block(const IContext& context, const Block& block, float dt)
 	if(Block::Color::FAKE == block.col) return;
 
 	Point draw_loc = block.loc();
-	int time = block.time;
+	float time = block.eta();
 	Block::State state = block.block_state();
 
 	// bounce when landing
 	if(Block::State::LAND == state) {
 		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
-		int h = time > Block::LAND_TIME/2 ? Block::LAND_TIME-time : time;
-		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / Block::LAND_TIME;
+		int h = time > LAND_TIME/2 ? LAND_TIME-time : time;
+		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / LAND_TIME;
 	}
 
 	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Block::Color::BLUE);
@@ -153,9 +153,10 @@ void draw_block(const IContext& context, const Block& block, float dt)
 	BlockFrame frame = BlockFrame::REST;
 	if(Block::State::PREVIEW == state) frame = BlockFrame::PREVIEW;
 	if(Block::State::BREAK == state) {
+		SDL_assert(time >= 0.f);
 		int begin = static_cast<int>(BlockFrame::BREAK_BEGIN);
 		int end = static_cast<int>(BlockFrame::BREAK_END);
-		frame = static_cast<BlockFrame>(begin + time % (end - begin));
+		frame = static_cast<BlockFrame>(begin + int(time) % (end - begin));
 		// TODO: use the following for single full break anim
 		// frame = time * frames / (BLOCK_BREAK_TIME + 1);
 	}
@@ -163,7 +164,7 @@ void draw_block(const IContext& context, const Block& block, float dt)
 	context.drawGfx(draw_loc, gfx, static_cast<size_t>(frame));
 
 	if(block.chaining) {
-		uint8_t colv = 255 * block.time % 2;
+		uint8_t colv = 255 * int(time) % 2;
 		context.highlight(draw_loc, BLOCK_W, BLOCK_H, colv, colv, colv, 150);
 	}
 }

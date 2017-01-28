@@ -66,19 +66,4 @@ public:
 
 };
 
-/**
- * Basic interface for objects subject to game logic.
- * Logic objects are constructed to fit their place on
- * the stage and are not meant to be copied or moved.
- */
-class ILogic
-{
-public:
-	ILogic() noexcept =default;
-	ILogic(const ILogic& ) =delete;
-	ILogic(const ILogic&& ) =delete;
-	virtual ~ILogic() noexcept =default;
-	virtual void update(IContext& context) =0; // advance the object by one tick
-};
-
 class IHistoryObject {}; // interface go-back etc.

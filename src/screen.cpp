@@ -46,7 +46,7 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 
 void GamePlay::update()
 {
-	m_screen->stage->update(m_screen->m_context);
+	m_screen->stage->update();
 
 	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
 		auto& pobjs = m_screen->m_pobjects[i];

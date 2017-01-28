@@ -496,7 +496,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
 			// shrink garbage if necessary
 			if(Physical::State::BREAK == garbage->physical_state() &&
-			   garbage->time <= 0) {
+			   garbage->is_arriving()) {
 				*dissolvers++ = *garbage;
 			}
 		}
@@ -508,7 +508,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			bool chaining = false; // whether objects above chain when they fall
 
 			// blocks finished swapping
-			if(Block::State::SWAP == state && block->time <= 0) {
+			if(Block::State::SWAP == state && block->is_arriving()) {
 				// fake blocks are only for swapping and disappear right afterwards
 				if(Block::Color::FAKE == block->col) {
 					block->set_state(Physical::State::DEAD);

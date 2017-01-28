@@ -24,7 +24,7 @@ globals.o: globals.cpp globals.hpp
 sdl_helper.o: sdl_helper.cpp sdl_helper.hpp globals.hpp
 replay.o: replay.cpp replay.hpp globals.hpp
 input.o: input.cpp input.hpp globals.hpp replay.hpp
-stage.o: stage.cpp stage.hpp context.hpp globals.hpp
+stage.o: stage.cpp stage.hpp globals.hpp
 draw.o: draw.cpp draw.hpp context.hpp stage.hpp globals.hpp gameevent.hpp
 director.o: director.cpp director.hpp globals.hpp stage.hpp context.hpp gameevent.hpp
 screen.o: screen.cpp screen.hpp director.hpp globals.hpp input.hpp stage.hpp context.hpp replay.hpp draw.hpp gameevent.hpp
