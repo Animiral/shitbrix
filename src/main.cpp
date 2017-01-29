@@ -179,7 +179,7 @@ private:
 	{
 		m_input_mixer.set_game_sink(nullptr);
 		m_input_mixer.set_replay_sink(nullptr);
-		m_keyboard.set_game_sink(nullptr);	
+		m_keyboard.set_game_sink(nullptr);
 	}
 
 	std::unique_ptr<SplashScreen> make_splash_screen()
@@ -187,8 +187,8 @@ private:
 		unplug_all();
 
 		auto screen = std::make_unique<SplashScreen>();
-  		screen->set_context(m_context);
-  		return screen;
+		screen->set_context(m_context);
+		return screen;
 	}
 
 	std::unique_ptr<GameScreen> make_game_screen()
@@ -200,7 +200,7 @@ private:
 		// connect all the components
 		m_input_mixer.set_replay_sink(screen.get());
 		m_keyboard.set_game_sink(screen.get());
-  		screen->set_context(m_context);
+		screen->set_context(m_context);
 		screen->set_rndgen(m_rndgen);
 		screen->set_input(m_input_mixer);
 		screen->set_journal(m_journal);
@@ -211,8 +211,8 @@ private:
 	std::unique_ptr<Transition> make_transition(std::unique_ptr<IScreen> successor)
 	{
 		auto screen = std::make_unique<Transition>(std::move(m_screen), std::move(successor));
-  		screen->set_context(m_context);
-  		return screen;
+		screen->set_context(m_context);
+		return screen;
 	}
 
 };
