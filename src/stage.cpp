@@ -18,6 +18,7 @@ Physical::Physical(RowCol rc, State state)
 
 	// exclude states in which we know that physicals do not spawn
 	SDL_assert(State::DEAD != state &&
+	           State::FALL != state &&
 	           State::LAND != state &&
 	           State::BREAK != state);
 }
@@ -63,6 +64,14 @@ void Physical::set_state(State state, int time, int speed) noexcept
 	m_state = state;
 	m_time = time;
 	m_speed = speed;
+}
+
+void Physical::continue_state(int time_bonus) noexcept
+{
+	// The bonus must be large enough to prime the object for another arrival
+	SDL_assert(m_time + time_bonus > 0);
+
+	m_time += time_bonus;
 }
 
 
@@ -129,7 +138,7 @@ bool y_greater(const Block& lhs, const Block& rhs) noexcept
 
 
 Garbage::Garbage(RowCol rc, int columns, int rows)
-: Physical(rc, State::FALL),
+: Physical(rc, State::REST),
   m_columns(columns),
   m_rows(rows)
 {}

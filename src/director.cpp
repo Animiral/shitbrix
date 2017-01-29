@@ -350,9 +350,10 @@ void GarbageThrow::spawn(int columns, int rows, bool right_side)
 {
 	SDL_assert(columns > 0 && columns <= PIT_COLS);
 
-	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 2;
+	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
 	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
-	m_pit.spawn_garbage(rc, columns, rows);
+	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows);
+	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 
 
@@ -561,7 +562,7 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
 
 		for(int c = 0; c < garbage_columns; c++) {
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
-			Block& block = spawn_random_block(pit, block_rc, Block::State::FALL, rndgen);
+			Block& block = spawn_random_block(pit, block_rc, Block::State::REST, rndgen);
 			block.chaining = true;
 			*fallers++ = block;
 			*hots++ = block;
@@ -592,7 +593,15 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 		for(auto it = begin; it != end; ) {
 			Physical& physical = *it;
 			if(pit.can_fall(physical)) {
-				physical.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
+				// If the object is already falling, we do not wish to throw
+				// away the slice of their time in which they already fell
+				// into the next row.
+				if(Physical::State::FALL == physical.physical_state()) {
+					physical.continue_state(ROW_HEIGHT);
+				}
+				else {
+					physical.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
+				}
 				pit.fall(physical);
 
 				// erase the element from our consideration of fallers

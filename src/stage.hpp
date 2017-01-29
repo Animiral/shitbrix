@@ -77,6 +77,11 @@ public:
 	 */
 	void set_state(State state, int time = 1, int speed = 1) noexcept;
 
+	/**
+	 * Add more time to the current state of the object and let it arrive again.
+	 */
+	void continue_state(int time_bonus) noexcept;
+
 protected:
 
 	RowCol m_rc;    //!< row/col position, - is UP, + is DOWN
