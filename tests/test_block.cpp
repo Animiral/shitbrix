@@ -11,9 +11,9 @@
 TEST(BlockTest, Fall)
 {
 	// setup
-	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::FALL);
+	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::REST);
+	block.set_state(Block::State::FALL, ROW_HEIGHT, FALL_SPEED);
 
-	Point loc0 = block.loc(); // current location
 	const int TICKS = 3; // block updates in this test
 
 	for(int i = 0; i < TICKS; i++)
@@ -21,5 +21,5 @@ TEST(BlockTest, Fall)
 		block.update();
 	}
 
-	EXPECT_EQ(loc0.y + TICKS * ROW_H * FALL_SPEED / ROW_HEIGHT, block.loc().y);
+	EXPECT_FLOAT_EQ(float(ROW_HEIGHT) / FALL_SPEED - TICKS, block.eta());
 }
