@@ -26,21 +26,15 @@ public:
 	 * The derived classes intentionally extend this definition
 	 * by properly defining the placeholder X-states.
 	 */
-	enum class State { DEAD, REST, FALL, LAND, BREAK, X1, X2 };
+	enum class State { DEAD, REST, FALL, LAND, BREAK, X1, X2, X3 };
 
 
 	Physical(RowCol rc, State state);
 	virtual ~Physical() noexcept =default;
 
 
-	Point loc() const noexcept { return m_loc; }
 	RowCol rc() const noexcept { return m_rc; }
-
-	/**
-	 * Changes the Physical’s logical location while maintaining its draw position,
-	 * now relative to the new rc.
-	 */
-	void set_rc(RowCol rc);
+	void set_rc(RowCol rc) noexcept { m_rc = rc; }
 
 	virtual int rows() const noexcept =0;
 	virtual int columns() const noexcept =0;
@@ -85,11 +79,7 @@ public:
 
 protected:
 
-	Point m_loc;    //!< logical location, upper left corner relative to view (not necessarily sprite draw location)
-	Point m_offset; //!< x/y offset from draw center of r/c location
-	Point m_target; //!< target location - where the block really wants to be while it’s busy with an animation like SWAP
 	RowCol m_rc;    //!< row/col position, - is UP, + is DOWN
-
 	State m_state;  //!< current state
 
 	/**
@@ -126,10 +116,11 @@ public:
 	 *  * FALL: on its way down the pit at FALL_SPEED
 	 *  * LAND: for a short period of time, after its fall stops, the block holds out on matches & can be swapped
 	 *  * BREAK: the block has been matched and is in the process of destruction
-	 *  * SWAP: the block is moving to another location by swapping
+	 *  * SWAP_LEFT: the block is moving to the left by swapping
+	 *  * SWAP_RIGHT: the block is moving to the right by swapping
 	 *  * PREVIEW: init state. (Partially) visible, but not yet subject to matches and swapping
 	 */
-	enum class State { DEAD, REST, FALL, LAND, BREAK, SWAP, PREVIEW };
+	enum class State { DEAD, REST, FALL, LAND, BREAK, SWAP_LEFT, SWAP_RIGHT, PREVIEW };
 
 	Color col; // color
 	bool chaining; // Whether this block is chaining (falling down from a match)
@@ -141,16 +132,8 @@ public:
 	virtual int columns() const noexcept override { return 1; }
 
 	State block_state() const noexcept { return static_cast<State>(m_state); }
-
-	/**
-	 * Starts the swapping state & animation for this block.
-	 * This function replaces set_state(State::SWAP) because of the additional
-	 * information that must be conveyed in the target parameter.
-	 * ToDo: the block will soon not care where it is swapping towards.
-	 *       That is the concern of the user and @ref set_rc.
-	 */
-	[[deprecated]]
-	void swap_toward(RowCol target) noexcept;
+	void set_state(Physical::State state, int time = 1, int speed = 1) noexcept;
+	void set_state(State state, int time = 1, int speed = 1) noexcept;
 
 	bool is_swappable() const noexcept;
 	bool is_matchable() const noexcept;
@@ -168,16 +151,6 @@ private:
 	 * Block-specific state logic implementation.
 	 */
 	virtual void set_state_impl(Physical::State state, int, int) noexcept override;
-
-	/**
-	 * Update this swapping block
-	 */
-	void swap();
-
-	/**
-	 * Update this breaking block
-	 */
-	void dobreak();
 	
 };
 

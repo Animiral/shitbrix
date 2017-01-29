@@ -357,7 +357,8 @@ void debug_print_pit(const Pit& pit)
 			case Block::State::DEAD: state_str = "DEAD"; break;
 			case Block::State::PREVIEW: state_str = "PREVIEW"; break;
 			case Block::State::REST: state_str = "REST"; break;
-			case Block::State::SWAP: state_str = "SWAP"; break;
+			case Block::State::SWAP_LEFT: state_str = "SWAP_LEFT"; break;
+			case Block::State::SWAP_RIGHT: state_str = "SWAP_RIGHT"; break;
 			case Block::State::FALL: state_str = "FALL"; break;
 			case Block::State::LAND: state_str = "LAND"; break;
 			case Block::State::BREAK: state_str = "BREAK"; break;

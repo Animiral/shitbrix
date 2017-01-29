@@ -282,8 +282,8 @@ bool BlockDirector::swap(RowCol lrc)
 	if(!right) right = &spawn_fake_block(pit, rrc);
 
 	// do swap
-	left->swap_toward(rrc);
-	right->swap_toward(lrc);
+	left->set_state(Block::State::SWAP_RIGHT, SWAP_TIME);
+	right->set_state(Block::State::SWAP_LEFT, SWAP_TIME);
 	pit.swap(*left, *right);
 
 	if(m_handler)
@@ -476,8 +476,9 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 	for(auto& physical : pit.contents())
 	{
 		Physical::State state = physical->physical_state();
+		bool is_arriving = physical->is_arriving();
 
-		if(Physical::State::FALL == state && physical->is_arriving()) {
+		if(Physical::State::FALL == state && is_arriving) {
 			// can never fall lower than the preview row of blocks
 			game_assert(physical->rc().r + physical->rows() - 1 <= pit.bottom(), "Object falls too low");
 
@@ -495,8 +496,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		// Garbage-specifics
 		if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
 			// shrink garbage if necessary
-			if(Physical::State::BREAK == garbage->physical_state() &&
-			   garbage->is_arriving()) {
+			if(Physical::State::BREAK == garbage->physical_state() && is_arriving) {
 				*dissolvers++ = *garbage;
 			}
 		}
@@ -508,7 +508,8 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			bool chaining = false; // whether objects above chain when they fall
 
 			// blocks finished swapping
-			if(Block::State::SWAP == state && block->is_arriving()) {
+			if((Block::State::SWAP_LEFT == state || Block::State::SWAP_RIGHT == state) &&
+			   is_arriving) {
 				// fake blocks are only for swapping and disappear right afterwards
 				if(Block::Color::FAKE == block->col) {
 					block->set_state(Physical::State::DEAD);

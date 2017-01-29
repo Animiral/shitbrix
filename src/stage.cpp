@@ -8,10 +8,7 @@
 #include <functional>
 
 Physical::Physical(RowCol rc, State state)
-: m_loc(from_rc(rc)),
-  m_offset{0,0},
-  m_target(m_loc),
-  m_rc(rc),
+: m_rc(rc),
   m_state(state),
   m_time(1),
   m_speed(1)
@@ -30,20 +27,10 @@ float Physical::eta() const noexcept
 	return float(m_time) / m_speed;
 }
 
-void Physical::set_rc(RowCol rc)
-{
-	m_offset.x -= (rc.c - m_rc.c) * COL_W;
-	m_offset.y -= (rc.r - m_rc.r) * ROW_H;
-	m_rc = rc;
-}
-
 bool Physical::is_arriving() const noexcept
 {
 	// Physical states are generally time-based.
-	return (m_time <= 0 && m_time > -m_speed) ||
-	// However, the falling mechanics still use pixel offsets.
-	// The second check addresses this for compatibility.
-	       (State::FALL == m_state && m_offset.y >= 0);
+	return m_time <= 0 && m_time > -m_speed;
 }
 
 bool Physical::is_fallible() const noexcept
@@ -58,13 +45,7 @@ void Physical::update()
 	m_time -= m_speed;
 	update_impl();
 
-	if(State::FALL == m_state) {
-		// because FALL_SPEED is in points and m_loc, m_offset are pixels,
-		// adjust it based on the known pixel height of a row.
-		m_loc.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
-		m_offset.y += ROW_H * FALL_SPEED / ROW_HEIGHT;
-	}
-	else if(State::LAND == m_state) {
+	if(State::LAND == m_state) {
 		if(is_arriving()) {
 			set_state(State::REST);
 		}
@@ -82,13 +63,6 @@ void Physical::set_state(State state, int time, int speed) noexcept
 	m_state = state;
 	m_time = time;
 	m_speed = speed;
-
-	// Correct the object by any eventual extra-pixels
-	if(State::LAND == state) {
-		m_loc.x -= m_offset.x;
-		m_loc.y -= m_offset.y;
-		m_offset = Point{0,0};
-	}
 }
 
 
@@ -99,10 +73,14 @@ Block::Block(Color col, RowCol rc, State state)
   m_anim(BlockFrame::REST)
 {}
 
-void Block::swap_toward(RowCol target) noexcept
+void Block::set_state(Physical::State state, int time, int speed) noexcept
 {
-	set_state(static_cast<Physical::State>(State::SWAP), SWAP_TIME);
-	m_target = from_rc(target);
+	Physical::set_state(state, time, speed);
+}
+
+void Block::set_state(State state, int time, int speed) noexcept
+{
+	Physical::set_state(static_cast<Physical::State>(state), time, speed);
 }
 
 bool Block::is_swappable() const noexcept
@@ -110,9 +88,10 @@ bool Block::is_swappable() const noexcept
 	State state = block_state();
 
 	return State::REST == state ||
-	       State::SWAP == state ||
 	       State::FALL == state ||
-	       State::LAND == state;
+	       State::LAND == state ||
+	       State::SWAP_LEFT == state ||
+	       State::SWAP_RIGHT == state;
 }
 
 bool Block::is_matchable() const noexcept
@@ -123,13 +102,8 @@ bool Block::is_matchable() const noexcept
 
 void Block::update_impl()
 {
-	State bstate = block_state();
-
-	if(State::SWAP == bstate) {
-		swap();
-	}
-	else if(State::BREAK == bstate) {
-		dobreak();
+	if(State::BREAK == block_state() && is_arriving()) {
+		set_state(Physical::State::DEAD);
 	}
 }
 
@@ -142,31 +116,6 @@ void Block::set_state_impl(Physical::State state, int, int) noexcept
 	}
 }
 
-void Block::swap()
-{
-	float time = eta();
-
-	if(time > 0.f) {
-		float adv_x = (m_target.x - m_loc.x) / time;
-		float adv_y = (m_target.y - m_loc.y) / time;
-		m_loc.x += adv_x;
-		m_loc.y += adv_y;
-		m_offset.x += adv_x;
-		m_offset.y += adv_y;
-	}
-	else {
-		m_loc = m_target;
-		m_offset = Point{0,0};
-	}
-}
-
-
-void Block::dobreak()
-{
-	if(is_arriving()) {
-		set_state(Physical::State::DEAD);
-	}
-}
 
 int operator-(Block::Color lhs, Block::Color rhs) noexcept
 {
