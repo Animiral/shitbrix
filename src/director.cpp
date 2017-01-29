@@ -282,8 +282,8 @@ bool BlockDirector::swap(RowCol lrc)
 	if(!right) right = &spawn_fake_block(pit, rrc);
 
 	// do swap
-	left->swap_toward(rrc);
-	right->swap_toward(lrc);
+	left->set_state(Block::State::SWAP_RIGHT, SWAP_TIME);
+	right->set_state(Block::State::SWAP_LEFT, SWAP_TIME);
 	pit.swap(*left, *right);
 
 	if(m_handler)
@@ -350,9 +350,10 @@ void GarbageThrow::spawn(int columns, int rows, bool right_side)
 {
 	SDL_assert(columns > 0 && columns <= PIT_COLS);
 
-	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 2;
+	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
 	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
-	m_pit.spawn_garbage(rc, columns, rows);
+	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows);
+	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 
 
@@ -476,8 +477,9 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 	for(auto& physical : pit.contents())
 	{
 		Physical::State state = physical->physical_state();
+		bool is_arriving = physical->is_arriving();
 
-		if(Physical::State::FALL == state && physical->is_arriving()) {
+		if(Physical::State::FALL == state && is_arriving) {
 			// can never fall lower than the preview row of blocks
 			game_assert(physical->rc().r + physical->rows() - 1 <= pit.bottom(), "Object falls too low");
 
@@ -495,8 +497,7 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 		// Garbage-specifics
 		if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
 			// shrink garbage if necessary
-			if(Physical::State::BREAK == garbage->physical_state() &&
-			   garbage->time <= 0) {
+			if(Physical::State::BREAK == garbage->physical_state() && is_arriving) {
 				*dissolvers++ = *garbage;
 			}
 		}
@@ -508,7 +509,8 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			bool chaining = false; // whether objects above chain when they fall
 
 			// blocks finished swapping
-			if(Block::State::SWAP == state && block->time <= 0) {
+			if((Block::State::SWAP_LEFT == state || Block::State::SWAP_RIGHT == state) &&
+			   is_arriving) {
 				// fake blocks are only for swapping and disappear right afterwards
 				if(Block::Color::FAKE == block->col) {
 					block->set_state(Physical::State::DEAD);
@@ -560,7 +562,7 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
 
 		for(int c = 0; c < garbage_columns; c++) {
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
-			Block& block = spawn_random_block(pit, block_rc, Block::State::FALL, rndgen);
+			Block& block = spawn_random_block(pit, block_rc, Block::State::REST, rndgen);
 			block.chaining = true;
 			*fallers++ = block;
 			*hots++ = block;
@@ -591,7 +593,15 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 		for(auto it = begin; it != end; ) {
 			Physical& physical = *it;
 			if(pit.can_fall(physical)) {
-				physical.set_state(Physical::State::FALL);
+				// If the object is already falling, we do not wish to throw
+				// away the slice of their time in which they already fell
+				// into the next row.
+				if(Physical::State::FALL == physical.physical_state()) {
+					physical.continue_state(ROW_HEIGHT);
+				}
+				else {
+					physical.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
+				}
 				pit.fall(physical);
 
 				// erase the element from our consideration of fallers
@@ -610,7 +620,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 		Physical::State state = physical.physical_state();
 
 		if(Physical::State::FALL == state) {
-			physical.set_state(Physical::State::LAND);
+			physical.set_state(Physical::State::LAND, LAND_TIME);
 		}
 		else {
 			physical.set_state(Physical::State::REST);
@@ -642,7 +652,7 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 		pit.stop();
 
 		for(Block& breaking : breaks)
-			breaking.set_state(Physical::State::BREAK);
+			breaking.set_state(Physical::State::BREAK, BREAK_TIME);
 	}
 
 	// There is only 1 chance per block to make a chain
@@ -658,7 +668,7 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 	builder.find_touch_garbage();
 
 	for(auto& garbage : builder.touched_garbage()) {
-		garbage.get().set_state(Physical::State::BREAK);
+		garbage.get().set_state(Physical::State::BREAK, DISSOLVE_TIME);
 	}
 }
 

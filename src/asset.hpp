@@ -37,12 +37,19 @@ public:
 	 */
 	Texture texture(Gfx gfx, size_t frame = 0) const
 	{
-		return textures[static_cast<size_t>(gfx)][frame];
+		size_t gfx_index = static_cast<size_t>(gfx);
+		SDL_assert(gfx_index < textures.size());
+		SDL_assert(frame < textures[gfx_index].size());
+
+		return textures[gfx_index][frame];
 	}
 
 	Sound sound(Snd snd) const
 	{
-		return sounds[static_cast<size_t>(snd)];
+		size_t snd_index = static_cast<size_t>(snd);
+		SDL_assert(snd_index < sounds.size());
+
+		return sounds[snd_index];
 	}
 
 private:

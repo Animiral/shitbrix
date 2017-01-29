@@ -5,7 +5,6 @@
 #include "stage.hpp"
 #include "director.hpp"
 #include "gameevent.hpp"
-#include "mock.hpp"
 #include "gtest/gtest.h"
 
 class GameEventCounter : public evt::IGameEvent
@@ -57,12 +56,11 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		for(int t = 0; t < ticks; t++) {
-			pit->update(context);
+			pit->update();
 			block_director->update();
 		}
 	}
 
-	MockContext context;
 	std::unique_ptr<Pit> pit;
 	std::unique_ptr<Cursor> cursor;
 	RndGen rndgen;
@@ -114,12 +112,12 @@ TEST_F(GameEventTest, Match)
 
 	block_director->swap(RowCol{0,2});
 
-	run_game_ticks(Block::SWAP_TIME);
+	run_game_ticks(SWAP_TIME);
 	EXPECT_EQ(3, counter->last_match.combo);
 	EXPECT_FALSE(counter->last_match.chaining);
 
-	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED));
-	run_game_ticks(Block::BREAK_TIME + FALL1_TIME);
+	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED));
+	run_game_ticks(BREAK_TIME + FALL1_TIME);
 	EXPECT_EQ(3, counter->last_match.combo);
 	EXPECT_TRUE(counter->last_match.chaining);
 }
@@ -138,8 +136,8 @@ TEST_F(GameEventTest, Chain)
 
 	block_director->swap(RowCol{0,2});
 
-	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED));
-	run_game_ticks(Block::SWAP_TIME + Block::BREAK_TIME + FALL1_TIME + Block::BREAK_TIME);
+	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED));
+	run_game_ticks(SWAP_TIME + BREAK_TIME + FALL1_TIME + BREAK_TIME);
 	EXPECT_EQ(1, counter->last_chain.counter);
 }
 
@@ -148,12 +146,14 @@ TEST_F(GameEventTest, Chain)
  */
 TEST_F(GameEventTest, BlockDies)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::BREAK);
-	run_game_ticks(Block::BREAK_TIME);
+	Block& blue_block = pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	blue_block.set_state(Physical::State::BREAK, BREAK_TIME);
+	run_game_ticks(BREAK_TIME);
 	EXPECT_EQ(1, counter->countBlockDies);
 
-	pit->spawn_block(Block::Color::FAKE, RowCol{0, 0}, Block::State::BREAK);
-	run_game_ticks(Block::BREAK_TIME);
+	Block& fake_block = pit->spawn_block(Block::Color::FAKE, RowCol{0, 0}, Block::State::REST);
+	fake_block.set_state(Physical::State::BREAK, BREAK_TIME);
+	run_game_ticks(BREAK_TIME);
 	EXPECT_EQ(1, counter->countBlockDies);
 }
 
@@ -168,6 +168,6 @@ TEST_F(GameEventTest, GarbageDissolves)
 	pit->spawn_garbage(RowCol{-1, 2}, 3, 1);
 
 	block_director->swap(RowCol{0,2});
-	run_game_ticks(Block::SWAP_TIME + Garbage::DISSOLVE_TIME);
+	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);
 	EXPECT_EQ(1, counter->countGarbageDissolves);
 }

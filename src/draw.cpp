@@ -11,6 +11,9 @@
 namespace
 {
 
+Point block_loc(const Block& block);
+Point garbage_loc(const Garbage& garbage);
+
 void draw_pit(const IContext& context, const Pit& pit, float dt);
 void draw_pit_debug_overlay(const IContext& context, const Pit& pit);
 void draw_block(const IContext& context, const Block& block, float dt);
@@ -99,6 +102,49 @@ void DrawGame::toggle_pit_debug_highlight()
 namespace
 {
 
+Point block_loc(const Block& block)
+{
+	Point loc = from_rc(block.rc());
+	float eta = block.eta();
+
+	switch(block.block_state()) {
+		case Block::State::FALL:
+			loc.y -= eta * ROW_HEIGHT / FALL_SPEED;
+			break;
+
+		case Block::State::LAND:
+			{
+				int h = eta > LAND_TIME/2 ? LAND_TIME-eta : eta;
+				loc.y -= h * DrawGame::BLOCK_BOUNCE_H / LAND_TIME;
+			}
+			break;
+
+		case Block::State::SWAP_LEFT:
+			loc.x += eta * COL_W / SWAP_TIME ;
+			break;
+
+		case Block::State::SWAP_RIGHT:
+			loc.x -= eta * COL_W / SWAP_TIME ;
+			break;
+
+		default:
+			break;
+	}
+
+	return loc;
+}
+
+Point garbage_loc(const Garbage& garbage)
+{
+	Point loc = from_rc(garbage.rc());
+
+	if(Physical::State::FALL == garbage.physical_state()) {
+		loc.y -= garbage.eta() * ROW_HEIGHT / FALL_SPEED;
+	}
+
+	return loc;
+}
+
 void draw_pit(const IContext& context, const Pit& pit, float dt)
 {
 	for(auto& physical : pit.contents()) {
@@ -120,15 +166,13 @@ void draw_pit_debug_overlay(const IContext& context, const Pit& pit)
 			if(Block::State::FALL == state) frame = 1;
 			if(Block::State::BREAK == state) frame = 2;
 			if(Block::Color::FAKE == block->col) frame = 3;
-			Point loc = block->loc();
-			context.drawGfx(loc, Gfx::PITVIEW, frame);
+			context.drawGfx(block_loc(*block), Gfx::PITVIEW, frame);
 		}
 		else if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
 			Physical::State state = garbage->physical_state();
 			size_t frame = 4;
 			if(Physical::State::FALL == state) frame = 5;
-			Point loc = garbage->loc();
-			context.drawGfx(loc, Gfx::PITVIEW, frame);
+			context.drawGfx(garbage_loc(*garbage), Gfx::PITVIEW, frame);
 		}
 	}
 }
@@ -137,33 +181,29 @@ void draw_block(const IContext& context, const Block& block, float dt)
 {
 	if(Block::Color::FAKE == block.col) return;
 
-	Point draw_loc = block.loc();
-	int time = block.time;
+	float time = block.eta();
 	Block::State state = block.block_state();
+	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Block::Color::BLUE);
+	BlockFrame frame = BlockFrame::REST;
 
-	// bounce when landing
-	if(Block::State::LAND == state) {
-		// TODO: include dt in landing anim, don’t forget FPS-TPS conversion
-		int h = time > Block::LAND_TIME/2 ? Block::LAND_TIME-time : time;
-		draw_loc.y -= h * DrawGame::BLOCK_BOUNCE_H / Block::LAND_TIME;
+	if(Block::State::PREVIEW == state) {
+		frame = BlockFrame::PREVIEW;
 	}
 
-	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Block::Color::BLUE);
-
-	BlockFrame frame = BlockFrame::REST;
-	if(Block::State::PREVIEW == state) frame = BlockFrame::PREVIEW;
 	if(Block::State::BREAK == state) {
+		SDL_assert(time >= 0.f);
 		int begin = static_cast<int>(BlockFrame::BREAK_BEGIN);
 		int end = static_cast<int>(BlockFrame::BREAK_END);
-		frame = static_cast<BlockFrame>(begin + time % (end - begin));
+		frame = static_cast<BlockFrame>(begin + int(time) % (end - begin));
 		// TODO: use the following for single full break anim
 		// frame = time * frames / (BLOCK_BREAK_TIME + 1);
 	}
 
+	Point draw_loc = block_loc(block);
 	context.drawGfx(draw_loc, gfx, static_cast<size_t>(frame));
 
 	if(block.chaining) {
-		uint8_t colv = 255 * block.time % 2;
+		uint8_t colv = 255 * int(time) % 2;
 		context.highlight(draw_loc, BLOCK_W, BLOCK_H, colv, colv, colv, 150);
 	}
 }
@@ -176,7 +216,7 @@ void draw_block(const IContext& context, const Block& block, float dt)
  */
 void draw_garbage(const IContext& context, const Garbage& garbage, float dt)
 {
-	Point draw_loc = garbage.loc();
+	Point draw_loc = garbage_loc(garbage);
 
 	// Animation, for a garbage block, primarily means the part where it dissolves
 	// and turns into small blocks.

@@ -3,7 +3,6 @@
  */
 
 #include "stage.hpp"
-#include "mock.hpp"
 #include "gtest/gtest.h"
 
 /**
@@ -12,16 +11,15 @@
 TEST(BlockTest, Fall)
 {
 	// setup
-	auto context = MockContext();
-	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::FALL);
+	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::REST);
+	block.set_state(Block::State::FALL, ROW_HEIGHT, FALL_SPEED);
 
-	Point loc0 = block.loc(); // current location
 	const int TICKS = 3; // block updates in this test
 
 	for(int i = 0; i < TICKS; i++)
 	{
-		block.update(context);
+		block.update();
 	}
 
-	EXPECT_EQ(loc0.y + TICKS * FALL_SPEED, block.loc().y);
+	EXPECT_FLOAT_EQ(float(ROW_HEIGHT) / FALL_SPEED - TICKS, block.eta());
 }

@@ -46,7 +46,7 @@ GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 
 void GamePlay::update()
 {
-	m_screen->stage->update(m_screen->m_context);
+	m_screen->stage->update();
 
 	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
 		auto& pobjs = m_screen->m_pobjects[i];
@@ -338,6 +338,7 @@ int opponent(int player)
 	return 0 == player ? 1 : 0;
 }
 
+[[ maybe_unused, gnu::unused ]]
 void debug_print_pit(const Pit& pit)
 {
 	std::cerr << "--- Pit blocks:\n\n";
@@ -356,7 +357,8 @@ void debug_print_pit(const Pit& pit)
 			case Block::State::DEAD: state_str = "DEAD"; break;
 			case Block::State::PREVIEW: state_str = "PREVIEW"; break;
 			case Block::State::REST: state_str = "REST"; break;
-			case Block::State::SWAP: state_str = "SWAP"; break;
+			case Block::State::SWAP_LEFT: state_str = "SWAP_LEFT"; break;
+			case Block::State::SWAP_RIGHT: state_str = "SWAP_RIGHT"; break;
 			case Block::State::FALL: state_str = "FALL"; break;
 			case Block::State::LAND: state_str = "LAND"; break;
 			case Block::State::BREAK: state_str = "BREAK"; break;

@@ -7,7 +7,6 @@
 #pragma once
 
 #include "globals.hpp"
-#include "context.hpp"
 #include <memory>
 #include <vector>
 #include <map>
@@ -17,7 +16,7 @@
  * Base class for game objects that can be placed in the Pit.
  * All Physical objects occupy space according to their extents (rows and columns).
  */
-class Physical : public ILogic
+class Physical
 {
 
 public:
@@ -27,40 +26,81 @@ public:
 	 * The derived classes intentionally extend this definition
 	 * by properly defining the placeholder X-states.
 	 */
-	enum class State { DEAD, REST, FALL, LAND, BREAK, X1, X2 };
+	enum class State { DEAD, REST, FALL, LAND, BREAK, X1, X2, X3 };
 
-	Physical(RowCol rc, State state)
-	: m_loc(from_rc(rc)), m_rc(rc), m_offset{0,0}, m_state(state)
-	{}
+
+	Physical(RowCol rc, State state);
 	virtual ~Physical() noexcept =default;
 
-	Point loc() const noexcept { return m_loc; }
+
 	RowCol rc() const noexcept { return m_rc; }
+	void set_rc(RowCol rc) noexcept { m_rc = rc; }
+
+	virtual int rows() const noexcept =0;
+	virtual int columns() const noexcept =0;
+
 
 	/**
-	 * Changes the Physical’s logical location while maintaining its draw position,
-	 * now relative to the new rc.
+	 * Returns the ticks until the estimated time of arrival of the physical.
+	 *
+	 * The time of arrival is the moment when the physical’s time
+	 * reaches 0, often resulting in some game-logical change.
+	 * The return value may not be a whole number if the object is
+	 * bound to overshoot.
 	 */
-	void set_rc(RowCol rc);
-	State physical_state() const noexcept { return m_state; }
+	float eta() const noexcept;
 
 	/**
-	 * Returns true if the Physical is just now arriving at the center of a new row.
+	 * Returns true if the Physical has just now finished its current state.
 	 */
 	bool is_arriving() const noexcept;
 	bool is_fallible() const noexcept;
 
-	virtual int rows() const noexcept =0;
-	virtual int columns() const noexcept =0;
-	virtual void set_state(State state);
+	/**
+	 * Updates the Physical by one tick of game logic.
+	 *
+	 * Even though Physicals do not know much about the greater purposes
+	 * of game logic, they do some bookkeeping of their own. Mostly, they
+	 * implement a state machine with timeouts.
+	 */
+	void update();
+
+
+	State physical_state() const noexcept { return m_state; }
+
+	/**
+	 * Change the state of the Physical object.
+	 *
+	 * @param state the new state to change into
+	 * @param time the duration of the state until @ref is_arriving
+	 * @param speed how much time to deduct from the state every @ref update
+	 */
+	void set_state(State state, int time = 1, int speed = 1) noexcept;
+
+	/**
+	 * Add more time to the current state of the object and let it arrive again.
+	 */
+	void continue_state(int time_bonus) noexcept;
 
 protected:
 
-	Point m_loc;    // logical location, upper left corner relative to view (not necessarily sprite draw location)
-	RowCol m_rc;    // row/col position, - is UP, + is DOWN
-	Point m_offset; // x/y offset from draw center of r/c location
-	Point m_target; // target location - where the block really wants to be while it’s busy with an animation like SWAP
-	State m_state;  // current block state
+	RowCol m_rc;    //!< row/col position, - is UP, + is DOWN
+	State m_state;  //!< current state
+
+	/**
+	 * Template method for subclass tick update implementation.
+	 */
+	virtual void update_impl() {}
+
+	/**
+	 * Template method for subclass state logic implementation.
+	 */
+	virtual void set_state_impl(State state, int time, int speed) noexcept {}
+
+private:
+
+	int m_time;     //!< number of steps until we consider a state switch
+	int m_speed;    //!< number of steps per tick
 
 };
 
@@ -81,72 +121,52 @@ public:
 	 *  * FALL: on its way down the pit at FALL_SPEED
 	 *  * LAND: for a short period of time, after its fall stops, the block holds out on matches & can be swapped
 	 *  * BREAK: the block has been matched and is in the process of destruction
-	 *  * SWAP: the block is moving to another location by swapping
+	 *  * SWAP_LEFT: the block is moving to the left by swapping
+	 *  * SWAP_RIGHT: the block is moving to the right by swapping
 	 *  * PREVIEW: init state. (Partially) visible, but not yet subject to matches and swapping
 	 */
-	enum class State { DEAD, REST, FALL, LAND, BREAK, SWAP, PREVIEW };
+	enum class State { DEAD, REST, FALL, LAND, BREAK, SWAP_LEFT, SWAP_RIGHT, PREVIEW };
 
 	Color col; // color
-	int time;  // number of ticks until we consider a state switch
 	bool chaining; // Whether this block is chaining (falling down from a match)
 
-	Block(Color col, RowCol rc, State state)
-	:
-	Physical(rc, static_cast<Physical::State>(state)), col(col), time(0), chaining(false)
-	{}
+	Block(Color col, RowCol rc, State state);
 	virtual ~Block() noexcept =default;
-
-	virtual void update(IContext& context) override;
 
 	virtual int rows() const noexcept override { return 1; }
 	virtual int columns() const noexcept override { return 1; }
-	virtual void set_state(Physical::State state) override;
 
 	State block_state() const noexcept { return static_cast<State>(m_state); }
-
-	/**
-	 * Starts the swapping state & animation for this block.
-	 * This function replaces set_state(State::SWAP) because of the additional
-	 * information that must be conveyed in the target parameter.
-	 */
-	void swap_toward(RowCol target) noexcept;
+	void set_state(Physical::State state, int time = 1, int speed = 1) noexcept;
+	void set_state(State state, int time = 1, int speed = 1) noexcept;
 
 	bool is_swappable() const noexcept;
 	bool is_matchable() const noexcept;
-
-	static constexpr int SWAP_TIME = 6; // number of ticks to swap two blocks
-	static constexpr int BREAK_TIME = 30; // number of ticks for a block to break
-	static constexpr int LAND_TIME = 20; // number of ticks in a block’s landing animation
 
 private:
 
 	BlockFrame m_anim;  // current animation frame
 
 	/**
-	 * Update this swapping block
+	 * Block-specific tick update implementation.
 	 */
-	void swap();
+	virtual void update_impl() override;
 
 	/**
-	 * Update this falling block
+	 * Block-specific state logic implementation.
 	 */
-	void fall();
-
-	/**
-	 * Update this landing block
-	 */
-	void land();
-
-	/**
-	 * Update this breaking block
-	 */
-	void dobreak();
+	virtual void set_state_impl(Physical::State state, int, int) noexcept override;
 	
 };
 
-// Allow operator- on Block::Color
+/*
+ * Allow operator- on Block::Color
+ */
 int operator-(Block::Color lhs, Block::Color rhs) noexcept;
 
+/**
+ * Comparison predicate for ordering blocks bottom-to-top.
+ */
 bool y_greater(const Block& lhs, const Block& rhs) noexcept;
 
 /**
@@ -160,33 +180,18 @@ class Garbage : public Physical
 
 public:
 
-	int time;        // number of ticks until we consider a state switch
-
-	Garbage(RowCol rc, int columns, int rows)
-	: Physical(rc, State::FALL), time(0), m_columns(columns), m_rows(rows)
-	{}
+	Garbage(RowCol rc, int columns, int rows);
 	virtual ~Garbage() noexcept =default;
-
-	virtual void update(IContext& context) override;
 
 	virtual int rows() const noexcept override { return m_rows; }
 	virtual int columns() const noexcept override { return m_columns; }
-	virtual void set_state(State state) override;
 
 	int shrink() { return --m_rows; }
-
-	static constexpr int DISSOLVE_TIME = 30; // number of ticks for a garbage block to dissolve
-	static constexpr int LAND_TIME = 20; // number of ticks in a garbage’s landing animation
 
 private:
 
 	int m_columns;  // width of this garbage in blocks
 	int m_rows;     // height of this garbage in blocks
-	Point m_target; // target location - where the garbage really wants to be while it’s busy with an animation
-
-	void fall();
-	void land();
-	void dobreak();
 
 };
 
@@ -196,7 +201,7 @@ private:
  * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
  */
-class Pit : public ILogic
+class Pit
 {
 
 public:
@@ -314,7 +319,7 @@ public:
 
 	void stop() noexcept { m_enabled = false; }
 	void start() noexcept { m_enabled = true; }
-	void set_speed(float delta) { m_speed = delta; }
+	void set_speed(int delta) { m_speed = delta; }
 
 	/**
 	 * Put a debug highlight on a row
@@ -326,7 +331,7 @@ public:
 	 * We have to transform the object into the pit and from there, apply the pit scrolling.
 	 */
 	Point transform(Point point, float dt=0.f) const noexcept;
-	virtual void update(IContext& context) override;
+	void update();
 
 private:
 
@@ -334,8 +339,8 @@ private:
 
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
-	float m_scroll;  // y-offset for view on pit contents
-	float m_speed;   // per-update delta for m_scroll
+	int m_scroll;    // y-offset in points for view on pit contents
+	int m_speed;     // per-update delta for m_scroll in points
 	int m_peak;      // highest blocked row (may be above visible space)
 	PhysVec m_contents; // list of all blocks in the pit
 	PhysMap m_content_map; // sparse matrix of blocked spaces
@@ -458,7 +463,7 @@ public:
 	 * Add a pit to the stage to be displayed at the given point coordinates.
 	 */
 	PitCursor& add_pit(Point loc, Point bonus_loc);
-	void update(IContext& context);
+	void update();
 
 	PitsVector& pits() { return m_pits; }
 	const PitsVector& pits() const { return m_pits; }

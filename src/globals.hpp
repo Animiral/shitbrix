@@ -174,55 +174,49 @@ struct RowCol
 
 std::ostream& operator<<(std::ostream& stream, RowCol rc);
 
-constexpr int FPS = 60; // aspired-to number of drawn and displayed frames per second
 constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
 
+// Gameplay constants
+constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each other
+constexpr int PIT_ROWS = 10; //!< number of blocks that fit in a pit on top of each other
+constexpr int ROW_HEIGHT = 200; //!< gameplay height of a row; determines scroll speed etc.
+constexpr int FALL_SPEED = 35; //!< points per update that a falling block moves down
+constexpr int SCROLL_SPEED = 5; //!< points per update that the pit moves up
+constexpr int RAISE_SPEED = 15; //!< pit speed when raising the stack (max speed)
+constexpr int SWAP_TIME = 6; //!< number of ticks to swap two blocks
+constexpr int BREAK_TIME = 30; //!< number of ticks for a block to break
+constexpr int DISSOLVE_TIME = 30; //!< number of ticks for a garbage brick to dissolve
+constexpr int LAND_TIME = 20; //!< number of ticks in an object’s landing state
+
+// Presentation constants (graphics, animation, sounds)
 constexpr const char* APP_NAME = "shitbrix";
+constexpr int FPS = 60; //!< aspired-to number of drawn and displayed frames per second
 constexpr int AUDIO_SAMPLES = 4096;
 
-// Canvas pixel sizes and locations of objects
-constexpr int CANVAS_W = 640; // width of drawing canvas in pixels
-constexpr int CANVAS_H = 480; // width of drawing canvas in pixels
-constexpr int BLOCK_W = 40; // width of one little colored block
-constexpr int BLOCK_H = 40; // height of one little colored block
-constexpr int GARBAGE_W = BLOCK_W/2; // width of one drawable piece of garbage
-constexpr int GARBAGE_H = BLOCK_H/2; // height of one drawable piece of garbage
-constexpr int CURSOR_W = 88; // width of the cursor texture
-constexpr int CURSOR_H = 48; // height of the cursor texture
-constexpr int BONUS_W = 16; // width of the combo/chain star
-constexpr int BONUS_H = 16; // height of the combo/chain star
+constexpr int CANVAS_W = 640; //!< width of drawing canvas in pixels
+constexpr int CANVAS_H = 480; //!< height of drawing canvas in pixels
+constexpr int BLOCK_W = 40; //!< width of one little colored block
+constexpr int BLOCK_H = 40; //!< height of one little colored block
+constexpr int GARBAGE_W = BLOCK_W/2; //!< width of one drawable piece of garbage
+constexpr int GARBAGE_H = BLOCK_H/2; //!< height of one drawable piece of garbage
+constexpr int CURSOR_W = 88; //!< width of the cursor texture
+constexpr int CURSOR_H = 48; //!< height of the cursor texture
+constexpr int BONUS_W = 16; //!< width of the combo/chain star
+constexpr int BONUS_H = 16; //!< height of the combo/chain star
 
 constexpr Point LPIT_LOC = { 32, 48 };
 constexpr Point RPIT_LOC = { 368, 48 };
 constexpr Point LBONUS_LOC = { 320-32-5, 400 };
 constexpr Point RBONUS_LOC = { 320+5, 400 };
-constexpr int PIT_COLS = 6; // number of blocks that fit in a pit next to each other
-constexpr int PIT_ROWS = 10; // number of blocks that fit in a pit on top of each other
-constexpr int COL_W = BLOCK_W; // width of a single column in the pit
-constexpr int ROW_H = BLOCK_H; // height of a single row in the pit
-constexpr int PIT_W = PIT_COLS*COL_W; // width of the pit in canvas pixels
-constexpr int PIT_H = PIT_ROWS*ROW_H; // height of the pit in canvas pixels
+constexpr int COL_W = BLOCK_W; //!< pixel width of a single column in the pit
+constexpr int ROW_H = BLOCK_H; //!< pixel height of a single row in the pit
+constexpr int PIT_W = PIT_COLS*COL_W; //!< width of the pit in canvas pixels
+constexpr int PIT_H = PIT_ROWS*ROW_H; //!< height of the pit in canvas pixels
 
-constexpr int BANNER_W = 200; // width of the win/lose banner in canvas pixels
-constexpr int BANNER_H = 140; // height of the win/lose banner in canvas pixels
-
-// Gameplay constants
-constexpr float FALL_SPEED = 7; // max. pixels per update that a falling block moves down
-constexpr float SCROLL_SPEED = 1; // .4f; // pixels per update that the pit moves up
-constexpr float RAISE_SPEED = 3; // pit speed when raising the stack (max speed)
+constexpr int BANNER_W = 200; //!< width of the win/lose banner in canvas pixels
+constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixels
 
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
-
-/**
- * Insert an element into a container in a specified sorted order.
- * The elements in the container must already be ordered.
- */
-template< class Container, class Elem = typename Container::value_type, class Order = std::less<Elem> >
-void ordered_insert(Container& container, Elem&& elem, Order order = Order())
-{
-	auto it = std::upper_bound(std::begin(container), std::end(container), elem, order);
-	container.insert(it, std::forward<Elem>(elem));
-}
 
 /**
  * General exception for errors that occur in the game.

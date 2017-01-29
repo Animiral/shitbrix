@@ -9,7 +9,6 @@
  */
 
 #include "stage.hpp"
-#include "mock.hpp"
 #include "gtest/gtest.h"
 
 class PitTest : public ::testing::Test

@@ -7,16 +7,31 @@
 #include <algorithm>
 #include <functional>
 
-void Physical::set_rc(RowCol rc)
+Physical::Physical(RowCol rc, State state)
+: m_rc(rc),
+  m_state(state),
+  m_time(1),
+  m_speed(1)
 {
-	m_offset.x -= (rc.c - m_rc.c) * COL_W;
-	m_offset.y -= (rc.r - m_rc.r) * ROW_H;
-	m_rc = rc;
+	// exclude locations that are well-known to lie out of bounds
+	SDL_assert(rc.c >= 0 && rc.c < PIT_COLS);
+
+	// exclude states in which we know that physicals do not spawn
+	SDL_assert(State::DEAD != state &&
+	           State::FALL != state &&
+	           State::LAND != state &&
+	           State::BREAK != state);
+}
+
+float Physical::eta() const noexcept
+{
+	return float(m_time) / m_speed;
 }
 
 bool Physical::is_arriving() const noexcept
 {
-	return State::FALL == m_state && m_offset.y >= 0;
+	// Physical states are generally time-based.
+	return m_time <= 0 && m_time > -m_speed;
 }
 
 bool Physical::is_fallible() const noexcept
@@ -24,64 +39,57 @@ bool Physical::is_fallible() const noexcept
 	return State::REST == m_state || State::LAND == m_state;
 }
 
-void Physical::set_state(State state)
+void Physical::update()
 {
-	SDL_assert(State::DEAD == state ||
-	           State::REST == state ||
-	           State::FALL == state ||
-	           State::LAND == state ||
-	           State::BREAK == state);
+	SDL_assert(State::DEAD != m_state);
+
+	m_time -= m_speed;
+	update_impl();
+
+	if(State::LAND == m_state) {
+		if(is_arriving()) {
+			set_state(State::REST);
+		}
+	}
+}
+
+void Physical::set_state(State state, int time, int speed) noexcept
+{
 	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
+	SDL_assert(time >= 1); // state must last at least one tick
+	SDL_assert(speed >= 1); // time must run out, not in
+
+	set_state_impl(state, time, speed);
 
 	m_state = state;
+	m_time = time;
+	m_speed = speed;
+}
 
-	// Correct the object by any eventual extra-pixels
-	if(State::LAND == state) {
-		m_loc.x -= m_offset.x;
-		m_loc.y -= m_offset.y;
-		m_offset = Point{0,0};
-	}
+void Physical::continue_state(int time_bonus) noexcept
+{
+	// The bonus must be large enough to prime the object for another arrival
+	SDL_assert(m_time + time_bonus > 0);
+
+	m_time += time_bonus;
 }
 
 
-/**
- * State machine spaghetti for block behavior
- */
-void Block::update(IContext& context)
-{
-	time--;
+Block::Block(Color col, RowCol rc, State state)
+: Physical(rc, static_cast<Physical::State>(state)),
+  col(col),
+  chaining(false),
+  m_anim(BlockFrame::REST)
+{}
 
-	switch(block_state()) {
-		case State::PREVIEW: break;
-		case State::REST: break;
-		case State::SWAP: swap(); break;
-		case State::FALL: fall(); break;
-		case State::LAND: land(); break;
-		case State::BREAK: dobreak(); break;
-		case State::DEAD: throw GameException("Cannot update() dead block.");
-		default: SDL_assert_paranoid(false);
-	}
+void Block::set_state(Physical::State state, int time, int speed) noexcept
+{
+	Physical::set_state(state, time, speed);
 }
 
-void Block::set_state(Physical::State state)
+void Block::set_state(State state, int time, int speed) noexcept
 {
-	Physical::set_state(state);
-	State bstate = block_state();
-
-	if(State::BREAK == bstate) {
-		time = BREAK_TIME;
-		m_anim = BlockFrame::BREAK_BEGIN;
-	}
-	else if(State::LAND == bstate) {
-		time = LAND_TIME;
-	}
-}
-
-void Block::swap_toward(RowCol target) noexcept
-{
-	m_state = static_cast<Physical::State>(State::SWAP);
-	time = SWAP_TIME;
-	m_target = from_rc(target);
+	Physical::set_state(static_cast<Physical::State>(state), time, speed);
 }
 
 bool Block::is_swappable() const noexcept
@@ -89,9 +97,10 @@ bool Block::is_swappable() const noexcept
 	State state = block_state();
 
 	return State::REST == state ||
-	       State::SWAP == state ||
 	       State::FALL == state ||
-	       State::LAND == state;
+	       State::LAND == state ||
+	       State::SWAP_LEFT == state ||
+	       State::SWAP_RIGHT == state;
 }
 
 bool Block::is_matchable() const noexcept
@@ -100,99 +109,43 @@ bool Block::is_matchable() const noexcept
 	return State::REST == state || State::LAND == state;
 }
 
-void Block::swap()
+void Block::update_impl()
 {
-	if(time > 0.f) {
-		float adv_x = (m_target.x - m_loc.x) / time;
-		float adv_y = (m_target.y - m_loc.y) / time;
-		m_loc.x += adv_x;
-		m_loc.y += adv_y;
-		m_offset.x += adv_x;
-		m_offset.y += adv_y;
-	}
-	else {
-		m_loc = m_target;
-		m_offset = Point{0,0};
-	}
-}
-
-
-void Block::fall()
-{
-	m_loc.y += FALL_SPEED;
-	m_offset.y += FALL_SPEED;
-}
-
-void Block::land()
-{
-	if(time < 0) {
-		set_state(Physical::State::REST);
-		time = 10 - 10 * m_rc.r; // after which auto-breaks
-	}
-}
-
-void Block::dobreak()
-{
-	if(time <= 0) {
+	if(State::BREAK == block_state() && is_arriving()) {
 		set_state(Physical::State::DEAD);
 	}
 }
+
+void Block::set_state_impl(Physical::State state, int, int) noexcept
+{
+	SDL_assert(State::PREVIEW != static_cast<State>(state));
+
+	if(Physical::State::BREAK == state) {
+		m_anim = BlockFrame::BREAK_BEGIN;
+	}
+}
+
 
 int operator-(Block::Color lhs, Block::Color rhs) noexcept
 {
 	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
 
-/**
- * Comparison predicate for ordering blocks bottom-to-top.
- */
 bool y_greater(const Block& lhs, const Block& rhs) noexcept
 {
 	return rhs.rc().r < lhs.rc().r;
 }
 
 
-void Garbage::update(IContext& context)
-{
-	game_assert(State::DEAD != m_state, "Cannot update() dead garbage.");
-
-	time--;
-
-	switch(m_state) {
-		case State::FALL: fall(); break;
-		case State::LAND: land(); break;
-		default: break;
-	}
-}
-
-void Garbage::set_state(State state)
-{
-	Physical::set_state(state);
-
-	if(State::BREAK == state) {
-		time = DISSOLVE_TIME;
-	}
-	else if(State::LAND == state) {
-		time = LAND_TIME;
-	}
-}
-
-void Garbage::fall()
-{
-	m_loc.y += FALL_SPEED;
-	m_offset.y += FALL_SPEED;
-}
-
-void Garbage::land()
-{
-	if(time < 0) {
-		set_state(State::REST);
-	}
-}
+Garbage::Garbage(RowCol rc, int columns, int rows)
+: Physical(rc, State::REST),
+  m_columns(columns),
+  m_rows(rows)
+{}
 
 
 Pit::Pit(Point loc) noexcept
-: m_loc(loc), m_enabled(true), m_scroll(ROW_H - PIT_H),
+: m_loc(loc), m_enabled(true), m_scroll((1-PIT_ROWS) * ROW_HEIGHT),
   m_speed(SCROLL_SPEED), m_peak(1), m_highlight_row(0)
 {
 }
@@ -352,12 +305,12 @@ void Pit::clear()
 
 int Pit::top() const noexcept
 {
-	return std::ceil(m_scroll / ROW_H);
+	return std::ceil(float(m_scroll) / ROW_HEIGHT);
 }
 
 int Pit::bottom() const noexcept
 {
-	return std::floor((m_scroll + PIT_H) / ROW_H) - 1;
+	return std::floor(float(m_scroll) / ROW_HEIGHT) + PIT_ROWS - 1;
 }
 
 int Pit::peak() const noexcept
@@ -375,14 +328,14 @@ Point Pit::transform(Point point, float dt) const noexcept
 	point.x += m_loc.x;
 	point.y += m_loc.y;
 	// TODO: include dt in scroll anim, don’t forget FPS-TPS conversion
-	point.y -= m_scroll;
+	point.y -= ROW_H * m_scroll / ROW_HEIGHT;
 	return point;
 }
 
-void Pit::update(IContext& context)
+void Pit::update()
 {
 	for(auto& p : m_contents)
-		p->update(context);
+		p->update();
 
 	if(m_enabled)
 		m_scroll += m_speed;
@@ -494,10 +447,10 @@ Stage::PitCursor& Stage::add_pit(Point loc, Point bonus_loc)
 	return *m_pits.back();
 }
 
-void Stage::update(IContext& context)
+void Stage::update()
 {
 	for(auto& pc : m_pits) {
-		pc->pit.update(context);
+		pc->pit.update();
 		pc->cursor.update();
 		pc->bonus.update();
 	}

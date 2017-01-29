@@ -4,8 +4,17 @@
 
 #include "stage.hpp"
 #include "director.hpp"
-#include "mock.hpp"
 #include "gtest/gtest.h"
+
+namespace
+{
+
+/**
+ * Properly generates a block falling from the given coordinates.
+ */
+Block& spawn_falling_block(Pit& pit, Block::Color color, RowCol from);
+
+}
 
 class BlockDirectorTest : public ::testing::Test
 {
@@ -52,12 +61,11 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		for(int t = 0; t < ticks; t++) {
-			pit->update(context);
+			pit->update();
 			director->update();
 		}
 	}
 
-	MockContext context;
 	std::unique_ptr<Pit> pit;
 	RndGen rndgen;
 	std::unique_ptr<BlockDirector> director;
@@ -70,11 +78,11 @@ protected:
  */
 TEST_F(BlockDirectorTest, LandAndMatch)
 {
-	auto& top_block = pit->spawn_block(Block::Color::RED, RowCol{-7, 2}, Block::State::FALL);
-	auto& mid_block = pit->spawn_block(Block::Color::RED, RowCol{-5, 2}, Block::State::FALL);
+	auto& top_block = spawn_falling_block(*pit, Block::Color::RED, RowCol{-7, 2});
+	auto& mid_block = spawn_falling_block(*pit, Block::Color::RED, RowCol{-5, 2});
 
 	// wait until blocks landed and match
-	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)*2/FALL_SPEED);
+	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT)*2/FALL_SPEED);
 	run_game_ticks(FALL_T);
 
 	EXPECT_EQ(Block::State::BREAK, top_block.block_state());
@@ -83,7 +91,7 @@ TEST_F(BlockDirectorTest, LandAndMatch)
 	RowCol top_final_rc = top_block.rc();
 	RowCol mid_final_rc = mid_block.rc();
 
-	run_game_ticks(Block::BREAK_TIME);
+	run_game_ticks(BREAK_TIME);
 	EXPECT_FALSE(pit->at(top_final_rc)); // matched blocks are gone
 	EXPECT_FALSE(pit->at(mid_final_rc));
 }
@@ -100,31 +108,31 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
 	bool swapping = director->swap(swap_target_rc);
 	ASSERT_TRUE(swapping);
 	ASSERT_EQ(swap_target_rc, fall_block.rc());
-	ASSERT_EQ(Block::State::SWAP, fall_block.block_state());
+	ASSERT_EQ(Block::State::SWAP_LEFT, fall_block.block_state());
 
 	// wait until block has swapped above the gap
-	const int SWAP_T = Block::SWAP_TIME;
-	ASSERT_EQ(SWAP_T, fall_block.time);
+	const int SWAP_T = SWAP_TIME;
+	ASSERT_EQ(SWAP_T, fall_block.eta());
 	run_game_ticks(SWAP_T-1);
 	EXPECT_EQ(swap_target_rc, fall_block.rc());
-	EXPECT_EQ(Block::State::SWAP, fall_block.block_state());
+	EXPECT_EQ(Block::State::SWAP_LEFT, fall_block.block_state());
 	run_game_ticks(1);
 	const RowCol fall_target_rc{-3,1};
 	EXPECT_EQ(fall_target_rc, fall_block.rc());
 	EXPECT_EQ(Block::State::FALL, fall_block.block_state());
 
 	// wait until block lands and matches
-	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED);
+	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED);
 	// EXPECT_EQ(FALL_T, fall_block.time); // NOTE: falling does not run on time (yet)
 	run_game_ticks(FALL_T-1);
 	EXPECT_EQ(Block::State::FALL, fall_block.block_state());
 	run_game_ticks(1);
 	EXPECT_EQ(Block::State::BREAK, fall_block.block_state());
 
-	const int BREAK_T = Block::BREAK_TIME;
-	EXPECT_EQ(BREAK_T, fall_block.time);
+	const int BREAK_T = BREAK_TIME;
+	EXPECT_EQ(BREAK_T, fall_block.eta());
 	run_game_ticks(BREAK_T-1);
-	EXPECT_EQ(1, fall_block.time);
+	EXPECT_EQ(1, fall_block.eta());
 	run_game_ticks(1);
 
 	// matched blocks are gone
@@ -148,8 +156,8 @@ TEST_F(BlockDirectorTest, DissolveGarbage)
 	auto& right_block = *pit->block_at(rrc);
 
 	// 3 in a row
-	left_block.swap_toward(rrc);
-	right_block.swap_toward(lrc);
+	left_block.set_state(Block::State::SWAP_RIGHT, SWAP_TIME);
+	right_block.set_state(Block::State::SWAP_LEFT, SWAP_TIME);
 	pit->swap(left_block, right_block);
 
 	const int DISSOLVE_T = 52; // ticks until block landed, garbage has shrunk, blocks have fallen down
@@ -178,12 +186,12 @@ TEST_F(BlockDirectorTest, DissolveAndFall)
 	auto& right_block = *pit->block_at(rrc);
 
 	// 3 in a row
-	left_block.swap_toward(rrc);
-	right_block.swap_toward(lrc);
+	left_block.set_state(Block::State::SWAP_RIGHT, SWAP_TIME);
+	right_block.set_state(Block::State::SWAP_LEFT, SWAP_TIME);
 	pit->swap(left_block, right_block);
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
-	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
 	run_game_ticks(DISSOLVE_T);
 
 	EXPECT_FALSE(pit->at(rrc)); // blocks have matched away
@@ -210,12 +218,12 @@ TEST_F(BlockDirectorTest, FallAfterShrink)
 	auto& right_block = *pit->block_at(rrc);
 
 	// 3 in a row
-	left_block.swap_toward(rrc);
-	right_block.swap_toward(lrc);
+	left_block.set_state(Block::State::SWAP_RIGHT, SWAP_TIME);
+	right_block.set_state(Block::State::SWAP_LEFT, SWAP_TIME);
 	pit->swap(left_block, right_block);
 
 	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
-	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
 	run_game_ticks(DISSOLVE_T);
 
 	EXPECT_EQ(Physical::State::FALL, garbage.physical_state()); // garbage has moved
@@ -237,8 +245,8 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 	Block* green_block = nullptr;
 	bool swapping = false;
 
-	const int SWAP_T = Block::SWAP_TIME;
-	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED);
+	const int SWAP_T = SWAP_TIME;
+	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED);
 	const int LAND_MOMENT = std::max(SWAP_T, FALL_T) + 1;
 	const int SWAP_START = LAND_MOMENT - SWAP_T;
 	const int SPAWN_MOMENT = LAND_MOMENT - FALL_T - 1;
@@ -248,12 +256,12 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 			swapping = director->swap(RowCol{-4,4});
 		}
 		if(SPAWN_MOMENT == t) {
-			green_block = &pit->spawn_block(Block::Color::GREEN, RowCol{-6, 5}, Block::State::FALL);
+			green_block = &spawn_falling_block(*pit, Block::Color::GREEN, RowCol{-6, 5});
 		}
 
 		if(LAND_MOMENT-1 == t) {
-			EXPECT_EQ(1, red_block.time);
-			EXPECT_EQ(Block::State::SWAP, red_block.block_state());
+			EXPECT_EQ(1, red_block.eta());
+			EXPECT_EQ(Block::State::SWAP_RIGHT, red_block.block_state());
 			EXPECT_EQ(Block::State::LAND, green_block->block_state());
 		}
 
@@ -287,7 +295,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 	ASSERT_TRUE(swapping);
 
 	// wait until the yellow blocks have cleared and the red one falls down
-	const int PRERUN_T = Block::SWAP_TIME + Block::BREAK_TIME;
+	const int PRERUN_T = SWAP_TIME + BREAK_TIME;
 	run_game_ticks(PRERUN_T);
 
 	RowCol expected_rc{-2,2};
@@ -295,7 +303,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 	EXPECT_EQ(Block::State::FALL, red_block->block_state());
 	EXPECT_TRUE(red_block->chaining);
 
-	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H*3) / FALL_SPEED);
+	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT*3) / FALL_SPEED);
 	run_game_ticks(FALL_T);
 	expected_rc = RowCol{0,2};
 	EXPECT_EQ(expected_rc, red_block->rc());
@@ -316,7 +324,7 @@ TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 	ASSERT_TRUE(swapping);
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
-	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME;
+	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME;
 	run_game_ticks(DISSOLVE_T);
 
 	auto expect_chaining = [this] (RowCol rc, bool expected) {
@@ -347,12 +355,12 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 	bool swapping = director->swap(RowCol{-1,2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
 
-	const int BREAK_T = Block::SWAP_TIME + Block::BREAK_TIME;
+	const int BREAK_T = SWAP_TIME + BREAK_TIME;
 	run_game_ticks(BREAK_T);
 
 	ASSERT_EQ(Block::State::FALL, red_block->block_state());
 
-	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H*2)/FALL_SPEED) + 1;
+	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT*2)/FALL_SPEED) + 1;
 	run_game_ticks(FALL_T);
 
 	RowCol expected_rc{0,2};
@@ -367,4 +375,22 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 	ASSERT_TRUE(swapping);
 	EXPECT_FALSE(red_block->chaining);
 	EXPECT_TRUE(green_block->chaining);
+}
+
+namespace
+{
+
+Block& spawn_falling_block(Pit& pit, Block::Color color, RowCol from)
+{
+	// A falling block really belongs on the next row, where it expects
+	// to arrive from the fall.
+	from.r++;
+
+	// We set a block in motion by @c set_state. At create time it rests.
+	Block& block = pit.spawn_block(color, from, Block::State::REST);
+	block.set_state(Block::State::FALL, ROW_HEIGHT, FALL_SPEED);
+
+	return block;
+}
+
 }

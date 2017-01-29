@@ -37,7 +37,7 @@ $(SRC_DIR)/game.a:
 game.a: $(SRC_DIR)/game.a
 	ln -s $(SRC_DIR)/game.a 2>/dev/null || true
 
-test_block.o: test_block.cpp mock.hpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
+test_block.o: test_block.cpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
 test_pit.o: test_pit.cpp $(wildcard $(SRC_DIR)/{stage.{c,h}pp,context.hpp,globals.hpp})
 test_replay.o: test_replay.cpp $(wildcard $(SRC_DIR)/replay.{c,h}pp)
 test_blockdirector.o: test_blockdirector.cpp $(wildcard $(SRC_DIR)/{director.{c,h}pp,stage.hpp,context.hpp,globals.hpp})
