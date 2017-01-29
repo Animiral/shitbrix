@@ -14,11 +14,13 @@
 #include "replay.hpp"
 #include <fstream>
 
-enum class ScreenPhase { MENU, GAME };
+enum class ScreenPhase { SPLASH, MENU, GAME };
 
 class IScreen : public IControllerSink
 {
+
 public:
+
 	IScreen() = default;
 
 	// Screens are complex objects and can not be copied or moved.
@@ -40,9 +42,44 @@ public:
 
 	virtual void input(ControllerInput cinput) =0;
 	virtual void input_debug(int func) {} // developer help function
+
+	/**
+	 * Inject the screen’s presentation dependency.
+	 */
+	void set_context(IContext& context) noexcept;
+
+protected:
+
+	IContext* m_context; //!< presentation output interface
+
+	/**
+	 * Template method for subclass presentation injection.
+	 */
+	virtual void set_context_impl(IContext& context) noexcept {}
+
 };
 
+class SplashScreen;
 class GameScreen;
+class Transition;
+
+/**
+ * Do nothing but display the splash background image.
+ */
+class SplashScreen : public IScreen
+{
+
+public:
+
+	SplashScreen() = default;
+
+	virtual void draw(float dt) const override;
+	virtual void update() override {}
+	virtual ScreenPhase phase() const override { return ScreenPhase::SPLASH; }
+	virtual bool done() const override { return true; }
+	virtual void input(ControllerInput cinput) override {}
+
+};
 
 /**
  * Determines some of the variable behavior of the GameScreen (strategy pattern).
@@ -118,9 +155,26 @@ class GameScreen : public IScreen, public IReplaySink
 
 public:
 
-	GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context);
+	GameScreen();
+
+	/**
+	 * Inject the screen’s random generator dependency.
+	 */
+	void set_rndgen(RndGen& rndgen) noexcept;
+
+	/**
+	 * Inject the screen’s input dependency.
+	 */
+	void set_input(GameInputMixer& input_mixer) noexcept;
+
+	/**
+	 * Inject the screen’s journal dependency.
+	 */
+	void set_journal(Journal& journal) noexcept;
 
 	const long& game_time() const { return m_game_time; }
+	bool is_quit() const { return m_quit; }
+
 	void reset();
 
 	/**
@@ -162,19 +216,19 @@ private:
 		BonusThrow bonus_throw; // event handler for displaying stars
 	};
 
-	RndGen rndgen;
-	long m_game_time; // starts at 0 with each game round
-	bool m_done; // true if this screen has reached its end
-	bool m_pause; // true if tick updates are supressed
-	GameInputMixer input_mixer;
+	long m_game_time; //!< starts at 0 with each game round
+	bool m_done; //!< true if this screen has reached its end
+	bool m_quit; //!< true if the user wants to quit
+	bool m_pause; //!< true if tick updates are supressed
+
+	// external component dependencies (plug into this screen):
+	RndGen* m_rndgen; //!< random number source interface
+	GameInputMixer* m_input_mixer; //!< user input interface
+	Journal* m_journal; //!< event recorder interface
 
 	std::unique_ptr<IGamePhase> m_game_phase;
 	std::unique_ptr<IGamePhase> m_next_phase;
 
-	std::ofstream replay_outstream;
-	Journal journal;
-
-	IContext& m_context;
 	std::unique_ptr<Stage> stage;
 	DrawGame m_draw;
 	evt::SoundEffects m_sound_effects;
@@ -182,16 +236,57 @@ private:
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();
-	void seed(unsigned int rng_seed);
 
 	/**
 	 * Pass on the update event to child objects.
 	 */
 	void update_impl();
 
+	/**
+	 * Kludge function to be removed when replays get rid of rng dependency.
+	 */
+	void seed(unsigned int rng_seed);
+
+	/**
+	 * Screen-specefic context injection implementation.
+	 */
+	virtual void set_context_impl(IContext& context) noexcept override;
+
 	friend class IGamePhase;
 	friend class GameIntro;
 	friend class GamePlay;
 	friend class GameResult;
+
+};
+
+/**
+ * A Transition is a pseudo-screen that adds eye candy to the moment when
+ * one screen ends and another begins.
+ *
+ * It keeps hold of two screens, of which it draws a mixture according
+ * to its internal rules. Over the lifetime of the Transition, the predecessor
+ * screen disappears and the successor screen emerges.
+ * The sub-screens do not receive logic updates or user input.
+ */
+class Transition : public IScreen
+{
+
+public:
+
+	Transition(std::unique_ptr<IScreen> predecessor, std::unique_ptr<IScreen> successor);
+
+	std::unique_ptr<IScreen> successor() noexcept { return std::move(m_successor); }
+
+	virtual void draw(float dt) const override;
+	virtual void update() override {}
+	virtual ScreenPhase phase() const override { return ScreenPhase::SPLASH; }
+	virtual bool done() const override;
+	virtual void input(ControllerInput) override {}
+
+private:
+
+	std::unique_ptr<IScreen> m_predecessor;
+	std::unique_ptr<IScreen> m_successor;
+	// TODO
 
 };

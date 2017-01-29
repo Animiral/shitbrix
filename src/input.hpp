@@ -42,11 +42,20 @@ class Keyboard
 {
 
 public:
-	Keyboard(IControllerSink& sink) : m_sink(sink) {}
-	void poll(); //!< read events from the keyboard buffer, send to sink
+
+	/**
+	 * Read events from the keyboard buffer, send to sink.
+	 */
+	void poll();
+
+	/**
+	 * Inject the keyboard’s controller sink dependency.
+	 */
+	void set_game_sink(IControllerSink* sink) noexcept { m_sink = sink; }
 
 private:
-	IControllerSink& m_sink;
+
+	IControllerSink* m_sink;
 
 };
 
@@ -63,14 +72,27 @@ class GameInputMixer : public IControllerSink
 {
 
 public:
-	GameInputMixer(IReplaySink& replay_sink, const char* replay_file);
+
+	GameInputMixer(const char* replay_file);
+
+	/**
+	 * Inject the mixer’s game input sink dependency.
+	 */
+	void set_game_sink(IGameInputSink* game_sink) noexcept { m_game_sink = game_sink; }
+
+	/**
+	 * Inject the mixer’s replay sink dependency.
+	 */
+	void set_replay_sink(IReplaySink* replay_sink) noexcept { m_replay_sink = replay_sink; }
+
 	virtual void input(ControllerInput input) override;
 	void update(long game_time); // required for replay
-	void set_game_sink(IGameInputSink* game_sink) { m_game_sink = game_sink; }
 
 private:
+
 	IGameInputSink* m_game_sink;
-	IReplaySink& m_replay_sink;
+	IReplaySink* m_replay_sink;
+
 	std::ifstream replay_stream;
 	std::unique_ptr<Replay> replay; // optional
 	ReplayEvent next_event;

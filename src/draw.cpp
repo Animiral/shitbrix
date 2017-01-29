@@ -24,8 +24,8 @@ void draw_bonus(IContext& context, const BonusIndicator& bonus, float dt);
 }
 
 
-DrawGame::DrawGame(IContext& context)
-: m_context(context), m_dt(0.), m_show_cursors(false), m_show_pit_debug_overlay(false)
+DrawGame::DrawGame()
+: m_context(nullptr), m_dt(0.), m_show_cursors(false), m_show_pit_debug_overlay(false)
 {
 }
 
@@ -56,30 +56,32 @@ void DrawGame::set_dt(float dt) const
 
 void DrawGame::draw_all() const
 {
+	SDL_assert(m_context);
+
 	for(const PlayerDrawables& drawable : m_drawables) {
 		const Pit& pit = drawable.pit;
 
-		m_context.clip(pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
-		m_context.translate(pit.transform(Point{0,0})); // draw all objects relative to pit origin
+		m_context->clip(pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
+		m_context->translate(pit.transform(Point{0,0})); // draw all objects relative to pit origin
 
-		draw_pit(m_context, pit, m_dt);
+		draw_pit(*m_context, pit, m_dt);
 
 		if(m_show_pit_debug_overlay)
-			draw_pit_debug_overlay(m_context, pit);
+			draw_pit_debug_overlay(*m_context, pit);
 
 		if(m_show_pit_debug_highlight) {
 			// draw the highlighted row for debugging
 			Point top_left{0, static_cast<float>(pit.highlight_row() * ROW_H)};
-			m_context.highlight(top_left, PIT_W, ROW_H, 200, 200, 0, 150);
+			m_context->highlight(top_left, PIT_W, ROW_H, 200, 200, 0, 150);
 		}
 
 		if(m_show_cursors)
-			draw_cursor(m_context, drawable.cursor, m_dt);
+			draw_cursor(*m_context, drawable.cursor, m_dt);
 
-		m_context.translate(Point{0,0}); // reset to screen origin
-		m_context.unclip(); // unrestrict drawing
+		m_context->translate(Point{0,0}); // reset to screen origin
+		m_context->unclip(); // unrestrict drawing
 
-		draw_bonus(m_context, drawable.indicator, m_dt);
+		draw_bonus(*m_context, drawable.indicator, m_dt);
 	}
 }
 

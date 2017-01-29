@@ -5,7 +5,7 @@
 #pragma once
 
 #include "stage.hpp"
-#include "gameevent.hpp"
+#include "event.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -23,7 +23,12 @@ public:
 	/**
 	 * Construct a new DrawGame object bound to the given context.
 	 */
-	DrawGame(IContext& context);
+	DrawGame();
+
+	/**
+	 * Inject the draw object’s presentation dependency.
+	 */
+	void set_context(IContext& context) noexcept { m_context = &context; }
 
 	/**
 	 * Add the specified pit to be drawn.
@@ -88,7 +93,8 @@ private:
 		BonusIndicator& indicator;
 	};
 
-	IContext& m_context;
+	IContext* m_context; //!< presentation output interface
+
 	std::vector<PlayerDrawables> m_drawables;
 	mutable float m_dt;
 	bool m_show_cursors;

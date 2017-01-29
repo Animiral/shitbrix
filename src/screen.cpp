@@ -9,6 +9,22 @@ void debug_print_pit(const Pit& pit);
 
 }
 
+
+void IScreen::set_context(IContext& context) noexcept
+{
+	m_context = &context;
+	set_context_impl(context);
+}
+
+
+void SplashScreen::draw(float) const
+{
+	SDL_assert(m_context);
+
+	m_context->drawGfx(Point{0,0}, Gfx::SPLASH);
+}
+
+
 IGamePhase::~IGamePhase() =default;
 
 void IGamePhase::draw() const
@@ -25,8 +41,10 @@ GameIntro::GameIntro(GameScreen* screen)
 
 void GameIntro::draw() const
 {
+	SDL_assert(m_screen->m_context);
+
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
-	m_screen->m_context.fade(fadeness);
+	m_screen->m_context->fade(fadeness);
 	IGamePhase::draw();
 }
 
@@ -41,7 +59,9 @@ void GameIntro::update()
 
 GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
 {
-	m_screen->journal << ReplayEvent::make_start();
+	SDL_assert(m_screen->m_journal);
+
+	*m_screen->m_journal << ReplayEvent::make_start();
 }
 
 void GamePlay::update()
@@ -65,7 +85,9 @@ void GamePlay::update()
 
 void GamePlay::input(GameInput ginput)
 {
-	m_screen->journal << ReplayEvent::make_input(m_screen->m_game_time, ginput);
+	SDL_assert(m_screen->m_journal);
+
+	*m_screen->m_journal << ReplayEvent::make_input(m_screen->m_game_time, ginput);
 
 	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
 
@@ -105,9 +127,11 @@ void GamePlay::input(GameInput ginput)
 
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 {
+	SDL_assert(m_screen->m_journal);
+
 	std::ostringstream stream;
 	stream << winner;
-	m_screen->journal << ReplayEvent::make_set("winner", stream.str());
+	*m_screen->m_journal << ReplayEvent::make_set("winner", stream.str());
 
 	float dx = (PIT_W-BANNER_W)/2;
 	float dy = (PIT_H-BANNER_H)/2;
@@ -128,18 +152,22 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 
 GameResult::~GameResult()
 {
-	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
+	SDL_assert(m_screen->m_journal);
+
+	*m_screen->m_journal << ReplayEvent::make_end(m_screen->m_game_time);
 }
 
 void GameResult::draw() const
 {
+	SDL_assert(m_screen->m_context);
+
 	IGamePhase::draw();
 
 	size_t left_frame = static_cast<size_t>(banner_left->frame);
-	m_screen->m_context.drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
+	m_screen->m_context->drawGfx(banner_left->loc, Gfx::BANNER, left_frame);
 
 	size_t right_frame = static_cast<size_t>(banner_right->frame);
-	m_screen->m_context.drawGfx(banner_right->loc, Gfx::BANNER, right_frame);
+	m_screen->m_context->drawGfx(banner_right->loc, Gfx::BANNER, right_frame);
 }
 
 void GameResult::update()
@@ -149,25 +177,23 @@ void GameResult::update()
 }
 
 
-GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context)
-: m_pause(false),
-  input_mixer(*this, replay_infile),
-  replay_outstream(replay_outfile),
-  journal(replay_outstream),
-  m_context(context),
-  m_draw(context),
-  m_sound_effects(context)
+GameScreen::GameScreen()
+: m_game_time(0),
+  m_done(false),
+  m_quit(false),
+  m_pause(false),
+  m_rndgen(nullptr),
+  m_input_mixer(nullptr),
+  m_journal(nullptr),
+  m_draw(),
+  m_sound_effects()
 {
-	if(!replay_infile) {
-		std::random_device rdev;
-		seed(rdev());
-	}
-
-	reset();
 }
 
 void GameScreen::reset()
 {
+	SDL_assert(m_rndgen);
+
 	m_draw.clear();
 	m_pobjects.clear();
 
@@ -187,8 +213,8 @@ void GameScreen::reset()
 	Cursor& right_cursor = *builder.right_cursor;
 	BonusIndicator& right_bonus = *builder.right_bonus;
 
-	auto left_pobjs = std::make_unique<PlayerObjects>(rndgen, left_pit, left_cursor, right_pit, left_bonus);
-	auto right_pobjs = std::make_unique<PlayerObjects>(rndgen, right_pit, right_cursor, left_pit, right_bonus);
+	auto left_pobjs = std::make_unique<PlayerObjects>(*m_rndgen, left_pit, left_cursor, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(*m_rndgen, right_pit, right_cursor, left_pit, right_bonus);
 	m_pobjects.push_back(std::move(left_pobjs));
 	m_pobjects.push_back(std::move(right_pobjs));
 	m_draw.add_pit(left_pit, left_cursor, left_bonus);
@@ -198,10 +224,29 @@ void GameScreen::reset()
 		pobjs->event_hub.append(m_sound_effects);
 }
 
+void GameScreen::set_rndgen(RndGen& rndgen) noexcept
+{
+	m_rndgen = &rndgen;
+	reset();
+}
+
+void GameScreen::set_input(GameInputMixer& input_mixer) noexcept
+{
+	input_mixer.set_game_sink(m_game_phase.get());
+	m_input_mixer = &input_mixer;
+}
+
+void GameScreen::set_journal(Journal& journal) noexcept
+{
+	m_journal = &journal;
+}
+
 void GameScreen::draw(float dt) const
 {
+	SDL_assert(m_context);
+
 	m_draw.set_dt(dt);
-	m_context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
+	m_context->drawGfx(Point{0,0}, Gfx::BACKGROUND);
 	m_game_phase->draw();
 }
 
@@ -217,6 +262,8 @@ void GameScreen::update()
 
 void GameScreen::input(ControllerInput cinput)
 {
+	SDL_assert(m_input_mixer);
+
 	switch(cinput.button) {
 		case Button::LEFT:
 		case Button::RIGHT:
@@ -224,7 +271,7 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::DOWN:
 		case Button::A:
 		case Button::B:
-			input_mixer.input(cinput);
+			m_input_mixer->input(cinput);
 			break;
 
 		case Button::PAUSE:
@@ -232,11 +279,13 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::RESET:
-			reset();
+			m_done = true;
+			m_quit = false;
 			break;
 
 		case Button::QUIT:
 			m_done = true;
+			m_quit = true;
 			break;
 
 		case Button::DEBUG1:
@@ -308,13 +357,17 @@ void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
 
 void GameScreen::change_phase_impl()
 {
-	input_mixer.set_game_sink(m_next_phase.get());
+	if(m_input_mixer)
+		m_input_mixer->set_game_sink(m_next_phase.get());
+
 	m_game_phase = std::move(m_next_phase);
 }
 
 void GameScreen::update_impl()
 {
-	input_mixer.update(m_game_time);
+	SDL_assert(m_input_mixer);
+
+	m_input_mixer->update(m_game_time);
 	m_game_phase->update();
 
 	if(m_next_phase)
@@ -323,11 +376,39 @@ void GameScreen::update_impl()
 
 void GameScreen::seed(unsigned int rng_seed)
 {
-	rndgen = std::make_shared<std::mt19937>(rng_seed);
+	SDL_assert(m_rndgen);
+	SDL_assert(m_journal);
+
+	(*m_rndgen)->seed(rng_seed);
 	std::ostringstream stream;
 	stream << rng_seed;
-	journal << ReplayEvent::make_set("rng_seed", stream.str());
+	*m_journal << ReplayEvent::make_set("rng_seed", stream.str());
 }
+
+void GameScreen::set_context_impl(IContext& context) noexcept
+{
+	m_draw.set_context(context);
+	m_sound_effects.set_context(context);
+}
+
+
+Transition::Transition(std::unique_ptr<IScreen> predecessor, std::unique_ptr<IScreen> successor)
+: m_predecessor(std::move(predecessor)),
+  m_successor(std::move(successor))
+{}
+
+void Transition::draw(float dt) const
+{
+	// TODO
+	m_predecessor->draw(dt);
+}
+
+bool Transition::done() const
+{
+	// TODO
+	return true;
+}
+
 
 namespace
 {

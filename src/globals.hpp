@@ -21,7 +21,8 @@
  */
 enum class Gfx
 {
-	BACKGROUND = 0,
+	SPLASH = 0,
+	BACKGROUND,
 	BLOCK_BLUE,
 	BLOCK_RED,
 	BLOCK_YELLOW,

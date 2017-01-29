@@ -19,6 +19,7 @@ public:
 
 	Assets(SdlFactory& factory)
 	{
+		textures.emplace_back(std::vector<Texture>{factory.create_texture("gfx/splash.png")}); // Gfx::SPLASH
 		textures.emplace_back(std::vector<Texture>{factory.create_texture("gfx/bg.png")}); // Gfx::BACKGROUND
 		auto blocks = factory.create_texture_sheet("gfx/blocks.png", BLOCK_W, BLOCK_H);
 		textures.insert(textures.end(), blocks.begin(), blocks.end());                   // Gfx::BLOCK_*, Gfx::PITVIEW

@@ -1,11 +1,12 @@
 /**
- * gameevent.hpp
+ * event.hpp
  * Defines the IGameEvent interface and events through which director objects
  * communicate in-game occurrences to other modules.
  */
 #pragma once
 
 #include "context.hpp"
+#include <vector>
 
 namespace evt
 {
@@ -108,26 +109,19 @@ class GameEventHub : public IGameEvent
 
 public:
 
-	void append(IGameEvent& event)
-	{
-		m_handlers.push_back(event);
-	}
+	void append(IGameEvent& event);
 
-	virtual void fire(CursorMoves event) override { fire_all(event); }
-	virtual void fire(Swap event) override { fire_all(event); }
-	virtual void fire(Match event) override { fire_all(event); }
-	virtual void fire(Chain event) override { fire_all(event); }
-	virtual void fire(BlockDies event) override { fire_all(event); }
-	virtual void fire(GarbageDissolves event) override { fire_all(event); }
+	virtual void fire(CursorMoves event) override;
+	virtual void fire(Swap event) override;
+	virtual void fire(Match event) override;
+	virtual void fire(Chain event) override;
+	virtual void fire(BlockDies event) override;
+	virtual void fire(GarbageDissolves event) override;
 
 private:
 
 	template<typename Event>
-	void fire_all(Event event)
-	{
-		for(auto& handler : m_handlers)
-			handler.get().fire(event);
-	}
+	void fire_all(Event event);
 
 	std::vector<std::reference_wrapper<IGameEvent>> m_handlers;
 
@@ -141,18 +135,23 @@ class SoundEffects : public IGameEvent
 
 public:
 
-	SoundEffects(IContext& context) : m_context(context) {}
+	SoundEffects();
+
+	/**
+	 * Inject the sound object’s presentation dependency.
+	 */
+	void set_context(IContext& context) noexcept { m_context = &context; }
 
 	virtual void fire(CursorMoves event) override {}
-	virtual void fire(Swap event) override { m_context.play(Snd::SWAP); }
-	virtual void fire(Match event) override { m_context.play(Snd::MATCH); }
+	virtual void fire(Swap event) override;
+	virtual void fire(Match event) override;
 	// virtual void fire(Chain event) override { }
-	virtual void fire(BlockDies event) override { m_context.play(Snd::BREAK); }
-	virtual void fire(GarbageDissolves event) override { m_context.play(Snd::BREAK); }
+	virtual void fire(BlockDies event) override;
+	virtual void fire(GarbageDissolves event) override;
 
 private:
 
-	IContext& m_context;
+	IContext* m_context; //!< presentation output interface
 
 };
 

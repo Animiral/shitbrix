@@ -49,10 +49,16 @@ void Keyboard::poll()
 	SDL_Event event;
 
 	while(SDL_PollEvent(&event)) {
+		// when there is no sink to pick up keyboard inputs, we still
+		// poll them out of the queue, but they are discarded.
+		if(!m_sink) {
+			continue;
+		}
+
 		switch(event.type) {
 
 		case SDL_QUIT:
-			m_sink.input(ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN});
+			m_sink->input(ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN});
 			break;
 
 		case SDL_KEYUP:
@@ -65,7 +71,7 @@ void Keyboard::poll()
 					break;
 
 				if(input.button != Button::NONE)
-					m_sink.input(input);
+					m_sink->input(input);
 			}
 			break;
 		}
@@ -73,8 +79,8 @@ void Keyboard::poll()
 }
 
 
-GameInputMixer::GameInputMixer(IReplaySink& replay_sink, const char* replay_file)
-: m_game_sink(nullptr), m_replay_sink(replay_sink)
+GameInputMixer::GameInputMixer(const char* replay_file)
+: m_game_sink(nullptr), m_replay_sink(nullptr)
 {
 	if(replay_file) {
 		replay_stream.open(replay_file);
@@ -117,6 +123,8 @@ void GameInputMixer::input(ControllerInput input)
 
 void GameInputMixer::update(long game_time)
 {
+	SDL_assert(m_replay_sink);
+
 	if(replay) {
 		while(*replay &&                        // replay stream is intact
 		      !replay->eof() &&                 // more input is available
@@ -125,7 +133,7 @@ void GameInputMixer::update(long game_time)
 				m_game_sink->input(next_event.input());
 			}
 
-			m_replay_sink.handle(next_event);
+			m_replay_sink->handle(next_event);
 
 			if(ReplayEvent::Type::START == next_event.type()) {
 				game_time = 0;
