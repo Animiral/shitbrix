@@ -113,7 +113,6 @@ class GameIntro : public IGamePhase
 public:
 	GameIntro(GameScreen* screen);
 
-	virtual void draw() const override;
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
 private:
@@ -277,16 +276,16 @@ public:
 
 	std::unique_ptr<IScreen> successor() noexcept { return std::move(m_successor); }
 
-	virtual void draw(float dt) const override;
-	virtual void update() override {}
+	virtual void update() override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::SPLASH; }
 	virtual bool done() const override;
 	virtual void input(ControllerInput) override {}
 
-private:
+protected:
 
 	std::unique_ptr<IScreen> m_predecessor;
 	std::unique_ptr<IScreen> m_successor;
-	// TODO
+
+	int m_time;
 
 };

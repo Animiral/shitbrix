@@ -39,15 +39,6 @@ GameIntro::GameIntro(GameScreen* screen)
 	m_screen->m_draw.show_cursors(true);
 }
 
-void GameIntro::draw() const
-{
-	SDL_assert(m_screen->m_context);
-
-	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
-	m_screen->m_context->fade(fadeness);
-	IGamePhase::draw();
-}
-
 void GameIntro::update()
 {
 	if(0 == --countdown) {
@@ -394,19 +385,19 @@ void GameScreen::set_context_impl(IContext& context) noexcept
 
 Transition::Transition(std::unique_ptr<IScreen> predecessor, std::unique_ptr<IScreen> successor)
 : m_predecessor(std::move(predecessor)),
-  m_successor(std::move(successor))
+  m_successor(std::move(successor)),
+  m_time(TRANSITION_TIME)
 {}
 
-void Transition::draw(float dt) const
+void Transition::update()
 {
-	// TODO
-	m_predecessor->draw(dt);
+	m_time--;
 }
 
 bool Transition::done() const
 {
 	// TODO
-	return true;
+	return m_time <= 0;
 }
 
 

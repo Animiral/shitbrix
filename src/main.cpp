@@ -6,6 +6,50 @@
 #include <chrono>
 #include <iomanip>
 
+/**
+ * A screen transition which draws a larger and larger portion of the screen
+ * contents from the successor screen.
+ */
+class SwipeTransition : public Transition
+{
+
+public:
+
+	GridTransition(std::unique_ptr<IScreen> predecessor, std::unique_ptr<IScreen> successor, SdlFactory& factory)
+	: Transition(std::move(predecessor), std::move(successor)),
+	  m_fake_context(factory)
+	{}
+
+private:
+
+	/**
+	 * The purpose of this fake context is to make the client of the context
+	 * (the screen) draw itself to a texture instead of the screen.
+	 */
+	class CaptureContext : public IContext
+	{
+
+	public:
+
+		CaptureContext(SdlFactory& factory) : m_factory(factory)
+		{
+			m_capture.reset(SDL_CreateTexture(
+				factory.get_renderer().get(),
+				SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_TARGET, CANVAS_W, CANVAS_H
+				));
+			 // in draw(), create texture, render both screens onto it
+			// and interpolate from there
+		}
+
+	private:
+
+		SdlFactory& m_factory;
+		std::unique_ptr<SDL_Texture, SdlDeleter> m_capture;
+
+	}
+
+};
+
 class Options
 {
 

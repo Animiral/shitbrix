@@ -19,18 +19,24 @@ class SdlContext : public IContext
 
 public:
 
-	SdlContext() : factory(), assets(factory)
+	SdlContext() : m_factory(), assets(m_factory)
 	{
-		fadetex = std::unique_ptr<SDL_Texture, SdlDeleter>(SDL_CreateTexture(factory.get_renderer().get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
+		fadetex = std::unique_ptr<SDL_Texture, SdlDeleter>(SDL_CreateTexture(m_factory.get_renderer().get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
 		game_assert(bool(fadetex), SDL_GetError());
 
 		int texblend_result = SDL_SetTextureBlendMode(fadetex.get(), SDL_BLENDMODE_BLEND);
 		game_assert(0 == texblend_result, SDL_GetError());
 
-		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Renderer* renderer = m_factory.get_renderer().get();
 		int drawblend_result = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
 		game_assert(0 == drawblend_result, SDL_GetError());
 	}
+
+	/**
+	 * Exposes the SDL guts of this context for very SDL-specific
+	 * use cases such as the screen transition.
+	 */
+	SdlFactory& factory() { return m_factory; }
 
 	virtual void translate(Point offset) override
 	{
@@ -43,14 +49,14 @@ public:
 		int y = top_left.y;
 		SDL_Rect clip_rect{x, y, width, height};
 
-		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Renderer* renderer = m_factory.get_renderer().get();
 		int clip_result = SDL_RenderSetClipRect(renderer, &clip_rect);
 		game_assert(0 == clip_result, SDL_GetError());
 	}
 
 	virtual void unclip() override
 	{
-		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Renderer* renderer = m_factory.get_renderer().get();
 		int clip_result = SDL_RenderSetClipRect(renderer, nullptr);
 		game_assert(0 == clip_result, SDL_GetError());
 	}
@@ -68,7 +74,7 @@ public:
 	virtual void play(Snd snd) override
 	{
 		Sound sound = assets.sound(snd);
-		auto audio = factory.get_audio();
+		auto audio = m_factory.get_audio();
 		audio->play(sound);
 	}
 
@@ -79,7 +85,7 @@ public:
 		int y = loc.y + m_translate.y;
 		SDL_Rect dstrect { x, y, texture->width, texture->height };
 
-		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Renderer* renderer = m_factory.get_renderer().get();
 		SDL_Texture* tex = texture->tex.get();
 
 		int alpha_result = SDL_SetTextureAlphaMod(tex, m_alpha);
@@ -100,7 +106,7 @@ public:
 			height
 		};
 
-		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Renderer* renderer = m_factory.get_renderer().get();
 		int color_result = SDL_SetRenderDrawColor(renderer, r, g, b, a);
 		game_assert(0 == color_result, SDL_GetError());
 		int fill_result = SDL_RenderFillRect(renderer, &fill_rect);
@@ -112,7 +118,7 @@ public:
 	 */
 	void render() const
 	{
-		SDL_Renderer* renderer = factory.get_renderer().get();
+		SDL_Renderer* renderer = m_factory.get_renderer().get();
 
 		if(m_fade < 1.f) {
 			SDL_Rect rect_pixel{0,0,1,1};
@@ -133,7 +139,7 @@ public:
 
 private:
 
-	SdlFactory factory;
+	SdlFactory m_factory;
 	Assets assets;
 
 	Point m_translate{0,0};
