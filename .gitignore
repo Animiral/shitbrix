@@ -1,5 +1,9 @@
-# Output directory
+# Hidden directories
+.*/
+
+# Output directories
 bin/
+visualcpp/x64/
 
 # Runtime-generated files
 replay/*

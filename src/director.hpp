@@ -1,6 +1,7 @@
 /**
  * director.hpp
  */
+#pragma once
 
 #include "stage.hpp"
 #include "gameevent.hpp"
