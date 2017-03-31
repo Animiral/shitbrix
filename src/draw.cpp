@@ -114,7 +114,7 @@ Point block_loc(const Block& block)
 
 		case Block::State::LAND:
 			{
-				int h = eta > LAND_TIME/2 ? LAND_TIME-eta : eta;
+				float h = eta > LAND_TIME/2 ? LAND_TIME-eta : eta;
 				loc.y -= h * DrawGame::BLOCK_BOUNCE_H / LAND_TIME;
 			}
 			break;
@@ -273,14 +273,15 @@ void draw_bonus(IContext& context, const BonusIndicator& bonus, float dt)
 	context.set_alpha(combo_fade);
 
 	for(int i = 0; i < combo; i++) {
-		Point star_loc = origin.offset(0, -BONUS_H * (i + 1));
+		Point star_loc = origin.offset(0, static_cast<float>(-BONUS_H * (i + 1)));
 		context.drawGfx(star_loc, Gfx::BONUS, static_cast<int>(BonusFrame::COMBO));
 	}
 
 	context.set_alpha(chain_fade);
 
 	for(int i = 0; i < chain; i++) {
-		Point star_loc = origin.offset(BONUS_W, -BONUS_H * (i + 1));
+		Point star_loc = origin.offset(static_cast<float>(BONUS_W),
+									   static_cast<float>(-BONUS_H * (i + 1)));
 		context.drawGfx(star_loc, Gfx::BONUS, static_cast<int>(BonusFrame::CHAIN));
 	}
 

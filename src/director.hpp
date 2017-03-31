@@ -49,7 +49,7 @@ public:
 	void find_touch_garbage();
 	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
 
-	int combo() { return m_result.size(); }
+	int combo() { return static_cast<int>(m_result.size()); }
 	bool chaining() { return m_chaining; }
 
 private:

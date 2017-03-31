@@ -305,12 +305,12 @@ void Pit::clear()
 
 int Pit::top() const noexcept
 {
-	return std::ceil(float(m_scroll) / ROW_HEIGHT);
+	return static_cast<int>(std::ceil(float(m_scroll) / ROW_HEIGHT));
 }
 
 int Pit::bottom() const noexcept
 {
-	return std::floor(float(m_scroll) / ROW_HEIGHT) + PIT_ROWS - 1;
+	return static_cast<int>(std::floor(float(m_scroll) / ROW_HEIGHT)) + PIT_ROWS - 1;
 }
 
 int Pit::peak() const noexcept

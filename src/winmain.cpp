@@ -13,7 +13,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd)
 	std::vector<const char*> argv(argc);
 
 	for (size_t i = 0; i < argc; i++) {
-		size_t bufferSize = (wcslen(wargv[i]) + 1) * sizeof(wchar_t);
+		int bufferSize = static_cast<int>((wcslen(wargv[i]) + 1) * sizeof(wchar_t));
 		char* buffer = new char[bufferSize];
 		int converted = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, buffer, bufferSize, nullptr, nullptr);
 		argv[i] = buffer;

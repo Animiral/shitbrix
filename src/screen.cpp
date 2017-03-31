@@ -53,7 +53,7 @@ void GamePlay::update()
 		pobjs->block_director.update();
 
 		if(pobjs->block_director.over()) {
-			int winner = opponent(i);
+			int winner = opponent(static_cast<int>(i));
 			auto phase = std::make_unique<GameResult>(m_screen, winner);
 			m_screen->change_phase(std::move(phase));
 			break;

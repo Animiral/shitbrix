@@ -39,8 +39,8 @@ public:
 
 	virtual void clip(Point top_left, int width, int height) override
 	{
-		int x = top_left.x;
-		int y = top_left.y;
+		int x = static_cast<int>(top_left.x);
+		int y = static_cast<int>(top_left.y);
 		SDL_Rect clip_rect{x, y, width, height};
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
@@ -75,8 +75,8 @@ public:
 	virtual void drawGfx(Point loc, Gfx gfx, size_t frame = 0) const override
 	{
 		Texture texture = assets.texture(gfx, frame);
-		int x = loc.x + m_translate.x;
-		int y = loc.y + m_translate.y;
+		int x = static_cast<int>(loc.x + m_translate.x);
+		int y = static_cast<int>(loc.y + m_translate.y);
 		SDL_Rect dstrect { x, y, texture->width, texture->height };
 
 		SDL_Renderer* renderer = factory.get_renderer().get();
