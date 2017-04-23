@@ -54,6 +54,9 @@
     <ClInclude Include="..\src\game_loop.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\audio.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\director.cpp">
@@ -87,6 +90,9 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\src\winmain.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\audio.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

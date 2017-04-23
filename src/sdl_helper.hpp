@@ -101,18 +101,18 @@ struct SoundImpl
  * Every instance opens an audio device upon instantiation.
  * The SDL audio subsystem must be initialized to successfully instantiate Audio.
  */
-class Audio
+class SdlAudio
 {
 
 public:
 
-	Audio(SdlRaii sdl);
-	~Audio();
+	SdlAudio(SdlRaii sdl);
+	~SdlAudio();
 
-	Audio(const Audio& ) =delete;
-	Audio(Audio&& ) =default;
-	Audio& operator=(const Audio& ) =delete;
-	Audio& operator=(Audio&& ) =default;
+	SdlAudio(const SdlAudio& ) =delete;
+	SdlAudio(SdlAudio&& ) =default;
+	SdlAudio& operator=(const SdlAudio& ) =delete;
+	SdlAudio& operator=(SdlAudio&& ) =default;
 
 	void play(Sound sound);
 
@@ -152,7 +152,7 @@ public:
 	SdlRaii get_sdl() const;
 	std::shared_ptr<SDL_Window> get_window() const;
 	std::shared_ptr<SDL_Renderer> get_renderer() const;
-	std::shared_ptr<Audio> get_audio() const;
+	std::shared_ptr<SdlAudio> get_audio() const;
 
 	// creation methods
 	Texture create_texture(const char* file) const;
@@ -166,6 +166,6 @@ private:
 	mutable SdlRaii sdl;
 	mutable std::shared_ptr<SDL_Window> window;
 	mutable std::shared_ptr<SDL_Renderer> renderer;
-	mutable std::shared_ptr<Audio> audio;
+	mutable std::shared_ptr<SdlAudio> audio;
 
 };

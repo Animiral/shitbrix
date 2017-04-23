@@ -68,7 +68,7 @@ SoundImpl::~SoundImpl()
 }
 
 
-Audio::Audio(SdlRaii sdl) : sdl(sdl)
+SdlAudio::SdlAudio(SdlRaii sdl) : sdl(sdl)
 {
 	SDL_assert(bool(sdl));
 
@@ -86,20 +86,20 @@ Audio::Audio(SdlRaii sdl) : sdl(sdl)
 	SDL_PauseAudioDevice(devid, 0);
 }
 
-Audio::~Audio()
+SdlAudio::~SdlAudio()
 {
 	SDL_CloseAudioDevice(devid);
 }
 
-void Audio::play(Sound sound)
+void SdlAudio::play(Sound sound)
 {
 	pos = sound->buffer;
 	remaining = sound->length;
 }
 
-void Audio::callback(void* userdata, Uint8* stream, int length)
+void SdlAudio::callback(void* userdata, Uint8* stream, int length)
 {
-	Audio* audio = reinterpret_cast<Audio*>(userdata);
+	SdlAudio* audio = reinterpret_cast<SdlAudio*>(userdata);
 	int fill = (length > audio->remaining) ? audio->remaining : length;
 	std::memcpy(stream, audio->pos, fill);
 	// SDL_MixAudioFormat(stream, pos, AUDIO_S16, length, SDL_MIX_MAXVOLUME);
@@ -149,10 +149,10 @@ std::shared_ptr<SDL_Renderer> SdlFactory::get_renderer() const
 	return renderer;
 }
 
-std::shared_ptr<Audio> SdlFactory::get_audio() const
+std::shared_ptr<SdlAudio> SdlFactory::get_audio() const
 {
 	if(!bool(audio))
-		audio = std::make_shared<Audio>(get_sdl());
+		audio = std::make_shared<SdlAudio>(get_sdl());
 
 	return audio;
 }
