@@ -18,9 +18,6 @@
     <ClInclude Include="..\src\asset.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\context.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\director.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -40,9 +37,6 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\src\screen.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\sdl_context.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\src\sdl_helper.hpp">

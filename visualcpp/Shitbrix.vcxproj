@@ -75,7 +75,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\asset.hpp" />
-    <ClInclude Include="..\src\context.hpp" />
     <ClInclude Include="..\src\director.hpp" />
     <ClInclude Include="..\src\draw.hpp" />
     <ClInclude Include="..\src\gameevent.hpp" />
@@ -84,7 +83,6 @@
     <ClInclude Include="..\src\input.hpp" />
     <ClInclude Include="..\src\replay.hpp" />
     <ClInclude Include="..\src\screen.hpp" />
-    <ClInclude Include="..\src\sdl_context.hpp" />
     <ClInclude Include="..\src\sdl_helper.hpp" />
     <ClInclude Include="..\src\audio.hpp" />
     <ClInclude Include="..\src\stage.hpp" />

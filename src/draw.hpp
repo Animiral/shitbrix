@@ -4,8 +4,10 @@
  */
 #pragma once
 
+// TODO: use pImpl to remove SDL dependencies from draw interface.
 #include "stage.hpp"
 #include "gameevent.hpp"
+#include "asset.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -21,43 +23,39 @@ class DrawGame
 public:
 
 	/**
-	 * Construct a new DrawGame object bound to the given context.
+	 * Construct a new DrawGame object from the given dependencies.
 	 */
-	DrawGame(IContext& context);
+	DrawGame(const SdlFactory& factory, const Assets& assets);
 
 	/**
 	 * Add the specified pit to be drawn.
-	 * DrawGame always associates a cursor with the pit.
+	 * DrawGame always associates several player-specific objects with the pit.
 	 */
-	void add_pit(const Pit& pit, const Cursor& cursor, BonusIndicator& indicator);
+	void add_pit(const Pit& pit, const Cursor& cursor,
+				 const Banner& banner, const BonusIndicator& indicator);
 
 	/**
 	 * Removes all drawables known to this DrawGame object.
 	 */
 	void clear();
 
-	/**
-	 * Returns the fraction of logic ticks that have passed since the last
-	 * completed tick. Used for interpolating animations.
-	 */
-	float dt() const;
-
-	/**
-	 * Sets the fraction of logic ticks that have passed since the last
-	 * completed tick. Used for interpolating animations.
-	 */
-	void set_dt(float dt) const;
+	void fade(float fraction);
 
 	/**
 	 * Render all that we know to the screen.
 	 * This includes background, pits and cursors.
 	 */
-	void draw_all() const;
+	void draw_all(float dt) const;
 
 	/**
 	 * Set whether or not the cursors should be displayed.
 	 */
-	void show_cursors(bool show);
+	void show_cursor(bool show);
+
+	/**
+	 * Set whether or not the banners should be displayed.
+	 */
+	void show_banner(bool show);
 
 	/**
 	 * Show or hide the debug info on the pits.
@@ -85,14 +83,40 @@ private:
 	{
 		const Pit& pit;
 		const Cursor& cursor;
-		BonusIndicator& indicator;
+		const Banner& banner;
+		const BonusIndicator& indicator;
 	};
 
-	IContext& m_context;
 	std::vector<PlayerDrawables> m_drawables;
-	mutable float m_dt;
-	bool m_show_cursors;
+	bool m_show_cursor;
+	bool m_show_banner;
 	bool m_show_pit_debug_overlay = false;
 	bool m_show_pit_debug_highlight = false;
+
+	const SdlFactory& m_factory;
+	const Assets& m_assets;
+
+	float m_fade = 1.f;
+	mutable Point m_translate{0,0};
+	mutable uint8_t m_alpha = 255;
+	std::unique_ptr<SDL_Texture, SdlDeleter> m_fadetex; // solid pixel used for fading
+
+	void draw_background() const;
+	void draw_pit(const Pit& pit, float dt) const;
+	void draw_pit_debug_overlay(const Pit& pit) const;
+	void draw_block(const Block& block, float dt) const;
+	void draw_garbage(const Garbage& garbage, float dt) const;
+	void draw_cursor(const Cursor& cursor, float dt) const;
+	void draw_banner(const Banner& banner, float dt) const;
+	void draw_bonus(const BonusIndicator& bonus, float dt) const;
+	void draw_highlight(Point top_left, int width, int height,
+				        uint8_t r, uint8_t g, uint8_t b, uint8_t a) const;
+	
+	void putsprite(Point loc, Gfx gfx, size_t frame = 0) const;
+
+	/**
+	 * Puts the rendered scene on screen
+	 */
+	void render() const;
 
 };

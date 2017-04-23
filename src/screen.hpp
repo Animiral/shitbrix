@@ -7,9 +7,9 @@
 
 #include "globals.hpp"
 #include "input.hpp"
-#include "context.hpp"
 #include "stage.hpp"
 #include "draw.hpp"
+#include "audio.hpp"
 #include "director.hpp"
 #include "replay.hpp"
 #include <fstream>
@@ -27,12 +27,6 @@ public:
 	IScreen& operator=(const IScreen& ) = delete;
 	IScreen& operator=(IScreen&& ) = delete;
 
-	/**
-	 * Draw all contents to the screen.
-	 * Since this is the “top-level” draw, everything in the game that appears
-	 * on the screen at any point must eventually be drawn through this call.
-	 */
-	virtual void draw(float dt) const =0;
 	virtual void update() =0;
 
 	virtual ScreenPhase phase() const =0; // type enum
@@ -62,7 +56,6 @@ public:
 
 	void set_screen(GameScreen* screen) { m_screen = screen; }
 
-	virtual void draw() const;
 	virtual void update() =0;
 
 protected:
@@ -76,7 +69,6 @@ class GameIntro : public IGamePhase
 public:
 	GameIntro(GameScreen* screen);
 
-	virtual void draw() const override;
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
 private:
@@ -102,14 +94,8 @@ public:
 	GameResult(GameScreen* screen, int winner);
 	~GameResult();
 
-	virtual void draw() const override;
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
-
-private:
-
-	std::unique_ptr<Banner> banner_left;
-	std::unique_ptr<Banner> banner_right;
 
 };
 
@@ -118,15 +104,11 @@ class GameScreen : public IScreen, public IReplaySink
 
 public:
 
-	GameScreen(const char* replay_infile, const char* replay_outfile, IContext& context);
+	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame& draw, const Audio& sound);
 
 	const long& game_time() const { return m_game_time; }
 	void reset();
 
-	/**
-	 * Draw content to the screen according to the game phase.
-	 */
-	virtual void draw(float dt) const override;
 	virtual void update() override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
@@ -174,9 +156,8 @@ private:
 	std::ofstream replay_outstream;
 	Journal journal;
 
-	IContext& m_context;
 	std::unique_ptr<Stage> stage;
-	DrawGame m_draw;
+	DrawGame& m_draw;
 	evt::SoundEffects m_sound_effects;
 	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
 
