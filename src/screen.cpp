@@ -44,6 +44,7 @@ void GamePlay::update()
 
 		if(pobjs->block_director.over()) {
 			int winner = opponent(static_cast<int>(i));
+			m_screen->m_gameover_relay->fire(evt::GameOver{winner});
 			auto phase = std::make_unique<GameResult>(m_screen, winner);
 			m_screen->change_phase(std::move(phase));
 			break;
@@ -120,7 +121,7 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, Dr
   replay_outstream(replay_outfile),
   journal(replay_outstream),
   m_draw(draw),
-  m_sound_effects(audio)
+  m_sound_relay(audio)
 {
 	if(!replay_infile) {
 		std::random_device rdev;
@@ -160,8 +161,12 @@ void GameScreen::reset()
 	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
 	m_draw.add_pit(right_pit, right_cursor, right_banner, right_bonus);
 
-	for(auto& pobjs : m_pobjects)
-		pobjs->event_hub.append(m_sound_effects);
+	m_gameover_relay.reset(new evt::GameOverRelay(stage->sobs()));
+
+	for(auto& pobjs : m_pobjects) {
+		pobjs->event_hub.append(m_sound_relay);
+		pobjs->event_hub.append(*m_gameover_relay);
+	}
 }
 
 void GameScreen::update()
