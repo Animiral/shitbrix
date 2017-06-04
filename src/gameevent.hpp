@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "context.hpp"
+#include "audio.hpp"
 
 namespace evt
 {
@@ -141,18 +141,18 @@ class SoundEffects : public IGameEvent
 
 public:
 
-	SoundEffects(IContext& context) : m_context(context) {}
+	SoundEffects(const Audio& audio) : m_audio(audio) {}
 
 	virtual void fire(CursorMoves event) override {}
-	virtual void fire(Swap event) override { m_context.play(Snd::SWAP); }
-	virtual void fire(Match event) override { m_context.play(Snd::MATCH); }
+	virtual void fire(Swap event) override { m_audio.play(Snd::SWAP); }
+	virtual void fire(Match event) override { m_audio.play(Snd::MATCH); }
 	// virtual void fire(Chain event) override { }
-	virtual void fire(BlockDies event) override { m_context.play(Snd::BREAK); }
-	virtual void fire(GarbageDissolves event) override { m_context.play(Snd::BREAK); }
+	virtual void fire(BlockDies event) override { m_audio.play(Snd::BREAK); }
+	virtual void fire(GarbageDissolves event) override { m_audio.play(Snd::BREAK); }
 
 private:
 
-	IContext& m_context;
+	const Audio& m_audio;
 
 };
 

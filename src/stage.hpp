@@ -376,7 +376,7 @@ class Banner
 
 public:
 
-	Banner(Point loc, BannerFrame frame) : loc(loc), frame(frame) {}
+	Banner(Point loc) : loc(loc), frame(BannerFrame::LOSE) {}
 
 	Point loc;
 	BannerFrame frame;
@@ -447,30 +447,32 @@ public:
 	Stage() {}
 	Stage(const Stage& ) =delete;
 
-	//! Helper struct for stage contents (1 player)
-	struct PitCursor
+	//! Helper struct for stage contents (per player)
+	struct StageObjects
 	{
-		PitCursor(Point loc, Point bonus_loc);
+		StageObjects(Point loc, Point bonus_loc);
 
 		Pit pit;
 		Cursor cursor;
+		Banner banner;
 		BonusIndicator bonus;
 	};
 
-	using PitsVector = std::vector<std::unique_ptr<PitCursor>>;
+	//! Stage objects vector
+	using SobVector = std::vector<std::unique_ptr<StageObjects>>;
 
 	/**
 	 * Add a pit to the stage to be displayed at the given point coordinates.
 	 */
-	PitCursor& add_pit(Point loc, Point bonus_loc);
+	StageObjects& add_pit(Point loc, Point bonus_loc);
 	void update();
 
-	PitsVector& pits() { return m_pits; }
-	const PitsVector& pits() const { return m_pits; }
+	SobVector& sobs() { return m_sobs; }
+	const SobVector& sobs() const { return m_sobs; }
 
 private:
 
-	PitsVector m_pits;
+	SobVector m_sobs;
 
 };
 
@@ -481,10 +483,12 @@ public:
 
 	Pit* left_pit;
 	Cursor* left_cursor;
+	Banner* left_banner;
 	BonusIndicator* left_bonus;
 
 	Pit* right_pit;
 	Cursor* right_cursor;
+	Banner* right_banner;
 	BonusIndicator* right_bonus;
 
 	std::unique_ptr<Stage> construct();

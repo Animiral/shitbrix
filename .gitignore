@@ -8,9 +8,10 @@ visualcpp/x64/
 # Runtime-generated files
 replay/*
 
-# GDB & valgrind trash
+# Trash from tools
 .gdbinit
 vgcore.*
+*.vcxproj.user
 
 # Google Test directory (must be provided by user)
 tests/googletest
@@ -46,3 +47,4 @@ screenshots/*
 *.exe
 *.out
 *.app
+

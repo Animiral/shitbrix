@@ -18,9 +18,6 @@
     <ClInclude Include="..\src\asset.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\context.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\director.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -42,9 +39,6 @@
     <ClInclude Include="..\src\screen.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\sdl_context.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\sdl_helper.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -52,6 +46,9 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\src\game_loop.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\audio.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
@@ -87,6 +84,9 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\src\winmain.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\audio.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,12 +1,13 @@
 #pragma once
 
 #include "screen.hpp"
-#include "sdl_context.hpp"
+#include "draw.hpp"
+#include "audio.hpp"
 #include <string>
 
 /**
-* Parses command-line options.
-*/
+ * Parses command-line options.
+ */
 class Options
 {
 
@@ -25,9 +26,9 @@ private:
 };
 
 /**
-* Top-level class which owns general application resources such as the initialized SDL library
-* and offers the main loop function.
-*/
+ * Top-level class which owns general application resources such as the initialized SDL library
+ * and offers the main loop function.
+ */
 class GameLoop
 {
 
@@ -36,22 +37,25 @@ public:
 	GameLoop(Options options);
 
 	/**
-	* Main loop.
-	* Design goals are:
-	*  - Renders as many frames as possible
-	*  - Does not fall behind on game logic
-	*  - Handles inputs and events fast
-	*  - Frequently yields CPU to other programs in need
-	*
-	* Speed is controlled by FPS (frames per second) and TPS (logic ticks per second) in shitbrix.hpp.
-	*/
+	 * Main loop.
+	 * Design goals are:
+	 *  - Renders as many frames as possible
+	 *  - Does not fall behind on game logic
+	 *  - Handles inputs and events fast
+	 *  - Frequently yields CPU to other programs in need
+	 *
+	 * Speed is controlled by FPS (frames per second) and TPS (logic ticks per second) in shitbrix.hpp.
+	 */
 	void game_loop();
 
 private:
 
 	Options m_options;
-	SdlContext context;
-	GameScreen game_screen;
-	Keyboard keyboard;
+	SdlFactory m_factory;
+	Assets m_assets;
+	DrawGame m_draw;
+	Audio m_sound;
+	GameScreen m_screen;
+	Keyboard m_keyboard;
 
 };

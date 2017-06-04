@@ -61,9 +61,12 @@ std::string make_journal_file()
 
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
-  context(),
-  game_screen(m_options.replay_file(), make_journal_file().c_str(), context),
-  keyboard(game_screen)
+  m_factory(),
+  m_assets(m_factory),
+  m_draw(m_factory, m_assets),
+  m_sound(*m_factory.get_audio(), m_assets),
+  m_screen(m_options.replay_file(), make_journal_file().c_str(), m_draw, m_sound),
+  m_keyboard(m_screen)
 {
 }
 
@@ -74,22 +77,21 @@ void GameLoop::game_loop()
 	long tick = 0; // current logic tick counter
 	Uint64 next_logic = t0 + freq / TPS; // time for next logic update
 
-	while (!game_screen.done()) {
+	while (!m_screen.done()) {
 		// draw frames as long as logic is up to date
 		Uint64 now = SDL_GetPerformanceCounter();
 		while (now < next_logic) {
 			float fraction = 1.0f - static_cast<float>((next_logic - now) * TPS) / freq;
 			SDL_assert((fraction >= 0) && (fraction <= 1));
 
-			game_screen.draw(fraction);
-			context.render();
+			m_draw.draw_all(fraction);
 			now = SDL_GetPerformanceCounter();
 		}
 
-		keyboard.poll();
+		m_keyboard.poll();
 
 		// run one frame of local logic
-		game_screen.update();
+		m_screen.update();
 
 		tick++;
 		next_logic = t0 + (tick + 1) * freq / TPS;
