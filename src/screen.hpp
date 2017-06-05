@@ -158,7 +158,8 @@ private:
 
 	std::unique_ptr<Stage> stage;
 	DrawGame& m_draw;
-	evt::SoundEffects m_sound_effects;
+	evt::SoundRelay m_sound_relay;
+	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
 	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "audio.hpp"
+#include "stage.hpp"
 
 namespace evt
 {
@@ -49,6 +50,14 @@ struct BlockDies {};
  * shrink or disappear.
  */
 struct GarbageDissolves {};
+
+/**
+ * Event that occurs when a game round ends.
+ */
+struct GameOver
+{
+	int winner;
+};
 
 /**
  * Interface for transmission of game event information.
@@ -96,6 +105,11 @@ public:
 	 */
 	virtual void fire(GarbageDissolves dissolved) {}
 
+	/**
+	 * Signal that the game is ending.
+	 */
+	virtual void fire(GameOver ended) {}
+
 };
 
 inline IGameEvent::~IGameEvent() {}
@@ -136,12 +150,12 @@ private:
 /**
  * A handler for game events that cause sound outputs.
  */
-class SoundEffects : public IGameEvent
+class SoundRelay : public IGameEvent
 {
 
 public:
 
-	SoundEffects(const Audio& audio) : m_audio(audio) {}
+	SoundRelay(const Audio& audio) : m_audio(audio) {}
 
 	virtual void fire(CursorMoves event) override {}
 	virtual void fire(Swap event) override { m_audio.play(Snd::SWAP); }
@@ -153,6 +167,27 @@ public:
 private:
 
 	const Audio& m_audio;
+
+};
+
+class GameOverRelay : public IGameEvent
+{
+
+public:
+
+	GameOverRelay(const Stage::SobVector& pobjects) : m_pobjects(pobjects) {}
+
+	virtual void fire(GameOver ended) override
+	{
+		for(size_t i = 0; i < m_pobjects.size(); i++) {
+			BannerFrame frame = (i == ended.winner) ? BannerFrame::WIN : BannerFrame::LOSE;
+			m_pobjects[i]->banner.frame = frame;
+		}
+	}
+
+private:
+
+	const Stage::SobVector& m_pobjects;
 
 };
 
