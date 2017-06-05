@@ -86,6 +86,14 @@ void GameLoop::game_loop()
 
 			m_draw.draw_all(fraction);
 			now = SDL_GetPerformanceCounter();
+
+			// yield CPU if we have the time
+			if(now < next_logic) {
+				Uint64 wait = (next_logic - now) * 1000L / freq; // in ms
+				SDL_assert(wait <= std::numeric_limits<Uint32>::max());
+				SDL_Delay(static_cast<Uint32>(wait));
+				now = SDL_GetPerformanceCounter();
+			}
 		}
 
 		m_keyboard.poll();
