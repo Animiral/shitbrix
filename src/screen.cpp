@@ -28,12 +28,48 @@ std::unique_ptr<IScreen> ScreenFactory::create(ScreenPhase phase)
 	switch(phase) {
 	default:
 	case ScreenPhase::MENU:
-		return std::unique_ptr<IScreen>();
+	{
+		DrawMenu draw_menu(m_factory, m_assets);
+		return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
+	}
 
 	case ScreenPhase::GAME:
-		DrawGame draw(m_factory, m_assets);
-		return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw), m_audio);
+	{
+		DrawGame draw_game(m_factory, m_assets);
+		return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw_game), m_audio);
+	}
 
+	}
+}
+
+MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio)
+: m_game_time(0),
+  m_done(false),
+  m_draw(std::move(draw))
+{
+}
+
+void MenuScreen::update()
+{
+	m_game_time++;
+}
+
+void MenuScreen::draw(float dt)
+{
+	m_draw.draw();
+}
+
+void MenuScreen::input(ControllerInput cinput)
+{
+	if(ButtonAction::DOWN == cinput.action) {
+		if(Button::A == cinput.button) {
+			m_result = Result::PLAY;
+			m_done = true;
+		} else
+		if(Button::QUIT == cinput.button) {
+			m_result = Result::QUIT;
+			m_done = true;
+		}
 	}
 }
 

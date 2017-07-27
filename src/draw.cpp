@@ -18,6 +18,33 @@ void unclip(SDL_Renderer* renderer);
 
 }
 
+DrawMenu::DrawMenu(const SdlFactory& factory, const Assets& assets)
+: m_factory(factory),
+  m_assets(assets)
+{
+}
+
+void DrawMenu::draw() const
+{
+	Texture texture = m_assets.texture(Gfx::MENUBG, 0);
+	SDL_Rect dstrect { 0, 0, texture->width, texture->height };
+
+	SDL_Renderer* renderer = m_factory.get_renderer().get();
+	SDL_Texture* tex = texture->tex.get();
+/*
+	int alpha_result = SDL_SetTextureAlphaMod(tex, 255);
+	game_assert(0 == alpha_result, SDL_GetError());
+*/
+	int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
+	game_assert(0 == render_result, SDL_GetError());
+	
+	SDL_RenderPresent(renderer);
+
+	// clear for next frame
+	render_result = SDL_RenderClear(renderer);
+	game_assert(0 == render_result, SDL_GetError());
+}
+
 DrawGame::DrawGame(const SdlFactory& factory, const Assets& assets)
 : m_show_cursor(false),
   m_show_banner(false),

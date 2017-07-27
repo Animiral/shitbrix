@@ -32,7 +32,8 @@ enum class Gfx
 	CURSOR,
 	BANNER,
 	GARBAGE,
-	BONUS
+	BONUS,
+	MENUBG
 };
 
 /**

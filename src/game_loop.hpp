@@ -39,4 +39,9 @@ private:
 	std::unique_ptr<IScreen> m_screen;
 	Keyboard m_keyboard;
 
+	/**
+	 * Switch the screen object to a successor. Destroy the previous one.
+	 */
+	void next_screen();
+
 };

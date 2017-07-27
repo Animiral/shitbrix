@@ -60,7 +60,39 @@ private:
 
 };
 
+class MenuScreen;
 class GameScreen;
+
+class MenuScreen : public IScreen
+{
+
+public:
+
+	enum class Result { PLAY, QUIT };
+
+	MenuScreen(DrawMenu&& draw, const Audio& sound);
+
+	virtual void update() override;
+	virtual void draw(float dt) override;
+	virtual ScreenPhase phase() const override { return ScreenPhase::MENU; }
+	virtual bool done() const override { return m_done; }
+	virtual void input(ControllerInput cinput) override;
+
+	/**
+	 * Return the result of the MenuScreen.
+	 * It is an error to ask for this before the screen is done().
+	 */
+	Result result() const { SDL_assert(m_done); return m_result; }
+
+private:
+
+	long m_game_time; //!< starts at 0 and increases with update()
+	bool m_done; //!< true if this screen has reached its end
+	Result m_result; //!< valid only when m_done
+
+	DrawMenu m_draw; //!< Interface for drawing the screen
+
+};
 
 /**
  * Determines some of the variable behavior of the GameScreen (strategy pattern).
@@ -128,7 +160,7 @@ class GameScreen : public IScreen, public IReplaySink
 
 public:
 
-	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& sound);
+	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio);
 
 	const long& game_time() const { return m_game_time; }
 	void reset();

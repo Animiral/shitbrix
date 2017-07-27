@@ -46,13 +46,15 @@ ControllerInput key_to_controller(SDL_Keycode key, Uint8 state)
 
 void Keyboard::poll()
 {
+	SDL_assert(m_sink);
+
 	SDL_Event event;
 
 	while(SDL_PollEvent(&event)) {
 		switch(event.type) {
 
 		case SDL_QUIT:
-			m_sink.input(ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN});
+			m_sink->input(ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN});
 			break;
 
 		case SDL_KEYUP:
@@ -65,7 +67,7 @@ void Keyboard::poll()
 					break;
 
 				if(input.button != Button::NONE)
-					m_sink.input(input);
+					m_sink->input(input);
 			}
 			break;
 		}

@@ -12,10 +12,26 @@
 #include <SDL2/SDL_image.h>
 
 /**
+ * Draw the main menu to the screen.
+ */
+class DrawMenu
+{
+
+public:
+
+	DrawMenu(const SdlFactory& factory, const Assets& assets);
+	void draw() const;
+
+private:
+
+	const SdlFactory& m_factory;
+	const Assets& m_assets;
+
+};
+
+/**
  * DrawGame draws gameplay-related objects to the screen.
  * It knows how to interpret various objects’ state and which textures to use.
- * It delegates the actual, library-implementation-
- * dependent low-level draw calls to the Context object.
  */
 class DrawGame
 {
