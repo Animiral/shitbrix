@@ -12,6 +12,8 @@
 #include "audio.hpp"
 #include "director.hpp"
 #include "replay.hpp"
+#include "options.hpp"
+#include "sdl_helper.hpp"
 #include <fstream>
 
 enum class ScreenPhase { MENU, GAME };
@@ -28,12 +30,34 @@ public:
 	IScreen& operator=(IScreen&& ) = delete;
 
 	virtual void update() =0;
+	virtual void draw(float dt) =0;
 
 	virtual ScreenPhase phase() const =0; // type enum
 	virtual bool done() const =0; // whether the screen has ended
 
 	virtual void input(ControllerInput cinput) =0;
 	virtual void input_debug(int func) {} // developer help function
+};
+
+/**
+ * Creates Screens.
+ */
+class ScreenFactory
+{
+
+public:
+
+	ScreenFactory(const Options& options, const SdlFactory& factory, const Assets& assets, const Audio& audio);
+	std::unique_ptr<IScreen> create(ScreenPhase phase);
+
+private:
+
+	// resources to create the Screens
+	const Options& m_options;
+	const SdlFactory& m_factory;
+	const Assets& m_assets;
+	const Audio& m_audio;
+
 };
 
 class GameScreen;
@@ -104,12 +128,13 @@ class GameScreen : public IScreen, public IReplaySink
 
 public:
 
-	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame& draw, const Audio& sound);
+	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& sound);
 
 	const long& game_time() const { return m_game_time; }
 	void reset();
 
 	virtual void update() override;
+	virtual void draw(float dt) override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerInput cinput) override;
@@ -157,7 +182,7 @@ private:
 	Journal journal;
 
 	std::unique_ptr<Stage> stage;
-	DrawGame& m_draw;
+	DrawGame m_draw;
 	evt::SoundRelay m_sound_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
 	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
