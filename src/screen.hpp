@@ -22,6 +22,7 @@ class IScreen : public IControllerSink
 {
 public:
 	IScreen() = default;
+	virtual ~IScreen() =0;
 
 	// Screens are complex objects and can not be copied or moved.
 	IScreen(const IScreen& ) = delete;
@@ -35,6 +36,11 @@ public:
 	virtual ScreenPhase phase() const =0; // type enum
 	virtual bool done() const =0; // whether the screen has ended
 
+	/**
+	 * Access the object which can draw this screen.
+	 */
+	virtual const IDraw& get_draw() const =0;
+
 	virtual void input(ControllerInput cinput) =0;
 	virtual void input_debug(int func) {} // developer help function
 };
@@ -47,21 +53,44 @@ class ScreenFactory
 
 public:
 
-	ScreenFactory(const Options& options, const SdlFactory& factory, const Assets& assets, const Audio& audio);
+	ScreenFactory(const Options& options, SdlFactory& factory, const Assets& assets, const Audio& audio);
 	std::unique_ptr<IScreen> create(ScreenPhase phase);
+	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
 
 private:
 
 	// resources to create the Screens
 	const Options& m_options;
-	const SdlFactory& m_factory;
+	SdlFactory& m_factory;
 	const Assets& m_assets;
 	const Audio& m_audio;
 
 };
 
+class PinkScreen; //!< debugging screen, never shown
 class MenuScreen;
 class GameScreen;
+class TransitionScreen;
+
+class PinkScreen : public IScreen
+{
+
+public:
+
+	PinkScreen(PinkDraw&& draw) : m_draw(draw) {}
+	virtual void update() override {}
+	virtual void draw(float dt) override { m_draw.draw(dt); }
+	virtual ScreenPhase phase() const override { return ScreenPhase::MENU; }
+	virtual bool done() const override { return m_done; }
+	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual void input(ControllerInput cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
+
+private:
+
+	PinkDraw m_draw;
+	bool m_done = false;
+
+};
 
 class MenuScreen : public IScreen
 {
@@ -76,6 +105,7 @@ public:
 	virtual void draw(float dt) override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::MENU; }
 	virtual bool done() const override { return m_done; }
+	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override;
 
 	/**
@@ -169,6 +199,7 @@ public:
 	virtual void draw(float dt) override;
 	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
+	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override;
 	virtual void handle(const ReplayEvent& event) override;
 
@@ -232,5 +263,32 @@ private:
 	friend class GameIntro;
 	friend class GamePlay;
 	friend class GameResult;
+
+};
+
+class TransitionScreen : public IScreen
+{
+
+public:
+
+	TransitionScreen(IScreen& predecessor, IScreen& successor, DrawTransition&& draw)
+	: m_predecessor(predecessor), m_successor(successor), m_time(0), m_draw(std::move(draw))
+	{}
+
+	virtual void update() override;
+	virtual void draw(float dt) override;
+	virtual ScreenPhase phase() const override { return m_successor.phase(); }
+	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
+	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual void input(ControllerInput cinput) override { m_successor.input(cinput); }
+
+	IScreen& successor() const { return m_successor; }
+
+private:
+
+	IScreen& m_predecessor;
+	IScreen& m_successor;
+	int m_time; //!< starts at 0 and increases with update()
+	DrawTransition m_draw;
 
 };

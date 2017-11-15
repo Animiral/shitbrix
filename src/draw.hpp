@@ -12,19 +12,77 @@
 #include <SDL2/SDL_image.h>
 
 /**
- * Draw the main menu to the screen.
+ * Interface for classes that can draw stuff.
+ * One IDraw will usually draw a whole screen with all the objects in it.
  */
-class DrawMenu
+class IDraw
 {
 
 public:
 
-	DrawMenu(const SdlFactory& factory, const Assets& assets);
-	void draw() const;
+	IDraw(SdlFactory& factory) : m_factory(factory) {}
+	IDraw(const IDraw& ) = default;
+	IDraw(IDraw&& ) = default;
+	IDraw& operator=(const IDraw& ) = default;
+	IDraw& operator=(IDraw&& ) = default;
+
+	/**
+	 * Draw something on the screen with the given fraction elapsed since the last tick.
+	 * Template method interface.
+	 */
+	void draw(float dt) const;
+
+	/**
+	 * Draw everything using the configured renderer, but do not SDL_RenderPresent.
+	 * Template method implementation.
+	 * Called by the draw function.
+	 * To be overridden by subclasses.
+	 */
+	virtual void draw_offscreen(float dt) const =0;
+
+protected:
+
+	SdlFactory& m_factory;
+
+};
+
+/**
+ * Debugging draw implementation.
+ * This is never used in actual releases.
+ */
+class PinkDraw : public IDraw
+{
+
+public:
+
+	PinkDraw(SdlFactory& factory, Uint8 r, Uint8 g, Uint8 b) : IDraw(factory), m_r(r), m_g(g), m_b(b) {}
+	virtual void draw_offscreen(float dt) const override
+	{
+		SDL_Renderer* renderer = &m_factory.get_renderer();
+		SDL_SetRenderDrawColor(renderer, m_r, m_g, m_b, SDL_ALPHA_OPAQUE);
+		SDL_Rect canvas_rect{0, 0, CANVAS_W, CANVAS_H};
+		SDL_RenderFillRect(renderer, &canvas_rect);
+	}
 
 private:
 
-	const SdlFactory& m_factory;
+	Uint8 m_r, m_g, m_b;
+
+};
+
+/**
+ * Draw the main menu to the screen.
+ */
+class DrawMenu : public IDraw
+{
+
+public:
+
+	DrawMenu(SdlFactory& factory, const Assets& assets);
+	virtual void draw_offscreen(float) const override;
+
+private:
+
 	const Assets& m_assets;
 
 };
@@ -33,7 +91,7 @@ private:
  * DrawGame draws gameplay-related objects to the screen.
  * It knows how to interpret various objects’ state and which textures to use.
  */
-class DrawGame
+class DrawGame : public IDraw
 {
 
 public:
@@ -41,7 +99,7 @@ public:
 	/**
 	 * Construct a new DrawGame object from the given dependencies.
 	 */
-	DrawGame(const SdlFactory& factory, const Assets& assets);
+	DrawGame(SdlFactory& factory, const Assets& assets);
 
 	/**
 	 * Add the specified pit to be drawn.
@@ -61,7 +119,7 @@ public:
 	 * Render all that we know to the screen.
 	 * This includes background, pits and cursors.
 	 */
-	void draw_all(float dt) const;
+	virtual void draw_offscreen(float dt) const override;
 
 	/**
 	 * Set whether or not the cursors should be displayed.
@@ -109,7 +167,6 @@ private:
 	bool m_show_pit_debug_overlay = false;
 	bool m_show_pit_debug_highlight = false;
 
-	const SdlFactory& m_factory;
 	const Assets& m_assets;
 
 	float m_fade = 1.f;
@@ -131,8 +188,36 @@ private:
 	void putsprite(Point loc, Gfx gfx, size_t frame = 0) const;
 
 	/**
-	 * Puts the rendered scene on screen
+	 * Apply the configured m_fade value to the screen.
 	 */
-	void render() const;
+	void tint() const;
+
+};
+
+class DrawTransition : public IDraw
+{
+
+public:
+
+	DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw, SdlFactory& factory);
+	DrawTransition(const DrawTransition& ) = delete;
+	DrawTransition(DrawTransition&& rhs) = default;
+	DrawTransition& operator=(const DrawTransition& ) = delete;
+	DrawTransition& operator=(DrawTransition&& rhs) = default;
+
+	void set_time(int transition_time) { m_time = transition_time;  }
+
+	/**
+	 * Draw both screens with a transition animation.
+	 */
+	virtual void draw_offscreen(float dt) const override;
+
+private:
+
+	const IDraw& m_pred_draw; //!< for drawing the predecessor screen
+	const IDraw& m_succ_draw; //!< for drawing the successor screen
+	std::unique_ptr<SDL_Texture, SdlDeleter> m_pred_texture; //!< for compositing the predecessor screen
+	std::unique_ptr<SDL_Texture, SdlDeleter> m_succ_texture; //!< for compositing the successor screen
+	int m_time;
 
 };

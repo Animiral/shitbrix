@@ -4,7 +4,6 @@ GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
   m_sdl_factory(),
   m_assets(m_sdl_factory),
-  m_draw(m_sdl_factory, m_assets),
   m_audio(*m_sdl_factory.get_audio(), m_assets),
   m_screen_factory(m_options, m_sdl_factory, m_assets, m_audio),
   m_screen(),
@@ -64,18 +63,48 @@ void GameLoop::game_loop()
 void GameLoop::next_screen()
 {
 	if(nullptr == m_screen) {
-		m_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_menu_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_screen = m_menu_screen.get();
+
+		// debug
+		//PinkDraw pink_draw(m_sdl_factory, 255, 0, 255);
+		//m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
+		//m_screen = m_pink_screen.get();
 	} else
-	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen.get())) {
+	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
-			m_screen = m_screen_factory.create(ScreenPhase::GAME);
+			m_game_screen = m_screen_factory.create(ScreenPhase::GAME);
+			m_transition_screen = m_screen_factory.create_transition(*menu, *m_game_screen);
+			m_screen = m_transition_screen.get();
 		} else
 		if(MenuScreen::Result::QUIT == menu->result()) {
-			m_screen.release();
+			m_menu_screen.release();
+			m_screen = nullptr;
 		}
 	} else
-	if(GameScreen* game = dynamic_cast<GameScreen*>(m_screen.get())) {
-		m_screen = m_screen_factory.create(ScreenPhase::MENU);
+	if(GameScreen* game = dynamic_cast<GameScreen*>(m_screen)) {
+		m_menu_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_transition_screen = m_screen_factory.create_transition(*game, *m_menu_screen);
+		m_screen = m_transition_screen.get();
+	} else
+	if(TransitionScreen* transition = dynamic_cast<TransitionScreen*>(m_screen)) {
+		m_screen = &transition->successor();
+		m_transition_screen.release();
+		// BUG! We keep the predecessor screen around unnecessarily.
+	} else
+	if(PinkScreen* pink = dynamic_cast<PinkScreen*>(m_screen)) {
+		if(m_pink_screen.get() == pink) {
+			PinkDraw creme_draw(m_sdl_factory, 250, 220, 220);
+			m_creme_screen = std::make_unique<PinkScreen>(std::move(creme_draw));
+			m_transition_screen = m_screen_factory.create_transition(*pink, *m_creme_screen);
+			m_screen = m_transition_screen.get();
+		}
+		else {
+			PinkDraw pink_draw(m_sdl_factory, 255, 0, 255);
+			m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
+			m_transition_screen = m_screen_factory.create_transition(*pink, *m_pink_screen);
+			m_screen = m_transition_screen.get();
+		}
 	}
 	else {
 		SDL_assert(false);

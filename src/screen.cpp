@@ -18,7 +18,9 @@ void debug_print_pit(const Pit& pit);
 
 }
 
-ScreenFactory::ScreenFactory(const Options& options, const SdlFactory& factory, const Assets& assets, const Audio& audio)
+IScreen::~IScreen() = default;
+
+ScreenFactory::ScreenFactory(const Options& options, SdlFactory& factory, const Assets& assets, const Audio& audio)
 : m_options(options), m_factory(factory), m_assets(assets), m_audio(audio)
 {
 }
@@ -42,6 +44,13 @@ std::unique_ptr<IScreen> ScreenFactory::create(ScreenPhase phase)
 	}
 }
 
+std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
+{
+	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw(), m_factory);
+	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
+}
+
+
 MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio)
 : m_game_time(0),
   m_done(false),
@@ -56,7 +65,7 @@ void MenuScreen::update()
 
 void MenuScreen::draw(float dt)
 {
-	m_draw.draw();
+	m_draw.draw(dt);
 }
 
 void MenuScreen::input(ControllerInput cinput)
@@ -245,7 +254,7 @@ void GameScreen::update()
 
 void GameScreen::draw(float dt)
 {
-	m_draw.draw_all(dt);
+	m_draw.draw(dt);
 }
 
 void GameScreen::input(ControllerInput cinput)
@@ -360,6 +369,19 @@ void GameScreen::seed(unsigned int rng_seed)
 	std::ostringstream stream;
 	stream << rng_seed;
 	journal << ReplayEvent::make_set("rng_seed", stream.str());
+}
+
+void TransitionScreen::update()
+{
+	m_predecessor.update();
+	m_successor.update();
+	m_time++;
+}
+
+void TransitionScreen::draw(float dt)
+{
+	m_draw.set_time(m_time);
+	m_draw.draw(dt);
 }
 
 namespace
