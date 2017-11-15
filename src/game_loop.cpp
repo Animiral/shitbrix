@@ -63,7 +63,7 @@ void GameLoop::game_loop()
 void GameLoop::next_screen()
 {
 	if(nullptr == m_screen) {
-		m_menu_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_menu_screen = m_screen_factory.create_menu();
 		m_screen = m_menu_screen.get();
 
 		// debug
@@ -73,7 +73,7 @@ void GameLoop::next_screen()
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
-			m_game_screen = m_screen_factory.create(ScreenPhase::GAME);
+			m_game_screen = m_screen_factory.create_game();
 			m_transition_screen = m_screen_factory.create_transition(*menu, *m_game_screen);
 			m_screen = m_transition_screen.get();
 		} else
@@ -83,7 +83,7 @@ void GameLoop::next_screen()
 		}
 	} else
 	if(GameScreen* game = dynamic_cast<GameScreen*>(m_screen)) {
-		m_menu_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_menu_screen = m_screen_factory.create_menu();
 		m_transition_screen = m_screen_factory.create_transition(*game, *m_menu_screen);
 		m_screen = m_transition_screen.get();
 	} else

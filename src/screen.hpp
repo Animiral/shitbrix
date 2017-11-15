@@ -15,8 +15,7 @@
 #include "options.hpp"
 #include "sdl_helper.hpp"
 #include <fstream>
-
-enum class ScreenPhase { MENU, GAME };
+#include <typeinfo>
 
 class IScreen : public IControllerSink
 {
@@ -33,7 +32,6 @@ public:
 	virtual void update() =0;
 	virtual void draw(float dt) =0;
 
-	virtual ScreenPhase phase() const =0; // type enum
 	virtual bool done() const =0; // whether the screen has ended
 
 	/**
@@ -54,8 +52,10 @@ class ScreenFactory
 public:
 
 	ScreenFactory(const Options& options, SdlFactory& factory, const Assets& assets, const Audio& audio);
-	std::unique_ptr<IScreen> create(ScreenPhase phase);
-	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
+
+	std::unique_ptr<IScreen> create_menu() const;
+	std::unique_ptr<IScreen> create_game() const;
+	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor) const;
 
 private:
 
@@ -80,7 +80,6 @@ public:
 	PinkScreen(PinkDraw&& draw) : m_draw(draw) {}
 	virtual void update() override {}
 	virtual void draw(float dt) override { m_draw.draw(dt); }
-	virtual ScreenPhase phase() const override { return ScreenPhase::MENU; }
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
@@ -103,7 +102,6 @@ public:
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
-	virtual ScreenPhase phase() const override { return ScreenPhase::MENU; }
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override;
@@ -197,7 +195,6 @@ public:
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
-	virtual ScreenPhase phase() const override { return ScreenPhase::GAME; }
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override;
@@ -277,7 +274,6 @@ public:
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
-	virtual ScreenPhase phase() const override { return m_successor.phase(); }
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override { m_successor.input(cinput); }

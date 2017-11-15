@@ -25,26 +25,19 @@ ScreenFactory::ScreenFactory(const Options& options, SdlFactory& factory, const 
 {
 }
 
-std::unique_ptr<IScreen> ScreenFactory::create(ScreenPhase phase)
+std::unique_ptr<IScreen> ScreenFactory::create_menu() const
 {
-	switch(phase) {
-	default:
-	case ScreenPhase::MENU:
-	{
-		DrawMenu draw_menu(m_factory, m_assets);
-		return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
-	}
-
-	case ScreenPhase::GAME:
-	{
-		DrawGame draw_game(m_factory, m_assets);
-		return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw_game), m_audio);
-	}
-
-	}
+	DrawMenu draw_menu(m_factory, m_assets);
+	return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
 }
 
-std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
+std::unique_ptr<IScreen> ScreenFactory::create_game() const
+{
+	DrawGame draw_game(m_factory, m_assets);
+	return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw_game), m_audio);
+}
+
+std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor) const
 {
 	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw(), m_factory);
 	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
