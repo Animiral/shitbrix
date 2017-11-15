@@ -1,73 +1,15 @@
 #include "game_loop.hpp"
-#include <iostream>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
-#include <ctime>
-
-Options::Options(int argc, const char* argv[])
-: m_replay_file(str_option(argc, argv, "--replay"))
-{
-}
-
-const char* Options::replay_file() const
-{
-	return m_replay_file;
-}
-
-// Minimalistic opts parsing from http://stackoverflow.com/questions/865668/how-to-parse-command-line-arguments-in-c
-const char* Options::str_option(int argc, const char* argv[], const std::string& option)
-{
-	auto end = argv + argc;
-	const char** itr = std::find(argv, end, option);
-	if (itr != end && ++itr != end)
-	{
-		return *itr;
-	}
-	return nullptr;
-}
-
-bool Options::bool_option(int argc, const char* argv[], const std::string& option)
-{
-	auto end = argv + argc;
-	return std::find(argv, end, option) != end;
-}
-
-namespace
-{
-
-/**
- * Returns the default name of the file where the replay of this session will
- * be stored. This default name is built from the current date and time.
- */
-std::string make_journal_file()
-{
-	using clock = std::chrono::system_clock;
-	auto now = clock::now();
-	std::time_t time_now = clock::to_time_t(now);
-	struct tm ltime;
-
-	if (localtime_s(&ltime, &time_now)) {
-		std::ostringstream stream;
-		stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
-		return stream.str();
-	}
-	else {
-		return "replay/default.txt";
-	}
-}
-
-}
 
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
-  m_factory(),
-  m_assets(m_factory),
-  m_draw(m_factory, m_assets),
-  m_sound(*m_factory.get_audio(), m_assets),
-  m_screen(m_options.replay_file(), make_journal_file().c_str(), m_draw, m_sound),
-  m_keyboard(m_screen)
+  m_sdl_factory(),
+  m_assets(m_sdl_factory),
+  m_audio(*m_sdl_factory.get_audio(), m_assets),
+  m_screen_factory(m_options, m_sdl_factory, m_assets, m_audio),
+  m_screen(),
+  m_keyboard()
 {
+	next_screen();
 }
 
 void GameLoop::game_loop()
@@ -77,23 +19,96 @@ void GameLoop::game_loop()
 	long tick = 0; // current logic tick counter
 	Uint64 next_logic = t0 + freq / TPS; // time for next logic update
 
-	while (!m_screen.done()) {
+	while (m_screen) {
 		// draw frames as long as logic is up to date
 		Uint64 now = SDL_GetPerformanceCounter();
 		while (now < next_logic) {
 			float fraction = 1.0f - static_cast<float>((next_logic - now) * TPS) / freq;
 			SDL_assert((fraction >= 0) && (fraction <= 1));
 
-			m_draw.draw_all(fraction);
+			m_screen->draw(fraction);
 			now = SDL_GetPerformanceCounter();
+
+			// yield CPU if we have the time
+			if(now < next_logic) {
+				Uint64 wait = (next_logic - now) * 1000L / freq; // in ms
+				SDL_assert(wait <= std::numeric_limits<Uint32>::max());
+				SDL_Delay(static_cast<Uint32>(wait));
+				now = SDL_GetPerformanceCounter();
+			}
 		}
 
+		// TODO: handle all different sources of input
+		// Should the input object send events directly to the IControllerSink,
+		// like it does currently, or should the input object return a list of
+		// queued inputs which are then passed on by some controller object?
 		m_keyboard.poll();
 
 		// run one frame of local logic
-		m_screen.update();
+		m_screen->update();
 
-		tick++;
-		next_logic = t0 + (tick + 1) * freq / TPS;
+		if(m_screen->done()) {
+			next_screen();
+			t0 = SDL_GetPerformanceCounter();
+			tick = 0;
+			next_logic = t0 + freq / TPS;
+		}
+		else {
+			tick++;
+			next_logic = t0 + (tick + 1) * freq / TPS;
+		}
 	}
+}
+
+void GameLoop::next_screen()
+{
+	if(nullptr == m_screen) {
+		m_menu_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_screen = m_menu_screen.get();
+
+		// debug
+		//PinkDraw pink_draw(m_sdl_factory, 255, 0, 255);
+		//m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
+		//m_screen = m_pink_screen.get();
+	} else
+	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
+		if(MenuScreen::Result::PLAY == menu->result()) {
+			m_game_screen = m_screen_factory.create(ScreenPhase::GAME);
+			m_transition_screen = m_screen_factory.create_transition(*menu, *m_game_screen);
+			m_screen = m_transition_screen.get();
+		} else
+		if(MenuScreen::Result::QUIT == menu->result()) {
+			m_menu_screen.release();
+			m_screen = nullptr;
+		}
+	} else
+	if(GameScreen* game = dynamic_cast<GameScreen*>(m_screen)) {
+		m_menu_screen = m_screen_factory.create(ScreenPhase::MENU);
+		m_transition_screen = m_screen_factory.create_transition(*game, *m_menu_screen);
+		m_screen = m_transition_screen.get();
+	} else
+	if(TransitionScreen* transition = dynamic_cast<TransitionScreen*>(m_screen)) {
+		m_screen = &transition->successor();
+		m_transition_screen.release();
+		// BUG! We keep the predecessor screen around unnecessarily.
+	} else
+	if(PinkScreen* pink = dynamic_cast<PinkScreen*>(m_screen)) {
+		if(m_pink_screen.get() == pink) {
+			PinkDraw creme_draw(m_sdl_factory, 250, 220, 220);
+			m_creme_screen = std::make_unique<PinkScreen>(std::move(creme_draw));
+			m_transition_screen = m_screen_factory.create_transition(*pink, *m_creme_screen);
+			m_screen = m_transition_screen.get();
+		}
+		else {
+			PinkDraw pink_draw(m_sdl_factory, 255, 0, 255);
+			m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
+			m_transition_screen = m_screen_factory.create_transition(*pink, *m_pink_screen);
+			m_screen = m_transition_screen.get();
+		}
+	}
+	else {
+		SDL_assert(false);
+	}
+
+	m_keyboard.set_sink(*m_screen);
 }

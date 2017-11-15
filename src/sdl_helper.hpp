@@ -148,14 +148,24 @@ public:
 	SdlFactory& operator=(const SdlFactory& ) =default;
 	SdlFactory& operator=(SdlFactory&& ) =default;
 
-	// single-instance getters
+	// single-instance getters and setters
 	SdlRaii get_sdl() const;
 	std::shared_ptr<SDL_Window> get_window() const;
-	std::shared_ptr<SDL_Renderer> get_renderer() const;
+	SDL_Renderer& get_renderer() const;
 	std::shared_ptr<SdlAudio> get_audio() const;
 
 	// creation methods
+
+	/**
+	 * Create an image texture from an image file.
+	 */
 	Texture create_texture(const char* file) const;
+
+	/**
+	 * Create a screen-sized texture for offscreen drawing.
+	 */
+	std::unique_ptr<SDL_Texture, SdlDeleter> create_target_texture() const;
+
 	std::vector<Texture> create_texture_row(const char* file, int width) const;
 	std::vector< std::vector<Texture> > create_texture_sheet(const char* file, int height, int width) const;
 	Sound create_sound(const char* file) const;
@@ -165,7 +175,8 @@ private:
 	// all mutable fields use lazy initialization
 	mutable SdlRaii sdl;
 	mutable std::shared_ptr<SDL_Window> window;
-	mutable std::shared_ptr<SDL_Renderer> renderer;
 	mutable std::shared_ptr<SdlAudio> audio;
+	mutable std::unique_ptr<SDL_Renderer, SdlDeleter> m_renderer;
+	mutable Uint32 m_pxformat; //!< preferred texture pixel format
 
 };

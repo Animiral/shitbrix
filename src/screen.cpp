@@ -1,12 +1,85 @@
 #include "screen.hpp"
+#include "options.hpp"
 #include <sstream>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 
 namespace
 {
 
+/**
+ * Returns the default name of the file where the replay of this session will
+ * be stored. This default name is built from the current date and time.
+ */
+std::string make_journal_file();
 int opponent(int player);
 void debug_print_pit(const Pit& pit);
 
+}
+
+IScreen::~IScreen() = default;
+
+ScreenFactory::ScreenFactory(const Options& options, SdlFactory& factory, const Assets& assets, const Audio& audio)
+: m_options(options), m_factory(factory), m_assets(assets), m_audio(audio)
+{
+}
+
+std::unique_ptr<IScreen> ScreenFactory::create(ScreenPhase phase)
+{
+	switch(phase) {
+	default:
+	case ScreenPhase::MENU:
+	{
+		DrawMenu draw_menu(m_factory, m_assets);
+		return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
+	}
+
+	case ScreenPhase::GAME:
+	{
+		DrawGame draw_game(m_factory, m_assets);
+		return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw_game), m_audio);
+	}
+
+	}
+}
+
+std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
+{
+	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw(), m_factory);
+	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
+}
+
+
+MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio)
+: m_game_time(0),
+  m_done(false),
+  m_draw(std::move(draw))
+{
+}
+
+void MenuScreen::update()
+{
+	m_game_time++;
+}
+
+void MenuScreen::draw(float dt)
+{
+	m_draw.draw(dt);
+}
+
+void MenuScreen::input(ControllerInput cinput)
+{
+	if(ButtonAction::DOWN == cinput.action) {
+		if(Button::A == cinput.button) {
+			m_result = Result::PLAY;
+			m_done = true;
+		} else
+		if(Button::QUIT == cinput.button) {
+			m_result = Result::QUIT;
+			m_done = true;
+		}
+	}
 }
 
 IGamePhase::~IGamePhase() =default;
@@ -115,12 +188,12 @@ void GameResult::update()
 }
 
 
-GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame& draw, const Audio& audio)
+GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio)
 : m_pause(false),
   input_mixer(*this, replay_infile),
   replay_outstream(replay_outfile),
   journal(replay_outstream),
-  m_draw(draw),
+  m_draw(std::move(draw)),
   m_sound_relay(audio)
 {
 	if(!replay_infile) {
@@ -177,6 +250,11 @@ void GameScreen::update()
 	// auto-move cursor when scrolling out of bounds
 	for(auto& pobjs : m_pobjects)
 		pobjs->cursor_director.move(Dir::NONE);
+}
+
+void GameScreen::draw(float dt)
+{
+	m_draw.draw(dt);
 }
 
 void GameScreen::input(ControllerInput cinput)
@@ -293,8 +371,38 @@ void GameScreen::seed(unsigned int rng_seed)
 	journal << ReplayEvent::make_set("rng_seed", stream.str());
 }
 
+void TransitionScreen::update()
+{
+	m_predecessor.update();
+	m_successor.update();
+	m_time++;
+}
+
+void TransitionScreen::draw(float dt)
+{
+	m_draw.set_time(m_time);
+	m_draw.draw(dt);
+}
+
 namespace
 {
+
+std::string make_journal_file()
+{
+	using clock = std::chrono::system_clock;
+	auto now = clock::now();
+	std::time_t time_now = clock::to_time_t(now);
+	struct tm ltime;
+
+	if (localtime_s(&ltime, &time_now)) {
+		std::ostringstream stream;
+		stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
+		return stream.str();
+	}
+	else {
+		return "replay/default.txt";
+	}
+}
 
 int opponent(int player)
 {

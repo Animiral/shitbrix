@@ -32,7 +32,8 @@ enum class Gfx
 	CURSOR,
 	BANNER,
 	GARBAGE,
-	BONUS
+	BONUS,
+	MENUBG
 };
 
 /**
@@ -215,6 +216,8 @@ constexpr int PIT_H = PIT_ROWS*ROW_H; //!< height of the pit in canvas pixels
 
 constexpr int BANNER_W = 200; //!< width of the win/lose banner in canvas pixels
 constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixels
+
+constexpr int TRANSITION_TIME = 20; //!< Number of frames for screen transition
 
 Point from_rc(RowCol rc); // conversion to pit-relative coordinates
 

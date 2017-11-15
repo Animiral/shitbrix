@@ -3,27 +3,7 @@
 #include "screen.hpp"
 #include "draw.hpp"
 #include "audio.hpp"
-#include <string>
-
-/**
- * Parses command-line options.
- */
-class Options
-{
-
-public:
-
-	Options(int argc, const char* argv[]);
-	const char* replay_file() const;
-
-private:
-
-	const char* m_replay_file;
-
-	const char* str_option(int argc, const char* argv[], const std::string& option);
-	bool bool_option(int argc, const char* argv[], const std::string& option);
-
-};
+#include "options.hpp"
 
 /**
  * Top-level class which owns general application resources such as the initialized SDL library
@@ -51,11 +31,23 @@ public:
 private:
 
 	Options m_options;
-	SdlFactory m_factory;
+	SdlFactory m_sdl_factory;
 	Assets m_assets;
-	DrawGame m_draw;
-	Audio m_sound;
-	GameScreen m_screen;
+	Audio m_audio;
+	ScreenFactory m_screen_factory;
+	IScreen* m_screen; //!< currently active screen
+	std::unique_ptr<IScreen> m_menu_screen; //!< menu screen when active, nullptr otherwise
+	std::unique_ptr<IScreen> m_game_screen; //!< game screen when active, nullptr otherwise
+	std::unique_ptr<IScreen> m_transition_screen; //!< transition screen when active, nullptr otherwise
 	Keyboard m_keyboard;
+
+	// debug screens
+	std::unique_ptr<IScreen> m_pink_screen; //!< pink screen when active, nullptr otherwise
+	std::unique_ptr<IScreen> m_creme_screen; //!< creme screen when active, nullptr otherwise
+
+	/**
+	 * Switch the screen object to a successor. Destroy the previous one.
+	 */
+	void next_screen();
 
 };

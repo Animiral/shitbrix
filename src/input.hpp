@@ -42,11 +42,11 @@ class Keyboard
 {
 
 public:
-	Keyboard(IControllerSink& sink) : m_sink(sink) {}
+	void set_sink(IControllerSink& sink) { m_sink = &sink; }
 	void poll(); //!< read events from the keyboard buffer, send to sink
 
 private:
-	IControllerSink& m_sink;
+	IControllerSink* m_sink = nullptr;
 
 };
 
