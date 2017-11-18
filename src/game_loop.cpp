@@ -2,10 +2,9 @@
 
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
-  m_sdl_factory(),
-  m_assets(m_sdl_factory),
-  m_audio(*m_sdl_factory.get_audio(), m_assets),
-  m_screen_factory(m_options, m_sdl_factory, m_assets, m_audio),
+  m_assets(),
+  m_audio(Sdl::instance().audio(), m_assets),
+  m_screen_factory(m_options, m_assets, m_audio),
   m_screen(),
   m_keyboard()
 {
@@ -94,13 +93,13 @@ void GameLoop::next_screen()
 	} else
 	if(PinkScreen* pink = dynamic_cast<PinkScreen*>(m_screen)) {
 		if(m_pink_screen.get() == pink) {
-			PinkDraw creme_draw(m_sdl_factory, 250, 220, 220);
+			PinkDraw creme_draw(250, 220, 220);
 			m_creme_screen = std::make_unique<PinkScreen>(std::move(creme_draw));
 			m_transition_screen = m_screen_factory.create_transition(*pink, *m_creme_screen);
 			m_screen = m_transition_screen.get();
 		}
 		else {
-			PinkDraw pink_draw(m_sdl_factory, 255, 0, 255);
+			PinkDraw pink_draw(255, 0, 255);
 			m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
 			m_transition_screen = m_screen_factory.create_transition(*pink, *m_pink_screen);
 			m_screen = m_transition_screen.get();

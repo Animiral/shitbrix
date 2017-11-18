@@ -31,7 +31,6 @@ public:
 private:
 
 	Options m_options;
-	SdlFactory m_sdl_factory;
 	Assets m_assets;
 	Audio m_audio;
 	ScreenFactory m_screen_factory;

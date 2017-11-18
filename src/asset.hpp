@@ -17,35 +17,45 @@ class Assets
 
 public:
 
-	Assets(SdlFactory& factory)
+	Assets()
 	{
-		textures.emplace_back(std::vector<Texture>{factory.create_texture("gfx/bg.png")}); // Gfx::BACKGROUND
-		auto blocks = factory.create_texture_sheet("gfx/blocks.png", BLOCK_W, BLOCK_H);
-		textures.insert(textures.end(), blocks.begin(), blocks.end());                   // Gfx::BLOCK_*, Gfx::PITVIEW
-		textures.emplace_back(factory.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
-		textures.emplace_back(factory.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
-		textures.emplace_back(factory.create_texture_row("gfx/garbage.png", GARBAGE_W)); // Gfx::GARBAGE
-		textures.emplace_back(factory.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
-		textures.emplace_back(std::vector<Texture>{factory.create_texture("gfx/menubg.png")}); // Gfx::MENUBG
+		const Sdl& sdl = Sdl::instance();
 
-		sounds.emplace_back(factory.create_sound("snd/swap.wav"));   // Snd::SWAP
-		sounds.emplace_back(factory.create_sound("snd/break.wav"));  // Snd::BREAK
-		sounds.emplace_back(factory.create_sound("snd/match.wav"));  // Snd::MATCH
+		std::vector<TexturePtr> bgframe;
+		bgframe.emplace_back(sdl.create_texture("gfx/bg.png"));
+		textures.emplace_back(move(bgframe));                                        // Gfx::BACKGROUND
+
+		auto blocks = sdl.create_texture_sheet("gfx/blocks.png", BLOCK_W, BLOCK_H);
+		for(auto& v : blocks)
+			textures.emplace_back(move(v));                                          // Gfx::BLOCK_*, Gfx::PITVIEW
+
+		textures.emplace_back(sdl.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
+		textures.emplace_back(sdl.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
+		textures.emplace_back(sdl.create_texture_row("gfx/garbage.png", GARBAGE_W)); // Gfx::GARBAGE
+		textures.emplace_back(sdl.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
+
+		std::vector<TexturePtr> menuframe;
+		menuframe.emplace_back(sdl.create_texture("gfx/menubg.png"));
+		textures.emplace_back(move(menuframe)); // Gfx::MENUBG
+
+		sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
+		sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
+		sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
 	}
 
 	/**
 	 * Returns a Texture according to the gfx enum id.
 	 */
-	Texture texture(Gfx gfx, size_t frame = 0) const
+	SDL_Texture& texture(Gfx gfx, size_t frame = 0) const
 	{
 		size_t gfx_index = static_cast<size_t>(gfx);
 		SDL_assert(gfx_index < textures.size());
 		SDL_assert(frame < textures[gfx_index].size());
 
-		return textures[gfx_index][frame];
+		return *textures[gfx_index][frame];
 	}
 
-	Sound sound(Snd snd) const
+	const Sound& sound(Snd snd) const
 	{
 		size_t snd_index = static_cast<size_t>(snd);
 		SDL_assert(snd_index < sounds.size());
@@ -55,7 +65,7 @@ public:
 
 private:
 
-	std::vector< std::vector<Texture> > textures;
+	std::vector< std::vector<TexturePtr> > textures;
 	std::vector< Sound > sounds;
 
 };

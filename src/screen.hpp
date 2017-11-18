@@ -51,7 +51,7 @@ class ScreenFactory
 
 public:
 
-	ScreenFactory(const Options& options, SdlFactory& factory, const Assets& assets, const Audio& audio);
+	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio);
 
 	std::unique_ptr<IScreen> create_menu() const;
 	std::unique_ptr<IScreen> create_game() const;
@@ -61,7 +61,6 @@ private:
 
 	// resources to create the Screens
 	const Options& m_options;
-	SdlFactory& m_factory;
 	const Assets& m_assets;
 	const Audio& m_audio;
 

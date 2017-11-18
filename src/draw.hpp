@@ -20,12 +20,6 @@ class IDraw
 
 public:
 
-	IDraw(SdlFactory& factory) : m_factory(factory) {}
-	IDraw(const IDraw& ) = default;
-	IDraw(IDraw&& ) = default;
-	IDraw& operator=(const IDraw& ) = default;
-	IDraw& operator=(IDraw&& ) = default;
-
 	/**
 	 * Draw something on the screen with the given fraction elapsed since the last tick.
 	 * Template method interface.
@@ -42,7 +36,7 @@ public:
 
 protected:
 
-	SdlFactory& m_factory;
+	Sdl& sdl = Sdl::instance();
 
 };
 
@@ -55,10 +49,10 @@ class PinkDraw : public IDraw
 
 public:
 
-	PinkDraw(SdlFactory& factory, Uint8 r, Uint8 g, Uint8 b) : IDraw(factory), m_r(r), m_g(g), m_b(b) {}
+	PinkDraw(Uint8 r, Uint8 g, Uint8 b) : m_r(r), m_g(g), m_b(b) {}
 	virtual void draw_offscreen(float dt) const override
 	{
-		SDL_Renderer* renderer = &m_factory.get_renderer();
+		SDL_Renderer* renderer = &Sdl::instance().renderer();
 		SDL_SetRenderDrawColor(renderer, m_r, m_g, m_b, SDL_ALPHA_OPAQUE);
 		SDL_Rect canvas_rect{0, 0, CANVAS_W, CANVAS_H};
 		SDL_RenderFillRect(renderer, &canvas_rect);
@@ -78,7 +72,7 @@ class DrawMenu : public IDraw
 
 public:
 
-	DrawMenu(SdlFactory& factory, const Assets& assets);
+	DrawMenu(const Assets& assets);
 	virtual void draw_offscreen(float) const override;
 
 private:
@@ -99,7 +93,7 @@ public:
 	/**
 	 * Construct a new DrawGame object from the given dependencies.
 	 */
-	DrawGame(SdlFactory& factory, const Assets& assets);
+	DrawGame(const Assets& assets);
 
 	/**
 	 * Add the specified pit to be drawn.
@@ -172,7 +166,7 @@ private:
 	float m_fade = 1.f;
 	mutable Point m_translate{0,0};
 	mutable uint8_t m_alpha = 255;
-	std::unique_ptr<SDL_Texture, SdlDeleter> m_fadetex; // solid pixel used for fading
+	TexturePtr m_fadetex; // solid pixel used for fading
 
 	void draw_background() const;
 	void draw_pit(const Pit& pit, float dt) const;
@@ -199,7 +193,7 @@ class DrawTransition : public IDraw
 
 public:
 
-	DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw, SdlFactory& factory);
+	DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw);
 	DrawTransition(const DrawTransition& ) = delete;
 	DrawTransition(DrawTransition&& rhs) = default;
 	DrawTransition& operator=(const DrawTransition& ) = delete;

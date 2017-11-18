@@ -22,7 +22,7 @@ void IDraw::draw(float dt) const
 {
 	draw_offscreen(dt);
 
-	SDL_Renderer* renderer = &m_factory.get_renderer();
+	SDL_Renderer* renderer = &sdl.renderer();
 	SDL_RenderPresent(renderer);
 
 	// clear for next frame
@@ -30,36 +30,34 @@ void IDraw::draw(float dt) const
 	game_assert(0 == render_result, SDL_GetError());
 }
 
-DrawMenu::DrawMenu(SdlFactory& factory, const Assets& assets)
-: IDraw(factory),
-  m_assets(assets)
+DrawMenu::DrawMenu(const Assets& assets)
+: m_assets(assets)
 {
 }
 
 void DrawMenu::draw_offscreen(float) const
 {
-	Texture texture = m_assets.texture(Gfx::MENUBG, 0);
-	SDL_Rect dstrect { 0, 0, texture->width, texture->height };
+	SDL_Texture* texture = &m_assets.texture(Gfx::MENUBG, 0);
+	SDL_Rect dstrect { 0, 0, 0, 0 };
+	int query_result = SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h);
+	game_assert(0 == query_result, SDL_GetError());
 
-	SDL_Renderer* renderer = &m_factory.get_renderer();
-	SDL_Texture* tex = texture->tex.get();
 /*
 	int alpha_result = SDL_SetTextureAlphaMod(tex, 255);
 	game_assert(0 == alpha_result, SDL_GetError());
 */
-	int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
+	int render_result = SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect);
 	game_assert(0 == render_result, SDL_GetError());
 }
 
-DrawGame::DrawGame(SdlFactory& factory, const Assets& assets)
-: IDraw(factory),
-  m_show_cursor(false),
+DrawGame::DrawGame(const Assets& assets)
+: m_show_cursor(false),
   m_show_banner(false),
   m_show_pit_debug_overlay(false),
   m_assets(assets)
 {
-	SDL_Renderer* renderer = &factory.get_renderer();
-	m_fadetex = std::unique_ptr<SDL_Texture, SdlDeleter>(SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
+	SDL_Renderer* renderer = &sdl.renderer();
+	m_fadetex.reset(SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
 	game_assert(bool(m_fadetex), SDL_GetError());
 
 	int texblend_result = SDL_SetTextureBlendMode(m_fadetex.get(), SDL_BLENDMODE_BLEND);
@@ -94,9 +92,9 @@ void DrawGame::draw_offscreen(float dt) const
 
 	draw_background();
 
-	for(const PlayerDrawables& drawable : m_drawables) {
-		SDL_Renderer* renderer = &m_factory.get_renderer();
+	SDL_Renderer* renderer = &sdl.renderer();
 
+	for(const PlayerDrawables& drawable : m_drawables) {
 		const Pit& pit = drawable.pit;
 		clip(renderer, pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
 		m_translate = pit.transform(Point{0,0}); // draw all pit objects relative to pit origin
@@ -311,7 +309,7 @@ void DrawGame::draw_highlight(Point top_left, int width, int height,
 		height
 	};
 
-	SDL_Renderer* renderer = &m_factory.get_renderer();
+	SDL_Renderer* renderer = &sdl.renderer();
 	int color_result = SDL_SetRenderDrawColor(renderer, r, g, b, a);
 	game_assert(0 == color_result, SDL_GetError());
 	int fill_result = SDL_RenderFillRect(renderer, &fill_rect);
@@ -320,18 +318,17 @@ void DrawGame::draw_highlight(Point top_left, int width, int height,
 
 void DrawGame::putsprite(Point loc, Gfx gfx, size_t frame) const
 {
-	Texture texture = m_assets.texture(gfx, frame);
+	SDL_Texture* texture = &m_assets.texture(gfx, frame);
 	int x = static_cast<int>(loc.x + m_translate.x);
 	int y = static_cast<int>(loc.y + m_translate.y);
-	SDL_Rect dstrect { x, y, texture->width, texture->height };
+	SDL_Rect dstrect { x, y, 0, 0 };
+	int query_result = SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h);
+	game_assert(0 == query_result, SDL_GetError());
 
-	SDL_Renderer* renderer = &m_factory.get_renderer();
-	SDL_Texture* tex = texture->tex.get();
-
-	int alpha_result = SDL_SetTextureAlphaMod(tex, m_alpha);
+	int alpha_result = SDL_SetTextureAlphaMod(texture, m_alpha);
 	game_assert(0 == alpha_result, SDL_GetError());
 
-	int render_result = SDL_RenderCopy(renderer, tex, nullptr, &dstrect);
+	int render_result = SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect);
 	game_assert(0 == render_result, SDL_GetError());
 }
 
@@ -343,45 +340,45 @@ void DrawGame::tint() const
 		int tex_result = SDL_UpdateTexture(m_fadetex.get(), &rect_pixel, &fade_pixel, 1);
 		game_assert(0 == tex_result, SDL_GetError());
 
-		SDL_Renderer* renderer = &m_factory.get_renderer();
+		SDL_Renderer* renderer = &sdl.renderer();
 		int render_result = SDL_RenderCopy(renderer, m_fadetex.get(), nullptr, nullptr);
 		game_assert(0 == render_result, SDL_GetError());
 	}
 }
 
-DrawTransition::DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw, SdlFactory& factory)
-: IDraw(factory),
-  m_pred_draw(pred_draw),
+DrawTransition::DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw)
+: m_pred_draw(pred_draw),
   m_succ_draw(succ_draw),
-  m_pred_texture(factory.create_target_texture()),
-  m_succ_texture(factory.create_target_texture())
+  m_pred_texture(sdl.create_target_texture()),
+  m_succ_texture(sdl.create_target_texture())
 {
 }
 
 void DrawTransition::draw_offscreen(float dt) const
 {
-	int sdl_result = SDL_SetRenderTarget(&m_factory.get_renderer(), m_pred_texture.get());
+	SDL_Renderer* renderer = &sdl.renderer();
+
+	int sdl_result = SDL_SetRenderTarget(renderer, m_pred_texture.get());
 	game_assert(0 == sdl_result, SDL_GetError());
 	m_pred_draw.draw_offscreen(dt);
 
-	sdl_result = SDL_SetRenderTarget(&m_factory.get_renderer(), m_succ_texture.get());
+	sdl_result = SDL_SetRenderTarget(renderer, m_succ_texture.get());
 	game_assert(0 == sdl_result, SDL_GetError());
 	m_succ_draw.draw_offscreen(dt);
 
-	sdl_result = SDL_SetRenderTarget(&m_factory.get_renderer(), nullptr);
+	sdl_result = SDL_SetRenderTarget(renderer, nullptr);
 	game_assert(0 == sdl_result, SDL_GetError());
 
 	// draw to back buffer
 	int progress_px = CANVAS_W * m_time / TRANSITION_TIME;
 	SDL_Rect left_rect{ 0, 0, progress_px, CANVAS_H };
 	SDL_Rect right_rect{ progress_px, 0, CANVAS_W-progress_px, CANVAS_H };
-	SDL_Renderer& renderer = m_factory.get_renderer();
 
 	// swipe transition: successor screen enters from the left.
-	sdl_result = SDL_RenderCopy(&renderer, m_succ_texture.get(), &left_rect, &left_rect);
+	sdl_result = SDL_RenderCopy(renderer, m_succ_texture.get(), &left_rect, &left_rect);
 	game_assert(0 == sdl_result, SDL_GetError());
 
-	sdl_result = SDL_RenderCopy(&renderer, m_pred_texture.get(), &right_rect, &right_rect);
+	sdl_result = SDL_RenderCopy(renderer, m_pred_texture.get(), &right_rect, &right_rect);
 	game_assert(0 == sdl_result, SDL_GetError());
 }
 

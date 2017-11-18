@@ -20,26 +20,26 @@ void debug_print_pit(const Pit& pit);
 
 IScreen::~IScreen() = default;
 
-ScreenFactory::ScreenFactory(const Options& options, SdlFactory& factory, const Assets& assets, const Audio& audio)
-: m_options(options), m_factory(factory), m_assets(assets), m_audio(audio)
+ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const Audio& audio)
+: m_options(options), m_assets(assets), m_audio(audio)
 {
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_menu() const
 {
-	DrawMenu draw_menu(m_factory, m_assets);
+	DrawMenu draw_menu(m_assets);
 	return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_game() const
 {
-	DrawGame draw_game(m_factory, m_assets);
+	DrawGame draw_game(m_assets);
 	return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw_game), m_audio);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor) const
 {
-	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw(), m_factory);
+	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw());
 	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
 }
 
