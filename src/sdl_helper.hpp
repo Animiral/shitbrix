@@ -40,12 +40,12 @@ class Sound
 public:
 
 	Sound(const char* file);
-	~Sound();
+	~Sound() noexcept;
 
 	Sound(const Sound& ) = delete;
-	Sound(Sound&& ) = default;
+	Sound(Sound&& rhs) noexcept;
 	Sound& operator=(const Sound& ) = delete;
-	Sound& operator=(Sound&& ) = default;
+	Sound& operator=(Sound&& rhs) noexcept;
 
 	Uint32 length() const noexcept { return m_length; }
 	const Uint8* buffer() const noexcept { return m_buffer; }

@@ -25,9 +25,25 @@ Sound::Sound(const char* file)
 	game_assert(load_result, SDL_GetError());
 }
 
-Sound::~Sound()
+Sound::~Sound() noexcept
 {
 	SDL_FreeWAV(m_buffer);
+}
+
+Sound::Sound(Sound&& rhs) noexcept
+: m_length(rhs.m_length), m_buffer(rhs.m_buffer), m_spec(rhs.m_spec)
+{
+	rhs.m_buffer = nullptr;
+}
+
+Sound& Sound::operator=(Sound&& rhs) noexcept
+{
+	m_length = rhs.m_length;
+	m_buffer = rhs.m_buffer;
+	m_spec = rhs.m_spec;
+	rhs.m_buffer = nullptr;
+
+	return *this;
 }
 
 
