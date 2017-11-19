@@ -3,6 +3,7 @@
  */
 #include "draw.hpp"
 #include "globals.hpp"
+#include <cmath>
 #include <SDL2/SDL.h>
 
 /**
@@ -85,6 +86,11 @@ void DrawGame::fade(float fraction)
 	m_fade = fraction;
 }
 
+void DrawGame::shake(float strength) noexcept
+{
+	m_shake = m_shake.offset(0.f, strength);
+}
+
 void DrawGame::draw_offscreen(float dt) const
 {
 	SDL_assert(dt >= 0.f);
@@ -97,7 +103,7 @@ void DrawGame::draw_offscreen(float dt) const
 	for(const PlayerDrawables& drawable : m_drawables) {
 		const Pit& pit = drawable.pit;
 		clip(renderer, pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
-		m_translate = pit.transform(Point{0,0}); // draw all pit objects relative to pit origin
+		m_pitloc = pit.transform(Point{0,0}); // draw all pit objects relative to pit origin
 
 		draw_pit(pit, dt);
 
@@ -113,7 +119,7 @@ void DrawGame::draw_offscreen(float dt) const
 		if(m_show_cursor)
 			draw_cursor(drawable.cursor, dt);
 
-		m_translate = Point{0,0}; // reset to screen origin
+		m_pitloc = Point{0,0}; // reset to screen origin
 		unclip(renderer); // unrestrict drawing
 
 		if(m_show_banner)
@@ -123,6 +129,16 @@ void DrawGame::draw_offscreen(float dt) const
 	}
 
 	tint();
+
+	// update shake for next frame
+	// shake consists of:
+	// * invert the shake translation offset (rotate 180°)
+	// * downscale the effect
+	// * flavor it with a slight rotation, given by the rotation matrix R(theta)
+	constexpr float theta = float(M_PI) / 2.f + .1f; // constant rotation per fame
+	const Point prev = m_shake;
+	m_shake.x = SHAKE_DECREASE * (prev.x * std::cos(theta) - prev.y * std::sin(theta));
+	m_shake.y = SHAKE_DECREASE * (prev.x * std::sin(theta) + prev.y * std::cos(theta));
 }
 
 void DrawGame::show_cursor(bool show)
@@ -143,6 +159,11 @@ void DrawGame::toggle_pit_debug_overlay()
 void DrawGame::toggle_pit_debug_highlight()
 {
 	m_show_pit_debug_highlight = !m_show_pit_debug_highlight;
+}
+
+Point DrawGame::translate(Point p) const noexcept
+{
+	return p.offset(m_pitloc.x, m_pitloc.y).offset(m_shake.x, m_shake.y);
 }
 
 void DrawGame::draw_background() const
@@ -301,7 +322,7 @@ void DrawGame::draw_bonus(const BonusIndicator& bonus, float dt) const
 void DrawGame::draw_highlight(Point top_left, int width, int height,
 	                          uint8_t r, uint8_t g, uint8_t b, uint8_t a) const
 {
-	Point loc = top_left.offset(m_translate.x, m_translate.y);
+	Point loc = translate(top_left);
 	SDL_Rect fill_rect {
 		static_cast<int>(loc.x),
 		static_cast<int>(loc.y),
@@ -319,9 +340,8 @@ void DrawGame::draw_highlight(Point top_left, int width, int height,
 void DrawGame::putsprite(Point loc, Gfx gfx, size_t frame) const
 {
 	SDL_Texture* texture = &m_assets.texture(gfx, frame);
-	int x = static_cast<int>(loc.x + m_translate.x);
-	int y = static_cast<int>(loc.y + m_translate.y);
-	SDL_Rect dstrect { x, y, 0, 0 };
+	loc = translate(loc);
+	SDL_Rect dstrect { std::lround(loc.x), std::lround(loc.y), 0, 0 };
 	int query_result = SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h);
 	game_assert(0 == query_result, SDL_GetError());
 

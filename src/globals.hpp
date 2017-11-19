@@ -44,6 +44,7 @@ enum class Snd
 	SWAP = 0, // swap blocks (click)
 	BREAK,    // break blocks (splat)
 	MATCH,    // match blocks (ding)
+	LANDING,  // smashing block landing (thump)
 	CONFIRM,  // menu confirm (cheerful ding)
 	DECLINE,  // menu decline (disappointed ding)
 	START,    // game start (shot or fireworks launch)
@@ -204,6 +205,8 @@ constexpr int CURSOR_W = 88; //!< width of the cursor texture
 constexpr int CURSOR_H = 48; //!< height of the cursor texture
 constexpr int BONUS_W = 16; //!< width of the combo/chain star
 constexpr int BONUS_H = 16; //!< height of the combo/chain star
+constexpr float SHAKE_SCALE = 10.f; //!< pixel amount of shaking per row of garbage dropped
+constexpr float SHAKE_DECREASE = .6f; //!< scale factor for shake strength per frame
 
 constexpr Point LPIT_LOC = { 32, 48 };
 constexpr Point RPIT_LOC = { 368, 48 };

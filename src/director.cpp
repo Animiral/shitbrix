@@ -162,9 +162,9 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
  * @param hots Set of Blocks marked as hot
  * @param[out] hots_end New end iterator for reduced set of hots; see std::remove
  */
-template<typename Fallers, typename Hots>
+template<typename Fallers, typename Hots, typename PhysOutIt>
 void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
-                    typename Hots::iterator& hots_end);
+                    typename Hots::iterator& hots_end, PhysOutIt landers);
 
 /**
  * All matching blocks and all adjacent garbage bricks enter the *break* state.
@@ -190,6 +190,7 @@ void BlockDirector::update()
 	BlockRefVec previews;     // blocks which are fresh spawns and currently inactive
 	GarbageRefVec dissolvers; // blocks which are shrinking or dying
 	PhysicalRefVec fallers;   // objects which we want to start falling soon
+	PhysicalRefVec landers;   // objects which have landed on something else to stop their fall
 	BlockRefVec hots;         // recently landed or arrived blocks that can start a match
 
 	bool panic = false;         // true if game over is threatened
@@ -228,8 +229,11 @@ void BlockDirector::update()
 		m_handler->fire(evt::BlockDies());
 
 	BlockRefVec::iterator hots_end = hots.end();
-	handle_fallers(pit, fallers, hots, hots_end);
+	handle_fallers(pit, fallers, hots, hots_end, std::back_inserter(landers));
 	hots.erase(hots_end, hots.end());
+
+	for(const Physical& lander : landers)
+		m_handler->fire(evt::PhysicalLands{lander});
 
 	bool have_match = false;
 	bool chaining = false;
@@ -579,9 +583,9 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
 		dead_physical = true;
 }
 
-template<typename Fallers, typename Hots>
+template<typename Fallers, typename Hots, typename PhysOutIt>
 void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
-                    typename Hots::iterator& hots_end)
+                    typename Hots::iterator& hots_end, PhysOutIt landers)
 {
 	bool changed = true;
 	auto begin = std::begin(fallers);
@@ -621,6 +625,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, Hots& hots,
 
 		if(Physical::State::FALL == state) {
 			physical.set_state(Physical::State::LAND, LAND_TIME);
+			*landers++ = physical;
 		}
 		else {
 			physical.set_state(Physical::State::REST);

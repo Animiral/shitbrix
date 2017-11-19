@@ -41,6 +41,7 @@ public:
 		sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
 		sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
 		sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
+		sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
 	}
 
 	/**

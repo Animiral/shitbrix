@@ -100,7 +100,7 @@ public:
 	 * DrawGame always associates several player-specific objects with the pit.
 	 */
 	void add_pit(const Pit& pit, const Cursor& cursor,
-				 const Banner& banner, const BonusIndicator& indicator);
+	             const Banner& banner, const BonusIndicator& indicator);
 
 	/**
 	 * Removes all drawables known to this DrawGame object.
@@ -108,6 +108,11 @@ public:
 	void clear();
 
 	void fade(float fraction);
+
+	/**
+	 * Nudge the game screen to make everything shake. Cumulative effect.
+	 */
+	void shake(float strength) noexcept;
 
 	/**
 	 * Render all that we know to the screen.
@@ -164,9 +169,12 @@ private:
 	const Assets& m_assets;
 
 	float m_fade = 1.f;
-	mutable Point m_translate{0,0};
+	mutable Point m_shake{0,0}; //!< shake effect offset
+	mutable Point m_pitloc{0,0}; //!< point location of the current pit, translate sprites
 	mutable uint8_t m_alpha = 255;
 	TexturePtr m_fadetex; // solid pixel used for fading
+
+	Point translate(Point p) const noexcept;
 
 	void draw_background() const;
 	void draw_pit(const Pit& pit, float dt) const;
@@ -177,7 +185,7 @@ private:
 	void draw_banner(const Banner& banner, float dt) const;
 	void draw_bonus(const BonusIndicator& bonus, float dt) const;
 	void draw_highlight(Point top_left, int width, int height,
-				        uint8_t r, uint8_t g, uint8_t b, uint8_t a) const;
+	                    uint8_t r, uint8_t g, uint8_t b, uint8_t a) const;
 	
 	void putsprite(Point loc, Gfx gfx, size_t frame = 0) const;
 
@@ -213,5 +221,28 @@ private:
 	std::unique_ptr<SDL_Texture, SdlDeleter> m_pred_texture; //!< for compositing the predecessor screen
 	std::unique_ptr<SDL_Texture, SdlDeleter> m_succ_texture; //!< for compositing the successor screen
 	int m_time;
+
+};
+
+/**
+ * A handler for game events that cause whole-screen effects like shaking.
+ */
+class ShakeRelay : public evt::IGameEvent
+{
+
+public:
+
+	ShakeRelay(DrawGame& draw) : m_draw(draw) {}
+
+	virtual void fire(evt::PhysicalLands lands) override
+	{
+		if(const Garbage* garbage = dynamic_cast<const Garbage*> (&lands.physical)) {
+			m_draw.shake(garbage->rows() * SHAKE_SCALE);
+		}
+	}
+
+private:
+
+	DrawGame& m_draw;
 
 };

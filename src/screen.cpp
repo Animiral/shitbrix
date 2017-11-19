@@ -187,7 +187,8 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, Dr
   replay_outstream(replay_outfile),
   journal(replay_outstream),
   m_draw(std::move(draw)),
-  m_sound_relay(audio)
+  m_sound_relay(audio),
+  m_shake_relay(m_draw)
 {
 	if(!replay_infile) {
 		std::random_device rdev;
@@ -231,6 +232,7 @@ void GameScreen::reset()
 
 	for(auto& pobjs : m_pobjects) {
 		pobjs->event_hub.append(m_sound_relay);
+		pobjs->event_hub.append(m_shake_relay);
 		pobjs->event_hub.append(*m_gameover_relay);
 	}
 }

@@ -243,6 +243,7 @@ private:
 	std::unique_ptr<Stage> stage;
 	DrawGame m_draw;
 	evt::SoundRelay m_sound_relay;
+	ShakeRelay m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
 	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
 

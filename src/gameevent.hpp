@@ -41,6 +41,14 @@ struct Chain
 };
 
 /**
+ * Event that occurs when a physical has finished falling down and lands on something below.
+ */
+struct PhysicalLands
+{
+	const Physical& physical;
+};
+
+/**
  * Event that occurs when a block has finished breaking and will be removed.
  */
 struct BlockDies {};
@@ -93,6 +101,10 @@ public:
 	 */
 	virtual void fire(Chain chained) {}
 
+	/**
+	 * Signal that a physical object has arrived from falling down.
+	 */
+	virtual void fire(PhysicalLands lands) {}
 
 	/**
 	 * Signal that a block has finished breaking and will be removed.
@@ -131,6 +143,7 @@ public:
 	virtual void fire(Swap event) override { fire_all(event); }
 	virtual void fire(Match event) override { fire_all(event); }
 	virtual void fire(Chain event) override { fire_all(event); }
+	virtual void fire(PhysicalLands event) override { fire_all(event); }
 	virtual void fire(BlockDies event) override { fire_all(event); }
 	virtual void fire(GarbageDissolves event) override { fire_all(event); }
 
@@ -161,6 +174,7 @@ public:
 	virtual void fire(Swap event) override { m_audio.play(Snd::SWAP); }
 	virtual void fire(Match event) override { m_audio.play(Snd::MATCH); }
 	// virtual void fire(Chain event) override { }
+	virtual void fire(PhysicalLands event) override { m_audio.play(Snd::LANDING); }
 	virtual void fire(BlockDies event) override { m_audio.play(Snd::BREAK); }
 	virtual void fire(GarbageDissolves event) override { m_audio.play(Snd::BREAK); }
 
