@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -20,14 +20,14 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{CBBD0D30-4803-4E63-862A-799750AB7314}</ProjectGuid>
-    <RootNamespace>Shitbrix</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <ProjectGuid>{18500BB4-AD0A-4F38-87A7-919E8C85A9E4}</ProjectGuid>
+    <RootNamespace>TestShitbrix</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <ProjectName>ShitbrixTest</ProjectName>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
@@ -35,6 +35,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -49,12 +50,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\SDL2-2.0.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\googletest\googletest\include;..\..\src;..\..\..\SDL2-2.0.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
@@ -71,47 +72,37 @@
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalOptions>
     </ClCompile>
+    <Link>
+      <GenerateDebugInformation Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">DebugFull</GenerateDebugInformation>
+    </Link>
+    <Link>
+      <GenerateDebugInformation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">DebugFull</GenerateDebugInformation>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\asset.hpp" />
-    <ClInclude Include="..\src\director.hpp" />
-    <ClInclude Include="..\src\draw.hpp" />
-    <ClInclude Include="..\src\gameevent.hpp" />
-    <ClInclude Include="..\src\game_loop.hpp" />
-    <ClInclude Include="..\src\globals.hpp" />
-    <ClInclude Include="..\src\input.hpp" />
-    <ClInclude Include="..\src\options.hpp" />
-    <ClInclude Include="..\src\replay.hpp" />
-    <ClInclude Include="..\src\screen.hpp" />
-    <ClInclude Include="..\src\sdl_helper.hpp" />
-    <ClInclude Include="..\src\audio.hpp" />
-    <ClInclude Include="..\src\stage.hpp" />
+    <ClCompile Include="..\..\tests\test_block.cpp" />
+    <ClCompile Include="..\..\tests\test_blockdirector.cpp" />
+    <ClCompile Include="..\..\tests\test_gameevent.cpp" />
+    <ClCompile Include="..\..\tests\test_pit.cpp" />
+    <ClCompile Include="..\..\tests\test_replay.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\director.cpp" />
-    <ClCompile Include="..\src\draw.cpp" />
-    <ClCompile Include="..\src\game_loop.cpp" />
-    <ClCompile Include="..\src\globals.cpp" />
-    <ClCompile Include="..\src\input.cpp" />
-    <ClCompile Include="..\src\main.cpp" />
-    <ClCompile Include="..\src\options.cpp" />
-    <ClCompile Include="..\src\replay.cpp" />
-    <ClCompile Include="..\src\screen.cpp" />
-    <ClCompile Include="..\src\sdl_helper.cpp" />
-    <ClCompile Include="..\src\audio.cpp" />
-    <ClCompile Include="..\src\stage.cpp" />
-    <ClCompile Include="..\src\winmain.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\src\Makefile" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\SDL2-2.0.5\VisualC\SDL\SDL.vcxproj">
+    <ProjectReference Include="..\..\..\googletest\googletest\msvc\2010\gtest_main.vcxproj">
+      <Project>{3af54c8a-10bf-4332-9147-f68ed9862032}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\SDL2-2.0.5\VisualC\SDL\SDL.vcxproj">
       <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\SDL2_image-2.0.1\VisualC\SDL_image.vcxproj">
+    <ProjectReference Include="..\..\..\SDL2_image-2.0.1\VisualC\SDL_image.vcxproj">
       <Project>{2bd5534e-00e2-4bea-ac96-d9a92ea24696}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Shitbrix\Shitbrix.vcxproj">
+      <Project>{cbbd0d30-4803-4e63-862a-799750ab7314}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

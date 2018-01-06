@@ -15,88 +15,79 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\asset.hpp">
+    <ClInclude Include="..\..\src\asset.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\director.hpp">
+    <ClInclude Include="..\..\src\director.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\draw.hpp">
+    <ClInclude Include="..\..\src\draw.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\gameevent.hpp">
+    <ClInclude Include="..\..\src\gameevent.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\globals.hpp">
+    <ClInclude Include="..\..\src\game_loop.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\input.hpp">
+    <ClInclude Include="..\..\src\globals.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\replay.hpp">
+    <ClInclude Include="..\..\src\input.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\screen.hpp">
+    <ClInclude Include="..\..\src\options.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\sdl_helper.hpp">
+    <ClInclude Include="..\..\src\replay.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\stage.hpp">
+    <ClInclude Include="..\..\src\screen.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\game_loop.hpp">
+    <ClInclude Include="..\..\src\sdl_helper.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\audio.hpp">
+    <ClInclude Include="..\..\src\audio.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\options.hpp">
+    <ClInclude Include="..\..\src\stage.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\director.cpp">
+    <ClCompile Include="..\..\src\director.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\draw.cpp">
+    <ClCompile Include="..\..\src\draw.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\globals.cpp">
+    <ClCompile Include="..\..\src\game_loop.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\input.cpp">
+    <ClCompile Include="..\..\src\globals.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\main.cpp">
+    <ClCompile Include="..\..\src\input.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\replay.cpp">
+    <ClCompile Include="..\..\src\options.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\screen.cpp">
+    <ClCompile Include="..\..\src\replay.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\sdl_helper.cpp">
+    <ClCompile Include="..\..\src\screen.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\stage.cpp">
+    <ClCompile Include="..\..\src\sdl_helper.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\game_loop.cpp">
+    <ClCompile Include="..\..\src\audio.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\winmain.cpp">
+    <ClCompile Include="..\..\src\stage.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\audio.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\options.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\src\Makefile" />
   </ItemGroup>
 </Project>

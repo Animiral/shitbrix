@@ -3,7 +3,10 @@
 
 # Output directories
 bin/
-visualcpp/x64/
+visualcpp/**/x64*/
+visualcpp/**/Win32*/
+visualcpp/**/*Debug/
+visualcpp/**/*Release/
 
 # Runtime-generated files
 replay/*
