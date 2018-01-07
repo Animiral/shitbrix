@@ -232,8 +232,9 @@ void BlockDirector::update()
 	handle_fallers(pit, fallers, hots, hots_end, std::back_inserter(landers));
 	hots.erase(hots_end, hots.end());
 
-	for(const Physical& lander : landers)
-		m_handler->fire(evt::PhysicalLands{lander});
+	if(m_handler)
+		for(const Physical& lander : landers)
+			m_handler->fire(evt::PhysicalLands{lander});
 
 	bool have_match = false;
 	bool chaining = false;
