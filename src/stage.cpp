@@ -169,6 +169,16 @@ Garbage* Pit::garbage_at(RowCol rc) const noexcept
 	return dynamic_cast<Garbage*>(at(rc));
 }
 
+bool Pit::is_full() const noexcept
+{
+	auto is_above = [t = top()] (const PhysVec::value_type& p)
+	{
+		return Physical::State::REST == p->physical_state() && p->rc().r < t;
+	};
+
+	return m_contents.end() != std::find_if(m_contents.begin(), m_contents.end(), is_above);
+}
+
 Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 {
 	game_assert(rc.c >= 0 && rc.c < PIT_COLS, "Attempt to spawn block out of bounds.");

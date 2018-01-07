@@ -76,8 +76,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, RndGen rndgen)
-	: pit(pit), m_handler(nullptr), m_chain(0), m_over(false), m_raise(false), rndgen(rndgen) {}
+	BlockDirector(Pit& pit, RndGen rndgen);
 
 	/**
 	 * Set the handler for game events from this director.

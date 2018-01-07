@@ -124,7 +124,6 @@ bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
  * @param dissolvers Output iterator for Garbage that is breaking down
  * @param fallers Output iterator for objects that may fall down
  * @param hots Output iterator for blocks that have become hot (match-ready)
- * @param[out] panic Flag which indicates true if pit objects have stacked to the top
  * @param[out] dead_physical Flag which indicates true if there are new dead physicals
  * @param[out] dead_block Flag which indicates true if there are new dead blocks
  * @param[out] dead_sound Flag which indicates true if there are non-fake dead blocks
@@ -132,7 +131,7 @@ bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
  */
 template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>
 void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
-                    BlockOutIt hots, bool& panic, bool& dead_physical,
+                    BlockOutIt hots, bool& dead_physical,
                     bool& dead_block, bool& dead_sound, bool& chainstop);
 
 /**
@@ -181,6 +180,16 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 
 }
 
+BlockDirector::BlockDirector(Pit& pit, RndGen rndgen)
+: pit(pit),
+  m_handler(nullptr),
+  m_chain(0),
+  m_panic(PANIC_TIME),
+  m_over(false),
+  m_raise(false),
+  rndgen(rndgen)
+{}
+
 void BlockDirector::update()
 {
 	using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
@@ -193,7 +202,6 @@ void BlockDirector::update()
 	PhysicalRefVec landers;   // objects which have landed on something else to stop their fall
 	BlockRefVec hots;         // recently landed or arrived blocks that can start a match
 
-	bool panic = false;         // true if game over is threatened
 	bool dead_physical = false; // true if pit needs to resume scrolling
 	bool dead_block = false;    // true if pit needs to clean up
 	bool dead_sound = false;    // true if there was at least one non-fake dead
@@ -206,12 +214,22 @@ void BlockDirector::update()
 		pit.set_speed(SCROLL_SPEED);
 
 	examine_finish(pit, std::back_inserter(dissolvers), std::back_inserter(fallers),
-	               std::back_inserter(hots), panic, dead_physical, dead_block,
+	               std::back_inserter(hots), dead_physical, dead_block,
 	               dead_sound, chainstop);
 
-	// game over check
-	if(panic && !debug_no_gameover)
-		m_over = true;
+	// panic time and game over check
+	if(pit.is_full()) {
+		pit.stop();
+		m_panic--;
+		if(m_panic < 0 && !debug_no_gameover)
+			m_over = true;
+	}
+	else {
+		if(is_panic()) {
+			m_panic = PANIC_TIME;
+			try_resume_pitscroll(pit);
+		}
+	}
 
 	convert_garbage(pit, dissolvers, std::back_inserter(fallers),
 	                std::back_inserter(hots), dead_physical, *rndgen);
@@ -417,8 +435,8 @@ void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining)
 
 void try_resume_pitscroll(Pit& pit)
 {
-	// a chain in progress stops the pit
-	if(any_chaining(pit))
+	// a chain in progress stops the pit, as does panic mode
+	if(any_chaining(pit) || pit.is_full())
 		return;
 
 	auto& pit_contents = pit.contents();
@@ -476,7 +494,7 @@ bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
 
 template<typename GarbOutIt, typename PhysOutIt, typename BlockOutIt>
 void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
-                    BlockOutIt hots, bool& panic, bool& dead_physical,
+                    BlockOutIt hots, bool& dead_physical,
                     bool& dead_block, bool& dead_sound, bool& chainstop)
 {
 	for(auto& physical : pit.contents())
@@ -495,9 +513,6 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			if(Block* block = dynamic_cast<Block*>(&*physical))
 				*hots++ = *block;
 		}
-
-		if(Physical::State::REST == state && physical->rc().r < pit.top())
-			panic = true;
 
 		// Garbage-specifics
 		if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {

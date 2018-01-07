@@ -249,6 +249,11 @@ public:
 	 */
 	Garbage* garbage_at(RowCol rc) const noexcept;
 
+	/**
+	 * Return true if at least one resting physical overflows the allowed space in the pit.
+	 */
+	bool is_full() const noexcept;
+
 
 	/**
 	 * Create a new Block with the specified properties in the Pit.
