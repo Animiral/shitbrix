@@ -84,6 +84,8 @@ public:
 	 */
 	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
+	bool is_panic() const noexcept { return m_panic < PANIC_TIME; }
+	float panic() const noexcept { return static_cast<float>(m_panic) / PANIC_TIME; }
 	bool over() const { return m_over; }
 
 	/**
@@ -119,6 +121,7 @@ private:
 	Pit& pit;
 	evt::IGameEvent* m_handler;
 	int m_chain; //!< chain counter
+	int m_panic; //!< panic time pool; the player has this many ticks left until game over
 	bool m_over; // whether the game is over (the player with this Director loses)
 	bool m_raise; //!< whether the pit should scroll in new blocks as fast as possible
 	RndGen rndgen;     // block colors are generated randomly

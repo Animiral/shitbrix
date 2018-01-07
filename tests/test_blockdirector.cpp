@@ -377,6 +377,43 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 	EXPECT_TRUE(green_block->chaining);
 }
 
+/**
+ * Tests whether the director honors panic time to stave off game over.
+ */
+TEST_F(BlockDirectorTest, PanicSimple)
+{
+	// complete the test scenario with a block pillar almost to the top
+	pit->spawn_block(Block::Color::RED, RowCol{-4, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{-6, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
+
+	// time it takes for the orange block to reach the top of the pit
+	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
+
+	// moment before panic
+	run_game_ticks(TIME_TO_FULL);
+	ASSERT_FALSE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// enter panic
+	run_game_ticks(1);
+	ASSERT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// before panic depleted
+	run_game_ticks(PANIC_TIME - 1);
+	ASSERT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// really over
+	run_game_ticks(1);
+	ASSERT_TRUE(director->is_panic());
+	ASSERT_TRUE(director->over());
+}
+
+
 namespace
 {
 

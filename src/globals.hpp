@@ -189,6 +189,7 @@ constexpr int SWAP_TIME = 6; //!< number of ticks to swap two blocks
 constexpr int BREAK_TIME = 30; //!< number of ticks for a block to break
 constexpr int DISSOLVE_TIME = 30; //!< number of ticks for a garbage brick to dissolve
 constexpr int LAND_TIME = 20; //!< number of ticks in an object’s landing state
+constexpr int PANIC_TIME = 90; //!< number of ticks until game over when the pit is full
 
 // Presentation constants (graphics, animation, sounds)
 constexpr const char* APP_NAME = "shitbrix";
