@@ -377,6 +377,99 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 	EXPECT_TRUE(green_block->chaining);
 }
 
+/**
+ * Tests whether the director honors panic time to stave off game over.
+ */
+TEST_F(BlockDirectorTest, PanicSimple)
+{
+	// complete the test scenario with a block pillar almost to the top
+	pit->spawn_block(Block::Color::RED, RowCol{-4, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{-6, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
+
+	// time it takes for the orange block to reach the top of the pit
+	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
+
+	// moment before panic
+	run_game_ticks(TIME_TO_FULL);
+	ASSERT_FALSE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// enter panic
+	run_game_ticks(1);
+	ASSERT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// before panic depleted
+	run_game_ticks(PANIC_TIME - 1);
+	ASSERT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// really over
+	run_game_ticks(1);
+	ASSERT_TRUE(director->is_panic());
+	ASSERT_TRUE(director->over());
+}
+
+/**
+ * Tests whether the director correctly interrupts panic time
+ * while there are physicals being dissolved.
+ */
+TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
+{
+	// complete the test scenario with a block pillar almost to the top
+	pit->spawn_block(Block::Color::RED, RowCol{-4, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::GREEN, RowCol{-6, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
+
+	// time it takes for the orange block to reach the top of the pit
+	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
+
+	// time point when we manipulate the blocks to cause a match
+	const int DELAY = 3;
+
+	run_game_ticks(TIME_TO_FULL);
+	ASSERT_FALSE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// enter panic time
+	run_game_ticks(1);
+	EXPECT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// observe the blocks start matching
+	// panic is active, but panic time is paused as long as the blocks are dissolving
+	run_game_ticks(DELAY);
+
+	// these blocks will be dissolved while we are in panic
+	pit->spawn_block(Block::Color::GREEN, RowCol{-4, 4}, Block::State::REST);
+	Block& yellow_block = pit->spawn_block(Block::Color::GREEN, RowCol{-5, 4}, Block::State::REST);
+	yellow_block.set_state(Block::State::FALL); // prime block for matching by director
+	run_game_ticks(1);
+	ASSERT_EQ(Block::State::BREAK, yellow_block.block_state());
+
+	// the block breaks and vanishes
+	run_game_ticks(BREAK_TIME);
+	ASSERT_FALSE(pit->block_at({-5, 4}));
+	EXPECT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// now we have that much more time until game over
+	run_game_ticks(PANIC_TIME - DELAY - 2);
+	EXPECT_TRUE(director->is_panic());
+	ASSERT_FALSE(director->over());
+
+	// but it runs out eventually
+	run_game_ticks(1);
+	EXPECT_TRUE(director->is_panic());
+	EXPECT_TRUE(director->over());
+}
+
+
 namespace
 {
 
