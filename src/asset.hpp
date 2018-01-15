@@ -31,7 +31,11 @@ public:
 
 		textures.emplace_back(sdl.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
 		textures.emplace_back(sdl.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
-		textures.emplace_back(sdl.create_texture_row("gfx/garbage.png", GARBAGE_W)); // Gfx::GARBAGE
+		
+		auto garbage = sdl.create_texture_sheet("gfx/garbage.png", GARBAGE_W, GARBAGE_H);
+		for(auto& v : garbage)
+			textures.emplace_back(move(v));                                          // Gfx::GARBAGE_*
+
 		textures.emplace_back(sdl.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
 
 		std::vector<TexturePtr> menuframe;

@@ -253,24 +253,24 @@ void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 	for(int y = 0; y < garbage.rows()*2; y++)
 	for(int x = 0; x < garbage.columns()*2; x++) {
 		Point piece_loc = { draw_loc.x + x*GARBAGE_W, draw_loc.y + y*GARBAGE_H };
-		GarbageFrame frame = GarbageFrame::MID;
+		Gfx tile = Gfx::GARBAGE_M;
 
 		bool top = 0 == y;
 		bool low = garbage.rows()*2 == y+1;
 		bool left = 0 == x;
 		bool right = garbage.columns()*2 == x+1;
 
-		if(top && left)       frame = GarbageFrame::TOP_LEFT;
-		else if(top && right) frame = GarbageFrame::TOP_RIGHT;
-		else if(top)          frame = GarbageFrame::TOP;
-		else if(low && left)  frame = GarbageFrame::LOW_LEFT;
-		else if(low && right) frame = GarbageFrame::LOW_RIGHT;
-		else if(low)          frame = GarbageFrame::LOW;
-		else if(left)         frame = GarbageFrame::MID_LEFT;
-		else if(right)        frame = GarbageFrame::MID_RIGHT;
-		else                  frame = GarbageFrame::MID;
+		if(top && left)       tile = Gfx::GARBAGE_LU;
+		else if(top && right) tile = Gfx::GARBAGE_RU;
+		else if(top)          tile = Gfx::GARBAGE_U;
+		else if(low && left)  tile = Gfx::GARBAGE_LD;
+		else if(low && right) tile = Gfx::GARBAGE_RD;
+		else if(low)          tile = Gfx::GARBAGE_D;
+		else if(left)         tile = Gfx::GARBAGE_L;
+		else if(right)        tile = Gfx::GARBAGE_R;
+		else                  tile = Gfx::GARBAGE_M;
 
-		putsprite(piece_loc, Gfx::GARBAGE, static_cast<size_t>(frame));
+		putsprite(piece_loc, tile, 0);
 	}
 }
 
