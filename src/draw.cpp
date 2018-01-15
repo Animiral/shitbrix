@@ -243,11 +243,16 @@ void DrawGame::draw_block(const Block& block, float dt) const
 void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 {
 	Point draw_loc = garbage_loc(garbage);
+	float time = garbage.eta();
+	size_t frame = 0;
 
 	// Animation, for a garbage block, primarily means the part where it dissolves
 	// and turns into small blocks.
 	if(Physical::State::BREAK == garbage.physical_state()) {
-		// TODO: animate garbage block
+		SDL_assert(time >= 0.f);
+		frame = static_cast<size_t>(1 + int(time) % 5);
+		// TODO: use the following for single full break anim
+		// frame = time * frames / (GARBAGE_BREAK_TIME + 1);
 	}
 
 	for(int y = 0; y < garbage.rows()*2; y++)
@@ -270,7 +275,7 @@ void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 		else if(right)        tile = Gfx::GARBAGE_R;
 		else                  tile = Gfx::GARBAGE_M;
 
-		putsprite(piece_loc, tile, 0);
+		putsprite(piece_loc, tile, frame);
 	}
 }
 
