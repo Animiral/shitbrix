@@ -4,6 +4,31 @@
 
 #include "director.hpp"
 
+BlocksQueue::BlocksQueue(unsigned seed)
+	: m_record(), m_generator(seed), m_index(0)
+{
+}
+
+Block::Color BlocksQueue::next() noexcept
+{
+	if(m_record.size() <= m_index) {
+		std::uniform_int_distribution<int> color_distribution { 1, 6 };
+		Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
+		m_record.push_back(color);
+		m_index++;
+		return color;
+	}
+	else {
+		return m_record[m_index++];
+	}
+}
+
+void BlocksQueue::backtrack(size_t index) noexcept
+{
+	m_index = index;
+}
+
+
 void MatchBuilder::ignite(Block& block)
 {
 	Block::Color color = block.col;
@@ -73,8 +98,7 @@ namespace
 /**
  * Put a block of random color at the specified location with the state.
  */
-template<typename RndGen>
-Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, RndGen& rndgen);
+Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, BlocksQueue& queue);
 
 /**
  * Fake blocks are used to replace empty spaces for the duration of a swap().
@@ -94,10 +118,10 @@ void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining);
  *
  * @param pit Pit object
  * @param hots Output iterator for blocks that have become hot (match-ready)
- * @param rndgen Pseudo-random number source for new blocks
+ * @param queue Source for new blocks
  */
-template<typename OutIt, typename RndGen>
-bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen);
+template<typename OutIt>
+bool spawn_previews(Pit& pit, OutIt hots, BlocksQueue& queue);
 
 /**
  * Look at the pit contents and determine if any of the contents fulfill
@@ -136,11 +160,11 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
  * @param dissolvers Set of broken Garbage bricks to dissolve
  * @param fallers Output iterator for objects that may fall down
  * @param hots Output iterator for blocks that have become hot (match-ready)
- * @param rndgen Pseudo-random number source for new blocks
+ * @param queue Source for colors of new blocks
  */
-template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt, typename RndGen>
+template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt>
 void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
-                     BlockOutIt hots, bool& dead_physical, RndGen& rndgen);
+                     BlockOutIt hots, bool& dead_physical, BlocksQueue& queue);
 
 /**
  * All physicals in the *fallers* set now actually enter the *fall*
@@ -175,14 +199,15 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 
 }
 
-BlockDirector::BlockDirector(Pit& pit, RndGen rndgen)
+BlockDirector::BlockDirector(Pit& pit, BlocksQueue grow_queue, BlocksQueue emerge_queue)
 : pit(pit),
   m_handler(nullptr),
   m_chain(0),
   m_panic(PANIC_TIME),
   m_over(false),
   m_raise(false),
-  rndgen(rndgen)
+  m_grow_queue(std::move(grow_queue)),
+  m_emerge_queue(std::move(emerge_queue))
 {}
 
 void BlockDirector::update()
@@ -202,7 +227,7 @@ void BlockDirector::update()
 	bool dead_sound = false;    // true if there was at least one non-fake dead
 	bool chainstop = false;     // true if the pit should be examined for chain finish
 
-	bool new_row = spawn_previews(pit, std::back_inserter(hots), *rndgen);
+	bool new_row = spawn_previews(pit, std::back_inserter(hots), m_grow_queue);
 
 	// raise until new row, except if player is holding down the button
 	if(new_row && !m_raise)
@@ -213,7 +238,7 @@ void BlockDirector::update()
 	               dead_sound, chainstop);
 
 	convert_garbage(pit, dissolvers, std::back_inserter(fallers),
-	                std::back_inserter(hots), dead_physical, *rndgen);
+	                std::back_inserter(hots), dead_physical, m_emerge_queue);
 
 	if(!dissolvers.empty() && m_handler)
 		m_handler->fire(evt::GarbageDissolves());
@@ -399,10 +424,10 @@ void BonusThrow::fire(evt::Chain event)
 namespace
 {
 
-template<typename RndGen>
-Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, RndGen& rndgen)
+Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, BlocksQueue& queue)
 {
-	Block::Color block_color = static_cast<Block::Color>(static_cast<int>(Block::Color::BLUE) + rndgen() % 6);
+	Block::Color block_color = queue.next();
+	game_assert(block_color >= Block::Color::BLUE && block_color <= Block::Color::ORANGE, "Invalid block color");
 	Block& block = pit.spawn_block(block_color, rc, state);
 	return block;
 }
@@ -434,8 +459,8 @@ void trigger_falls(Pit& pit, RowCol rc, OutIt&& fallers, bool chaining)
 	}
 }
 
-template<typename OutIt, typename RndGen>
-bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
+template<typename OutIt>
+bool spawn_previews(Pit& pit, OutIt hots, BlocksQueue& queue)
 {
 	// If there are no blocks in the pit’s bottom row, refill previews.
 	// For gameplay to work properly, the pit scroll speed must be less
@@ -449,7 +474,7 @@ bool spawn_previews(Pit& pit, OutIt hots, RndGen& rndgen)
 
 	for(int c = 0; c < PIT_COLS; c++) {
 		RowCol spawn_rc{bottom_row, c};
-		spawn_random_block(pit, spawn_rc, Block::State::PREVIEW, rndgen);
+		spawn_random_block(pit, spawn_rc, Block::State::PREVIEW, queue);
 
 		RowCol above_rc{bottom_row-1, c};
 		Block* above = pit.block_at(above_rc);
@@ -555,9 +580,9 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 	}
 }
 
-template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt, typename RndGen>
+template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt>
 void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
-                     BlockOutIt hots, bool& dead_physical, RndGen& rndgen)
+                     BlockOutIt hots, bool& dead_physical, BlocksQueue& queue)
 {
 	for(Garbage& garbage : dissolvers) {
 		RowCol garbage_rc = garbage.rc();
@@ -567,7 +592,7 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
 
 		for(int c = 0; c < garbage_columns; c++) {
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
-			Block& block = spawn_random_block(pit, block_rc, Block::State::REST, rndgen);
+			Block& block = spawn_random_block(pit, block_rc, Block::State::REST, queue);
 			block.chaining = true;
 			*fallers++ = block;
 			*hots++ = block;

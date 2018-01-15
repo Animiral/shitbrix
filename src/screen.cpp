@@ -221,8 +221,8 @@ void GameScreen::reset()
 	Banner& right_banner = *builder.right_banner;
 	BonusIndicator& right_bonus = *builder.right_bonus;
 
-	auto left_pobjs = std::make_unique<PlayerObjects>(rndgen, left_pit, left_cursor, right_pit, left_bonus);
-	auto right_pobjs = std::make_unique<PlayerObjects>(rndgen, right_pit, right_cursor, left_pit, right_bonus);
+	auto left_pobjs = std::make_unique<PlayerObjects>(m_seed, left_pit, left_cursor, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(m_seed ^ 0x28abcd39, right_pit, right_cursor, left_pit, right_bonus);
 	m_pobjects.push_back(std::move(left_pobjs));
 	m_pobjects.push_back(std::move(right_pobjs));
 	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
@@ -269,6 +269,10 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::RESET:
+			{
+				std::random_device rdev;
+				seed(rdev());
+			}
 			reset();
 			break;
 
@@ -360,7 +364,7 @@ void GameScreen::update_impl()
 
 void GameScreen::seed(unsigned int rng_seed)
 {
-	rndgen = std::make_shared<std::mt19937>(rng_seed);
+	m_seed = rng_seed;
 	std::ostringstream stream;
 	stream << rng_seed;
 	journal << ReplayEvent::make_set("rng_seed", stream.str());

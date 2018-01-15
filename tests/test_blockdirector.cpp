@@ -52,8 +52,7 @@ protected:
 		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 
 		const int SEED = 0;
-		rndgen = std::make_shared<std::mt19937>(SEED);
-		director = std::make_unique<BlockDirector>(*pit, rndgen);
+		director = std::make_unique<BlockDirector>(*pit, BlocksQueue(SEED), BlocksQueue(SEED));
 	}
 
 	// virtual void TearDown() {}
@@ -67,7 +66,6 @@ protected:
 	}
 
 	std::unique_ptr<Pit> pit;
-	RndGen rndgen;
 	std::unique_ptr<BlockDirector> director;
 
 };

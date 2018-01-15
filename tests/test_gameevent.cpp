@@ -41,8 +41,7 @@ protected:
 		cursor_director = std::make_unique<CursorDirector>(*pit, *cursor);
 
 		const int SEED = 0;
-		rndgen = std::make_shared<std::mt19937>(SEED);
-		block_director = std::make_unique<BlockDirector>(*pit, rndgen);
+		block_director = std::make_unique<BlockDirector>(*pit, BlocksQueue(SEED), BlocksQueue(SEED));
 
 		counter = std::make_unique<GameEventCounter>();
 		hub = std::make_unique<evt::GameEventHub>();
@@ -63,7 +62,6 @@ protected:
 
 	std::unique_ptr<Pit> pit;
 	std::unique_ptr<Cursor> cursor;
-	RndGen rndgen;
 	std::unique_ptr<CursorDirector> cursor_director;
 	std::unique_ptr<BlockDirector> block_director;
 	std::unique_ptr<GameEventCounter> counter;

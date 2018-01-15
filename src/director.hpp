@@ -9,7 +9,44 @@
 #include <algorithm>
 #include <set>
 
-using RndGen = std::shared_ptr<std::mt19937>;
+/**
+ * Maintains a sequence of block colors spawned deterministically out of an
+ * initial seed. This allows us to see what color blocks to introduce next,
+ * as well as reconstruct the whole history of spawned block colors for
+ * replay and netplay purposes.
+ */
+class BlocksQueue
+{
+
+public:
+
+	/**
+	 * Construct the queue with the given seed, which deterministically produces
+	 * the same block colors every time.
+	 */
+	explicit BlocksQueue(unsigned seed);
+
+	BlocksQueue(const BlocksQueue& ) = default;
+	BlocksQueue(BlocksQueue&& ) = default;
+
+	/**
+	 * Return the next color of a block coming out on the stack from below.
+	 * The @c game_time will be recorded for reference.
+	 */
+	Block::Color next() noexcept;
+
+	/**
+	 * Start reading block colors from the specified @c index forward.
+	 */
+	void backtrack(size_t index) noexcept;
+
+private:
+
+	std::vector<Block::Color> m_record;
+	std::minstd_rand m_generator;
+	size_t m_index; //!< Current queue index (for backtracking)
+
+};
 
 /**
  * Examines the pit for matching blocks from a sequence of “hot” blocks
@@ -76,7 +113,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, RndGen rndgen);
+	BlockDirector(Pit& pit, BlocksQueue grow_queue, BlocksQueue emerge_queue);
 
 	/**
 	 * Set the handler for game events from this director.
@@ -123,7 +160,8 @@ private:
 	int m_panic; //!< panic time pool; the player has this many ticks left until game over
 	bool m_over; // whether the game is over (the player with this Director loses)
 	bool m_raise; //!< whether the pit should scroll in new blocks as fast as possible
-	RndGen rndgen;     // block colors are generated randomly
+	BlocksQueue m_grow_queue; //< generator for blocks spawning from below
+	BlocksQueue m_emerge_queue; //< generator for blocks spawning from dissolved garbage
 
 };
 

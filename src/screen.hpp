@@ -206,8 +206,8 @@ private:
 	 */
 	struct PlayerObjects
 	{
-		PlayerObjects(RndGen& rndgen, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
-		: block_director(pit, rndgen), cursor_director(pit, cursor), event_hub(),
+		PlayerObjects(unsigned seed, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
+		: block_director(pit, BlocksQueue(seed), BlocksQueue(seed*3)), cursor_director(pit, cursor), event_hub(),
 		  garbage_throw(other_pit), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
@@ -228,7 +228,7 @@ private:
 		BonusThrow bonus_throw; // event handler for displaying stars
 	};
 
-	RndGen rndgen;
+	unsigned m_seed; // game-start PRNG seed which determines block mix
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
 	bool m_pause; // true if tick updates are supressed
