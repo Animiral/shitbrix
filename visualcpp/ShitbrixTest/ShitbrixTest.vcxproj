@@ -85,6 +85,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\tests\tests_common.cpp" />
     <ClCompile Include="..\..\tests\test_block.cpp" />
     <ClCompile Include="..\..\tests\test_blockdirector.cpp" />
     <ClCompile Include="..\..\tests\test_gameevent.cpp" />
@@ -104,6 +105,9 @@
     <ProjectReference Include="..\Shitbrix\Shitbrix.vcxproj">
       <Project>{cbbd0d30-4803-4e63-862a-799750ab7314}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\tests\tests_common.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

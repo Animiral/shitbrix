@@ -113,7 +113,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, BlocksQueue grow_queue, BlocksQueue emerge_queue);
+	BlockDirector(Pit& pit, BlocksQueue grow_queue);
 
 	/**
 	 * Set the handler for game events from this director.
@@ -161,7 +161,6 @@ private:
 	bool m_over; // whether the game is over (the player with this Director loses)
 	bool m_raise; //!< whether the pit should scroll in new blocks as fast as possible
 	BlocksQueue m_grow_queue; //< generator for blocks spawning from below
-	BlocksQueue m_emerge_queue; //< generator for blocks spawning from dissolved garbage
 
 };
 
@@ -213,7 +212,9 @@ class GarbageThrow : public evt::IGameEvent
 
 public:
 
-	GarbageThrow(Pit& pit) : m_pit(pit) {}
+	GarbageThrow(Pit& pit, BlocksQueue emerge_queue)
+	: m_pit(pit), m_emerge_queue(std::move(emerge_queue))
+	{}
 
 	virtual void fire(evt::Match event) override;
 	virtual void fire(evt::Chain event) override;
@@ -221,6 +222,7 @@ public:
 private:
 
 	Pit& m_pit;
+	BlocksQueue m_emerge_queue; //< generator for blocks spawning from dissolved garbage
 
 	void spawn(int columns, int rows, bool right_side);
 

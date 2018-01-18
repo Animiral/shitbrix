@@ -137,11 +137,31 @@ bool y_greater(const Block& lhs, const Block& rhs) noexcept
 }
 
 
-Garbage::Garbage(RowCol rc, int columns, int rows)
-: Physical(rc, State::REST),
-  m_columns(columns),
-  m_rows(rows)
-{}
+Garbage::Garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loot)
+	: Physical(rc, State::REST),
+	m_columns(columns),
+	m_rows(rows),
+	m_loot(loot)
+{
+	SDL_assert(columns > 0);
+	SDL_assert(rows > 0);
+	SDL_assert(loot.size() == columns * rows);
+}
+
+std::vector<Block::Color>::const_iterator Garbage::loot() const
+{
+	SDL_assert(m_rows > 0);
+	return m_loot.begin();
+}
+
+int Garbage::shrink() noexcept
+{
+	SDL_assert(m_rows > 0);
+	m_loot.erase(m_loot.begin(), m_loot.begin() + m_columns);
+	--m_rows;
+	SDL_assert(m_loot.size() == m_columns * m_rows);
+	return m_rows;
+}
 
 
 Pit::Pit(Point loc) noexcept
@@ -196,12 +216,12 @@ Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 	return *raw_block;
 }
 
-Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
+Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, std::vector<Block::Color> loot)
 {
 	// make sure the Garbage fits in the Pit
 	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");
 
-	auto garbage = std::make_unique<Garbage>(rc, width, height);
+	auto garbage = std::make_unique<Garbage>(rc, width, height, move(loot));
 	Garbage* raw_garbage = garbage.get();
 	fill_area(*raw_garbage);
 

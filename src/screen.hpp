@@ -207,8 +207,8 @@ private:
 	struct PlayerObjects
 	{
 		PlayerObjects(unsigned seed, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
-		: block_director(pit, BlocksQueue(seed), BlocksQueue(seed*3)), cursor_director(pit, cursor), event_hub(),
-		  garbage_throw(other_pit), bonus_throw(bonus)
+		: block_director(pit, BlocksQueue(seed)), cursor_director(pit, cursor),
+		  event_hub(), garbage_throw(other_pit, BlocksQueue(seed*3)), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
 			event_hub.append(garbage_throw);

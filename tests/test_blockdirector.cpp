@@ -4,6 +4,7 @@
 
 #include "stage.hpp"
 #include "director.hpp"
+#include "tests_common.hpp"
 #include "gtest/gtest.h"
 
 namespace
@@ -52,7 +53,7 @@ protected:
 		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 
 		const int SEED = 0;
-		director = std::make_unique<BlockDirector>(*pit, BlocksQueue(SEED), BlocksQueue(SEED));
+		director = std::make_unique<BlockDirector>(*pit, BlocksQueue(SEED));
 	}
 
 	// virtual void TearDown() {}
@@ -145,7 +146,7 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
  */
 TEST_F(BlockDirectorTest, DissolveGarbage)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2, make_loot(12)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -175,7 +176,7 @@ TEST_F(BlockDirectorTest, DissolveGarbage)
  */
 TEST_F(BlockDirectorTest, DissolveAndFall)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2, make_loot(12)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -204,7 +205,7 @@ TEST_F(BlockDirectorTest, DissolveAndFall)
 TEST_F(BlockDirectorTest, FallAfterShrink)
 {
 	RowCol garbage_rc{-6,0};
-	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2); // chain garbage
+	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2, make_loot(12)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// vertical match just under the garbage
@@ -316,7 +317,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 {
 	const int GARBAGE_COLS = 6;
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2, make_loot(GARBAGE_COLS * 2)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	bool swapping = director->swap(RowCol{-2,2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
