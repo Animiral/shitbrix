@@ -277,6 +277,18 @@ void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 
 		putsprite(piece_loc, tile, frame);
 	}
+
+	// preview upcoming blocks from garbage dissolve
+	if(Physical::State::BREAK == garbage.physical_state()) {
+		const RowCol rc = RowCol{garbage.rc().r + garbage.rows() - 1, garbage.rc().c};
+		auto loot_it = garbage.loot();
+
+		for(int x = 0; x < garbage.columns() - garbage.eta() / 10; x++) {
+			draw_loc = from_rc(RowCol{rc.r, rc.c + x});
+			Gfx gfx = Gfx::BLOCK_BLUE + (*loot_it++ - Block::Color::BLUE);
+			putsprite(draw_loc, gfx, static_cast<size_t>(BlockFrame::REST));
+		}
+	}
 }
 
 void DrawGame::draw_cursor(const Cursor& cursor, float dt) const
