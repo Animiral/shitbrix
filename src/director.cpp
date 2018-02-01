@@ -96,14 +96,25 @@ namespace
 {
 
 /**
- * Put a block of random color at the specified location with the state.
+ * Put a block of the specified color at the specified location in @c REST state.
  */
-Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, BlocksQueue& queue);
+Block& spawn_block(Pit& pit, RowCol rc, Block::Color color);
+
+/**
+ * Put a block of random color at the specified location in @c PREVIEW state.
+ */
+Block& spawn_preview_block(Pit& pit, RowCol rc, BlocksQueue& queue);
 
 /**
  * Fake blocks are used to replace empty spaces for the duration of a swap().
  */
 Block& spawn_fake_block(Pit& pit, RowCol rc);
+
+/**
+ * Use the @c queue to random-generate the specified number
+ * of loot blocks for a garbage to hide.
+ */
+std::vector<Block::Color> pick_loot(BlocksQueue& queue, size_t amount);
 
 /**
  * Mark all objects at the given location and above as potentially falling.
@@ -160,11 +171,10 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
  * @param dissolvers Set of broken Garbage bricks to dissolve
  * @param fallers Output iterator for objects that may fall down
  * @param hots Output iterator for blocks that have become hot (match-ready)
- * @param queue Source for colors of new blocks
  */
 template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt>
 void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
-                     BlockOutIt hots, bool& dead_physical, BlocksQueue& queue);
+                     BlockOutIt hots, bool& dead_physical);
 
 /**
  * All physicals in the *fallers* set now actually enter the *fall*
@@ -199,15 +209,14 @@ void handle_hots(Pit& pit, Hots& hots, bool& have_match, int& combo, bool& chain
 
 }
 
-BlockDirector::BlockDirector(Pit& pit, BlocksQueue grow_queue, BlocksQueue emerge_queue)
+BlockDirector::BlockDirector(Pit& pit, BlocksQueue grow_queue)
 : pit(pit),
   m_handler(nullptr),
   m_chain(0),
   m_panic(PANIC_TIME),
   m_over(false),
   m_raise(false),
-  m_grow_queue(std::move(grow_queue)),
-  m_emerge_queue(std::move(emerge_queue))
+  m_grow_queue(std::move(grow_queue))
 {}
 
 void BlockDirector::update()
@@ -238,7 +247,7 @@ void BlockDirector::update()
 	               dead_sound, chainstop);
 
 	convert_garbage(pit, dissolvers, std::back_inserter(fallers),
-	                std::back_inserter(hots), dead_physical, m_emerge_queue);
+	                std::back_inserter(hots), dead_physical);
 
 	if(!dissolvers.empty() && m_handler)
 		m_handler->fire(evt::GarbageDissolves());
@@ -352,7 +361,8 @@ void BlockDirector::set_raise(bool raise)
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
 	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 2;
-	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
+	std::vector<Block::Color> loot = pick_loot(m_grow_queue, columns * rows); // for debug purposes, we do not care about replay desync here
+	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows, move(loot));
 }
 
 
@@ -401,7 +411,8 @@ void GarbageThrow::spawn(int columns, int rows, bool right_side)
 
 	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
 	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
-	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows);
+	std::vector<Block::Color> loot = pick_loot(m_emerge_queue, columns * rows);
+	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows, move(loot));
 	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 
@@ -424,11 +435,11 @@ void BonusThrow::fire(evt::Chain event)
 namespace
 {
 
-Block& spawn_random_block(Pit& pit, RowCol rc, Block::State state, BlocksQueue& queue)
+Block& spawn_preview_block(Pit& pit, RowCol rc, BlocksQueue& queue)
 {
 	Block::Color block_color = queue.next();
 	game_assert(block_color >= Block::Color::BLUE && block_color <= Block::Color::ORANGE, "Invalid block color");
-	Block& block = pit.spawn_block(block_color, rc, state);
+	Block& block = pit.spawn_block(block_color, rc, Block::State::PREVIEW);
 	return block;
 }
 
@@ -436,6 +447,17 @@ Block& spawn_fake_block(Pit& pit, RowCol rc)
 {
 	Block& block = pit.spawn_block(Block::Color::FAKE, rc, Block::State::REST);
 	return block;
+}
+
+std::vector<Block::Color> pick_loot(BlocksQueue& queue, size_t amount)
+{
+	std::vector<Block::Color> loot(amount);
+
+	for(Block::Color& c : loot) {
+		c = queue.next();
+	}
+
+	return loot;
 }
 
 template<typename OutIt>
@@ -474,7 +496,7 @@ bool spawn_previews(Pit& pit, OutIt hots, BlocksQueue& queue)
 
 	for(int c = 0; c < PIT_COLS; c++) {
 		RowCol spawn_rc{bottom_row, c};
-		spawn_random_block(pit, spawn_rc, Block::State::PREVIEW, queue);
+		spawn_preview_block(pit, spawn_rc, queue);
 
 		RowCol above_rc{bottom_row-1, c};
 		Block* above = pit.block_at(above_rc);
@@ -582,17 +604,19 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 
 template<typename Dissolvers, typename PhysOutIt, typename BlockOutIt>
 void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
-                     BlockOutIt hots, bool& dead_physical, BlocksQueue& queue)
+                     BlockOutIt hots, bool& dead_physical)
 {
 	for(Garbage& garbage : dissolvers) {
 		RowCol garbage_rc = garbage.rc();
 		int garbage_columns = garbage.columns();
 		int garbage_rows = garbage.rows();
-		bool survived = pit.shrink(garbage);
+		auto loot_it = garbage.loot();
+		std::vector<Block::Color> loot(loot_it, loot_it + garbage_columns);
+		bool survived = pit.shrink(garbage) > 0;
 
 		for(int c = 0; c < garbage_columns; c++) {
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
-			Block& block = spawn_random_block(pit, block_rc, Block::State::REST, queue);
+			Block& block = pit.spawn_block(loot[c], block_rc, Block::State::REST);
 			block.chaining = true;
 			*fallers++ = block;
 			*hots++ = block;

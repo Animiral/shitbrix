@@ -31,7 +31,15 @@ enum class Gfx
 	PITVIEW,  // debug gfx
 	CURSOR,
 	BANNER,
-	GARBAGE,
+	GARBAGE_LU,
+	GARBAGE_U,
+	GARBAGE_RU,
+	GARBAGE_L,
+	GARBAGE_M,
+	GARBAGE_R,
+	GARBAGE_LD,
+	GARBAGE_D,
+	GARBAGE_RD,
 	BONUS,
 	MENUBG
 };
@@ -61,19 +69,6 @@ enum class BlockFrame : size_t
 	PREVIEW = 1,
 	BREAK_BEGIN = 2, // sequence of break anim
 	BREAK_END = 6    // 1-past-end index
-};
-
-enum class GarbageFrame : size_t
-{
-	TOP_LEFT = 0,
-	TOP,
-	TOP_RIGHT,
-	MID_LEFT,
-	MID,
-	MID_RIGHT,
-	LOW_LEFT,
-	LOW,
-	LOW_RIGHT
 };
 
 enum class BonusFrame : size_t

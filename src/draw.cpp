@@ -243,34 +243,51 @@ void DrawGame::draw_block(const Block& block, float dt) const
 void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 {
 	Point draw_loc = garbage_loc(garbage);
+	float time = garbage.eta();
+	size_t frame = 0;
 
 	// Animation, for a garbage block, primarily means the part where it dissolves
 	// and turns into small blocks.
 	if(Physical::State::BREAK == garbage.physical_state()) {
-		// TODO: animate garbage block
+		SDL_assert(time >= 0.f);
+		frame = static_cast<size_t>(1 + int(time) % 5);
+		// TODO: use the following for single full break anim
+		// frame = time * frames / (GARBAGE_BREAK_TIME + 1);
 	}
 
 	for(int y = 0; y < garbage.rows()*2; y++)
 	for(int x = 0; x < garbage.columns()*2; x++) {
 		Point piece_loc = { draw_loc.x + x*GARBAGE_W, draw_loc.y + y*GARBAGE_H };
-		GarbageFrame frame = GarbageFrame::MID;
+		Gfx tile = Gfx::GARBAGE_M;
 
 		bool top = 0 == y;
 		bool low = garbage.rows()*2 == y+1;
 		bool left = 0 == x;
 		bool right = garbage.columns()*2 == x+1;
 
-		if(top && left)       frame = GarbageFrame::TOP_LEFT;
-		else if(top && right) frame = GarbageFrame::TOP_RIGHT;
-		else if(top)          frame = GarbageFrame::TOP;
-		else if(low && left)  frame = GarbageFrame::LOW_LEFT;
-		else if(low && right) frame = GarbageFrame::LOW_RIGHT;
-		else if(low)          frame = GarbageFrame::LOW;
-		else if(left)         frame = GarbageFrame::MID_LEFT;
-		else if(right)        frame = GarbageFrame::MID_RIGHT;
-		else                  frame = GarbageFrame::MID;
+		if(top && left)       tile = Gfx::GARBAGE_LU;
+		else if(top && right) tile = Gfx::GARBAGE_RU;
+		else if(top)          tile = Gfx::GARBAGE_U;
+		else if(low && left)  tile = Gfx::GARBAGE_LD;
+		else if(low && right) tile = Gfx::GARBAGE_RD;
+		else if(low)          tile = Gfx::GARBAGE_D;
+		else if(left)         tile = Gfx::GARBAGE_L;
+		else if(right)        tile = Gfx::GARBAGE_R;
+		else                  tile = Gfx::GARBAGE_M;
 
-		putsprite(piece_loc, Gfx::GARBAGE, static_cast<size_t>(frame));
+		putsprite(piece_loc, tile, frame);
+	}
+
+	// preview upcoming blocks from garbage dissolve
+	if(Physical::State::BREAK == garbage.physical_state()) {
+		const RowCol rc = RowCol{garbage.rc().r + garbage.rows() - 1, garbage.rc().c};
+		auto loot_it = garbage.loot();
+
+		for(int x = 0; x < garbage.columns() - garbage.eta() / 10; x++) {
+			draw_loc = from_rc(RowCol{rc.r, rc.c + x});
+			Gfx gfx = Gfx::BLOCK_BLUE + (*loot_it++ - Block::Color::BLUE);
+			putsprite(draw_loc, gfx, static_cast<size_t>(BlockFrame::REST));
+		}
 	}
 }
 

@@ -9,6 +9,7 @@
  */
 
 #include "stage.hpp"
+#include "tests_common.hpp"
 #include "gtest/gtest.h"
 
 class PitTest : public ::testing::Test
@@ -115,8 +116,8 @@ TEST_F(PitTest, SpawnGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	EXPECT_TRUE(pit->at(combo_rc));
 	EXPECT_TRUE(pit->at(chain_rc));
@@ -140,8 +141,8 @@ TEST_F(PitTest, SpawnGarbageOutOfBounds)
 {
 	RowCol combo_rc{1, -1};
 	RowCol chain_rc{3, 1};
-	EXPECT_THROW(pit->spawn_garbage(combo_rc, 3, 1), GameException);
-	EXPECT_THROW(pit->spawn_garbage(chain_rc, 6, 2), GameException);
+	EXPECT_THROW(pit->spawn_garbage(combo_rc, 3, 1, make_loot(3)), GameException);
+	EXPECT_THROW(pit->spawn_garbage(chain_rc, 6, 2, make_loot(12)), GameException);
 }
 
 /**
@@ -177,8 +178,8 @@ TEST_F(PitTest, CanFallGarbageYes)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	EXPECT_TRUE(pit->can_fall(combo_gb));
 }
@@ -190,8 +191,8 @@ TEST_F(PitTest, CanFallGarbageNo)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	EXPECT_FALSE(pit->can_fall(chain_gb));
 }
@@ -243,8 +244,8 @@ TEST_F(PitTest, FallGarbage)
 {
 	RowCol combo_rc{4, 2};
 	RowCol chain_rc{1, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	pit->fall(chain_gb);
 
@@ -270,8 +271,8 @@ TEST_F(PitTest, FallGarbageFail)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	EXPECT_THROW(pit->fall(chain_gb), GameException);
 }
@@ -312,8 +313,8 @@ TEST_F(PitTest, ShrinkGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	pit->shrink(chain_gb);
 
@@ -337,8 +338,8 @@ TEST_F(PitTest, KillGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	pit->shrink(combo_gb);
 
@@ -361,8 +362,8 @@ TEST_F(PitTest, KillAndErase)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1, make_loot(3));
+	pit->spawn_garbage(chain_rc, 6, 2, make_loot(12));
 
 	pit->shrink(combo_gb);
 

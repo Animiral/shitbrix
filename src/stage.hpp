@@ -180,18 +180,39 @@ class Garbage : public Physical
 
 public:
 
-	Garbage(RowCol rc, int columns, int rows);
+	/**
+	 * Construct a Garbage block of the given dimensions.
+	 * When dissolved row-by-row, new blocks emerge.
+	 * @param rc bottom-left corner coordinate of the garbage
+	 * @param columns number of columns occupied by garbage
+	 * @param rows number of rows occupied by garbage
+	 * @param loot vector of blocks hidden in the garbage, size == columns*rows.
+	 */
+	Garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loot);
 	virtual ~Garbage() noexcept =default;
 
 	virtual int rows() const noexcept override { return m_rows; }
 	virtual int columns() const noexcept override { return m_columns; }
 
-	int shrink() { return --m_rows; }
+	/**
+	 * Read the blocks that can be freed next from this garbage by dissolving it.
+	 * The returned iterator points to one color for each column from left to right.
+	 * The iterator becomes invalid when the garbage shrinks.
+	 */
+	std::vector<Block::Color>::const_iterator loot() const;
+
+	/**
+	 * Reduce the size of the garbage by one row as it is being dissolved.
+	 * The eliminated row is always the bottom one.
+	 * @return the number of remaining rows
+	 */
+	int shrink() noexcept;
 
 private:
 
-	int m_columns;  // width of this garbage in blocks
-	int m_rows;     // height of this garbage in blocks
+	int m_columns;  //!< width of this garbage in blocks
+	int m_rows;     //!< height of this garbage in blocks
+	std::vector<Block::Color> m_loot; //!< row-major: bottom-to-top, left-to-right
 
 };
 
@@ -269,7 +290,7 @@ public:
 	 *
 	 * @return a reference to the created Garbage
 	 */
-	Garbage& spawn_garbage(RowCol rc, int columns, int rows);
+	Garbage& spawn_garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loot);
 
 	/**
 	 * Return true if it is acceptable to move the object
