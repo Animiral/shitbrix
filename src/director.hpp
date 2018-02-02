@@ -7,7 +7,7 @@
 #include "gameevent.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
-#include <set>
+#include <unordered_set>
 
 /**
  * Maintains a sequence of block colors spawned deterministically out of an
@@ -60,17 +60,25 @@ class MatchBuilder
 private:
 
 	/**
-	 * Helper struct to enable a std::set of blocks and garbage
+	 * Hashing helper struct to enable a std::unordered_set of blocks and garbage
 	 */
-	struct PhysicalLess
+	struct PhysHash
 	{
-		bool operator()(const Physical& lhs, const Physical& rhs) const { return lhs.rc() < rhs.rc(); }
+		size_t operator()(const Physical& phys) const noexcept { return RowColHash{}(phys.rc()); }
+	};
+
+	/**
+	 * Equality helper struct to enable a std::unordered_set of blocks and garbage
+	 */
+	struct PhysEqual
+	{
+		bool operator()(const Physical& lhs, const Physical& rhs) const noexcept { return lhs.rc() == rhs.rc(); }
 	};
 
 public:
 
-	using BlockSet = std::set<std::reference_wrapper<Block>, PhysicalLess>;
-	using GarbageSet = std::set<std::reference_wrapper<Garbage>, PhysicalLess>;
+	using BlockSet = std::unordered_set<std::reference_wrapper<Block>, PhysHash, PhysEqual>;
+	using GarbageSet = std::unordered_set<std::reference_wrapper<Garbage>, PhysHash, PhysEqual>;
 
 	MatchBuilder(const Pit& pit) : pit(pit), m_chaining(false) {}
 

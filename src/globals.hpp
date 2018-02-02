@@ -162,11 +162,15 @@ struct RowCol
 {
 	int r, c;
 
-	// Order function required e.g. by std::map to use as key type.
-	// Sorts bottom-to-top.
-	bool operator<(const RowCol& rhs) const { return (r == rhs.r) ? c > rhs.c : r > rhs.r; }
-
 	bool operator==(const RowCol& rhs) const { return r == rhs.r && c == rhs.c; }
+};
+
+/**
+ * Hash function for @c RowCol to use with `std::unordered_map`.
+ */
+struct RowColHash
+{
+	size_t operator()(RowCol rc) const noexcept { return (rc.c << 16) + rc.r; }
 };
 
 std::ostream& operator<<(std::ostream& stream, RowCol rc);

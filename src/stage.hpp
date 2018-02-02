@@ -9,7 +9,7 @@
 #include "globals.hpp"
 #include <memory>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <random>
 
 /**
@@ -361,7 +361,7 @@ public:
 
 private:
 
-	using PhysMap = std::map<RowCol, Physical*>;
+	using PhysMap = std::unordered_map<RowCol, Physical*, RowColHash>;
 
 	Point m_loc;     // draw location, upper left corner
 	bool m_enabled;  // whether or not to scroll the pit on update()
