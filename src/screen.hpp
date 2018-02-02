@@ -188,6 +188,7 @@ class GameScreen : public IScreen, public IReplaySink
 public:
 
 	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio);
+	virtual ~GameScreen() noexcept;
 
 	const long& game_time() const { return m_game_time; }
 	void reset();

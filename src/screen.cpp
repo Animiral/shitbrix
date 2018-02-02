@@ -198,6 +198,15 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, Dr
 	reset();
 }
 
+GameScreen::~GameScreen() noexcept
+{
+	// The phase object holds a reference to this. To guarantee safe access
+	// from the destructor of the phase, we must destroy it before this
+	// GameScreen becomes invalid.
+	m_next_phase.reset();
+	m_game_phase.reset();
+}
+
 void GameScreen::reset()
 {
 	m_draw.clear();
