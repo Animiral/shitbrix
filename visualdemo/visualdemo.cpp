@@ -7,39 +7,34 @@
  * required to run the game scenario and display it.
  * Supports ESC for quitting, SPACE for pause/unpause, CTRL for framestep.
  */
-#include "sdl_context.hpp"
+#include <SDL.h>
 #include "draw.hpp"
 #include "stage.hpp"
 #include "director.hpp"
+#include <cassert>
 #include <sstream>
+
+// don't use SDL main macro
+#undef main
 
 class VisualDemo
 {
 
 public:
 
-	void SetUp()
+	VisualDemo(Pit& pit, IDraw& draw, BlockDirector& director)
+		: m_pit(pit), m_draw(draw), m_director(director)
+	{}
+
+	void put_block(RowCol rc, Block::Color color = Block::Color::BLUE, Block::State state = Block::State::REST)
 	{
-		pit = std::make_unique<Pit>(LPIT_LOC);
-		cursor = std::make_unique<Cursor>(RowCol{3,3});
-
-		dummy_pit = std::make_unique<Pit>(RPIT_LOC);
-		dummy_cursor = std::make_unique<Cursor>(RowCol{3,3});
-
-		const int SEED = 0;
-		rndgen = std::make_shared<std::mt19937>(SEED);
-		director = std::make_unique<BlockDirector>(*pit, rndgen);
-
-		m_draw = std::make_unique<DrawGame>(context);
-		m_draw->add_pit(*pit, *cursor);
-		m_draw->add_pit(*dummy_pit, *dummy_cursor); // same thing twice for debug
-		m_draw->show_cursors(false);
+		m_pit.spawn_block(color, rc, state);
 	}
 
-	// virtual void TearDown() {}
+	//! Create some blocks to work with
+	void common_setup();
 
-	void common_setup(); // creates some blocks to work with, like BlockDirectorTest::SetUp()
-
+	void scenario_panic();
 	void scenario_dissolve_garbage();
 	void scenario_match_horizontal();
 	void scenario_fall_after_shrink();
@@ -47,82 +42,78 @@ public:
 
 private:
 
-	SdlContext context;
-	std::unique_ptr<Pit> pit;
-	std::unique_ptr<Cursor> cursor;
+	struct InputFlags
+	{
+		bool pause, step, abort;
+	};
 
-	std::unique_ptr<Pit> dummy_pit;
-	std::unique_ptr<Cursor> dummy_cursor;
-
-	RndGen rndgen;
-	std::unique_ptr<BlockDirector> director;
-	std::unique_ptr<DrawGame> m_draw;
+	Pit& m_pit;
+	IDraw& m_draw;
+	BlockDirector& m_director;
+	SDL_Color m_indicator = {0, 0, 0, 0};
+	InputFlags m_input{true, true, false};
 
 	const Uint32 SLEEP_MS = 50; // 20 FPS
 
-	void draw()
+	static void input(InputFlags& flags)
 	{
-		context.drawGfx(Point{0,0}, Gfx::BACKGROUND);
-		m_draw->draw_all();
-		context.render();
-	}
-
-	void input(bool& abort, bool& pause, bool& step)
-	{
-		abort = false;
-		step = false;
-
 		SDL_Event event;
+
+		flags.step = false;
 
 		while(SDL_PollEvent(&event)) {
 			switch(event.type) {
 
-			case SDL_QUIT:
-				abort = true;
-				break;
+			case SDL_QUIT: flags.abort = true; break;
 
 			case SDL_KEYDOWN:
 				if(!event.key.repeat) {
 					switch(event.key.keysym.sym) {
-						case SDLK_ESCAPE:
-							abort = true;
-							break;
-
-						case SDLK_SPACE:
-							pause = !pause;
-							break;
-
-						case SDLK_LCTRL:
-							step = true;
-							break;
+						case SDLK_ESCAPE: flags.abort = !flags.abort; break;
+						case SDLK_SPACE: flags.pause = !flags.pause; break;
+						case SDLK_LCTRL: flags.step = true; break;
 					}
-					// ControllerInput input = key_to_controller();
-
-					// if(input.button != Button::NONE)
-					// 	m_sink.input(input);
 				}
 				break;
 			}
 		}
 	}
 
+	//! Signal to the user that some important point
+	//! has been reached in the current scenario
+	void checkpoint() noexcept
+	{
+		if(!m_indicator.r) { m_indicator.r = 255; return; }
+		if(!m_indicator.g) { m_indicator.g = 255; return; }
+		if(!m_indicator.b) { m_indicator.b = 255; return; }
+		if(!m_indicator.a) { m_indicator.a = 255; return; }
+	}
+
 	void run_game_ticks(int ticks)
 	{
-		bool pause = false;
-		bool step = false;
+		SDL_Renderer& renderer = Sdl::instance().renderer();
+		SDL_Rect indicator_rect{400, 20, 40, 40};
 
 		for(int t = 0; t < ticks; t++) {
-			if(pause && !step) {
+			if(m_input.pause && !m_input.step) {
 				t--;
 			} else {
-				pit->update(context);
-				director->update();
-				draw();
+				m_pit.update();
+				m_director.update();
+
+				// clear for next frame
+				int render_result = SDL_RenderClear(&renderer);
+				game_assert(0 == render_result, SDL_GetError());
+				m_draw.draw_offscreen(0); // leave finale open for us to draw our indicator
+				SDL_SetRenderDrawColor(&renderer, m_indicator.r, m_indicator.g, m_indicator.b, SDL_ALPHA_OPAQUE);
+				SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_NONE);
+				SDL_RenderFillRect(&renderer, &indicator_rect); // draw indicator
+				SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_ADD);
+				SDL_RenderPresent(&renderer); // finish rendering
 			}
 
-			bool abort = false;
-			input(abort, pause, step);
-			if(abort)
+			input(m_input);
+			if(m_input.abort)
 				return;
 
 			SDL_Delay(SLEEP_MS);
@@ -130,58 +121,79 @@ private:
 	}
 };
 
+struct DemoFactory
+{
+	StageBuilder m_builder;
+	std::unique_ptr<Stage> m_stage;
+	BlocksQueue m_queue;
+	std::unique_ptr<BlockDirector> m_director;
+	Assets m_assets;
+	DrawGame m_draw;
+
+	DemoFactory() :
+		m_queue(0),
+		m_assets(),
+		m_draw(m_assets)
+	{
+	}
+
+	VisualDemo construct()
+	{
+		assert(!m_stage);
+		m_stage = m_builder.construct();
+		Pit& pit = *m_builder.left_pit;
+		m_draw.add_pit(pit, *m_builder.left_cursor, *m_builder.left_banner, *m_builder.left_bonus);
+		m_director = std::make_unique<BlockDirector>(pit, m_queue);
+		return VisualDemo(pit, m_draw, *m_director);
+	}
+};
+
 void VisualDemo::common_setup()
 {
 	// 1 preview row, 2 normal rows, 1 half row, match-ready
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, RowCol{0, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::PURPLE, RowCol{0, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::ORANGE, RowCol{0, 5}, Block::State::REST);
+	put_block({0, 0}, Block::Color::BLUE);
+	put_block({0, 1}, Block::Color::RED);
+	put_block({0, 2}, Block::Color::YELLOW);
+	put_block({0, 3}, Block::Color::GREEN);
+	put_block({0, 4}, Block::Color::PURPLE);
+	put_block({0, 5}, Block::Color::ORANGE);
 
-	pit->spawn_block(Block::Color::ORANGE, RowCol{-1, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{-1, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-1, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, RowCol{-1, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::PURPLE, RowCol{-1, 5}, Block::State::REST);
+	put_block({-1, 0}, Block::Color::ORANGE);
+	put_block({-1, 1}, Block::Color::BLUE);
+	put_block({-1, 2}, Block::Color::RED);
+	put_block({-1, 3}, Block::Color::YELLOW);
+	put_block({-1, 4}, Block::Color::GREEN);
+	put_block({-1, 5}, Block::Color::PURPLE);
 
-	pit->spawn_block(Block::Color::BLUE, RowCol{-2, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-2, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-2, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, RowCol{-2, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::PURPLE, RowCol{-2, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::ORANGE, RowCol{-2, 5}, Block::State::REST);
+	put_block({-2, 0}, Block::Color::BLUE);
+	put_block({-2, 1}, Block::Color::RED);
+	put_block({-2, 2}, Block::Color::YELLOW);
+	put_block({-2, 3}, Block::Color::GREEN);
+	put_block({-2, 4}, Block::Color::PURPLE);
+	put_block({-2, 5}, Block::Color::ORANGE);
 
-	pit->spawn_block(Block::Color::RED, RowCol{-3, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
+	put_block({-3, 2}, Block::Color::RED);
+	put_block({-3, 3}, Block::Color::YELLOW);
+	put_block({-3, 4}, Block::Color::GREEN);
 }
 
 void VisualDemo::scenario_dissolve_garbage()
 {
 	common_setup();
 
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	std::vector<Block::Color> loot{12, Block::Color::GREEN};
+	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, 6, 2, move(loot)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
-	RowCol lrc = RowCol{-2,2};
-	RowCol rrc = RowCol{-2,3};
-	auto& left_block = *pit->block_at(lrc);
-	auto& right_block = *pit->block_at(rrc);
-
 	// 3 in a row
-	left_block.swap_toward(rrc);
-	right_block.swap_toward(lrc);
-	pit->swap(left_block, right_block);
+	m_director.swap({-2,2});
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
-	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
 	run_game_ticks(DISSOLVE_T);
 
 	// signal to user that test-case time is up
-	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+	checkpoint();
 
 	const int DEMO_T = 500; // observation ticks
 	run_game_ticks(DEMO_T);
@@ -191,30 +203,29 @@ void VisualDemo::scenario_match_horizontal()
 {
 	common_setup();
 
-	pit->spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
-	const RowCol swap_target_rc{-4,1};
-	director->swap(swap_target_rc);
+	m_pit.spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
+	m_pit.spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
+	m_director.swap({-4,1});
 
 	// wait until block has swapped above the gap
-	const int SWAP_T = Block::SWAP_TIME;
+	const int SWAP_T = SWAP_TIME;
 	run_game_ticks(SWAP_T);
 
 	// signal to user that test-case time is up
-	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+	checkpoint();
 
 	// wait until block lands and matches
-	const int FALL_T = std::ceil(static_cast<float>(BLOCK_H)/FALL_SPEED);
+	const int FALL_T = (BLOCK_H + FALL_SPEED - 1) / FALL_SPEED;
 	run_game_ticks(FALL_T);
 
 	// signal to user that test-case time is up
-	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,4}, Block::State::REST);
+	checkpoint();
 
-	const int BREAK_T = Block::BREAK_TIME;
+	const int BREAK_T = BREAK_TIME;
 	run_game_ticks(BREAK_T);
 
 	// signal to user that test-case time is up
-	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,5}, Block::State::REST);
+	checkpoint();
 
 	const int DEMO_T = 200; // observation ticks
 	run_game_ticks(DEMO_T);
@@ -224,29 +235,22 @@ void VisualDemo::scenario_fall_after_shrink()
 {
 	common_setup();
 
-	RowCol garbage_rc{-6,0};
-	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2); // chain garbage
+	std::vector<Block::Color> loot{12, Block::Color::GREEN};
+	auto& garbage = m_pit.spawn_garbage({-6,0}, 6, 2, move(loot)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// vertical match just under the garbage
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
-
-	RowCol lrc = RowCol{-3,2};
-	RowCol rrc = RowCol{-3,3};
-	auto& left_block = *pit->block_at(lrc);
-	auto& right_block = *pit->block_at(rrc);
+	m_pit.spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
 
 	// 3 in a row
-	left_block.swap_toward(rrc);
-	right_block.swap_toward(lrc);
-	pit->swap(left_block, right_block);
+	m_director.swap({-3,2});
 
 	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
-	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME + 2;
+	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
 	run_game_ticks(DISSOLVE_T);
 
 	// signal to user that test-case time is up
-	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+	checkpoint();
 
 	const int DEMO_T = 500; // observation ticks
 	run_game_ticks(DEMO_T);
@@ -257,16 +261,25 @@ void VisualDemo::scenario_chaining_garbage()
 	common_setup();
 
 	const int GARBAGE_COLS = 6;
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
+	std::vector<Block::Color> loot{GARBAGE_COLS*2, Block::Color::GREEN};
+	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2, move(loot)); // chain garbage
 	garbage.set_state(Physical::State::REST);
-	director->swap(RowCol{-2,2}); // match yellow blocks vertically
+	m_director.swap({-2,2}); // match yellow blocks vertically
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
-	const int DISSOLVE_T = Block::SWAP_TIME + Garbage::DISSOLVE_TIME;
+	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME;
 	run_game_ticks(DISSOLVE_T);
 
 	// signal to user that test-case time is up
-	dummy_pit->spawn_block(Block::Color::PURPLE, RowCol{-5,3}, Block::State::REST);
+	checkpoint();
+
+	const int DEMO_T = 500; // observation ticks
+	run_game_ticks(DEMO_T);
+}
+
+void VisualDemo::scenario_panic()
+{
+	common_setup();
 
 	const int DEMO_T = 500; // observation ticks
 	run_game_ticks(DEMO_T);
@@ -320,11 +333,11 @@ private:
 
 };
 
-int main(int argc, const char* argv[])
+int main(int argc, char* argv[])
 {
-	Options options(argc, argv);
-	VisualDemo demo;
-	demo.SetUp();
+	Options options(argc, const_cast<const char**>(argv));
+	DemoFactory mkvd;
+	VisualDemo demo(mkvd.construct());
 
 	switch(options.scenario_nr()) {
 		default:
@@ -343,5 +356,11 @@ int main(int argc, const char* argv[])
 		case 3:
 			demo.scenario_chaining_garbage();
 			break;
+
+		case 4:
+			demo.scenario_panic();
+			break;
 	}
+
+	return 0;
 }
