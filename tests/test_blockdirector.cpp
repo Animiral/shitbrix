@@ -391,8 +391,12 @@ TEST_F(BlockDirectorTest, PanicSimple)
 	// time it takes for the orange block to reach the top of the pit
 	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
 
+	// discover more blocks and fix them not to match instantly
+	run_game_ticks(1);
+	pit->block_at({1, 2})->col = Block::Color::GREEN;
+
 	// moment before panic
-	run_game_ticks(TIME_TO_FULL);
+	run_game_ticks(TIME_TO_FULL-1);
 	ASSERT_FALSE(director->is_panic());
 	ASSERT_FALSE(director->over());
 
@@ -428,10 +432,11 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	// time it takes for the orange block to reach the top of the pit
 	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
 
-	// time point when we manipulate the blocks to cause a match
-	const int DELAY = 3;
+	// discover more blocks and fix them not to match instantly
+	run_game_ticks(1);
+	pit->block_at({1, 2})->col = Block::Color::GREEN;
 
-	run_game_ticks(TIME_TO_FULL);
+	run_game_ticks(TIME_TO_FULL - 1);
 	ASSERT_FALSE(director->is_panic());
 	ASSERT_FALSE(director->over());
 
@@ -439,6 +444,9 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	run_game_ticks(1);
 	EXPECT_TRUE(director->is_panic());
 	ASSERT_FALSE(director->over());
+
+	// time point when we manipulate the blocks to cause a match
+	const int DELAY = 3;
 
 	// observe the blocks start matching
 	// panic is active, but panic time is paused as long as the blocks are dissolving
