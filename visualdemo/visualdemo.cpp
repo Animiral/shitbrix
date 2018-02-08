@@ -281,6 +281,34 @@ void VisualDemo::scenario_panic()
 {
 	common_setup();
 
+	// complete the test scenario with a block pillar almost to the top
+	put_block(RowCol{-4, 3}, Block::Color::RED);
+	put_block(RowCol{-5, 3}, Block::Color::YELLOW);
+	put_block(RowCol{-6, 3}, Block::Color::GREEN);
+	put_block(RowCol{-7, 3}, Block::Color::PURPLE);
+	put_block(RowCol{-8, 3}, Block::Color::ORANGE);
+
+	// time it takes for the orange block to reach the top of the pit
+	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
+
+	// discover more blocks and fix them not to match instantly
+	run_game_ticks(1);
+	m_pit.block_at({1, 2})->col = Block::Color::GREEN;
+
+	// moment before panic
+	run_game_ticks(TIME_TO_FULL-1);
+	checkpoint();
+
+	// enter panic
+
+	// before panic depleted
+	run_game_ticks(PANIC_TIME);
+	checkpoint();
+
+	// really over
+	run_game_ticks(1);
+	checkpoint();
+
 	const int DEMO_T = 500; // observation ticks
 	run_game_ticks(DEMO_T);
 }
