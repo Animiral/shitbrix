@@ -400,16 +400,12 @@ std::string make_journal_file()
 	using clock = std::chrono::system_clock;
 	auto now = clock::now();
 	std::time_t time_now = clock::to_time_t(now);
-	struct tm ltime;
+	struct tm ltime = *std::localtime(&time_now);
+	game_assert(0 == errno, "Failed to get current localtime.");
 
-	if (localtime_s(&ltime, &time_now)) {
-		std::ostringstream stream;
-		stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
-		return stream.str();
-	}
-	else {
-		return "replay/default.txt";
-	}
+	std::ostringstream stream;
+	stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
+	return stream.str();
 }
 
 int opponent(int player)
