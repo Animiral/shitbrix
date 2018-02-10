@@ -476,6 +476,26 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	EXPECT_TRUE(director->over());
 }
 
+/**
+ * Tests whether physicals above a dissolved garbage correctly fall down.
+ */
+TEST_F(BlockDirectorTest, GarbageDissolveFall)
+{
+	// complete the test scenario with a block pillar almost to the top
+	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1, {6, Block::Color::BLUE});
+	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 0}, Block::State::REST);
+
+	garbage.set_state(Physical::State::BREAK, DISSOLVE_TIME);
+
+	// finish dissolving
+	run_game_ticks(DISSOLVE_TIME);
+
+	// the block above is now falling down
+	EXPECT_EQ(pit->at({-4, 0}), &block);
+	EXPECT_FALSE(pit->at({-5, 0}));
+	EXPECT_EQ(block.physical_state(), Physical::State::FALL);
+}
+
 
 namespace
 {

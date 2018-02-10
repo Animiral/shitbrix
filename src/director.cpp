@@ -551,6 +551,14 @@ void examine_finish(Pit& pit, GarbOutIt dissolvers, PhysOutIt fallers,
 			// shrink garbage if necessary
 			if(Physical::State::BREAK == garbage->physical_state() && is_arriving) {
 				*dissolvers++ = *garbage;
+
+				if(garbage->rows() <= 1) {
+					RowCol rc = garbage->rc();
+					rc.r--;
+					for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
+						trigger_falls(pit, {rc.r, c}, fallers, true);
+					}
+				}
 			}
 		}
 
