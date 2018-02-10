@@ -81,7 +81,7 @@ TEST_F(BlockDirectorTest, LandAndMatch)
 	auto& mid_block = spawn_falling_block(*pit, Block::Color::RED, RowCol{-5, 2});
 
 	// wait until blocks landed and match
-	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT)*2/FALL_SPEED);
+	const int FALL_T = (ROW_HEIGHT * 2 + FALL_SPEED - 1) / FALL_SPEED;
 	run_game_ticks(FALL_T);
 
 	EXPECT_EQ(Block::State::BREAK, top_block.block_state());
@@ -121,7 +121,7 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
 	EXPECT_EQ(Block::State::FALL, fall_block.block_state());
 
 	// wait until block lands and matches
-	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED);
+	const int FALL_T = (ROW_HEIGHT + FALL_SPEED - 1) / FALL_SPEED;
 	// EXPECT_EQ(FALL_T, fall_block.time); // NOTE: falling does not run on time (yet)
 	run_game_ticks(FALL_T-1);
 	EXPECT_EQ(Block::State::FALL, fall_block.block_state());
@@ -245,7 +245,7 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 	bool swapping = false;
 
 	const int SWAP_T = SWAP_TIME;
-	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED);
+	const int FALL_T = (ROW_HEIGHT + FALL_SPEED - 1) / FALL_SPEED;
 	const int LAND_MOMENT = std::max(SWAP_T, FALL_T) + 1;
 	const int SWAP_START = LAND_MOMENT - SWAP_T;
 	const int SPAWN_MOMENT = LAND_MOMENT - FALL_T - 1;
@@ -302,7 +302,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 	EXPECT_EQ(Block::State::FALL, red_block->block_state());
 	EXPECT_TRUE(red_block->chaining);
 
-	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT*3) / FALL_SPEED);
+	const int FALL_T = (ROW_HEIGHT * 3 + FALL_SPEED - 1) / FALL_SPEED;
 	run_game_ticks(FALL_T);
 	expected_rc = RowCol{0,2};
 	EXPECT_EQ(expected_rc, red_block->rc());
@@ -359,7 +359,7 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 
 	ASSERT_EQ(Block::State::FALL, red_block->block_state());
 
-	const int FALL_T = std::ceil(static_cast<float>(ROW_HEIGHT*2)/FALL_SPEED) + 1;
+	const int FALL_T = (ROW_HEIGHT * 2 + FALL_SPEED - 1) / FALL_SPEED + 1;
 	run_game_ticks(FALL_T);
 
 	RowCol expected_rc{0,2};
