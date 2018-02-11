@@ -221,6 +221,17 @@ BlockDirector::BlockDirector(Pit& pit, BlocksQueue grow_queue)
 
 void BlockDirector::update()
 {
+	// TODO: This function is ripe for refactoring.
+	//
+	// It allocates and deallocates memory every frame, which could be eliminated.
+	// The names of the helper functions are nondescriptive and inconsistent (handle_*)
+	// Helper return values use out parameters.
+	//
+	// Measures:
+	// 1. Instead of out parameters, bundle helper results in dedicated structs.
+	// 2. Amend class Physical, Garbage and Block with “tag” fields to be used as markers by this logic.
+	// 3. Define filter iterators to pick out all the marked objects with no memory overhead.
+	// 4. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
 	using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
 	using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
 	using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;

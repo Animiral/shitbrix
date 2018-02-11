@@ -163,6 +163,9 @@ private:
 
 	Pit& pit;
 	evt::IGameEvent* m_handler;
+
+	// TODO: All this is game state and belongs in a separate class to facilitate syncs and rollbacks.
+	//       For simplicity, I can probably burden the Pit with them.
 	int m_chain; //!< chain counter
 	int m_panic; //!< panic time pool; the player has this many ticks left until game over
 	bool m_over; // whether the game is over (the player with this Director loses)
