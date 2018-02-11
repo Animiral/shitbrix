@@ -489,8 +489,9 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
  */
 TEST_F(BlockDirectorTest, GarbageDissolveFall)
 {
-	// complete the test scenario with a block pillar almost to the top
-	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1, {6, Block::Color::BLUE});
+	// complete the test scenario
+	std::vector<Block::Color> loot(PIT_COLS, Block::Color::BLUE);
+	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1, move(loot));
 	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 0}, Block::State::REST);
 
 	garbage.set_state(Physical::State::BREAK, DISSOLVE_TIME);
