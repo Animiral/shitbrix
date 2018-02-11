@@ -485,6 +485,28 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 }
 
 /**
+ * Tests whether garbage blocks above another falling garbage block correctly fall down
+ */
+TEST_F(BlockDirectorTest, AboveGarbageFall)
+{
+	// complete the test scenario
+	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
+	Garbage& bottom_garbage = pit->spawn_garbage({-6, 0}, PIT_COLS, 2, {PIT_COLS * 2, Block::Color::BLUE});
+	Garbage& top_garbage = pit->spawn_garbage({-8, 0}, PIT_COLS, 2, {PIT_COLS * 2, Block::Color::BLUE});
+
+	block.set_state(Physical::State::BREAK, 1);
+
+	// block should now disappear and everything fall at once
+	run_game_ticks(1);
+
+	// the block above is now falling down
+	EXPECT_EQ(bottom_garbage.physical_state(), Physical::State::FALL);
+	EXPECT_EQ(bottom_garbage.rc().r, -5);
+	EXPECT_EQ(top_garbage.physical_state(), Physical::State::FALL);
+	EXPECT_EQ(top_garbage.rc().r, -7);
+}
+
+/**
  * Tests whether physicals above a dissolved garbage correctly fall down.
  */
 TEST_F(BlockDirectorTest, GarbageDissolveFall)
