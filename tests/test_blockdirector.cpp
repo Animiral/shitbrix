@@ -504,6 +504,35 @@ TEST_F(BlockDirectorTest, GarbageDissolveFall)
 	EXPECT_EQ(block.physical_state(), Physical::State::FALL);
 }
 
+/**
+ * Tests implementation of recovery time.
+ */
+TEST_F(BlockDirectorTest, RecoveryTime)
+{
+	// complete the test scenario with some blocks ready to match
+	pit->spawn_block(Block::Color::PURPLE, {-3, 5}, Block::State::REST);
+	pit->spawn_block(Block::Color::BLUE, {-4, 2}, Block::State::REST);
+	pit->spawn_block(Block::Color::BLUE, {-4, 3}, Block::State::REST);
+	pit->spawn_block(Block::Color::BLUE, {-4, 5}, Block::State::REST);
+
+	RowCol match_rc{-4, 4};
+	Block& block = pit->spawn_block(Block::Color::BLUE, match_rc, Block::State::REST);
+	block.set_state(Block::State::FALL);
+
+	// execute match
+	run_game_ticks(1);
+	ASSERT_EQ(block.physical_state(), Physical::State::BREAK);
+
+	// finish breaking
+	run_game_ticks(BREAK_TIME);
+	EXPECT_FALSE(pit->at(match_rc)); // block is gone
+	EXPECT_EQ(director->recovery(), 1.); // recovery starts
+
+	// stop recovery
+	run_game_ticks(RECOVERY_TIME);
+	ASSERT_LE(director->recovery(), 0); // recovery is over
+}
+
 
 namespace
 {

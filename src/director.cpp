@@ -213,6 +213,7 @@ BlockDirector::BlockDirector(Pit& pit, BlocksQueue grow_queue)
 : pit(pit),
   m_handler(nullptr),
   m_chain(0),
+  m_recovery(0),
   m_panic(PANIC_TIME),
   m_over(false),
   m_raise(false),
@@ -291,12 +292,18 @@ void BlockDirector::update()
 	if(chaining)
 		m_chain++;
 
+	if(chaining || combo > 3)
+		m_recovery = BREAK_TIME + RECOVERY_TIME;
+	else if(m_recovery > 0)
+		m_recovery--;
+
 	bool pit_chaining = false;  // true if there is any block in the pit currently chaining
 	bool breaking = false;      // true if there is any physical in the pit currently breaking
 	bool pit_full = false;      // true if some resting object overflows the pit
 
 	examine_pit(pit, pit_chaining, breaking, pit_full);
 
+	// close current chain
 	if(chainstop && m_handler && !pit_chaining) {
 		m_handler->fire(evt::Chain{m_chain});
 		m_chain = 0;
@@ -304,7 +311,7 @@ void BlockDirector::update()
 
 	// panic time and game over check
 	if(pit_full) {
-		if(!pit_chaining && !breaking) {
+		if(!pit_chaining && !breaking && m_recovery <= 0) {
 			m_panic--;
 			if(m_panic < 0 && !debug_no_gameover)
 				m_over = true;
@@ -314,7 +321,7 @@ void BlockDirector::update()
 		m_panic = PANIC_TIME; // un-panic
 	}
 
-	if(pit_chaining || breaking || pit_full)
+	if(pit_chaining || breaking || pit_full || m_recovery > 0)
 		pit.stop();
 	else
 		pit.start();
