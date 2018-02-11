@@ -15,6 +15,14 @@ namespace
  */
 Block& spawn_falling_block(Pit& pit, Block::Color color, RowCol from);
 
+/**
+ * Return true if the game is in panic state.
+ */
+bool is_panic(const BlockDirector& director) noexcept
+{
+	return director.panic() < 1.;
+}
+
 }
 
 class BlockDirectorTest : public ::testing::Test
@@ -397,22 +405,22 @@ TEST_F(BlockDirectorTest, PanicSimple)
 
 	// moment before panic
 	run_game_ticks(TIME_TO_FULL-1);
-	ASSERT_FALSE(director->is_panic());
+	ASSERT_FALSE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// enter panic
 	run_game_ticks(1);
-	ASSERT_TRUE(director->is_panic());
+	ASSERT_TRUE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// before panic depleted
 	run_game_ticks(PANIC_TIME - 1);
-	ASSERT_TRUE(director->is_panic());
+	ASSERT_TRUE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// really over
 	run_game_ticks(1);
-	ASSERT_TRUE(director->is_panic());
+	ASSERT_TRUE(is_panic(*director));
 	ASSERT_TRUE(director->over());
 }
 
@@ -437,12 +445,12 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	pit->block_at({1, 2})->col = Block::Color::GREEN;
 
 	run_game_ticks(TIME_TO_FULL - 1);
-	ASSERT_FALSE(director->is_panic());
+	ASSERT_FALSE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// enter panic time
 	run_game_ticks(1);
-	EXPECT_TRUE(director->is_panic());
+	EXPECT_TRUE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// time point when we manipulate the blocks to cause a match
@@ -462,17 +470,17 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	// the block breaks and vanishes
 	run_game_ticks(BREAK_TIME);
 	ASSERT_FALSE(pit->block_at({-5, 4}));
-	EXPECT_TRUE(director->is_panic());
+	EXPECT_TRUE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// now we have that much more time until game over
 	run_game_ticks(PANIC_TIME - DELAY - 2);
-	EXPECT_TRUE(director->is_panic());
+	EXPECT_TRUE(is_panic(*director));
 	ASSERT_FALSE(director->over());
 
 	// but it runs out eventually
 	run_game_ticks(1);
-	EXPECT_TRUE(director->is_panic());
+	EXPECT_TRUE(is_panic(*director));
 	EXPECT_TRUE(director->over());
 }
 

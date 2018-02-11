@@ -128,7 +128,6 @@ public:
 	 */
 	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
-	bool is_panic() const noexcept { return m_panic < PANIC_TIME; }
 	float panic() const noexcept { return static_cast<float>(m_panic) / PANIC_TIME; }
 	bool over() const { return m_over; }
 
