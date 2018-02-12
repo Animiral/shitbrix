@@ -186,15 +186,12 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
  * All physicals in the *fallers* set now actually enter the *fall*
  * state if possible.
  * Successful fallers can not match and therefore have TAG_HOT removed.
- * Since the actual container is generic, the contents are merely rearranged
- * using std::remove. The new end iterator output must be used by the
- * client to actually erase those items.
  *
  * @param pit Pit object
  * @param fallers Set of Physical objects that might fall
  */
-template<typename Fallers, typename PhysOutIt>
-void handle_fallers(Pit& pit, Fallers& fallers, PhysOutIt landers);
+template<typename Fallers>
+void handle_fallers(Pit& pit, Fallers& fallers);
 
 /**
  * All matching blocks and all adjacent garbage bricks enter the *break* state.
@@ -240,7 +237,6 @@ void BlockDirector::update()
 	BlockRefVec previews;     // blocks which are fresh spawns and currently inactive
 	GarbageRefVec dissolvers; // blocks which are shrinking or dying
 	PhysicalRefVec fallers;   // objects which we want to start falling soon
-	PhysicalRefVec landers;   // objects which have landed on something else to stop their fall
 
 	bool dead_physical = false; // true if some physical has entered terminal state
 	bool dead_block = false;    // true if pit needs to clean up
@@ -272,11 +268,12 @@ void BlockDirector::update()
 	if(dead_sound && m_handler)
 		m_handler->fire(evt::BlockDies());
 
-	handle_fallers(pit, fallers, std::back_inserter(landers));
+	handle_fallers(pit, fallers);
 
-	if(m_handler)
-		for(const Physical& lander : landers)
-			m_handler->fire(evt::PhysicalLands{lander});
+	if(m_handler) {
+		for_all(pit, Physical::TAG_LAND, [this](const Physical& p) {
+			m_handler->fire(evt::PhysicalLands{p}); });
+	}
 
 	bool have_match = false;
 	bool chaining = false;
@@ -654,8 +651,8 @@ void convert_garbage(Pit& pit, Dissolvers& dissolvers, PhysOutIt fallers,
 		dead_physical = true;
 }
 
-template<typename Fallers, typename PhysOutIt>
-void handle_fallers(Pit& pit, Fallers& fallers, PhysOutIt landers)
+template<typename Fallers>
+void handle_fallers(Pit& pit, Fallers& fallers)
 {
 	bool changed = true;
 	auto begin = std::begin(fallers);
@@ -695,7 +692,7 @@ void handle_fallers(Pit& pit, Fallers& fallers, PhysOutIt landers)
 
 		if(Physical::State::FALL == state) {
 			physical.set_state(Physical::State::LAND, LAND_TIME);
-			*landers++ = physical;
+			physical.set_tag(Physical::TAG_LAND);
 		}
 		else {
 			physical.set_state(Physical::State::REST);
