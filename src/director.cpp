@@ -91,14 +91,25 @@ void MatchBuilder::insert(RowCol rc)
 	m_chaining |= match_block->chaining;
 }
 
-// elemental game logic functions
+// elemental game logic functions and helpers
 namespace
 {
 
 /**
- * Put a block of the specified color at the specified location in @c REST state.
+ * Run the given function on every piece of type P in the Pit.
  */
-Block& spawn_block(Pit& pit, RowCol rc, Block::Color color);
+template<typename P = Physical, typename Pit = ::Pit, typename Func>
+void for_all(Pit& pit, Physical::Tag tag, Func func)
+{
+	auto& contents = pit.contents();
+	for(auto it = contents.begin(), e = contents.end(); it != e; ++it)
+	{
+		auto& physical = **it;
+		P* p = dynamic_cast<P*>(&physical);
+		if(p && physical.has_tag(tag))
+			func(*p);
+	}
+}
 
 /**
  * Put a block of random color at the specified location in @c PREVIEW state.
@@ -247,6 +258,8 @@ void BlockDirector::update()
 	bool dead_block = false;    // true if pit needs to clean up
 	bool dead_sound = false;    // true if there was at least one non-fake dead
 	bool chainstop = false;     // true if the pit should be examined for chain finish
+
+	pit.untag_all();
 
 	bool new_row = spawn_previews(pit, std::back_inserter(hots), m_grow_queue);
 

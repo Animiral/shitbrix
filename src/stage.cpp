@@ -302,6 +302,12 @@ void Pit::remove_dead()
 		refresh_peak();
 }
 
+void Pit::untag_all() noexcept
+{
+	for(auto& physical : m_contents)
+		physical->clear_tags();
+}
+
 Garbage* Pit::shrink(Garbage& garbage)
 {
 	RowCol rc = garbage.rc();

@@ -11,6 +11,7 @@
 #include <vector>
 #include <unordered_map>
 #include <random>
+#include <cassert>
 
 /**
  * Base class for game objects that can be placed in the Pit.
@@ -28,6 +29,10 @@ public:
 	 */
 	enum class State { DEAD, REST, FALL, LAND, BREAK, X1, X2, X3 };
 
+	/**
+	 * Flags for tagging the Physical during logic update.
+	 */
+	enum Tag { TAG_NONE = 0, TAG_FALL = 1, TAG_HOT = 2, TAG_DISSOLVE = 4, TAG_LAND = 8, TAG_ANY = 15 };
 
 	Physical(RowCol rc, State state);
 	virtual ~Physical() noexcept =default;
@@ -82,10 +87,19 @@ public:
 	 */
 	void continue_state(int time_bonus) noexcept;
 
+	bool has_tag(Tag tag) const noexcept { return m_tag & tag; }
+
+	void set_tag(Tag tag) noexcept { m_tag = static_cast<Tag>(m_tag | tag); }
+
+	void un_tag(Tag tag) noexcept { m_tag = static_cast<Tag>(m_tag & ~tag); }
+
+	void clear_tags() noexcept { m_tag = TAG_NONE; }
+
 protected:
 
 	RowCol m_rc;    //!< row/col position, - is UP, + is DOWN
 	State m_state;  //!< current state
+	Tag m_tag;      //!< informational tags bitfield
 
 	/**
 	 * Template method for subclass tick update implementation.
@@ -315,6 +329,11 @@ public:
 	 * Caution! This may invalidate all existing references to Physicals in the Pit.
 	 */
 	void remove_dead();
+
+	/**
+	 * Remove all tags from all physicals in the pit.
+	 */
+	void untag_all() noexcept;
 
 	/**
 	 * Reduce the size of the referenced Garbage by one row from the bottom.
