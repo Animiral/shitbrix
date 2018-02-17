@@ -135,14 +135,6 @@ void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sou
 			// shrink garbage if necessary
 			if(Physical::State::BREAK == garbage->physical_state() && is_arriving) {
 				garbage->set_tag(Physical::TAG_DISSOLVE);
-
-				if(garbage->rows() <= 1) {
-					RowCol rc = garbage->rc();
-					rc.r--;
-					for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
-						trigger_falls({rc.r, c}, true);
-					}
-				}
 			}
 		}
 
@@ -212,11 +204,15 @@ void Logic::convert_garbage() const
 		bool survived = m_pit.shrink(garbage) > 0;
 
 		for(int c = 0; c < garbage_columns; c++) {
+			// extract loot into bottom row of garbage
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
 			Block& block = m_pit.spawn_block(loot[c], block_rc, Block::State::REST);
 			block.chaining = true;
 			block.set_tag(Physical::TAG_FALL);
 			block.set_tag(Physical::TAG_HOT);
+
+			// consider falling for everything above garbage
+			trigger_falls({garbage_rc.r - 1, c}, true);
 		}
 
 		if(survived) {
