@@ -33,6 +33,7 @@ protected:
 	virtual void SetUp()
 	{
 		pit = std::make_unique<Pit>(Point{0,0});
+		logic = std::make_unique<Logic>(*pit);
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
 		pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
@@ -61,7 +62,7 @@ protected:
 		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 
 		const int SEED = 0;
-		director = std::make_unique<BlockDirector>(*pit, BlocksQueue(SEED));
+		director = std::make_unique<BlockDirector>(*pit, *logic, BlocksQueue(SEED));
 	}
 
 	// virtual void TearDown() {}
@@ -75,6 +76,7 @@ protected:
 	}
 
 	std::unique_ptr<Pit> pit;
+	std::unique_ptr<Logic> logic;
 	std::unique_ptr<BlockDirector> director;
 
 };
@@ -512,7 +514,7 @@ TEST_F(BlockDirectorTest, AboveGarbageFall)
 TEST_F(BlockDirectorTest, GarbageDissolveFall)
 {
 	// complete the test scenario
-	std::vector<Block::Color> loot(PIT_COLS, Block::Color::BLUE);
+	Loot loot(PIT_COLS, Block::Color::BLUE);
 	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1, move(loot));
 	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 0}, Block::State::REST);
 

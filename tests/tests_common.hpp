@@ -9,4 +9,4 @@
 /**
  * Create a deterministic collection of block colors for use in garbage construction.
  */
-std::vector<Block::Color> make_loot(size_t amount);
+Loot make_loot(size_t amount);

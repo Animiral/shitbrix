@@ -126,6 +126,7 @@ struct DemoFactory
 	StageBuilder m_builder;
 	std::unique_ptr<Stage> m_stage;
 	BlocksQueue m_queue;
+	std::unique_ptr<Logic> m_logic;
 	std::unique_ptr<BlockDirector> m_director;
 	Assets m_assets;
 	DrawGame m_draw;
@@ -143,7 +144,8 @@ struct DemoFactory
 		m_stage = m_builder.construct();
 		Pit& pit = *m_builder.left_pit;
 		m_draw.add_pit(pit, *m_builder.left_cursor, *m_builder.left_banner, *m_builder.left_bonus);
-		m_director = std::make_unique<BlockDirector>(pit, m_queue);
+		m_logic = std::make_unique<Logic>(pit);
+		m_director = std::make_unique<BlockDirector>(pit, *m_logic, m_queue);
 		return VisualDemo(pit, m_draw, *m_director);
 	}
 };
@@ -181,7 +183,7 @@ void VisualDemo::scenario_dissolve_garbage()
 {
 	common_setup();
 
-	std::vector<Block::Color> loot{12, Block::Color::GREEN};
+	Loot loot{12, Block::Color::GREEN};
 	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, 6, 2, move(loot)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
@@ -235,7 +237,7 @@ void VisualDemo::scenario_fall_after_shrink()
 {
 	common_setup();
 
-	std::vector<Block::Color> loot{12, Block::Color::GREEN};
+	Loot loot{12, Block::Color::GREEN};
 	auto& garbage = m_pit.spawn_garbage({-6,0}, 6, 2, move(loot)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
@@ -261,7 +263,7 @@ void VisualDemo::scenario_chaining_garbage()
 	common_setup();
 
 	const int GARBAGE_COLS = 6;
-	std::vector<Block::Color> loot{GARBAGE_COLS*2, Block::Color::GREEN};
+	Loot loot{GARBAGE_COLS*2, Block::Color::GREEN};
 	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2, move(loot)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	m_director.swap({-2,2}); // match yellow blocks vertically

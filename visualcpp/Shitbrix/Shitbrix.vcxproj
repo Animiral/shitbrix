@@ -81,6 +81,7 @@
     <ClInclude Include="..\..\src\game_loop.hpp" />
     <ClInclude Include="..\..\src\globals.hpp" />
     <ClInclude Include="..\..\src\input.hpp" />
+    <ClInclude Include="..\..\src\logic.hpp" />
     <ClInclude Include="..\..\src\options.hpp" />
     <ClInclude Include="..\..\src\replay.hpp" />
     <ClInclude Include="..\..\src\screen.hpp" />
@@ -94,6 +95,7 @@
     <ClCompile Include="..\..\src\game_loop.cpp" />
     <ClCompile Include="..\..\src\globals.cpp" />
     <ClCompile Include="..\..\src\input.cpp" />
+    <ClCompile Include="..\..\src\logic.cpp" />
     <ClCompile Include="..\..\src\options.cpp" />
     <ClCompile Include="..\..\src\replay.cpp" />
     <ClCompile Include="..\..\src\screen.cpp" />

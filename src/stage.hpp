@@ -184,6 +184,11 @@ int operator-(Block::Color lhs, Block::Color rhs) noexcept;
 bool y_greater(const Block& lhs, const Block& rhs) noexcept;
 
 /**
+ * Type of the blocks hidden in a Garbage brick for the player to break and discover.
+ */
+using Loot = std::vector<Block::Color>;
+
+/**
  * Garbage block.
  * This block is a bit like the common blocks in that it occupies some space
  * in the pit. Garbage blocks span multiple spaces. They never spawn from the
@@ -202,7 +207,7 @@ public:
 	 * @param rows number of rows occupied by garbage
 	 * @param loot vector of blocks hidden in the garbage, size == columns*rows.
 	 */
-	Garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loot);
+	Garbage(RowCol rc, int columns, int rows, Loot loot);
 	virtual ~Garbage() noexcept =default;
 
 	virtual int rows() const noexcept override { return m_rows; }
@@ -213,7 +218,7 @@ public:
 	 * The returned iterator points to one color for each column from left to right.
 	 * The iterator becomes invalid when the garbage shrinks.
 	 */
-	std::vector<Block::Color>::const_iterator loot() const;
+	Loot::const_iterator loot() const;
 
 	/**
 	 * Reduce the size of the garbage by one row as it is being dissolved.
@@ -226,7 +231,7 @@ private:
 
 	int m_columns;  //!< width of this garbage in blocks
 	int m_rows;     //!< height of this garbage in blocks
-	std::vector<Block::Color> m_loot; //!< row-major: bottom-to-top, left-to-right
+	Loot m_loot; //!< row-major: bottom-to-top, left-to-right
 
 };
 
@@ -262,6 +267,21 @@ public:
 	 * Full access to the const Pit’s contents.
 	 */
 	const PhysVec& contents() const noexcept { return m_contents; }
+
+	/**
+	 * Run the given function on every piece of type P in the Pit.
+	 */
+	template<typename P = Physical, typename Func>
+	void for_all(Physical::Tag tag, Func func) const
+	{
+		for(auto it = m_contents.begin(), e = m_contents.end(); it != e; ++it)
+		{
+			auto& physical = **it;
+			P* p = dynamic_cast<P*>(&physical);
+			if(p && physical.has_tag(tag))
+				func(*p);
+		}
+	}
 
 	/**
 	 * Return the object contained in the Pit at the given location.
@@ -304,7 +324,7 @@ public:
 	 *
 	 * @return a reference to the created Garbage
 	 */
-	Garbage& spawn_garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loot);
+	Garbage& spawn_garbage(RowCol rc, int columns, int rows, Loot loot);
 
 	/**
 	 * Return true if it is acceptable to move the object

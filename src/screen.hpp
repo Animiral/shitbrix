@@ -10,6 +10,7 @@
 #include "stage.hpp"
 #include "draw.hpp"
 #include "audio.hpp"
+#include "logic.hpp"
 #include "director.hpp"
 #include "replay.hpp"
 #include "options.hpp"
@@ -208,8 +209,8 @@ private:
 	struct PlayerObjects
 	{
 		PlayerObjects(unsigned seed, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
-		: block_director(pit, BlocksQueue(seed)), cursor_director(pit, cursor),
-		  event_hub(), garbage_throw(other_pit, BlocksQueue(seed*3)), bonus_throw(bonus)
+		: logic(pit), block_director(pit, logic, BlocksQueue(seed)), cursor_director(pit, cursor),
+		  event_hub(), garbage_throw(logic, BlocksQueue(seed*3)), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
 			event_hub.append(garbage_throw);
@@ -222,6 +223,7 @@ private:
 		PlayerObjects& operator=(const PlayerObjects& ) = delete;
 		PlayerObjects& operator=(PlayerObjects&& ) = delete;
 
+		Logic logic;
 		BlockDirector block_director;
 		CursorDirector cursor_director;
 		evt::GameEventHub event_hub;

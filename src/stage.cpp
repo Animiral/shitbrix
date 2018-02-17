@@ -137,7 +137,7 @@ bool y_greater(const Block& lhs, const Block& rhs) noexcept
 }
 
 
-Garbage::Garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loot)
+Garbage::Garbage(RowCol rc, int columns, int rows, Loot loot)
 	: Physical(rc, State::REST),
 	m_columns(columns),
 	m_rows(rows),
@@ -148,7 +148,7 @@ Garbage::Garbage(RowCol rc, int columns, int rows, std::vector<Block::Color> loo
 	SDL_assert(loot.size() == columns * rows);
 }
 
-std::vector<Block::Color>::const_iterator Garbage::loot() const
+Loot::const_iterator Garbage::loot() const
 {
 	SDL_assert(m_rows > 0);
 	return m_loot.begin();
@@ -216,7 +216,7 @@ Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 	return *raw_block;
 }
 
-Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, std::vector<Block::Color> loot)
+Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
 {
 	// make sure the Garbage fits in the Pit
 	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");

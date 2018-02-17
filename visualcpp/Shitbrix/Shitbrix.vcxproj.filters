@@ -54,6 +54,9 @@
     <ClInclude Include="..\..\src\stage.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\logic.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\director.cpp">
@@ -87,6 +90,9 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\stage.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\logic.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

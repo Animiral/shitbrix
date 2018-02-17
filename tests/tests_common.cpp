@@ -4,9 +4,9 @@
 
 #include "tests_common.hpp"
 
-std::vector<Block::Color> make_loot(size_t amount)
+Loot make_loot(size_t amount)
 {
-	std::vector<Block::Color> loot;
+	Loot loot;
 	while(loot.size() < amount) {
 		loot.insert(loot.end(), {Block::Color::BLUE, Block::Color::RED, Block::Color::YELLOW, Block::Color::GREEN, Block::Color::PURPLE, Block::Color::ORANGE});
 	}

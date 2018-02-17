@@ -5,9 +5,9 @@
 
 #include "stage.hpp"
 #include "gameevent.hpp"
+#include "logic.hpp"
 #include <SDL2/SDL_assert.h>
 #include <algorithm>
-#include <unordered_set>
 
 /**
  * Maintains a sequence of block colors spawned deterministically out of an
@@ -49,67 +49,6 @@ private:
 };
 
 /**
- * Examines the pit for matching blocks from a sequence of “hot” blocks
- * which have just been moved or landed. They are passed to the MatchBuilder via ignite(). 
- * Returns all detected matching blocks (3 or more in a row from a hot block) in result().
- * The combo() specifies the number of blocks resolved at the same time.
- */
-class MatchBuilder
-{
-
-private:
-
-	/**
-	 * Hashing helper struct to enable a std::unordered_set of blocks and garbage
-	 */
-	struct PhysHash
-	{
-		size_t operator()(const Physical& phys) const noexcept { return RowColHash{}(phys.rc()); }
-	};
-
-	/**
-	 * Equality helper struct to enable a std::unordered_set of blocks and garbage
-	 */
-	struct PhysEqual
-	{
-		bool operator()(const Physical& lhs, const Physical& rhs) const noexcept { return lhs.rc() == rhs.rc(); }
-	};
-
-public:
-
-	using BlockSet = std::unordered_set<std::reference_wrapper<Block>, PhysHash, PhysEqual>;
-	using GarbageSet = std::unordered_set<std::reference_wrapper<Garbage>, PhysHash, PhysEqual>;
-
-	MatchBuilder(const Pit& pit) : pit(pit), m_chaining(false) {}
-
-	void ignite(Block& block);
-	const BlockSet& result() { return m_result; }
-
-	/**
-	 * For each block in the result set of the MatchBuilder,
-	 * examine the adjacent locations for Garbage blocks.
-	 * The set of garbage bricks found in this manner is marked
-	 * and available via @ref touched_garbage.
-	 */
-	void find_touch_garbage();
-	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
-
-	int combo() { return static_cast<int>(m_result.size()); }
-	bool chaining() { return m_chaining; }
-
-private:
-
-	const Pit& pit;
-	BlockSet m_result;
-	bool m_chaining;
-	GarbageSet m_touched_garbage;
-
-	bool match_at(RowCol rc, Block::Color color);
-	void insert(RowCol rc);
-
-};
-
-/**
  * Spawns and removes stuff to and from the stage.
  * The BlockDirector implements game-logical interactions between objects which these
  * objects cannot handle on their own.
@@ -121,7 +60,7 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, BlocksQueue grow_queue);
+	BlockDirector(Pit& pit, Logic& logic, BlocksQueue grow_queue);
 
 	/**
 	 * Set the handler for game events from this director.
@@ -163,6 +102,7 @@ public:
 private:
 
 	Pit& pit;
+	Logic& m_logic;
 	evt::IGameEvent* m_handler;
 
 	// TODO: All this is game state and belongs in a separate class to facilitate syncs and rollbacks.
@@ -224,8 +164,8 @@ class GarbageThrow : public evt::IGameEvent
 
 public:
 
-	GarbageThrow(Pit& pit, BlocksQueue emerge_queue)
-	: m_pit(pit), m_emerge_queue(std::move(emerge_queue))
+	GarbageThrow(const Logic& logic, BlocksQueue emerge_queue)
+	: m_logic(logic), m_emerge_queue(std::move(emerge_queue))
 	{}
 
 	virtual void fire(evt::Match event) override;
@@ -233,7 +173,7 @@ public:
 
 private:
 
-	Pit& m_pit;
+	const Logic& m_logic;
 	BlocksQueue m_emerge_queue; //< generator for blocks spawning from dissolved garbage
 
 	void spawn(int columns, int rows, bool right_side);
