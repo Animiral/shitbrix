@@ -78,11 +78,9 @@ void BlockDirector::update()
 	//
 	// Measures:
 	// 1. Instead of out parameters, bundle helper results in dedicated structs.
-	// 2. Amend class Physical, Garbage and Block with “tag” fields to be used as markers by this logic.
-	// 3. Define filter iterators to pick out all the marked objects with no memory overhead.
+	// 2. Amend class Physical, Garbage and Block with “tag” fields to be used as markers by this logic. (done)
+	// 3. Define filter iterators to pick out all the marked objects with no memory overhead. (done in for_all)
 	// 4. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
-	PhysicalRefVec fallers;   // objects which we want to start falling soon
-
 	bool dead_physical = false; // true if some physical has entered terminal state
 	bool dead_block = false;    // true if pit needs to clean up
 	bool dead_sound = false;    // true if there was at least one non-fake dead
@@ -96,19 +94,20 @@ void BlockDirector::update()
 	if(new_row && !m_raise)
 		pit.set_speed(SCROLL_SPEED);
 
-	m_logic.examine_finish(fallers, dead_physical, dead_block, dead_sound, chainstop);
+	m_logic.examine_finish(dead_physical, dead_block, dead_sound, chainstop);
 
 	auto& pit_contents = pit.contents();
 	const bool have_dissolvers = std::any_of(begin(pit_contents), end(pit_contents), [](const auto& p) { return p->has_tag(Physical::TAG_DISSOLVE); });
 	dead_physical |= have_dissolvers;
 
-	m_logic.convert_garbage(fallers);
+	m_logic.convert_garbage();
 
 	if(have_dissolvers && m_handler)
 		m_handler->fire(evt::GarbageDissolves());
 
-	for(Physical& phys : fallers)
-		game_assert(Physical::State::DEAD != phys.physical_state(), "dead blocks cannot fall");
+	pit.for_all(Physical::TAG_FALL, [](const Physical& physical) {
+		game_assert(Physical::State::DEAD != physical.physical_state(), "dead blocks cannot fall");
+	});
 
 	if(dead_block)
 		pit.remove_dead();
@@ -116,7 +115,7 @@ void BlockDirector::update()
 	if(dead_sound && m_handler)
 		m_handler->fire(evt::BlockDies());
 
-	m_logic.handle_fallers(fallers);
+	m_logic.handle_fallers();
 
 	if(m_handler) {
 		pit.for_all(Physical::TAG_LAND, [this](const Physical& p) {

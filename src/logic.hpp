@@ -84,13 +84,12 @@ public:
 	/**
 	 * Mark all objects at the given location and above as potentially falling.
 	 */
-	void trigger_falls(RowCol rc, PhysicalRefVec& fallers, bool chaining) const;
+	void trigger_falls(RowCol rc, bool chaining) const;
 
 	/**
 	 * Look at the pit contents and determine if any of the contents fulfill
 	 * specific criteria.
 	 *
-	 * @param[in] pit Pit object
 	 * @param[out] chaining whether any block is currently marked as chaining
 	 * @param[out] breaking whether any block is currently being dissolved
 	 * @param[out] full whether any resting physical is up against the pit top
@@ -102,31 +101,25 @@ public:
 	 * For example, an object’s internal timer can run out while they are falling,
 	 * indicating that they have reached their target location.
 	 *
-	 * @param fallers Output container for objects that may fall down
 	 * @param[out] dead_physical Flag which indicates true if there are new dead physicals
 	 * @param[out] dead_block Flag which indicates true if there are new dead blocks
 	 * @param[out] dead_sound Flag which indicates true if there are non-fake dead blocks
 	 * @param[out] chainstop Flag which indicates true if a chain might be finished
 	 */
-	void examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
-	                    bool& dead_block, bool& dead_sound, bool& chainstop) const;
+	void examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sound, bool& chainstop) const;
 
 	/**
 	 * Shrink or remove expired garbage blocks.
-	 *
-	 * @param fallers Output container for objects that may fall down
+	 * As a result, some physicals may be tagged with TAG_FALL.
 	 */
-	void convert_garbage(PhysicalRefVec& fallers) const;
+	void convert_garbage() const;
 
 	/**
-	 * All physicals in the *fallers* set now actually enter the *fall*
+	 * All physicals tagged with TAG_FALL now actually enter the *fall*
 	 * state if possible.
 	 * Successful fallers can not match and therefore have TAG_HOT removed.
-	 *
-	 * @param pit Pit object
-	 * @param fallers Set of Physical objects that might fall
 	 */
-	void handle_fallers(PhysicalRefVec& fallers) const;
+	void handle_fallers() const;
 
 	/**
 	 * All matching blocks and all adjacent garbage bricks enter the *break* state.

@@ -78,7 +78,7 @@ void Logic::throw_garbage(int columns, int rows, Loot loot, bool right_side) con
 	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 
-void Logic::trigger_falls(RowCol rc, PhysicalRefVec& fallers, bool chaining) const
+void Logic::trigger_falls(RowCol rc, bool chaining) const
 {
 	Physical* physical = m_pit.at(rc);
 
@@ -90,11 +90,11 @@ void Logic::trigger_falls(RowCol rc, PhysicalRefVec& fallers, bool chaining) con
 	if(Block* block = dynamic_cast<Block*>(physical))
 		block->chaining |= chaining;
 
-	fallers.emplace_back(*physical);
+	physical->set_tag(Physical::TAG_FALL);
 
 	rc = physical->rc();
 	for(int c = rc.c; c < rc.c + physical->columns(); c++) {
-		trigger_falls(RowCol{rc.r - 1, c}, fallers, chaining);
+		trigger_falls(RowCol{rc.r - 1, c}, chaining);
 	}
 }
 
@@ -111,8 +111,7 @@ void Logic::examine_pit(bool& chaining, bool& breaking, bool& full) const noexce
 	full = m_pit.is_full();
 }
 
-void Logic::examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
-                           bool& dead_block, bool& dead_sound, bool& chainstop) const
+void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sound, bool& chainstop) const
 {
 	for(auto& physical : m_pit.contents())
 	{
@@ -126,7 +125,7 @@ void Logic::examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
 			// Re-enter the object as a candidate for falling and hots.
 			// Since falling blocks are automatically excluded from hots,
 			// this only takes effect with blocks that actually land.
-			fallers.emplace_back(*physical);
+			physical->set_tag(Physical::TAG_FALL);
 			if(Block* block = dynamic_cast<Block*>(&*physical))
 				block->set_tag(Physical::TAG_HOT);
 		}
@@ -141,7 +140,7 @@ void Logic::examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
 					RowCol rc = garbage->rc();
 					rc.r--;
 					for(int c = rc.c; c < rc.c + garbage->columns(); c++) {
-						trigger_falls({rc.r, c}, fallers, true);
+						trigger_falls({rc.r, c}, true);
 					}
 				}
 			}
@@ -162,7 +161,7 @@ void Logic::examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
 					state = block->block_state(); // NOTE: remember changed state!
 				}
 				else {
-					fallers.emplace_back(*block);
+					block->set_tag(Physical::TAG_FALL);
 					block->set_tag(Physical::TAG_HOT);
 
 					above_fall = true;
@@ -189,13 +188,13 @@ void Logic::examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
 			if(above_fall) {
 				RowCol rc = block->rc();
 				rc.r--;
-				trigger_falls(rc, fallers, chaining);
+				trigger_falls(rc, chaining);
 			}
 		}
 	}
 }
 
-void Logic::convert_garbage(PhysicalRefVec& fallers) const
+void Logic::convert_garbage() const
 {
 	std::vector<std::reference_wrapper<Garbage>> converts;
 
@@ -216,29 +215,26 @@ void Logic::convert_garbage(PhysicalRefVec& fallers) const
 			RowCol block_rc{garbage_rc.r + garbage_rows - 1, garbage_rc.c + c};
 			Block& block = m_pit.spawn_block(loot[c], block_rc, Block::State::REST);
 			block.chaining = true;
-			fallers.emplace_back(block);
+			block.set_tag(Physical::TAG_FALL);
 			block.set_tag(Physical::TAG_HOT);
 		}
 
 		if(survived) {
 			// get rid of the break state, it stops the pit from scrolling
 			garbage.set_state(Physical::State::REST);
-			fallers.emplace_back(garbage);
+			garbage.set_tag(Physical::TAG_FALL);
 		}
 	}
 }
 
-void Logic::handle_fallers(PhysicalRefVec& fallers) const
+void Logic::handle_fallers() const
 {
 	bool changed = true;
-	auto begin = std::begin(fallers);
-	auto end = std::end(fallers);
 
 	while(changed) {
 		changed = false;
 
-		for(auto it = begin; it != end; ) {
-			Physical& physical = *it;
+		m_pit.for_all(Physical::TAG_FALL, [this, &changed](Physical& physical) {
 			if(m_pit.can_fall(physical)) {
 				// If the object is already falling, we do not wish to throw
 				// away the slice of their time in which they already fell
@@ -252,18 +248,14 @@ void Logic::handle_fallers(PhysicalRefVec& fallers) const
 				m_pit.fall(physical);
 
 				// erase the element from our consideration of fallers
-				std::swap(*it, *--end);
+				physical.un_tag(Physical::TAG_FALL);
 
 				changed = true;
 			}
-			else {
-				++it;
-			}
-		}
+		});
 	}
 
-	for(auto it = begin; it != end; ++it) {
-		Physical& physical = *it;
+	m_pit.for_all(Physical::TAG_FALL, [](Physical& physical) {
 		Physical::State state = physical.physical_state();
 
 		if(Physical::State::FALL == state) {
@@ -273,7 +265,7 @@ void Logic::handle_fallers(PhysicalRefVec& fallers) const
 		else {
 			physical.set_state(Physical::State::REST);
 		}
-	}
+	});
 
 	// blocks cannot match if they are falling down!
 	auto& contents = m_pit.contents();
