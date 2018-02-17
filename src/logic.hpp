@@ -102,25 +102,21 @@ public:
 	 * For example, an object’s internal timer can run out while they are falling,
 	 * indicating that they have reached their target location.
 	 *
-	 * @param dissolvers Output container for Garbage that is breaking down
 	 * @param fallers Output container for objects that may fall down
 	 * @param[out] dead_physical Flag which indicates true if there are new dead physicals
 	 * @param[out] dead_block Flag which indicates true if there are new dead blocks
 	 * @param[out] dead_sound Flag which indicates true if there are non-fake dead blocks
 	 * @param[out] chainstop Flag which indicates true if a chain might be finished
 	 */
-	void examine_finish(GarbageRefVec& dissolvers, PhysicalRefVec& fallers, bool& dead_physical,
+	void examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
 	                    bool& dead_block, bool& dead_sound, bool& chainstop) const;
 
 	/**
-	 * Shrink or remove expired garbage blocks from the *dissolvers* set.
+	 * Shrink or remove expired garbage blocks.
 	 *
-	 * @param pit Pit object
-	 * @param dissolvers Set of broken Garbage bricks to dissolve
 	 * @param fallers Output container for objects that may fall down
 	 */
-	void convert_garbage(GarbageRefVec& dissolvers, PhysicalRefVec& fallers,
-	                     bool& dead_physical) const;
+	void convert_garbage(PhysicalRefVec& fallers) const;
 
 	/**
 	 * All physicals in the *fallers* set now actually enter the *fall*

@@ -111,7 +111,7 @@ void Logic::examine_pit(bool& chaining, bool& breaking, bool& full) const noexce
 	full = m_pit.is_full();
 }
 
-void Logic::examine_finish(GarbageRefVec& dissolvers, PhysicalRefVec& fallers, bool& dead_physical,
+void Logic::examine_finish(PhysicalRefVec& fallers, bool& dead_physical,
                            bool& dead_block, bool& dead_sound, bool& chainstop) const
 {
 	for(auto& physical : m_pit.contents())
@@ -135,7 +135,7 @@ void Logic::examine_finish(GarbageRefVec& dissolvers, PhysicalRefVec& fallers, b
 		if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
 			// shrink garbage if necessary
 			if(Physical::State::BREAK == garbage->physical_state() && is_arriving) {
-				dissolvers.emplace_back(*garbage);
+				garbage->set_tag(Physical::TAG_DISSOLVE);
 
 				if(garbage->rows() <= 1) {
 					RowCol rc = garbage->rc();
@@ -195,10 +195,16 @@ void Logic::examine_finish(GarbageRefVec& dissolvers, PhysicalRefVec& fallers, b
 	}
 }
 
-void Logic::convert_garbage(GarbageRefVec& dissolvers, PhysicalRefVec& fallers,
-                            bool& dead_physical) const
+void Logic::convert_garbage(PhysicalRefVec& fallers) const
 {
-	for(Garbage& garbage : dissolvers) {
+	std::vector<std::reference_wrapper<Garbage>> converts;
+
+	// be careful not to iterate at the same time as we change contents
+	m_pit.for_all<Garbage>(Physical::TAG_DISSOLVE, [&converts](Garbage& garbage) {
+		converts.emplace_back(garbage);
+	});
+
+	for(Garbage& garbage : converts) {
 		RowCol garbage_rc = garbage.rc();
 		int garbage_columns = garbage.columns();
 		int garbage_rows = garbage.rows();
@@ -220,9 +226,6 @@ void Logic::convert_garbage(GarbageRefVec& dissolvers, PhysicalRefVec& fallers,
 			fallers.emplace_back(garbage);
 		}
 	}
-
-	if(!dissolvers.empty())
-		dead_physical = true;
 }
 
 void Logic::handle_fallers(PhysicalRefVec& fallers) const

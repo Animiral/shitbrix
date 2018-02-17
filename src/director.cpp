@@ -81,8 +81,6 @@ void BlockDirector::update()
 	// 2. Amend class Physical, Garbage and Block with “tag” fields to be used as markers by this logic.
 	// 3. Define filter iterators to pick out all the marked objects with no memory overhead.
 	// 4. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
-	BlockRefVec previews;     // blocks which are fresh spawns and currently inactive
-	GarbageRefVec dissolvers; // blocks which are shrinking or dying
 	PhysicalRefVec fallers;   // objects which we want to start falling soon
 
 	bool dead_physical = false; // true if some physical has entered terminal state
@@ -98,12 +96,15 @@ void BlockDirector::update()
 	if(new_row && !m_raise)
 		pit.set_speed(SCROLL_SPEED);
 
-	m_logic.examine_finish(dissolvers, fallers,
-	                       dead_physical, dead_block, dead_sound, chainstop);
+	m_logic.examine_finish(fallers, dead_physical, dead_block, dead_sound, chainstop);
 
-	m_logic.convert_garbage(dissolvers, fallers, dead_physical);
+	auto& pit_contents = pit.contents();
+	const bool have_dissolvers = std::any_of(begin(pit_contents), end(pit_contents), [](const auto& p) { return p->has_tag(Physical::TAG_DISSOLVE); });
+	dead_physical |= have_dissolvers;
 
-	if(!dissolvers.empty() && m_handler)
+	m_logic.convert_garbage(fallers);
+
+	if(have_dissolvers && m_handler)
 		m_handler->fire(evt::GarbageDissolves());
 
 	for(Physical& phys : fallers)
