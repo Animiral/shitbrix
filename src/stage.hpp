@@ -99,7 +99,6 @@ protected:
 
 	RowCol m_rc;    //!< row/col position, - is UP, + is DOWN
 	State m_state;  //!< current state
-	Tag m_tag;      //!< informational tags bitfield
 
 	/**
 	 * Template method for subclass tick update implementation.
@@ -115,6 +114,7 @@ private:
 
 	int m_time;     //!< number of steps until we consider a state switch
 	int m_speed;    //!< number of steps per tick
+	Tag m_tag;      //!< informational tags bitfield
 
 };
 

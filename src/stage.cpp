@@ -11,7 +11,8 @@ Physical::Physical(RowCol rc, State state)
 : m_rc(rc),
   m_state(state),
   m_time(1),
-  m_speed(1)
+  m_speed(1),
+  m_tag(TAG_NONE)
 {
 	// exclude locations that are well-known to lie out of bounds
 	SDL_assert(rc.c >= 0 && rc.c < PIT_COLS);
