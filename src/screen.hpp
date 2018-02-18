@@ -210,7 +210,7 @@ private:
 	{
 		PlayerObjects(unsigned seed, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
 		: logic(pit), block_director(pit, logic, BlocksQueue(seed)), cursor_director(pit, cursor),
-		  event_hub(), garbage_throw(logic, BlocksQueue(seed*3)), bonus_throw(bonus)
+		  event_hub(), garbage_throw(other_pit, BlocksQueue(seed*3)), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
 			event_hub.append(garbage_throw);

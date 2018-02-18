@@ -268,8 +268,11 @@ void GarbageThrow::spawn(int columns, int rows, bool right_side)
 {
 	SDL_assert(columns > 0 && columns <= PIT_COLS);
 
+	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
+	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
 	Loot loot = pick_loot(m_emerge_queue, columns * rows);
-	m_logic.throw_garbage(columns, rows, move(loot), right_side);
+	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows, move(loot));
+	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 
 

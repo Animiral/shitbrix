@@ -68,16 +68,6 @@ void MatchBuilder::insert(RowCol rc)
 }
 
 
-void Logic::throw_garbage(int columns, int rows, Loot loot, bool right_side) const
-{
-	SDL_assert(columns > 0 && columns <= PIT_COLS);
-
-	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
-	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
-	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows, move(loot));
-	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
-}
-
 void Logic::trigger_falls(RowCol rc, bool chaining) const
 {
 	Physical* physical = m_pit.at(rc);

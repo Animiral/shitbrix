@@ -79,8 +79,6 @@ public:
 
 	Logic(Pit& pit) : m_pit(pit) {}
 
-	void throw_garbage(int columns, int rows, Loot loot, bool right_side) const;
-
 	/**
 	 * Mark all objects at the given location and above as potentially falling.
 	 */

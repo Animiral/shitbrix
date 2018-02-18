@@ -164,8 +164,8 @@ class GarbageThrow : public evt::IGameEvent
 
 public:
 
-	GarbageThrow(const Logic& logic, BlocksQueue emerge_queue)
-	: m_logic(logic), m_emerge_queue(std::move(emerge_queue))
+	GarbageThrow(Pit& pit, BlocksQueue emerge_queue)
+	: m_pit(pit), m_emerge_queue(std::move(emerge_queue))
 	{}
 
 	virtual void fire(evt::Match event) override;
@@ -173,7 +173,7 @@ public:
 
 private:
 
-	const Logic& m_logic;
+	Pit& m_pit;
 	BlocksQueue m_emerge_queue; //< generator for blocks spawning from dissolved garbage
 
 	void spawn(int columns, int rows, bool right_side);
