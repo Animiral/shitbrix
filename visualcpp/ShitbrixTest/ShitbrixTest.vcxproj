@@ -89,6 +89,7 @@
     <ClCompile Include="..\..\tests\test_block.cpp" />
     <ClCompile Include="..\..\tests\test_blockdirector.cpp" />
     <ClCompile Include="..\..\tests\test_gameevent.cpp" />
+    <ClCompile Include="..\..\tests\test_network.cpp" />
     <ClCompile Include="..\..\tests\test_pit.cpp" />
     <ClCompile Include="..\..\tests\test_replay.cpp" />
   </ItemGroup>
