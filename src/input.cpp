@@ -81,23 +81,8 @@ void Keyboard::poll()
 	}
 }
 
-
-GameInputMixer::GameInputMixer(IReplaySink& replay_sink, const char* replay_file)
-: m_game_sink(nullptr), m_replay_sink(replay_sink)
+std::optional<GameInput> controller_to_game(ControllerInput input) noexcept
 {
-	if(replay_file) {
-		replay_stream.open(replay_file);
-		replay = std::make_unique<Replay>(replay_stream);
-		*replay >> next_event;
-	}
-}
-
-void GameInputMixer::input(ControllerInput input)
-{
-	if(replay) return; // do not accept regular inputs during replay
-	if(NOONE == input.player) return; // do not accept non-player inputs
-	if(!m_game_sink) return; // no recipient registered
-
 	switch(input.button) {
 		case Button::LEFT:
 		case Button::RIGHT:
@@ -106,41 +91,13 @@ void GameInputMixer::input(ControllerInput input)
 		case Button::A:
 		case Button::B:
 			GameInput ginput;
+			ginput.game_time = GameInput::TIME_ASAP;
 			ginput.player = input.player; // TODO: properly map dev to player
 			ginput.button = static_cast<GameButton>(input.button);
 			ginput.action = input.action;
-			m_game_sink->input(ginput);
-			break;
+			return ginput;
 
-		// These buttons should not be used by any actual player nr
-		case Button::PAUSE:
-		case Button::RESET:
-		case Button::QUIT:
-		case Button::DEBUG1:
-		case Button::DEBUG2:
-		case Button::NONE:
 		default:
-			SDL_assert_paranoid(false);
-	}
-}
-
-void GameInputMixer::update(long game_time)
-{
-	if(replay) {
-		while(*replay &&                        // replay stream is intact
-		      !replay->eof() &&                 // more input is available
-		      game_time >= next_event.time()) { // it is time to handle this
-			if(m_game_sink && ReplayEvent::Type::INPUT == next_event.type()) {
-				m_game_sink->input(next_event.input());
-			}
-
-			m_replay_sink.handle(next_event);
-
-			if(ReplayEvent::Type::START == next_event.type()) {
-				game_time = 0;
-			}
-
-			*replay >> next_event;
-		}
+			return {};
 	}
 }

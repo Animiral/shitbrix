@@ -183,7 +183,7 @@ public:
 
 };
 
-class GameScreen : public IScreen, public IReplaySink
+class GameScreen : public IScreen, /* stupid hack which will be abolished as soon as we have class GameRecord to feed replay data to. */ private IReplaySink
 {
 
 public:
@@ -199,7 +199,6 @@ public:
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override;
-	virtual void handle(const ReplayEvent& event) override;
 
 private:
 
@@ -235,11 +234,11 @@ private:
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
 	bool m_pause; // true if tick updates are supressed
-	GameInputMixer input_mixer;
 
 	std::unique_ptr<IGamePhase> m_game_phase;
 	std::unique_ptr<IGamePhase> m_next_phase;
 
+	std::vector<GameInput> m_replay_inputs; /* hack before GameRecord */
 	std::ofstream replay_outstream;
 	Journal journal;
 
@@ -253,6 +252,9 @@ private:
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();
 	void seed(unsigned int rng_seed);
+
+	/* hack before GameRecord */
+	virtual void handle(const ReplayEvent& event) override;
 
 	/**
 	 * Pass on the update event to child objects.

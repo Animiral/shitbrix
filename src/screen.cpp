@@ -122,7 +122,7 @@ void GamePlay::update()
 
 void GamePlay::input(GameInput ginput)
 {
-	m_screen->journal << ReplayEvent::make_input(m_screen->m_game_time, ginput);
+	m_screen->journal << ReplayEvent::make_input(ginput);
 
 	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
 
@@ -171,7 +171,7 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 
 GameResult::~GameResult()
 {
-	m_screen->journal << ReplayEvent::make_end(m_screen->m_game_time);
+	m_screen->journal << ReplayEvent::make_end();
 }
 
 void GameResult::update()
@@ -183,14 +183,17 @@ void GameResult::update()
 
 GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio)
 : m_pause(false),
-  input_mixer(*this, replay_infile),
   replay_outstream(replay_outfile),
   journal(replay_outstream),
   m_draw(std::move(draw)),
   m_sound_relay(audio),
   m_shake_relay(m_draw)
 {
-	if(!replay_infile) {
+	if(replay_infile) {
+		std::ifstream stream(replay_infile);
+		replay_read(stream, *this); /* no GameRecord yet: read into *this */
+	}
+	else {
 		std::random_device rdev;
 		seed(rdev());
 	}
@@ -270,7 +273,21 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::DOWN:
 		case Button::A:
 		case Button::B:
-			input_mixer.input(cinput);
+		{
+			/* hack before GameRecord */
+			// This allows us even to interrupt a replay
+			if(!m_replay_inputs.empty()) {
+				if(ButtonAction::UP == cinput.action) break;
+				else m_replay_inputs.clear();
+			}
+
+			const std::optional<GameInput> oinput = controller_to_game(cinput);
+			if(oinput.has_value()) {
+				GameInput ginput = oinput.value();
+				ginput.game_time = m_game_time;
+				m_game_phase->input(ginput);
+			}
+		}
 			break;
 
 		case Button::PAUSE:
@@ -322,11 +339,11 @@ void GameScreen::input(ControllerInput cinput)
 
 void GameScreen::handle(const ReplayEvent& event)
 {
-	switch(event.type()) {
+	switch(event.type) {
 
 	case ReplayEvent::Type::SET:
-		if("rng_seed" == event.set_name()) {
-			std::istringstream stream(event.set_value());
+		if("rng_seed" == event.set_name) {
+			std::istringstream stream(event.set_value);
 			unsigned int rng_seed;
 			stream >> rng_seed;
 			seed(rng_seed);
@@ -337,15 +354,18 @@ void GameScreen::handle(const ReplayEvent& event)
 		break;
 
 	case ReplayEvent::Type::START:
+		m_replay_inputs.clear(); // replays are currently limited to 1/file (the last one)
 		reset();
 		break;
 
 	case ReplayEvent::Type::INPUT:
+		m_replay_inputs.push_back(event.input);
 		// ignore (mixer passes this to game phase)
 		break;
 
 	case ReplayEvent::Type::END:
-		m_done = true;
+		// m_done = true;
+		// ignore this for now
 		break;
 
 	}
@@ -358,13 +378,17 @@ void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
 
 void GameScreen::change_phase_impl()
 {
-	input_mixer.set_game_sink(m_next_phase.get());
 	m_game_phase = std::move(m_next_phase);
 }
 
 void GameScreen::update_impl()
 {
-	input_mixer.update(m_game_time);
+	/* hack before GameRecord */
+	for(const GameInput& input : m_replay_inputs) {
+		if(input.game_time == m_game_time)
+			m_game_phase->input(input);
+	}
+
 	m_game_phase->update();
 
 	if(m_next_phase)

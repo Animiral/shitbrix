@@ -136,7 +136,10 @@ struct ControllerInput
  */
 struct GameInput
 {
-	int player; // 0-based player index
+	static const long TIME_ASAP = -1; //!< this input should be part of the next update
+
+	long game_time;      //!< time when this input takes effect
+	int player;          //!< 0-based player index
 	GameButton button;
 	ButtonAction action;
 };

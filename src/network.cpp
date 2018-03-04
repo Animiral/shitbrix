@@ -14,7 +14,7 @@ void Mailbox::poll(Host& recipient)
 	case MsgType::INPUT:
 		{
 			// TODO: parse message.data
-			GameInput input{0, GameButton::SWAP, ButtonAction::DOWN};
+			GameInput input{GameInput::TIME_ASAP, 0, GameButton::SWAP, ButtonAction::DOWN};
 			recipient.input(input);
 		}
 		break;

@@ -7,46 +7,41 @@
 #include <cctype>
 #include <SDL2/SDL_assert.h>
 
-ReplayEvent ReplayEvent::make_set(std::string name, std::string value)
+ReplayEvent ReplayEvent::make_set(std::string name, std::string value) noexcept
 {
 	ReplayEvent event;
-	event.m_time = 0;
-	event.m_type = Type::SET;
-	event.m_set_name = name;
-	event.m_set_value = value;
-
+	event.type = Type::SET;
+	event.set_name = move(name);
+	event.set_value = value;
 	return event;
 }
 
-ReplayEvent ReplayEvent::make_start()
+ReplayEvent ReplayEvent::make_start() noexcept
 {
 	ReplayEvent event;
-	event.m_time = 0;
-	event.m_type = Type::START;
-	
+	event.type = Type::START;
 	return event;
 }
 
-ReplayEvent ReplayEvent::make_input(int time, GameInput input)
+ReplayEvent ReplayEvent::make_input(GameInput input) noexcept
 {
 	ReplayEvent event;
-	event.m_time = time;
-	event.m_type = Type::INPUT;
-	event.m_input = input;
-	
+	event.type = Type::INPUT;
+	event.input = input;
 	return event;
 }
 
-ReplayEvent ReplayEvent::make_end(int time)
+ReplayEvent ReplayEvent::make_end() noexcept
 {
 	ReplayEvent event;
-	event.m_time = time;
-	event.m_type = Type::END;
-	
+	event.type = Type::END;
 	return event;
 }
 
-const char* replay_event_type_string(ReplayEvent::Type type)
+namespace
+{
+
+const char* replay_event_type_string(ReplayEvent::Type type) noexcept
 {
 	switch(type) {
 		case ReplayEvent::Type::SET: return "set";
@@ -57,7 +52,7 @@ const char* replay_event_type_string(ReplayEvent::Type type)
 	}
 }
 
-const char* game_button_string(GameButton button)
+const char* game_button_string(GameButton button) noexcept
 {
 	switch(button) {
 		case GameButton::NONE: return "none";
@@ -71,7 +66,7 @@ const char* game_button_string(GameButton button)
 	}
 }
 
-const char* button_action_string(ButtonAction action)
+const char* button_action_string(ButtonAction action) noexcept
 {
 	switch(action) {
 		case ButtonAction::UP: return "up";
@@ -79,9 +74,6 @@ const char* button_action_string(ButtonAction action)
 		default: SDL_assert_paranoid(false); return nullptr;
 	}
 }
-
-namespace
-{
 
 ReplayEvent::Type string_to_replay_event_type(const std::string& str)
 {
@@ -112,26 +104,23 @@ ButtonAction string_to_button_action(const std::string& str)
 
 }
 
-Journal& Journal::operator<<(ReplayEvent event)
+Journal& Journal::operator<<(const ReplayEvent event)
 {
-	ReplayEvent::Type event_type = event.type();
+	const ReplayEvent::Type event_type = event.type;
 
-	m_stream << event.time() << " " << replay_event_type_string(event_type);
+	m_stream << replay_event_type_string(event_type);
 
 	switch(event_type) {
 		case ReplayEvent::Type::SET:
-			m_stream << " " << event.set_name() << " " << event.set_value();
+			m_stream << " " << event.set_name << " " << event.set_value;
 			break;
 
 		case ReplayEvent::Type::INPUT:
 			{
-				GameInput input = event.input();
-				int player = input.player;
-				GameButton button = input.button;
-				ButtonAction action = input.action;
-				m_stream << " " << player
-				         << " " << game_button_string(button)
-				         << " " << button_action_string(action);
+				m_stream << " " << event.input.game_time
+				         << " " << event.input.player
+				         << " " << game_button_string(event.input.button)
+				         << " " << button_action_string(event.input.action);
 			}
 			break;
 
@@ -144,15 +133,19 @@ Journal& Journal::operator<<(ReplayEvent event)
 	return *this;
 }
 
-Replay& Replay::operator>>(ReplayEvent& event)
+void replay_read(std::istream& stream, IReplaySink& sink)
 {
-	std::string line;
+	while(stream && (stream.eof() || stream.peek(), !stream.eof())) {
+		std::string line;
 
-	if(std::getline(m_stream, line)) {
-		int time;
+		if(!std::getline(stream, line)) {
+			throw GameException("Failed to read from replay.");
+		}
+
+		ReplayEvent event;
 		std::string type_str;
 		std::istringstream tokenizer(line);
-		tokenizer >> time >> type_str;
+		tokenizer >> type_str;
 
 		ReplayEvent::Type type = string_to_replay_event_type(type_str);
 
@@ -178,31 +171,32 @@ Replay& Replay::operator>>(ReplayEvent& event)
 
 		case ReplayEvent::Type::INPUT:
 			{
+				int game_time;
 				int player;
 				std::string button_str;
 				std::string action_str;
 
-				tokenizer >> player >> button_str >> action_str;
+				tokenizer >> game_time >> player >> button_str >> action_str;
 				GameButton button = string_to_game_button(button_str);
 				ButtonAction action = string_to_button_action(action_str);
-				GameInput input{player, button, action};
+				GameInput input{game_time, player, button, action};
 
-				event = ReplayEvent::make_input(time, input);
+				event = ReplayEvent::make_input(input);
 			}
 			break;
 
 		case ReplayEvent::Type::END:
-			event = ReplayEvent::make_end(time);
+			event = ReplayEvent::make_end();
 			break;
 
 		default:
 			SDL_assert_paranoid(false);
 
 		}
-	}
-	else {
-		throw GameException("Failed to read from replay.");
+
+		sink.handle(event);
 	}
 
-	return *this;
+	if(stream.bad())
+		throw GameException("Something went wrong in reading from replay.");
 }

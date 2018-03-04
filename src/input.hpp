@@ -6,7 +6,7 @@
 
 #include "globals.hpp"
 #include "replay.hpp"
-#include <fstream>
+#include <optional>
 #include <memory>
 
 /**
@@ -51,28 +51,8 @@ private:
 };
 
 /**
- * The GameInputMixer watches a variety of input sources such as
- * local controllers and replay files, as well as network players
- * (in the future).
- * From these inputs, it decides which ones are relevant and forwards
- * them to the appropriate sink.
- * For example, if a replay is being played back, the mixer ignores
- * regular controller inputs.
+ * Translate a controller input to a game input.
+ * Not all controller inputs are game inputs.
+ * If the controller input cannot be mapped, return an empty optional.
  */
-class GameInputMixer : public IControllerSink
-{
-
-public:
-	GameInputMixer(IReplaySink& replay_sink, const char* replay_file);
-	virtual void input(ControllerInput input) override;
-	void update(long game_time); // required for replay
-	void set_game_sink(IGameInputSink* game_sink) { m_game_sink = game_sink; }
-
-private:
-	IGameInputSink* m_game_sink;
-	IReplaySink& m_replay_sink;
-	std::ifstream replay_stream;
-	std::unique_ptr<Replay> replay; // optional
-	ReplayEvent next_event;
-
-};
+std::optional<GameInput> controller_to_game(ControllerInput input) noexcept;

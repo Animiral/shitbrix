@@ -11,37 +11,21 @@
 #include <string>
 #include <ostream>
 
-class ReplayEvent
+struct ReplayEvent
 {
-
-public:
-
 	enum class Type { SET, START, INPUT, END };
 
-	int time() const { return m_time; }
-	Type type() const { return m_type; }
-	std::string set_name() const { return m_set_name; }
-	std::string set_value() const { return m_set_value; }
-	GameInput input() const { return m_input; }
+	Type type;
+	std::string set_name;  //!< name of set target
+	std::string set_value; //!< value to set to
+	GameInput input;       //!< Input player and key
 
-	static ReplayEvent make_set(std::string name, std::string value);
-	static ReplayEvent make_start();
-	static ReplayEvent make_input(int time, GameInput input);
-	static ReplayEvent make_end(int time);
-
-private:
-
-	int m_time;              //!< Event time in game ticks
-	Type m_type;
-	std::string m_set_name;  //!< name of set target
-	std::string m_set_value; //!< value to set to
-	GameInput m_input;       //!< Input player and key
+	static ReplayEvent make_set(std::string name, std::string value) noexcept;
+	static ReplayEvent make_start() noexcept;
+	static ReplayEvent make_input(GameInput input) noexcept;
+	static ReplayEvent make_end() noexcept;
 
 };
-
-const char* replay_event_type_string(ReplayEvent::Type type);
-const char* game_button_string(GameButton button);
-const char* button_action_string(ButtonAction action);
 
 /**
  * Writes a replay file event by event.
@@ -61,28 +45,14 @@ private:
 };
 
 /**
- * Reads through a replay file event by event.
- */
-class Replay
-{
-
-public:
-
-	Replay(std::istream& stream) : m_stream(stream) {}
-	Replay& operator>>(ReplayEvent& event);
-	bool eof() const { return m_stream.peek(), m_stream.eof(); }
-	operator bool() const { return static_cast<bool>(m_stream); }
-
-private:
-
-	std::istream& m_stream;
-
-};
-
-/**
  * A ReplaySink can handle replay events.
  */
 class IReplaySink
 {
 	public: virtual void handle(const ReplayEvent& event) =0;
 };
+
+/**
+ * Reads a replay file and sends event by event to the sink.
+ */
+void replay_read(std::istream& stream, IReplaySink& sink);

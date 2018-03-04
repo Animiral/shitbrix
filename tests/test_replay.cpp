@@ -8,6 +8,16 @@
 #include <sstream>
 
 /**
+ * Accepts and simply stores replay data.
+ */
+class FakeSink : public IReplaySink
+{
+public:
+	std::vector<ReplayEvent> m_events;
+	virtual void handle(const ReplayEvent& event) override { m_events.push_back(event); }
+};
+
+/**
  * Tests basic replay output via Journal.
  */
 TEST(ReplayTest, WriteJournal)
@@ -20,12 +30,12 @@ TEST(ReplayTest, WriteJournal)
 		ReplayEvent::make_set("rng_seed", "4711"),
 		ReplayEvent::make_set("winner", "1"),
 		ReplayEvent::make_start(),
-		ReplayEvent::make_input(3, GameInput{0, GameButton::LEFT, ButtonAction::DOWN}),
-		ReplayEvent::make_input(5, GameInput{1, GameButton::UP, ButtonAction::DOWN}),
-		ReplayEvent::make_input(8, GameInput{0, GameButton::RAISE, ButtonAction::DOWN}),
-		ReplayEvent::make_input(10, GameInput{0, GameButton::LEFT, ButtonAction::DOWN}),
-		ReplayEvent::make_input(10, GameInput{1, GameButton::SWAP, ButtonAction::DOWN}),
-		ReplayEvent::make_end(20)
+		ReplayEvent::make_input(GameInput{3, 0, GameButton::LEFT, ButtonAction::DOWN}),
+		ReplayEvent::make_input(GameInput{5, 1, GameButton::UP, ButtonAction::DOWN}),
+		ReplayEvent::make_input(GameInput{8, 0, GameButton::RAISE, ButtonAction::DOWN}),
+		ReplayEvent::make_input(GameInput{10, 0, GameButton::LEFT, ButtonAction::DOWN}),
+		ReplayEvent::make_input(GameInput{10, 1, GameButton::SWAP, ButtonAction::DOWN}),
+		ReplayEvent::make_end()
 	};
 
 	for(auto& event : events)
@@ -34,15 +44,15 @@ TEST(ReplayTest, WriteJournal)
 	}
 
 	std::string expected =
-R"(0 set rng_seed 4711
-0 set winner 1
-0 start
-3 input 0 left down
-5 input 1 up down
-8 input 0 raise down
-10 input 0 left down
-10 input 1 swap down
-20 end
+R"(set rng_seed 4711
+set winner 1
+start
+input 3 0 left down
+input 5 1 up down
+input 8 0 raise down
+input 10 0 left down
+input 10 1 swap down
+end
 )";
 
 	EXPECT_EQ(expected, stream.str());
@@ -54,28 +64,33 @@ R"(0 set rng_seed 4711
 TEST(ReplayTest, ReadBasic)
 {
 	std::string replay_str =
-R"(0 set rng_seed 4711
-0 start
-10 input 1 swap down
-20 end
+R"(set rng_seed 4711
+start
+input 10 1 swap down
+end
 )";
 	std::istringstream stream(replay_str);
-	ReplayEvent set_event, start_event, input_event, end_event;
+	FakeSink sink;
+	replay_read(stream, sink);
 
-	Replay replay(stream);
-	replay >> set_event >> start_event >> input_event >> end_event;
+	ASSERT_EQ(4, sink.m_events.size());
 
-	ASSERT_TRUE(replay);
-	EXPECT_EQ(ReplayEvent::Type::SET, set_event.type());
-	EXPECT_EQ("rng_seed", set_event.set_name());
-	EXPECT_EQ("4711", set_event.set_value());
-	EXPECT_EQ(ReplayEvent::Type::START, start_event.type());
-	EXPECT_EQ(ReplayEvent::Type::INPUT, input_event.type());
-	EXPECT_EQ(10, input_event.time());
-	EXPECT_EQ(1, input_event.input().player);
-	EXPECT_EQ(GameButton::SWAP, input_event.input().button);
-	EXPECT_EQ(ReplayEvent::Type::END, end_event.type());
-	EXPECT_EQ(20, end_event.time());
+	// set event
+	EXPECT_EQ(ReplayEvent::Type::SET, sink.m_events[0].type);
+	EXPECT_EQ("rng_seed", sink.m_events[0].set_name);
+	EXPECT_EQ("4711", sink.m_events[0].set_value);
+
+	// start event
+	EXPECT_EQ(ReplayEvent::Type::START, sink.m_events[1].type);
+
+	// input event
+	EXPECT_EQ(ReplayEvent::Type::INPUT, sink.m_events[2].type);
+	EXPECT_EQ(10, sink.m_events[2].input.game_time);
+	EXPECT_EQ(1, sink.m_events[2].input.player);
+	EXPECT_EQ(GameButton::SWAP, sink.m_events[2].input.button);
+
+	// end event
+	EXPECT_EQ(ReplayEvent::Type::END, sink.m_events[3].type);
 }
 
 /**
@@ -83,10 +98,9 @@ R"(0 set rng_seed 4711
  */
 TEST(ReplayTest, ReadErrorInput)
 {
-	std::string replay_str = "10 input 1\n20 end\n";
+	std::string replay_str = "input 10 1\nend\n";
 	std::istringstream stream(replay_str);
-	ReplayEvent input_event;
+	FakeSink sink;
 
-	Replay replay(stream);
-	EXPECT_THROW(replay >> input_event, GameException);
+	EXPECT_THROW(replay_read(stream, sink), GameException);
 }
