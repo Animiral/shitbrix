@@ -4,45 +4,9 @@
 
 #include "director.hpp"
 
-BlocksQueue::BlocksQueue(unsigned seed)
-	: m_record(), m_generator(seed), m_index(0)
-{
-}
-
-Block::Color BlocksQueue::next() noexcept
-{
-	if(m_record.size() <= m_index) {
-		std::uniform_int_distribution<int> color_distribution { 1, 6 };
-		Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
-		m_record.push_back(color);
-		m_index++;
-		return color;
-	}
-	else {
-		return m_record[m_index++];
-	}
-}
-
-void BlocksQueue::backtrack(size_t index) noexcept
-{
-	m_index = index;
-}
-
-
 // elemental game logic functions and helpers
 namespace
 {
-
-/**
- * Put a block of random color at the specified location in @c PREVIEW state.
- */
-Block& spawn_preview_block(Pit& pit, RowCol rc, BlocksQueue& queue);
-
-/**
- * Use the @c queue to random-generate the specified number
- * of loot blocks for a garbage to hide.
- */
-Loot pick_loot(BlocksQueue& queue, size_t amount);
 
 /**
  * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
@@ -50,22 +14,17 @@ Loot pick_loot(BlocksQueue& queue, size_t amount);
  * In this instant, they are tagged as *hot*.
  *
  * @param pit Pit object
- * @param queue Source for new blocks
  */
-bool spawn_previews(Pit& pit, BlocksQueue& queue);
+bool spawn_previews(Pit& pit);
 
 }
 
-BlockDirector::BlockDirector(Pit& pit, Logic& logic, BlocksQueue grow_queue)
+BlockDirector::BlockDirector(Pit& pit, Logic& logic)
 : pit(pit),
   m_logic(logic),
   m_handler(nullptr),
-  m_chain(0),
-  m_recovery(0),
-  m_panic(PANIC_TIME),
-  m_over(false),
   m_raise(false),
-  m_grow_queue(std::move(grow_queue))
+  m_over(false)
 {}
 
 void BlockDirector::update()
@@ -88,7 +47,7 @@ void BlockDirector::update()
 
 	pit.untag_all();
 
-	bool new_row = spawn_previews(pit, m_grow_queue);
+	bool new_row = spawn_previews(pit);
 
 	// raise until new row, except if player is holding down the button
 	if(new_row && !m_raise)
@@ -131,12 +90,13 @@ void BlockDirector::update()
 		m_handler->fire(evt::Match{combo, chaining});
 
 	if(chaining)
-		m_chain++;
+		pit.do_chain();
 
+	bool recovering = false;
 	if(chaining || combo > 3)
-		m_recovery = BREAK_TIME + RECOVERY_TIME;
-	else if(m_recovery > 0)
-		m_recovery--;
+		pit.replenish_recovery();
+	else
+		recovering = pit.do_recovery() > 0;
 
 	bool pit_chaining = false;  // true if there is any block in the pit currently chaining
 	bool breaking = false;      // true if there is any physical in the pit currently breaking
@@ -146,23 +106,22 @@ void BlockDirector::update()
 
 	// close current chain
 	if(chainstop && m_handler && !pit_chaining) {
-		m_handler->fire(evt::Chain{m_chain});
-		m_chain = 0;
+		m_handler->fire(evt::Chain{pit.finish_chain()});
 	}
 
 	// panic time and game over check
 	if(pit_full) {
-		if(!pit_chaining && !breaking && m_recovery <= 0) {
-			m_panic--;
-			if(m_panic < 0 && !debug_no_gameover)
+		if(!pit_chaining && !breaking && !recovering) {
+			const bool panic = pit.do_panic() <= 0;
+			if(panic && !debug_no_gameover)
 				m_over = true;
 		}
 	}
 	else {
-		m_panic = PANIC_TIME; // un-panic
+		pit.replenish_panic();
 	}
 
-	if(pit_chaining || breaking || pit_full || m_recovery > 0)
+	if(pit_full || pit_chaining || breaking || recovering)
 		pit.stop();
 	else
 		pit.start();
@@ -220,8 +179,7 @@ void BlockDirector::set_raise(bool raise)
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
 	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 2;
-	Loot loot = pick_loot(m_grow_queue, columns * rows); // for debug purposes, we do not care about replay desync here
-	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows, move(loot));
+	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
 }
 
 
@@ -270,8 +228,7 @@ void GarbageThrow::spawn(int columns, int rows, bool right_side)
 
 	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
 	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
-	Loot loot = pick_loot(m_emerge_queue, columns * rows);
-	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows, move(loot));
+	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows);
 	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 
@@ -294,26 +251,7 @@ void BonusThrow::fire(evt::Chain event)
 namespace
 {
 
-Block& spawn_preview_block(Pit& pit, RowCol rc, BlocksQueue& queue)
-{
-	Block::Color block_color = queue.next();
-	game_assert(block_color >= Block::Color::BLUE && block_color <= Block::Color::ORANGE, "Invalid block color");
-	Block& block = pit.spawn_block(block_color, rc, Block::State::PREVIEW);
-	return block;
-}
-
-Loot pick_loot(BlocksQueue& queue, size_t amount)
-{
-	Loot loot(amount);
-
-	for(Block::Color& c : loot) {
-		c = queue.next();
-	}
-
-	return loot;
-}
-
-bool spawn_previews(Pit& pit, BlocksQueue& queue)
+bool spawn_previews(Pit& pit)
 {
 	// If there are no blocks in the pit’s bottom row, refill previews.
 	// For gameplay to work properly, the pit scroll speed must be less
@@ -327,7 +265,7 @@ bool spawn_previews(Pit& pit, BlocksQueue& queue)
 
 	for(int c = 0; c < PIT_COLS; c++) {
 		RowCol spawn_rc{bottom_row, c};
-		spawn_preview_block(pit, spawn_rc, queue);
+		pit.spawn_random_block(spawn_rc, Block::State::PREVIEW);
 
 		RowCol above_rc{bottom_row-1, c};
 		Block* above = pit.block_at(above_rc);

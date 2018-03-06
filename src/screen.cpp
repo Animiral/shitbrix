@@ -221,7 +221,7 @@ void GameScreen::reset()
 	m_done = false;
 
 	auto builder = StageBuilder();
-	stage = builder.construct();
+	stage = builder.construct(m_seed);
 
 	Pit& left_pit = *builder.left_pit;
 	Cursor& left_cursor = *builder.left_cursor;
@@ -233,8 +233,8 @@ void GameScreen::reset()
 	Banner& right_banner = *builder.right_banner;
 	BonusIndicator& right_bonus = *builder.right_bonus;
 
-	auto left_pobjs = std::make_unique<PlayerObjects>(m_seed, left_pit, left_cursor, right_pit, left_bonus);
-	auto right_pobjs = std::make_unique<PlayerObjects>(m_seed ^ 0x28abcd39, right_pit, right_cursor, left_pit, right_bonus);
+	auto left_pobjs = std::make_unique<PlayerObjects>(left_pit, left_cursor, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(right_pit, right_cursor, left_pit, right_bonus);
 	m_pobjects.push_back(std::move(left_pobjs));
 	m_pobjects.push_back(std::move(right_pobjs));
 	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);

@@ -207,9 +207,9 @@ private:
 	 */
 	struct PlayerObjects
 	{
-		PlayerObjects(unsigned seed, Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
-		: logic(pit), block_director(pit, logic, BlocksQueue(seed)), cursor_director(pit, cursor),
-		  event_hub(), garbage_throw(other_pit, BlocksQueue(seed*3)), bonus_throw(bonus)
+		PlayerObjects(Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
+		: logic(pit), block_director(pit, logic), cursor_director(pit, cursor),
+		  event_hub(), garbage_throw(other_pit), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
 			event_hub.append(garbage_throw);

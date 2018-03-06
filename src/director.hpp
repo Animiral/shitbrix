@@ -10,45 +10,6 @@
 #include <algorithm>
 
 /**
- * Maintains a sequence of block colors spawned deterministically out of an
- * initial seed. This allows us to see what color blocks to introduce next,
- * as well as reconstruct the whole history of spawned block colors for
- * replay and netplay purposes.
- */
-class BlocksQueue
-{
-
-public:
-
-	/**
-	 * Construct the queue with the given seed, which deterministically produces
-	 * the same block colors every time.
-	 */
-	explicit BlocksQueue(unsigned seed);
-
-	BlocksQueue(const BlocksQueue& ) = default;
-	BlocksQueue(BlocksQueue&& ) = default;
-
-	/**
-	 * Return the next color of a block coming out on the stack from below.
-	 * The @c game_time will be recorded for reference.
-	 */
-	Block::Color next() noexcept;
-
-	/**
-	 * Start reading block colors from the specified @c index forward.
-	 */
-	void backtrack(size_t index) noexcept;
-
-private:
-
-	std::vector<Block::Color> m_record;
-	std::minstd_rand m_generator;
-	size_t m_index; //!< Current queue index (for backtracking)
-
-};
-
-/**
  * Spawns and removes stuff to and from the stage.
  * The BlockDirector implements game-logical interactions between objects which these
  * objects cannot handle on their own.
@@ -60,15 +21,13 @@ class BlockDirector
 
 public:
 
-	BlockDirector(Pit& pit, Logic& logic, BlocksQueue grow_queue);
+	BlockDirector(Pit& pit, Logic& logic);
 
 	/**
 	 * Set the handler for game events from this director.
 	 */
 	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
-	float panic() const noexcept { return static_cast<float>(m_panic) / PANIC_TIME; }
-	float recovery() const noexcept { return static_cast<float>(m_recovery) / RECOVERY_TIME; }
 	bool over() const { return m_over; }
 
 	/**
@@ -104,15 +63,8 @@ private:
 	Pit& pit;
 	Logic& m_logic;
 	evt::IGameEvent* m_handler;
-
-	// TODO: All this is game state and belongs in a separate class to facilitate syncs and rollbacks.
-	//       For simplicity, I can probably burden the Pit with them.
-	int m_chain; //!< chain counter
-	int m_recovery; //!< recover time pool; scrolling stops after a quality match
-	int m_panic; //!< panic time pool; the player has this many ticks left until game over
-	bool m_over; // whether the game is over (the player with this Director loses)
 	bool m_raise; //!< whether the pit should scroll in new blocks as fast as possible
-	BlocksQueue m_grow_queue; //< generator for blocks spawning from below
+	bool m_over;  //!< whether the game is over (the player with this Director loses)
 
 };
 
@@ -164,8 +116,8 @@ class GarbageThrow : public evt::IGameEvent
 
 public:
 
-	GarbageThrow(Pit& pit, BlocksQueue emerge_queue)
-	: m_pit(pit), m_emerge_queue(std::move(emerge_queue))
+	GarbageThrow(Pit& pit)
+	: m_pit(pit)
 	{}
 
 	virtual void fire(evt::Match event) override;
@@ -174,7 +126,6 @@ public:
 private:
 
 	Pit& m_pit;
-	BlocksQueue m_emerge_queue; //< generator for blocks spawning from dissolved garbage
 
 	void spawn(int columns, int rows, bool right_side);
 

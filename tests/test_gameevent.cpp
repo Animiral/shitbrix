@@ -36,15 +36,13 @@ protected:
 
 	virtual void SetUp()
 	{
-		pit = std::make_unique<Pit>(Point{0,0});
+		pit = std::make_unique<Pit>(Point{0,0}, std::make_unique<RainbowBlocksQueue>(), std::make_unique<RainbowBlocksQueue>());
 
 		cursor = std::make_unique<Cursor>(RowCol{0,0});
 		cursor_director = std::make_unique<CursorDirector>(*pit, *cursor);
 
 		logic = std::make_unique<Logic>(*pit);
-
-		const int SEED = 0;
-		block_director = std::make_unique<BlockDirector>(*pit, *logic, BlocksQueue(SEED));
+		block_director = std::make_unique<BlockDirector>(*pit, *logic);
 
 		counter = std::make_unique<GameEventCounter>();
 		hub = std::make_unique<evt::GameEventHub>();
@@ -167,7 +165,7 @@ TEST_F(GameEventTest, GarbageDissolves)
 	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
 	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
 	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_garbage(RowCol{-1, 2}, 3, 1, make_loot(3));
+	pit->spawn_garbage(RowCol{-1, 2}, 3, 1);
 
 	block_director->swap(RowCol{0,2});
 	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);

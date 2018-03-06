@@ -7,6 +7,25 @@
 #include "stage.hpp"
 
 /**
- * Create a deterministic collection of block colors for use in garbage construction.
+ * A block-spawning queue for testing that simply rotates through colors.
  */
-Loot make_loot(size_t amount);
+class RainbowBlocksQueue : public IBlocksQueue
+{
+
+public:
+
+	/**
+	 * Return the next color of a block coming out on the stack from below.
+	 */
+	virtual Block::Color next() noexcept override;
+
+	/**
+	 * Start reading block colors from the specified @c index forward.
+	 */
+	virtual void backtrack(size_t index) noexcept override;
+
+private:
+
+	Block::Color m_color;
+
+};

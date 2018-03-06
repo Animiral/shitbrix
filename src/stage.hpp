@@ -236,7 +236,71 @@ private:
 };
 
 /**
+ * Abstract representation of a generator of block colors.
+ * These colors (or, in the future, other properties) are used to spawn blocks
+ * into the game with desirable guarantees, such as not immediately matching
+ * from spawn.
+ */
+class IBlocksQueue
+{
+
+public:
+
+	virtual ~IBlocksQueue() = 0;
+
+	/**
+	 * Return the next color of a block coming out on the stack from below.
+	 */
+	virtual Block::Color next() noexcept = 0;
+
+	/**
+	 * Start reading block colors from the specified @c index forward.
+	 */
+	virtual void backtrack(size_t index) noexcept = 0;
+
+};
+
+/**
+ * Maintains a sequence of block colors spawned deterministically out of an
+ * initial seed. This allows us to see what color blocks to introduce next,
+ * as well as reconstruct the whole history of spawned block colors for
+ * replay and netplay purposes.
+ */
+class RandomBlocksQueue : public IBlocksQueue
+{
+
+public:
+
+	/**
+	 * Construct the queue with the given seed, which deterministically produces
+	 * the same block colors every time.
+	 */
+	explicit RandomBlocksQueue(unsigned seed);
+
+	RandomBlocksQueue(const RandomBlocksQueue& ) = default;
+	RandomBlocksQueue(RandomBlocksQueue&& ) = default;
+
+	/**
+	 * Return the next color of a block coming out on the stack from below.
+	 */
+	virtual Block::Color next() noexcept override;
+
+	/**
+	 * Start reading block colors from the specified @c index forward.
+	 */
+	virtual void backtrack(size_t index) noexcept override;
+
+private:
+
+	std::vector<Block::Color> m_record;
+	std::minstd_rand m_generator;
+	size_t m_index; //!< Current queue index (for backtracking)
+
+};
+
+/**
  * A pit is the playing area where one player’s blocks fall down.
+ * The collection of pits in a game forms the complete game state.
  * The pit owns and updates its contained blocks and garbage.
  * It remembers where blocks are in a sparse matrix.
  * It also handles scrolling.
@@ -246,7 +310,7 @@ class Pit
 
 public:
 
-	Pit(Point loc) noexcept;
+	Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept;
 
 	Point loc() const noexcept { return m_loc; }
 
@@ -309,7 +373,6 @@ public:
 	 */
 	bool is_full() const noexcept;
 
-
 	/**
 	 * Create a new Block with the specified properties in the Pit.
 	 * Caution! This may invalidate all existing references to Blocks in the Pit.
@@ -319,12 +382,22 @@ public:
 	Block& spawn_block(Block::Color color, RowCol rc, Block::State state);
 
 	/**
+	 * Create a new Block with the specified properties in the Pit.
+	 * The color of the block is determined by the next output of the blocks queue.
+	 * Caution! This may invalidate all existing references to Blocks in the Pit.
+	 *
+	 * @return a reference to the created Block
+	 */
+	Block& spawn_random_block(RowCol rc, Block::State state) { return spawn_block(m_grow_queue->next(), rc, state); }
+
+	/**
 	 * Create a new Garbage with the specified dimensions.
+	 * The color of the Loot Blocks inside is determined by the next output of the emerge queue.
 	 * Caution! This may invalidate all existing references to Garbage in the Pit.
 	 *
 	 * @return a reference to the created Garbage
 	 */
-	Garbage& spawn_garbage(RowCol rc, int columns, int rows, Loot loot);
+	Garbage& spawn_garbage(RowCol rc, int columns, int rows);
 
 	/**
 	 * Return true if it is acceptable to move the object
@@ -379,7 +452,51 @@ public:
 	 * Returns the number of the bottom accessible row in the pit
 	 */
 	int bottom() const noexcept;
+
 	int peak() const noexcept;
+
+	/**
+	 * Increase the chain counter and return the new value.
+	 */
+	int do_chain() noexcept { return ++m_chain; }
+
+	/**
+	 * Return the value of the chain counter and reset it to 0.
+	 */
+	int finish_chain() noexcept { int chain = m_chain; m_chain = 0; return chain; }
+
+	/**
+	 * Return the fraction of recovery time left.
+	 */
+	float recovery() const noexcept { return static_cast<float>(m_recovery) / RECOVERY_TIME; }
+
+	/**
+	 * Decrease recovery time towards 0 and return the new value.
+	 * Recovery time is used to stop scrolling while and after blocks break.
+	 */
+	int do_recovery() noexcept { return (m_recovery > 0) ? --m_recovery : 0; }
+
+	/**
+	 * Set recovery time to the maximum value.
+	 */
+	void replenish_recovery() noexcept { m_recovery = BREAK_TIME + RECOVERY_TIME; }
+
+	/**
+	 * Return the fraction of panic time left.
+	 */
+	float panic() const noexcept { return static_cast<float>(m_panic) / PANIC_TIME; }
+
+	/**
+	 * Decrease panic time towards 0 and return the new value.
+	 * Panic time is used to stop scrolling briefly when the pit is full.and after blocks break.
+	 */
+	int do_panic() noexcept { return (m_panic > 0) ? --m_panic : 0; }
+
+	/**
+	 * Set recovery time to the maximum value.
+	 */
+	void replenish_panic() noexcept { m_panic = PANIC_TIME; }
+
 	int highlight_row() const noexcept { return m_highlight_row; }
 
 	void stop() noexcept { m_enabled = false; }
@@ -402,11 +519,18 @@ private:
 
 	using PhysMap = std::unordered_map<RowCol, Physical*, RowColHash>;
 
-	Point m_loc;     // draw location, upper left corner
-	bool m_enabled;  // whether or not to scroll the pit on update()
-	int m_scroll;    // y-offset in points for view on pit contents
-	int m_speed;     // per-update delta for m_scroll in points
-	int m_peak;      // highest blocked row (may be above visible space)
+	Point m_loc;     //!< draw location, upper left corner
+	bool m_enabled;  //!< whether or not to scroll the pit on update()
+
+	int m_scroll;    //!< y-offset in points for view on pit contents
+	int m_speed;     //!< per-update delta for m_scroll in points
+	int m_peak;      //!< highest blocked row (may be above visible space)
+	int m_chain;     //!< chain counter
+	int m_recovery;  //!< recover time pool; scrolling stops after a quality match
+	int m_panic;     //!< panic time pool; the player has this many ticks left until game over
+	std::unique_ptr<IBlocksQueue> m_grow_queue;   //< generator for blocks spawning from below
+	std::unique_ptr<IBlocksQueue> m_emerge_queue; //< generator for blocks spawning from dissolved garbage
+
 	PhysVec m_contents; // list of all blocks in the pit
 	PhysMap m_content_map; // sparse matrix of blocked spaces
 
@@ -515,7 +639,7 @@ public:
 	//! Helper struct for stage contents (per player)
 	struct StageObjects
 	{
-		StageObjects(Point loc, Point bonus_loc);
+		StageObjects(Point loc, Point bonus_loc, unsigned seed);
 
 		Pit pit;
 		Cursor cursor;
@@ -528,8 +652,9 @@ public:
 
 	/**
 	 * Add a pit to the stage to be displayed at the given point coordinates.
+	 * The pit will spawn blocks according to the given initial seed.
 	 */
-	StageObjects& add_pit(Point loc, Point bonus_loc);
+	StageObjects& add_pit(Point loc, Point bonus_loc, unsigned seed);
 	void update();
 
 	SobVector& sobs() { return m_sobs; }
@@ -556,6 +681,6 @@ public:
 	Banner* right_banner;
 	BonusIndicator* right_bonus;
 
-	std::unique_ptr<Stage> construct();
+	std::unique_ptr<Stage> construct(unsigned seed);
 
 };

@@ -125,14 +125,12 @@ struct DemoFactory
 {
 	StageBuilder m_builder;
 	std::unique_ptr<Stage> m_stage;
-	BlocksQueue m_queue;
 	std::unique_ptr<Logic> m_logic;
 	std::unique_ptr<BlockDirector> m_director;
 	Assets m_assets;
 	DrawGame m_draw;
 
 	DemoFactory() :
-		m_queue(0),
 		m_assets(),
 		m_draw(m_assets)
 	{
@@ -141,11 +139,11 @@ struct DemoFactory
 	VisualDemo construct()
 	{
 		assert(!m_stage);
-		m_stage = m_builder.construct();
+		m_stage = m_builder.construct(0);
 		Pit& pit = *m_builder.left_pit;
 		m_draw.add_pit(pit, *m_builder.left_cursor, *m_builder.left_banner, *m_builder.left_bonus);
 		m_logic = std::make_unique<Logic>(pit);
-		m_director = std::make_unique<BlockDirector>(pit, *m_logic, m_queue);
+		m_director = std::make_unique<BlockDirector>(pit, *m_logic);
 		return VisualDemo(pit, m_draw, *m_director);
 	}
 };
@@ -183,8 +181,7 @@ void VisualDemo::scenario_dissolve_garbage()
 {
 	common_setup();
 
-	Loot loot{12, Block::Color::GREEN};
-	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, 6, 2, move(loot)); // chain garbage
+	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// 3 in a row
@@ -237,8 +234,7 @@ void VisualDemo::scenario_fall_after_shrink()
 {
 	common_setup();
 
-	Loot loot{12, Block::Color::GREEN};
-	auto& garbage = m_pit.spawn_garbage({-6,0}, 6, 2, move(loot)); // chain garbage
+	auto& garbage = m_pit.spawn_garbage({-6,0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// vertical match just under the garbage
@@ -263,8 +259,7 @@ void VisualDemo::scenario_chaining_garbage()
 	common_setup();
 
 	const int GARBAGE_COLS = 6;
-	Loot loot{GARBAGE_COLS*2, Block::Color::GREEN};
-	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2, move(loot)); // chain garbage
+	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	m_director.swap({-2,2}); // match yellow blocks vertically
 

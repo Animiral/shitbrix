@@ -165,9 +165,46 @@ int Garbage::shrink() noexcept
 }
 
 
-Pit::Pit(Point loc) noexcept
-: m_loc(loc), m_enabled(true), m_scroll((1-PIT_ROWS) * ROW_HEIGHT),
-  m_speed(SCROLL_SPEED), m_peak(1), m_highlight_row(0)
+IBlocksQueue::~IBlocksQueue() = default;
+
+
+RandomBlocksQueue::RandomBlocksQueue(unsigned seed)
+	: m_record(), m_generator(seed), m_index(0)
+{
+}
+
+Block::Color RandomBlocksQueue::next() noexcept
+{
+	if(m_record.size() <= m_index) {
+		std::uniform_int_distribution<int> color_distribution { 1, 6 };
+		Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
+		m_record.push_back(color);
+		m_index++;
+		return color;
+	}
+	else {
+		return m_record[m_index++];
+	}
+}
+
+void RandomBlocksQueue::backtrack(size_t index) noexcept
+{
+	m_index = index;
+}
+
+
+Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept
+: m_loc(loc),
+  m_enabled(true),
+  m_scroll((1-PIT_ROWS) * ROW_HEIGHT),
+  m_speed(SCROLL_SPEED),
+  m_peak(1),
+  m_chain(0),
+  m_recovery(0),
+  m_panic(PANIC_TIME),
+  m_grow_queue(move(grow_queue)),
+  m_emerge_queue(move(emerge_queue)),
+  m_highlight_row(0)
 {
 }
 
@@ -217,10 +254,14 @@ Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 	return *raw_block;
 }
 
-Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
+Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 {
 	// make sure the Garbage fits in the Pit
 	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");
+
+	Loot loot(width * height);
+	for(Block::Color& c : loot)
+		c = m_emerge_queue->next();
 
 	auto garbage = std::make_unique<Garbage>(rc, width, height, move(loot));
 	Garbage* raw_garbage = garbage.get();
@@ -472,16 +513,16 @@ void BonusIndicator::update() noexcept
 }
 
 
-Stage::StageObjects::StageObjects(Point loc, Point bonus_loc)
-: pit(loc),
+Stage::StageObjects::StageObjects(Point loc, Point bonus_loc, unsigned seed)
+: pit(loc, std::make_unique<RandomBlocksQueue>(seed), std::make_unique<RandomBlocksQueue>(seed*3)),
   cursor(RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }),
   banner(loc.offset((PIT_W-BANNER_W)/2., (PIT_H-BANNER_H)/2.)),
   bonus(bonus_loc)
 {}
 
-Stage::StageObjects& Stage::add_pit(Point loc, Point bonus_loc)
+Stage::StageObjects& Stage::add_pit(Point loc, Point bonus_loc, unsigned seed)
 {
-	m_sobs.push_back(std::make_unique<StageObjects>(loc, bonus_loc));
+	m_sobs.push_back(std::make_unique<StageObjects>(loc, bonus_loc, seed));
 	return *m_sobs.back();
 }
 
@@ -495,12 +536,12 @@ void Stage::update()
 }
 
 
-std::unique_ptr<Stage> StageBuilder::construct()
+std::unique_ptr<Stage> StageBuilder::construct(unsigned seed)
 {
 	auto stage = std::make_unique<Stage>();
 
-	auto& left_pc = stage->add_pit(LPIT_LOC, LBONUS_LOC);
-	auto& right_pc = stage->add_pit(RPIT_LOC, RBONUS_LOC);
+	auto& left_pc = stage->add_pit(LPIT_LOC, LBONUS_LOC, seed);
+	auto& right_pc = stage->add_pit(RPIT_LOC, RBONUS_LOC, seed);
 
 	this->left_pit = &left_pc.pit;
 	this->left_cursor = &left_pc.cursor;

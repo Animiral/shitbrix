@@ -18,9 +18,9 @@ Block& spawn_falling_block(Pit& pit, Block::Color color, RowCol from);
 /**
  * Return true if the game is in panic state.
  */
-bool is_panic(const BlockDirector& director) noexcept
+bool is_panic(const Pit& pit) noexcept
 {
-	return director.panic() < 1.;
+	return pit.panic() < 1.;
 }
 
 }
@@ -32,7 +32,7 @@ protected:
 
 	virtual void SetUp()
 	{
-		pit = std::make_unique<Pit>(Point{0,0});
+		pit = std::make_unique<Pit>(Point{0,0}, std::make_unique<RainbowBlocksQueue>(), std::make_unique<RainbowBlocksQueue>());
 		logic = std::make_unique<Logic>(*pit);
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
@@ -62,7 +62,7 @@ protected:
 		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 
 		const int SEED = 0;
-		director = std::make_unique<BlockDirector>(*pit, *logic, BlocksQueue(SEED));
+		director = std::make_unique<BlockDirector>(*pit, *logic);
 	}
 
 	// virtual void TearDown() {}
@@ -156,7 +156,7 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
  */
 TEST_F(BlockDirectorTest, DissolveGarbage)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2, make_loot(12)); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -186,7 +186,7 @@ TEST_F(BlockDirectorTest, DissolveGarbage)
  */
 TEST_F(BlockDirectorTest, DissolveAndFall)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2, make_loot(12)); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -215,7 +215,7 @@ TEST_F(BlockDirectorTest, DissolveAndFall)
 TEST_F(BlockDirectorTest, FallAfterShrink)
 {
 	RowCol garbage_rc{-6,0};
-	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2, make_loot(12)); // chain garbage
+	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// vertical match just under the garbage
@@ -327,7 +327,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 {
 	const int GARBAGE_COLS = 6;
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2, make_loot(GARBAGE_COLS * 2)); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	bool swapping = director->swap(RowCol{-2,2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
@@ -407,22 +407,22 @@ TEST_F(BlockDirectorTest, PanicSimple)
 
 	// moment before panic
 	run_game_ticks(TIME_TO_FULL-1);
-	ASSERT_FALSE(is_panic(*director));
+	ASSERT_FALSE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// enter panic
 	run_game_ticks(1);
-	ASSERT_TRUE(is_panic(*director));
+	ASSERT_TRUE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// before panic depleted
-	run_game_ticks(PANIC_TIME - 1);
-	ASSERT_TRUE(is_panic(*director));
+	run_game_ticks(PANIC_TIME - 2);
+	ASSERT_TRUE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// really over
 	run_game_ticks(1);
-	ASSERT_TRUE(is_panic(*director));
+	ASSERT_TRUE(is_panic(*pit));
 	ASSERT_TRUE(director->over());
 }
 
@@ -447,12 +447,12 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	pit->block_at({1, 2})->col = Block::Color::GREEN;
 
 	run_game_ticks(TIME_TO_FULL - 1);
-	ASSERT_FALSE(is_panic(*director));
+	ASSERT_FALSE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// enter panic time
 	run_game_ticks(1);
-	EXPECT_TRUE(is_panic(*director));
+	EXPECT_TRUE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// time point when we manipulate the blocks to cause a match
@@ -472,17 +472,17 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	// the block breaks and vanishes
 	run_game_ticks(BREAK_TIME);
 	ASSERT_FALSE(pit->block_at({-5, 4}));
-	EXPECT_TRUE(is_panic(*director));
+	EXPECT_TRUE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// now we have that much more time until game over
-	run_game_ticks(PANIC_TIME - DELAY - 2);
-	EXPECT_TRUE(is_panic(*director));
+	run_game_ticks(PANIC_TIME - DELAY - 3);
+	EXPECT_TRUE(is_panic(*pit));
 	ASSERT_FALSE(director->over());
 
 	// but it runs out eventually
 	run_game_ticks(1);
-	EXPECT_TRUE(is_panic(*director));
+	EXPECT_TRUE(is_panic(*pit));
 	EXPECT_TRUE(director->over());
 }
 
@@ -493,8 +493,8 @@ TEST_F(BlockDirectorTest, AboveGarbageFall)
 {
 	// complete the test scenario
 	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
-	Garbage& bottom_garbage = pit->spawn_garbage({-6, 0}, PIT_COLS, 2, {PIT_COLS * 2, Block::Color::BLUE});
-	Garbage& top_garbage = pit->spawn_garbage({-8, 0}, PIT_COLS, 2, {PIT_COLS * 2, Block::Color::BLUE});
+	Garbage& bottom_garbage = pit->spawn_garbage({-6, 0}, PIT_COLS, 2);
+	Garbage& top_garbage = pit->spawn_garbage({-8, 0}, PIT_COLS, 2);
 
 	block.set_state(Physical::State::BREAK, 1);
 
@@ -514,8 +514,7 @@ TEST_F(BlockDirectorTest, AboveGarbageFall)
 TEST_F(BlockDirectorTest, GarbageDissolveFall)
 {
 	// complete the test scenario
-	Loot loot(PIT_COLS, Block::Color::BLUE);
-	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1, move(loot));
+	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1);
 	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 0}, Block::State::REST);
 
 	garbage.set_state(Physical::State::BREAK, DISSOLVE_TIME);
@@ -551,11 +550,11 @@ TEST_F(BlockDirectorTest, RecoveryTime)
 	// finish breaking
 	run_game_ticks(BREAK_TIME);
 	EXPECT_FALSE(pit->at(match_rc)); // block is gone
-	EXPECT_EQ(director->recovery(), 1.); // recovery starts
+	EXPECT_EQ(pit->recovery(), 1.); // recovery starts
 
 	// stop recovery
 	run_game_ticks(RECOVERY_TIME);
-	ASSERT_LE(director->recovery(), 0); // recovery is over
+	ASSERT_LE(pit->recovery(), 0); // recovery is over
 }
 
 
