@@ -189,19 +189,19 @@ class GameOverRelay : public IGameEvent
 
 public:
 
-	GameOverRelay(const Stage::SobVector& pobjects) : m_pobjects(pobjects) {}
+	GameOverRelay(Stage::SobVector& pobjects) : m_pobjects(pobjects) {}
 
 	virtual void fire(GameOver ended) override
 	{
 		for(size_t i = 0; i < m_pobjects.size(); i++) {
 			BannerFrame frame = (i == ended.winner) ? BannerFrame::WIN : BannerFrame::LOSE;
-			m_pobjects[i]->banner.frame = frame;
+			m_pobjects[i].banner.frame = frame;
 		}
 	}
 
 private:
 
-	const Stage::SobVector& m_pobjects;
+	Stage::SobVector& m_pobjects;
 
 };
 

@@ -77,8 +77,8 @@ class CursorDirector
 
 public:
 
-	CursorDirector(Pit& pit, Cursor& cursor)
-	: pit(pit), m_cursor(cursor), m_handler(nullptr)
+	CursorDirector(Pit& pit)
+	: m_pit(pit), m_handler(nullptr)
 	{}
 
 	/**
@@ -86,8 +86,7 @@ public:
 	 */
 	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
-	Cursor& cursor() const { return m_cursor; }
-	RowCol rc() const { return m_cursor.rc; }
+	RowCol rc() const { return m_pit.cursor().rc; }
 
 	/**
 	 * Moves the cursor one column in the specified direction, if possible.
@@ -98,8 +97,7 @@ public:
 
 private:
 
-	Pit& pit;
-	Cursor& m_cursor;
+	Pit& m_pit;
 	evt::IGameEvent* m_handler;
 
 };

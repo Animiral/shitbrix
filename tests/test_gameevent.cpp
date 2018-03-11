@@ -38,8 +38,7 @@ protected:
 	{
 		pit = std::make_unique<Pit>(Point{0,0}, std::make_unique<RainbowBlocksQueue>(), std::make_unique<RainbowBlocksQueue>());
 
-		cursor = std::make_unique<Cursor>(RowCol{0,0});
-		cursor_director = std::make_unique<CursorDirector>(*pit, *cursor);
+		cursor_director = std::make_unique<CursorDirector>(*pit);
 
 		logic = std::make_unique<Logic>(*pit);
 		block_director = std::make_unique<BlockDirector>(*pit, *logic);
@@ -62,7 +61,6 @@ protected:
 	}
 
 	std::unique_ptr<Pit> pit;
-	std::unique_ptr<Cursor> cursor;
 	std::unique_ptr<CursorDirector> cursor_director;
 	std::unique_ptr<Logic> logic;
 	std::unique_ptr<BlockDirector> block_director;

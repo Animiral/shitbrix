@@ -195,6 +195,7 @@ void RandomBlocksQueue::backtrack(size_t index) noexcept
 
 Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept
 : m_loc(loc),
+  m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, 0},
   m_enabled(true),
   m_scroll((1-PIT_ROWS) * ROW_HEIGHT),
   m_speed(SCROLL_SPEED),
@@ -206,6 +207,25 @@ Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IB
   m_emerge_queue(move(emerge_queue)),
   m_highlight_row(0)
 {
+}
+
+Pit::Pit(const Pit& rhs)
+: m_grow_queue(rhs.m_grow_queue->clone()),
+  m_emerge_queue(rhs.m_emerge_queue->clone()),
+  m_contents(rhs.copy_contents())
+{
+	assign_basic(rhs);
+	make_content_map();
+}
+
+Pit& Pit::operator=(const Pit& rhs)
+{
+	assign_basic(rhs);
+	m_grow_queue = rhs.m_grow_queue->clone();
+	m_emerge_queue = rhs.m_emerge_queue->clone();
+	m_contents = rhs.copy_contents();
+	make_content_map();
+	return *this;
 }
 
 Physical* Pit::at(RowCol rc) const noexcept
@@ -374,11 +394,16 @@ Garbage* Pit::shrink(Garbage& garbage)
 	}
 }
 
-void Pit::clear()
+void Pit::cursor_move(Dir dir) noexcept
 {
-	m_contents.clear();
-	m_content_map.clear();
-	m_peak = 1;
+	switch(dir)
+	{
+		case Dir::LEFT:  if(m_cursor.rc.c > 0)          m_cursor.rc.c--; break;
+		case Dir::RIGHT: if(m_cursor.rc.c < PIT_COLS-2) m_cursor.rc.c++; break;
+		case Dir::UP:    if(m_cursor.rc.r > top())      m_cursor.rc.r--; break;
+		case Dir::DOWN:  if(m_cursor.rc.r < bottom())   m_cursor.rc.r++; break;
+		default: SDL_assert(false);
+	}
 }
 
 int Pit::top() const noexcept
@@ -417,6 +442,12 @@ void Pit::update()
 
 	if(m_enabled)
 		m_scroll += m_speed;
+
+	// keep cursor in accessible bounds at all times
+	while(m_cursor.rc.r < top())
+		m_cursor.rc.r++;
+
+	m_cursor.time++;
 }
 
 void Pit::refresh_peak() noexcept
@@ -484,6 +515,93 @@ void Pit::clear_area(const Physical& physical)
 	}
 }
 
+void Pit::assign_basic(const Pit& rhs)
+{
+	m_loc = rhs.m_loc;
+	m_cursor = rhs.m_cursor;
+	m_enabled = rhs.m_enabled;
+	m_scroll = rhs.m_scroll;
+	m_speed = rhs.m_speed;
+	m_peak = rhs.m_peak;
+	m_chain = rhs.m_chain;
+	m_recovery = rhs.m_recovery;
+	m_panic = rhs.m_panic;
+	m_highlight_row = rhs.m_highlight_row;
+}
+
+Pit::PhysVec Pit::copy_contents() const
+{
+	PhysVec copy;
+
+	for(const auto& physical : m_contents) {
+		copy.emplace_back(physical->clone());
+	}
+
+	return copy;
+}
+
+void Pit::make_content_map()
+{
+	game_assert(m_content_map.empty(), "Pit: leftover content map");
+
+	for(const auto& physical : m_contents)
+		fill_area(*physical);
+}
+
+
+namespace
+{
+
+/**
+ * Return the draw location of the Pit with the index, given the number of total players.
+ * This is only a placeholder for a more general layout function that can layout all
+ * on-screen elements for all players.
+ */
+Point layout_pit(int players, int index)
+{
+	game_assert(2 == players, "Unsupported player number");
+
+	return index <= 0 ? LPIT_LOC : RPIT_LOC;
+}
+
+}
+
+GameState::GameState(GameMeta meta)
+: m_game_time(0)
+{
+	static const RowCol CURSOR_DEFAULT{-PIT_ROWS / 2, PIT_COLS / 2 - 1};
+
+	for(int i = 0; i < meta.players; i++)
+	{
+		Point loc = layout_pit(meta.players, i);
+		std::unique_ptr<RandomBlocksQueue> spawn_queue = std::make_unique<RandomBlocksQueue>(meta.seed * (i + 1));
+		std::unique_ptr<RandomBlocksQueue> emerge_queue = std::make_unique<RandomBlocksQueue>(meta.seed * (i+1) * 3 + 5);
+		m_pit.push_back(std::make_unique<Pit>(loc, move(spawn_queue), move(emerge_queue)));
+	}
+}
+
+GameState::GameState(const GameState& rhs)
+: m_game_time(rhs.m_game_time)
+{
+	for(const auto& pit : rhs.m_pit)
+		m_pit.push_back(std::make_unique<Pit>(*pit));
+}
+
+GameState& GameState::operator=(GameState rhs) noexcept
+{
+	m_game_time = rhs.m_game_time;
+	swap(m_pit, rhs.m_pit);
+	return *this;
+}
+
+void GameState::update()
+{
+	for(const auto& pit : m_pit)
+		pit->update();
+
+	m_game_time++;
+}
+
 
 void BonusIndicator::display_combo(int combo) noexcept
 {
@@ -513,45 +631,23 @@ void BonusIndicator::update() noexcept
 }
 
 
-Stage::StageObjects::StageObjects(Point loc, Point bonus_loc, unsigned seed)
-: pit(loc, std::make_unique<RandomBlocksQueue>(seed), std::make_unique<RandomBlocksQueue>(seed*3)),
-  cursor(RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }),
-  banner(loc.offset((PIT_W-BANNER_W)/2., (PIT_H-BANNER_H)/2.)),
-  bonus(bonus_loc)
-{}
-
-Stage::StageObjects& Stage::add_pit(Point loc, Point bonus_loc, unsigned seed)
+Stage::Stage(GameState init)
+	: m_state(std::move(init))
 {
-	m_sobs.push_back(std::make_unique<StageObjects>(loc, bonus_loc, seed));
-	return *m_sobs.back();
+	game_assert(2 == m_state.pit().size(), "Unsupported player number");
+
+	Point lbanner_loc{LPIT_LOC.offset((PIT_W - BANNER_W) / 2., (PIT_H - BANNER_H) / 2.)};
+	m_sobs.push_back({Banner(lbanner_loc), BonusIndicator(LBONUS_LOC)});
+
+	Point rbanner_loc{RPIT_LOC.offset((PIT_W - BANNER_W) / 2., (PIT_H - BANNER_H) / 2.)};
+	m_sobs.push_back({Banner(rbanner_loc), BonusIndicator(RBONUS_LOC)});
 }
 
 void Stage::update()
 {
-	for(auto& pc : m_sobs) {
-		pc->pit.update();
-		pc->cursor.update();
-		pc->bonus.update();
-	}
-}
+	for(const auto& pit : m_state.pit())
+		pit->update();
 
-
-std::unique_ptr<Stage> StageBuilder::construct(unsigned seed)
-{
-	auto stage = std::make_unique<Stage>();
-
-	auto& left_pc = stage->add_pit(LPIT_LOC, LBONUS_LOC, seed);
-	auto& right_pc = stage->add_pit(RPIT_LOC, RBONUS_LOC, seed);
-
-	this->left_pit = &left_pc.pit;
-	this->left_cursor = &left_pc.cursor;
-	this->left_banner = &left_pc.banner;
-	this->left_bonus = &left_pc.bonus;
-
-	this->right_pit = &right_pc.pit;
-	this->right_cursor = &right_pc.cursor;
-	this->right_banner = &right_pc.banner;
-	this->right_bonus = &right_pc.bonus;
-
-	return stage;
+	for(auto& sob : m_sobs)
+		sob.bonus.update();
 }

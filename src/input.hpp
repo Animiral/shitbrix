@@ -5,7 +5,6 @@
 #pragma once
 
 #include "globals.hpp"
-#include "replay.hpp"
 #include <optional>
 #include <memory>
 

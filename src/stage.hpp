@@ -35,7 +35,14 @@ public:
 	enum Tag { TAG_NONE = 0, TAG_FALL = 1, TAG_HOT = 2, TAG_DISSOLVE = 4, TAG_LAND = 8, TAG_ANY = 15 };
 
 	Physical(RowCol rc, State state);
+	Physical(const Physical& ) =default;
+	Physical(Physical&& ) =default;
 	virtual ~Physical() noexcept =default;
+
+	/**
+	 * Physicals can copy themselves.
+	 */
+	virtual std::unique_ptr<Physical> clone() const =0;
 
 
 	RowCol rc() const noexcept { return m_rc; }
@@ -145,7 +152,12 @@ public:
 	bool chaining; // Whether this block is chaining (falling down from a match)
 
 	Block(Color col, RowCol rc, State state);
+	Block(const Block& ) =default;
+	Block(Block&& ) =default;
+
 	virtual ~Block() noexcept =default;
+
+	virtual std::unique_ptr<Physical> clone() const override { return std::make_unique<Block>(*this); }
 
 	virtual int rows() const noexcept override { return 1; }
 	virtual int columns() const noexcept override { return 1; }
@@ -208,7 +220,11 @@ public:
 	 * @param loot vector of blocks hidden in the garbage, size == columns*rows.
 	 */
 	Garbage(RowCol rc, int columns, int rows, Loot loot);
+	Garbage(const Garbage& ) =default;
+	Garbage(Garbage&& ) =default;
 	virtual ~Garbage() noexcept =default;
+
+	virtual std::unique_ptr<Physical> clone() const override { return std::make_unique<Garbage>(*this); }
 
 	virtual int rows() const noexcept override { return m_rows; }
 	virtual int columns() const noexcept override { return m_columns; }
@@ -258,6 +274,11 @@ public:
 	 */
 	virtual void backtrack(size_t index) noexcept = 0;
 
+	/**
+	 * Queues can copy themselves.
+	 */
+	virtual std::unique_ptr<IBlocksQueue> clone() const = 0;
+
 };
 
 /**
@@ -276,19 +297,12 @@ public:
 	 * the same block colors every time.
 	 */
 	explicit RandomBlocksQueue(unsigned seed);
+	RandomBlocksQueue(const RandomBlocksQueue& rhs) = default;
+	RandomBlocksQueue(RandomBlocksQueue&&) = default;
 
-	RandomBlocksQueue(const RandomBlocksQueue& ) = default;
-	RandomBlocksQueue(RandomBlocksQueue&& ) = default;
-
-	/**
-	 * Return the next color of a block coming out on the stack from below.
-	 */
 	virtual Block::Color next() noexcept override;
-
-	/**
-	 * Start reading block colors from the specified @c index forward.
-	 */
 	virtual void backtrack(size_t index) noexcept override;
+	virtual std::unique_ptr<IBlocksQueue> clone() const override { return std::make_unique<RandomBlocksQueue>(*this); }
 
 private:
 
@@ -297,6 +311,17 @@ private:
 	size_t m_index; //!< Current queue index (for backtracking)
 
 };
+
+
+/**
+ * As part of the game data in the Pit, the Cursor is the player's input location.
+ */
+struct Cursor
+{
+	RowCol rc;
+	int time;  //!< animation frame timer
+};
+
 
 /**
  * A pit is the playing area where one player’s blocks fall down.
@@ -310,13 +335,13 @@ class Pit
 
 public:
 
-	Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept;
+	explicit Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept;
+	Pit(const Pit& rhs);
+	Pit& operator=(const Pit& rhs);
 
 	Point loc() const noexcept { return m_loc; }
 
-	/**
-	 * Pit-internal storage class
-	 */
+	// Pit-internal storage type
 	using PhysVec = std::vector<std::unique_ptr<Physical>>;
 
 	/**
@@ -438,10 +463,14 @@ public:
 	 */
 	Garbage* shrink(Garbage& garbage);
 
+	const Cursor& cursor() const noexcept { return m_cursor; };
+
 	/**
-	 * Remove all objects from the Pit.
+	 * Attempt to move the cursor in the given direction.
+	 * The cursor will only move until it hits the edge of the accessible area.
+	 * further moves do nothing.
 	 */
-	void clear();
+	void cursor_move(Dir dir) noexcept;
 
 	/**
 	 * Returns the number of the top accessible row in the pit
@@ -513,6 +542,7 @@ public:
 	 * We have to transform the object into the pit and from there, apply the pit scrolling.
 	 */
 	Point transform(Point point, float dt=0.f) const noexcept;
+
 	void update();
 
 private:
@@ -520,6 +550,7 @@ private:
 	using PhysMap = std::unordered_map<RowCol, Physical*, RowColHash>;
 
 	Point m_loc;     //!< draw location, upper left corner
+	Cursor m_cursor; //!< player cursor
 	bool m_enabled;  //!< whether or not to scroll the pit on update()
 
 	int m_scroll;    //!< y-offset in points for view on pit contents
@@ -541,20 +572,37 @@ private:
 	void fall_garbage(Garbage& garbage); //!< Move the Garbage to the to-location.
 	void fill_area(Physical& physical); //!< Mark the area as occupied.
 	void clear_area(const Physical& physical); //!< Mark the area as not occupied.
+	void assign_basic(const Pit& rhs); //!< Copy basic members from rhs, used in impl of copy&move
+	PhysVec copy_contents() const; //!< Return a deep copy of m_contents.
+	void make_content_map(); //!< (Re-)build content map from m_contents.
 
 };
 
-class Cursor
+/**
+ * Holds the whole game state information at one specific point in game time.
+ */
+class GameState
 {
 
 public:
 
-	RowCol rc;
-	int time;
+	explicit GameState(GameMeta meta);
+	GameState(const GameState& rhs);
+	GameState(GameState&& ) =default;
 
-	Cursor(RowCol rc) : rc(rc), time(0) {}
+	GameState& operator=(GameState rhs) noexcept;
 
-	void update() { time++; }
+	using PitVector = std::vector<std::unique_ptr<Pit>>;
+
+	const PitVector& pit() const noexcept { return m_pit; };
+	long game_time() const noexcept { return m_game_time; }
+
+	void update();
+
+private:
+
+	PitVector m_pit; //!< state by player number
+	long m_game_time; //!< tick counter
 
 };
 
@@ -633,54 +681,28 @@ class Stage
 
 public:
 
-	Stage() {}
+	explicit Stage(GameState init);
 	Stage(const Stage& ) =delete;
 
 	//! Helper struct for stage contents (per player)
 	struct StageObjects
 	{
-		StageObjects(Point loc, Point bonus_loc, unsigned seed);
-
-		Pit pit;
-		Cursor cursor;
 		Banner banner;
 		BonusIndicator bonus;
 	};
 
-	//! Stage objects vector
-	using SobVector = std::vector<std::unique_ptr<StageObjects>>;
+	using SobVector = std::vector<StageObjects>;
 
-	/**
-	 * Add a pit to the stage to be displayed at the given point coordinates.
-	 * The pit will spawn blocks according to the given initial seed.
-	 */
-	StageObjects& add_pit(Point loc, Point bonus_loc, unsigned seed);
 	void update();
 
+	GameState& state() { return m_state; }
+	const GameState& state() const { return m_state; }
 	SobVector& sobs() { return m_sobs; }
 	const SobVector& sobs() const { return m_sobs; }
 
 private:
 
+	GameState m_state;
 	SobVector m_sobs;
-
-};
-
-class StageBuilder
-{
-
-public:
-
-	Pit* left_pit;
-	Cursor* left_cursor;
-	Banner* left_banner;
-	BonusIndicator* left_bonus;
-
-	Pit* right_pit;
-	Cursor* right_cursor;
-	Banner* right_banner;
-	BonusIndicator* right_bonus;
-
-	std::unique_ptr<Stage> construct(unsigned seed);
 
 };

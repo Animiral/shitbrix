@@ -14,7 +14,7 @@ class FakeSink : public IReplaySink
 {
 public:
 	std::vector<ReplayEvent> m_events;
-	virtual void handle(const ReplayEvent& event) override { m_events.push_back(event); }
+	virtual void do_event(const ReplayEvent& event) override { m_events.push_back(event); }
 };
 
 /**
@@ -23,7 +23,8 @@ public:
 TEST(ReplayTest, WriteJournal)
 {
 	std::ostringstream stream;
-	auto journal = Journal(stream);
+	GameMeta meta{2, 4711, 1}; // { nr.players, seed, winner }
+	auto journal = Journal{meta};
 
 	ReplayEvent events[] =
 	{
@@ -40,8 +41,10 @@ TEST(ReplayTest, WriteJournal)
 
 	for(auto& event : events)
 	{
-		journal << event;
+		journal.do_event(event);
 	}
+
+	replay_write(stream, journal);
 
 	std::string expected =
 R"(set rng_seed 4711
@@ -71,26 +74,36 @@ end
 )";
 	std::istringstream stream(replay_str);
 	FakeSink sink;
-	replay_read(stream, sink);
+	Journal journal{replay_read(stream)};
+	journal.set_sink(&sink);
 
-	ASSERT_EQ(4, sink.m_events.size());
+	journal.poll(10);
 
-	// set event
-	EXPECT_EQ(ReplayEvent::Type::SET, sink.m_events[0].type);
-	EXPECT_EQ("rng_seed", sink.m_events[0].set_name);
-	EXPECT_EQ("4711", sink.m_events[0].set_value);
+	ASSERT_EQ(1, sink.m_events.size());
+	//ASSERT_EQ(4, sink.m_events.size());
 
-	// start event
-	EXPECT_EQ(ReplayEvent::Type::START, sink.m_events[1].type);
+	//// set event
+	//EXPECT_EQ(ReplayEvent::Type::SET, sink.m_events[0].type);
+	//EXPECT_EQ("rng_seed", sink.m_events[0].set_name);
+	//EXPECT_EQ("4711", sink.m_events[0].set_value);
+
+	//// start event
+	//EXPECT_EQ(ReplayEvent::Type::START, sink.m_events[1].type);
 
 	// input event
-	EXPECT_EQ(ReplayEvent::Type::INPUT, sink.m_events[2].type);
-	EXPECT_EQ(10, sink.m_events[2].input.game_time);
-	EXPECT_EQ(1, sink.m_events[2].input.player);
-	EXPECT_EQ(GameButton::SWAP, sink.m_events[2].input.button);
+	EXPECT_EQ(ReplayEvent::Type::INPUT, sink.m_events[0].type);
+	EXPECT_EQ(10, sink.m_events[0].input.game_time);
+	EXPECT_EQ(1, sink.m_events[0].input.player);
+	EXPECT_EQ(GameButton::SWAP, sink.m_events[0].input.button);
 
-	// end event
-	EXPECT_EQ(ReplayEvent::Type::END, sink.m_events[3].type);
+	//// input event
+	//EXPECT_EQ(ReplayEvent::Type::INPUT, sink.m_events[2].type);
+	//EXPECT_EQ(10, sink.m_events[2].input.game_time);
+	//EXPECT_EQ(1, sink.m_events[2].input.player);
+	//EXPECT_EQ(GameButton::SWAP, sink.m_events[2].input.button);
+
+	//// end event
+	//EXPECT_EQ(ReplayEvent::Type::END, sink.m_events[3].type);
 }
 
 /**
@@ -100,7 +113,6 @@ TEST(ReplayTest, ReadErrorInput)
 {
 	std::string replay_str = "input 10 1\nend\n";
 	std::istringstream stream(replay_str);
-	FakeSink sink;
 
-	EXPECT_THROW(replay_read(stream, sink), GameException);
+	EXPECT_THROW(replay_read(stream), GameException);
 }

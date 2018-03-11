@@ -145,6 +145,20 @@ struct GameInput
 };
 
 /**
+ * Holds meta-information about a game round.
+ * This information does not change over time like the @c GameState does.
+ * It is also used to generate the initial game state and reproduce the replay.
+ */
+struct GameMeta
+{
+	int players;   //!< number of participant players
+	unsigned seed; //!< initial random seed
+	int winner = WINNER_UNDECIDED; //!< player who won the game
+
+	static const int WINNER_UNDECIDED = -1; //!< default value of winner
+};
+
+/**
  * Represents a screen location in canvas pixels.
  * {0,0} top left - {CANVAS_W,CANVAS_H} bottom right
  */

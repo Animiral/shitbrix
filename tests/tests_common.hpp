@@ -24,6 +24,8 @@ public:
 	 */
 	virtual void backtrack(size_t index) noexcept override;
 
+	virtual std::unique_ptr<IBlocksQueue> clone() const override { return std::make_unique<RainbowBlocksQueue>(*this); }
+
 private:
 
 	Block::Color m_color;

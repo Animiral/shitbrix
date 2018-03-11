@@ -18,23 +18,7 @@
 #include <string>
 #include <memory>
 #include "globals.hpp"
-
-/**
- * Contains general information about a game round, such as the number and
- * identity of participants.
- */
-struct GameMeta
-{
-	int players; //!< number of players
-};
-
-/**
- * Contains the complete current board data.
- */
-struct GameState
-{
-	int tick; //!< current game timer
-};
+#include "stage.hpp"
 
 /**
  * Represents a game not yet in progress.

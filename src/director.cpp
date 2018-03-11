@@ -185,18 +185,11 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 
 void CursorDirector::move(Dir dir)
 {
-	RowCol& rc = m_cursor.rc;
+	game_assert(Dir::NONE != dir, "CursorDirector: cannot move nowhere");
 
-	switch(dir) {
-		case Dir::NONE: while(rc.r < pit.top()) m_cursor.rc.r++; break; // prevent cursor from scrolling off the top
-		case Dir::LEFT: if(rc.c > 0) m_cursor.rc.c--; break;
-		case Dir::RIGHT: if(rc.c < PIT_COLS-2) m_cursor.rc.c++; break;
-		case Dir::UP: if(rc.r > pit.top()) m_cursor.rc.r--; break;
-		case Dir::DOWN: if(rc.r < pit.bottom()) m_cursor.rc.r++; break;
-		default: SDL_assert(false);
-	}
+	m_pit.cursor_move(dir);
 
-	if(m_handler && dir != Dir::NONE)
+	if(m_handler)
 		m_handler->fire(evt::CursorMoves());
 }
 

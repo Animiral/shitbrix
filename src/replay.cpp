@@ -3,6 +3,7 @@
  */
 
 #include "replay.hpp"
+#include <vector>
 #include <sstream>
 #include <cctype>
 #include <SDL2/SDL_assert.h>
@@ -36,6 +37,64 @@ ReplayEvent ReplayEvent::make_end() noexcept
 	ReplayEvent event;
 	event.type = Type::END;
 	return event;
+}
+
+
+Journal::Journal(GameMeta meta, IReplaySink* sink)
+: m_meta(meta), m_checkpoint({GameState(meta)}), m_sink(sink)
+{
+	std::ostringstream stream;
+	stream << meta.seed;
+	do_event(ReplayEvent::make_set("rng_seed", stream.str()));
+}
+
+void Journal::reproduce(long target_time, GameState& state)
+{
+	game_assert(m_sink, "Journal: cannot reproduce without a sink");
+
+	// restore the latest checkpoint before the game_time
+	auto checkpoint_after = [](const GameState& s, long t) { return s.game_time() > t; };
+	auto it = std::lower_bound(m_checkpoint.rbegin(), m_checkpoint.rend(), target_time, checkpoint_after);
+	game_assert(m_checkpoint.rend() != it, "No earlier checkpoint in Journal");
+	state = *it;
+
+	// all checkpoints after that become invalid
+	auto checkpoint_invalid = [target_time](const GameState& s) { return s.game_time() > target_time; };
+	m_checkpoint.erase(std::remove_if(m_checkpoint.begin(), m_checkpoint.end(), checkpoint_invalid), m_checkpoint.end());
+
+	// compile a list of inputs in chronological order
+	std::vector<GameInput> inputs;
+	auto input_before = [](const GameInput& a, const GameInput& b) { return a.game_time < b.game_time; };
+	for(const ReplayEvent& event : m_events) {
+		if(ReplayEvent::Type::INPUT == event.type &&
+		   event.input.game_time >= state.game_time() &&
+		   event.input.game_time < target_time) {
+			inputs.insert(std::upper_bound(inputs.begin(), inputs.end(), event.input, input_before), event.input);
+		}
+	}
+
+	// TODO: sent meta-events
+	// Right now, we only send input events because there is still some work to do to separate meta-info from inputs in the replay.
+
+	// send the inputs to my sink
+	long game_time = state.game_time();
+	for(const GameInput& input : inputs) {
+		if(game_time + CHECKPOINT_INTERVAL <= input.game_time) {
+			m_checkpoint.push_back(state);
+			game_time = input.game_time;
+		}
+		m_sink->do_event(ReplayEvent::make_input(input));
+	}
+}
+
+void Journal::poll(long target_time) const
+{
+	game_assert(m_sink, "Journal: cannot poll without a sink");
+
+	for(const ReplayEvent& event : m_events) {
+		if(ReplayEvent::Type::INPUT == event.type && event.input.game_time == target_time)
+			m_sink->do_event(event);
+	}
 }
 
 namespace
@@ -75,6 +134,41 @@ const char* button_action_string(ButtonAction action) noexcept
 	}
 }
 
+}
+
+void replay_write(std::ostream& stream, const Journal& journal)
+{
+	for(const ReplayEvent& event : journal.events()) {
+		const ReplayEvent::Type event_type = event.type;
+
+		stream << replay_event_type_string(event_type);
+
+		switch(event_type) {
+			case ReplayEvent::Type::SET:
+				stream << " " << event.set_name << " " << event.set_value;
+				break;
+
+			case ReplayEvent::Type::INPUT:
+				{
+					stream << " " << event.input.game_time
+					       << " " << event.input.player
+					       << " " << game_button_string(event.input.button)
+					       << " " << button_action_string(event.input.action);
+				}
+				break;
+
+			case ReplayEvent::Type::START:
+			case ReplayEvent::Type::END:
+				break; // no parameters
+		}
+
+		stream << "\n";
+	}
+}
+
+namespace
+{
+
 ReplayEvent::Type string_to_replay_event_type(const std::string& str)
 {
 	if("set" == str) return ReplayEvent::Type::SET;
@@ -104,37 +198,11 @@ ButtonAction string_to_button_action(const std::string& str)
 
 }
 
-Journal& Journal::operator<<(const ReplayEvent event)
+Journal replay_read(std::istream& stream)
 {
-	const ReplayEvent::Type event_type = event.type;
+	// read and parse all events
+	std::vector<ReplayEvent> event;
 
-	m_stream << replay_event_type_string(event_type);
-
-	switch(event_type) {
-		case ReplayEvent::Type::SET:
-			m_stream << " " << event.set_name << " " << event.set_value;
-			break;
-
-		case ReplayEvent::Type::INPUT:
-			{
-				m_stream << " " << event.input.game_time
-				         << " " << event.input.player
-				         << " " << game_button_string(event.input.button)
-				         << " " << button_action_string(event.input.action);
-			}
-			break;
-
-		case ReplayEvent::Type::START:
-		case ReplayEvent::Type::END:
-			break; // no parameters
-	}
-
-	m_stream << "\n";
-	return *this;
-}
-
-void replay_read(std::istream& stream, IReplaySink& sink)
-{
 	while(stream && (stream.eof() || stream.peek(), !stream.eof())) {
 		std::string line;
 
@@ -193,10 +261,36 @@ void replay_read(std::istream& stream, IReplaySink& sink)
 			SDL_assert_paranoid(false);
 
 		}
-
-		sink.handle(event);
 	}
 
 	if(stream.bad())
 		throw GameException("Something went wrong in reading from replay.");
+
+	// separate meta-data from input data
+	GameMeta meta{2, 0, GameMeta::WINNER_UNDECIDED};
+
+	for(const ReplayEvent& ev : event) {
+		if(ReplayEvent::Type::SET == ev.type) {
+			if("rng_seed" == ev.set_name) {
+				std::istringstream stream(ev.set_value);
+				unsigned int rng_seed;
+				stream >> rng_seed;
+				meta.seed = rng_seed;
+			}
+			else if("winner" == ev.set_name) {
+				std::istringstream stream(ev.set_value);
+				int winner;
+				stream >> winner;
+				meta.winner = winner;
+			}
+		}
+	}
+
+	Journal journal{meta};
+
+	// fill the journal with all our input events
+	for(const ReplayEvent& ev : event)
+		journal.do_event(ev);
+
+	return journal;
 }

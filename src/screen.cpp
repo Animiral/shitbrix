@@ -95,22 +95,26 @@ void GameIntro::update()
 }
 
 
-GamePlay::GamePlay(GameScreen* screen) : IGamePhase(screen)
-{
-	m_screen->journal << ReplayEvent::make_start();
-}
-
 void GamePlay::update()
 {
-	m_screen->stage->update();
+	m_screen->m_stage->update();
 
 	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
 		auto& pobjs = m_screen->m_pobjects[i];
 		pobjs->block_director.update();
 
 		if(pobjs->block_director.over()) {
+			// NOTE: to determine the winner is a server-side job only.
 			int winner = opponent(static_cast<int>(i));
+			std::ostringstream stream;
+			stream << winner;
+			m_screen->m_journal->do_event(ReplayEvent::make_set("winner", stream.str()));
+
+			// NOTE: this should only happen when the Journal tells us that the game is over.
+			// We should not assume that the winner that we have detected is valid until
+			// it is part of the game record.
 			m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+
 			auto phase = std::make_unique<GameResult>(m_screen, winner);
 			m_screen->change_phase(std::move(phase));
 			break;
@@ -122,8 +126,6 @@ void GamePlay::update()
 
 void GamePlay::input(GameInput ginput)
 {
-	m_screen->journal << ReplayEvent::make_input(ginput);
-
 	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
 
 	switch(ginput.button) {
@@ -162,16 +164,13 @@ void GamePlay::input(GameInput ginput)
 
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 {
-	std::ostringstream stream;
-	stream << winner;
-	m_screen->journal << ReplayEvent::make_set("winner", stream.str());
 	m_screen->m_draw.show_cursor(false);
 	m_screen->m_draw.show_banner(true);
 }
 
 GameResult::~GameResult()
 {
-	m_screen->journal << ReplayEvent::make_end();
+	m_screen->m_journal->do_event(ReplayEvent::make_end());
 }
 
 void GameResult::update()
@@ -184,21 +183,21 @@ void GameResult::update()
 GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio)
 : m_pause(false),
   replay_outstream(replay_outfile),
-  journal(replay_outstream),
   m_draw(std::move(draw)),
   m_sound_relay(audio),
   m_shake_relay(m_draw)
 {
 	if(replay_infile) {
 		std::ifstream stream(replay_infile);
-		replay_read(stream, *this); /* no GameRecord yet: read into *this */
+		m_journal = std::make_unique<Journal>(replay_read(stream));
+		m_journal->set_sink(this);
 	}
 	else {
 		std::random_device rdev;
 		seed(rdev());
 	}
 
-	reset();
+	reset(m_journal->meta());
 }
 
 GameScreen::~GameScreen() noexcept
@@ -210,7 +209,7 @@ GameScreen::~GameScreen() noexcept
 	m_game_phase.reset();
 }
 
-void GameScreen::reset()
+void GameScreen::reset(GameMeta meta)
 {
 	m_draw.clear();
 	m_pobjects.clear();
@@ -220,43 +219,40 @@ void GameScreen::reset()
 	m_game_time = 0L;
 	m_done = false;
 
-	auto builder = StageBuilder();
-	stage = builder.construct(m_seed);
+	m_stage = std::make_unique<Stage>(GameState(meta));
 
-	Pit& left_pit = *builder.left_pit;
-	Cursor& left_cursor = *builder.left_cursor;
-	Banner& left_banner = *builder.left_banner;
-	BonusIndicator& left_bonus = *builder.left_bonus;
+	Pit& left_pit = *m_stage->state().pit().at(0);
+	const Cursor& left_cursor = left_pit.cursor();
+	Banner& left_banner = m_stage->sobs().at(0).banner;
+	BonusIndicator& left_bonus = m_stage->sobs().at(0).bonus;
 
-	Pit& right_pit = *builder.right_pit;
-	Cursor& right_cursor = *builder.right_cursor;
-	Banner& right_banner = *builder.right_banner;
-	BonusIndicator& right_bonus = *builder.right_bonus;
+	Pit& right_pit = *m_stage->state().pit().at(1);
+	const Cursor& right_cursor = right_pit.cursor();
+	Banner& right_banner = m_stage->sobs().at(1).banner;
+	BonusIndicator& right_bonus = m_stage->sobs().at(1).bonus;
 
-	auto left_pobjs = std::make_unique<PlayerObjects>(left_pit, left_cursor, right_pit, left_bonus);
-	auto right_pobjs = std::make_unique<PlayerObjects>(right_pit, right_cursor, left_pit, right_bonus);
+	auto left_pobjs = std::make_unique<PlayerObjects>(left_pit, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(right_pit, left_pit, right_bonus);
 	m_pobjects.push_back(std::move(left_pobjs));
 	m_pobjects.push_back(std::move(right_pobjs));
 	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
 	m_draw.add_pit(right_pit, right_cursor, right_banner, right_bonus);
 
-	m_gameover_relay.reset(new evt::GameOverRelay(stage->sobs()));
+	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
 
 	for(auto& pobjs : m_pobjects) {
 		pobjs->event_hub.append(m_sound_relay);
 		pobjs->event_hub.append(m_shake_relay);
 		pobjs->event_hub.append(*m_gameover_relay);
 	}
+
+	m_journal->do_event(ReplayEvent::make_start());
 }
 
 void GameScreen::update()
 {
 	if(!m_pause)
 		update_impl();
-
-	// auto-move cursor when scrolling out of bounds
-	for(auto& pobjs : m_pobjects)
-		pobjs->cursor_director.move(Dir::NONE);
 }
 
 void GameScreen::draw(float dt)
@@ -266,6 +262,14 @@ void GameScreen::draw(float dt)
 
 void GameScreen::input(ControllerInput cinput)
 {
+	// Generally, inputs to the game screen are sent to the Network object.
+	// This may happen in the form of full-formed ReplayEvents or simply
+	// GameInputs, depending on whether we are Server or Client.
+	// The Network generates ReplayEvents and sends them to the Journal,
+	// from which we get our ReplayEvents to display the game on the screen.
+
+	// Because we do not have Network yet, we always send ReplayEvents directly to the Journal.
+
 	switch(cinput.button) {
 		case Button::LEFT:
 		case Button::RIGHT:
@@ -274,18 +278,11 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::A:
 		case Button::B:
 		{
-			/* hack before GameRecord */
-			// This allows us even to interrupt a replay
-			if(!m_replay_inputs.empty()) {
-				if(ButtonAction::UP == cinput.action) break;
-				else m_replay_inputs.clear();
-			}
-
 			const std::optional<GameInput> oinput = controller_to_game(cinput);
 			if(oinput.has_value()) {
 				GameInput ginput = oinput.value();
 				ginput.game_time = m_game_time;
-				m_game_phase->input(ginput);
+				m_journal->do_event(ReplayEvent::make_input(ginput));
 			}
 		}
 			break;
@@ -299,7 +296,7 @@ void GameScreen::input(ControllerInput cinput)
 				std::random_device rdev;
 				seed(rdev());
 			}
-			reset();
+			reset(m_journal->meta());
 			break;
 
 		case Button::QUIT:
@@ -337,36 +334,35 @@ void GameScreen::input(ControllerInput cinput)
 	}
 }
 
-void GameScreen::handle(const ReplayEvent& event)
+void GameScreen::do_event(const ReplayEvent& event)
 {
 	switch(event.type) {
 
-	case ReplayEvent::Type::SET:
-		if("rng_seed" == event.set_name) {
-			std::istringstream stream(event.set_value);
-			unsigned int rng_seed;
-			stream >> rng_seed;
-			seed(rng_seed);
-		}
-		else {
-			// TODO: handle other “set” names
-		}
-		break;
+	//case ReplayEvent::Type::SET:
+	//	if("rng_seed" == event.set_name) {
+	//		std::istringstream stream(event.set_value);
+	//		unsigned int rng_seed;
+	//		stream >> rng_seed;
+	//		seed(rng_seed);
+	//	}
+	//	else {
+	//		// TODO: handle other “set” names
+	//	}
+	//	break;
 
-	case ReplayEvent::Type::START:
-		m_replay_inputs.clear(); // replays are currently limited to 1/file (the last one)
-		reset();
-		break;
+	//case ReplayEvent::Type::START:
+	//	reset();
+	//	break;
 
 	case ReplayEvent::Type::INPUT:
-		m_replay_inputs.push_back(event.input);
+		m_game_phase->input(event.input);
 		// ignore (mixer passes this to game phase)
 		break;
 
-	case ReplayEvent::Type::END:
-		// m_done = true;
-		// ignore this for now
-		break;
+	//case ReplayEvent::Type::END:
+	//	// m_done = true;
+	//	// ignore this for now
+	//	break;
 
 	}
 }
@@ -383,12 +379,10 @@ void GameScreen::change_phase_impl()
 
 void GameScreen::update_impl()
 {
-	/* hack before GameRecord */
-	for(const GameInput& input : m_replay_inputs) {
-		if(input.game_time == m_game_time)
-			m_game_phase->input(input);
-	}
+	// get events from journal, from which inputs will be relayed to the phase
+	m_journal->poll(m_game_time);
 
+	// run game logic
 	m_game_phase->update();
 
 	if(m_next_phase)
@@ -397,10 +391,8 @@ void GameScreen::update_impl()
 
 void GameScreen::seed(unsigned int rng_seed)
 {
-	m_seed = rng_seed;
-	std::ostringstream stream;
-	stream << rng_seed;
-	journal << ReplayEvent::make_set("rng_seed", stream.str());
+	GameMeta meta{2, rng_seed, GameMeta::WINNER_UNDECIDED};
+	m_journal = std::make_unique<Journal>(meta, this);
 }
 
 void TransitionScreen::update()

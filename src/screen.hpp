@@ -165,7 +165,7 @@ class GamePlay : public IGamePhase
 
 public:
 
-	GamePlay(GameScreen* screen);
+	GamePlay(GameScreen* screen) : IGamePhase(screen) {}
 
 	virtual void update() override;
 	virtual void input(GameInput ginput) override;
@@ -183,7 +183,7 @@ public:
 
 };
 
-class GameScreen : public IScreen, /* stupid hack which will be abolished as soon as we have class GameRecord to feed replay data to. */ private IReplaySink
+class GameScreen : public IScreen, public IReplaySink
 {
 
 public:
@@ -192,7 +192,7 @@ public:
 	virtual ~GameScreen() noexcept;
 
 	const long& game_time() const { return m_game_time; }
-	void reset();
+	void reset(GameMeta meta);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
@@ -207,8 +207,8 @@ private:
 	 */
 	struct PlayerObjects
 	{
-		PlayerObjects(Pit& pit, Cursor& cursor, Pit& other_pit, BonusIndicator& bonus)
-		: logic(pit), block_director(pit, logic), cursor_director(pit, cursor),
+		PlayerObjects(Pit& pit, Pit& other_pit, BonusIndicator& bonus)
+		: logic(pit), block_director(pit, logic), cursor_director(pit),
 		  event_hub(), garbage_throw(other_pit), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
@@ -230,7 +230,6 @@ private:
 		BonusThrow bonus_throw; // event handler for displaying stars
 	};
 
-	unsigned m_seed; // game-start PRNG seed which determines block mix
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
 	bool m_pause; // true if tick updates are supressed
@@ -238,11 +237,10 @@ private:
 	std::unique_ptr<IGamePhase> m_game_phase;
 	std::unique_ptr<IGamePhase> m_next_phase;
 
-	std::vector<GameInput> m_replay_inputs; /* hack before GameRecord */
 	std::ofstream replay_outstream;
-	Journal journal;
+	std::unique_ptr<Journal> m_journal;
 
-	std::unique_ptr<Stage> stage;
+	std::unique_ptr<Stage> m_stage;
 	DrawGame m_draw;
 	evt::SoundRelay m_sound_relay;
 	ShakeRelay m_shake_relay;
@@ -254,7 +252,7 @@ private:
 	void seed(unsigned int rng_seed);
 
 	/* hack before GameRecord */
-	virtual void handle(const ReplayEvent& event) override;
+	virtual void do_event(const ReplayEvent& event) override;
 
 	/**
 	 * Pass on the update event to child objects.
