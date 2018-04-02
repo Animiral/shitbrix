@@ -1,8 +1,5 @@
-/**
- * Implementation of game logic functions.
- */
-
 #include "logic.hpp"
+#include "error.hpp"
 
 void MatchBuilder::ignite(Block& block)
 {

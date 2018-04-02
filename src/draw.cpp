@@ -3,6 +3,7 @@
  */
 #include "draw.hpp"
 #include "globals.hpp"
+#include "error.hpp"
 #include <cmath>
 #include <SDL2/SDL.h>
 

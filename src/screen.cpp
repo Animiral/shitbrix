@@ -1,8 +1,10 @@
 #include "screen.hpp"
 #include "options.hpp"
+#include "error.hpp"
 #include <sstream>
 #include <chrono>
 #include <ctime>
+#include <iostream>
 #include <iomanip>
 
 namespace
@@ -34,7 +36,7 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu() const
 std::unique_ptr<IScreen> ScreenFactory::create_game() const
 {
 	DrawGame draw_game(m_assets);
-	return std::make_unique<GameScreen>(m_options.replay_file(), make_journal_file().c_str(), std::move(draw_game), m_audio);
+	return std::make_unique<GameScreen>(m_options.replay_path(), make_journal_file().c_str(), std::move(draw_game), m_audio);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor) const
@@ -49,6 +51,7 @@ MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio)
   m_done(false),
   m_draw(std::move(draw))
 {
+	Log::info("MenuScreen turn on.");
 }
 
 void MenuScreen::update()
@@ -189,8 +192,15 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, Dr
   m_sound_relay(audio),
   m_shake_relay(m_draw)
 {
+	Log::info("GameScreen turn on.");
+
 	if(replay_infile) {
+		Log::info("Read replay from file: %s.", replay_infile);
 		std::ifstream stream(replay_infile);
+
+		if(!stream)
+			throw ReplayException("Could not open replay file.");
+
 		m_journal = std::make_unique<Journal>(replay_read(stream));
 		m_journal->set_sink(this);
 	}
@@ -213,6 +223,8 @@ GameScreen::~GameScreen() noexcept
 
 void GameScreen::reset(GameMeta meta)
 {
+	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
+
 	m_draw.clear();
 	m_pobjects.clear();
 

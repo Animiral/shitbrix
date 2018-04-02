@@ -3,6 +3,7 @@
  */
 
 #include "stage.hpp"
+#include "error.hpp"
 #include <algorithm>
 #include <functional>
 

@@ -1,4 +1,5 @@
 #include "game_loop.hpp"
+#include "error.hpp"
 
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
@@ -58,6 +59,8 @@ void GameLoop::game_loop()
 			next_logic = t0 + (tick + 1) * freq / TPS;
 		}
 	}
+
+	Log::info("Game exit.");
 }
 
 void GameLoop::next_screen()

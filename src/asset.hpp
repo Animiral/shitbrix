@@ -5,6 +5,7 @@
 #pragma once
 
 #include "globals.hpp"
+#include "error.hpp"
 #include "sdl_helper.hpp"
 #include <memory>
 #include <vector>
@@ -21,6 +22,7 @@ public:
 	{
 		const Sdl& sdl = Sdl::instance();
 
+		Log::info("Load assets: graphics");
 		std::vector<TexturePtr> bgframe;
 		bgframe.emplace_back(sdl.create_texture("gfx/bg.png"));
 		textures.emplace_back(move(bgframe));                                        // Gfx::BACKGROUND
@@ -31,7 +33,7 @@ public:
 
 		textures.emplace_back(sdl.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
 		textures.emplace_back(sdl.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
-		
+
 		auto garbage = sdl.create_texture_sheet("gfx/garbage.png", GARBAGE_W, GARBAGE_H);
 		for(auto& v : garbage)
 			textures.emplace_back(move(v));                                          // Gfx::GARBAGE_*
@@ -42,6 +44,7 @@ public:
 		menuframe.emplace_back(sdl.create_texture("gfx/menubg.png"));
 		textures.emplace_back(move(menuframe)); // Gfx::MENUBG
 
+		Log::info("Load assets: sounds");
 		sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
 		sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
 		sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH

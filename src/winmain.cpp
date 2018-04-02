@@ -1,4 +1,5 @@
 #include "game_loop.hpp"
+#include "error.hpp"
 #include <windows.h>
 #include <vector>
 #include <cassert>
@@ -20,8 +21,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd)
 	}
 
 	Options options(argc, &argv[0]);
-	GameLoop loop(options);
-	loop.game_loop();
+	Log::init(create_file_log(options.log_path()));
+
+	try 	{
+		GameLoop loop(options);
+		loop.game_loop();
+	}
+	catch(const std::exception& ex) {
+		show_error(ex);
+	}
+	catch(...) {
+		Log::error("Unknown exception occurred.");
+	}
 
 	for (const char* arg : argv)
 		delete arg;

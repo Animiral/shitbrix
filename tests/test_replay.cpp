@@ -3,6 +3,7 @@
  */
 
 #include "replay.hpp"
+#include "error.hpp"
 #include "gtest/gtest.h"
 #include <string>
 #include <sstream>
@@ -114,5 +115,5 @@ TEST(ReplayTest, ReadErrorInput)
 	std::string replay_str = "input 10 1\nend\n";
 	std::istringstream stream(replay_str);
 
-	EXPECT_THROW(replay_read(stream), GameException);
+	EXPECT_THROW(replay_read(stream), ReplayException);
 }

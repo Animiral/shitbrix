@@ -3,6 +3,7 @@
  */
 
 #include "replay.hpp"
+#include "error.hpp"
 #include <vector>
 #include <sstream>
 #include <cctype>
@@ -174,7 +175,7 @@ ReplayEvent::Type string_to_replay_event_type(const std::string& str)
 	else if("start" == str) return ReplayEvent::Type::START;
 	else if("input" == str) return ReplayEvent::Type::INPUT;
 	else if("end" == str) return ReplayEvent::Type::END;
-	else throw GameException("Invalid event type string.");
+	else throw ReplayException("Invalid event type string.");
 }
 
 GameButton string_to_game_button(const std::string& str)
@@ -185,14 +186,14 @@ GameButton string_to_game_button(const std::string& str)
 	else if("down" == str) return GameButton::DOWN;
 	else if("swap" == str) return GameButton::SWAP;
 	else if("raise" == str) return GameButton::RAISE;
-	else throw GameException("Invalid game button string.");
+	else throw ReplayException("Invalid game button string.");
 }
 
 ButtonAction string_to_button_action(const std::string& str)
 {
 	if("up" == str) return ButtonAction::UP;
 	else if("down" == str) return ButtonAction::DOWN;
-	else throw GameException("Invalid button action string.");
+	else throw ReplayException("Invalid button action string.");
 }
 
 }
@@ -206,7 +207,7 @@ Journal replay_read(std::istream& stream)
 		std::string line;
 
 		if(!std::getline(stream, line)) {
-			throw GameException("Failed to read from replay.");
+			throw ReplayException("Failed to read from replay.");
 		}
 
 		ReplayEvent event;
@@ -263,7 +264,7 @@ Journal replay_read(std::istream& stream)
 	}
 
 	if(stream.bad())
-		throw GameException("Something went wrong in reading from replay.");
+		throw ReplayException("Something went wrong in reading from replay.");
 
 	// separate meta-data from input data
 	GameMeta meta{2, 0, GameMeta::WINNER_UNDECIDED};

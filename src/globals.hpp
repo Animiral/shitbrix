@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <exception>
-#include <iostream> // debug stuff
+#include <ostream> // debug stuff
 
 // ================================================
 // Basic global types and structures
@@ -244,106 +242,3 @@ constexpr int BANNER_W = 200; //!< width of the win/lose banner in canvas pixels
 constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixels
 
 constexpr int TRANSITION_TIME = 20; //!< Number of frames for screen transition
-
-// ================================================
-// Error handling
-// ================================================
-
-// NOTE: we use the standard assert macro for never-happens conditions.
-
-/**
- * General exception for all types of errors that occur in the game.
- */
-struct GameException : public std::exception
-{
-	explicit GameException(const char* what = "") : m_what(what) {}
-	virtual const char* class_name() noexcept { return "GameException"; }
-	virtual const char* what() const override { return m_what; }
-	const char* m_what;
-};
-
-/**
- * Invalid game states encountered while evaluating game logic.
- * This can point to invalid setup of pit contents.
- */
-struct LogicException : public GameException
-{
-	explicit LogicException(const char* what = "") : GameException(what) {}
-	virtual const char* class_name() noexcept override { return "LogicException"; }
-};
-
-/**
- * Umbrella exception for error conditions that arise from use of the SDL library.
- * Their common feature is that they can not be handled and we get the error
- * message from the library.
- */
-struct SdlException : public GameException
-{
-	/**
-	 * Constructor that takes the error message from @c SDL_GetError.
-	 */
-	SdlException();
-
-	/**
-	 * Constructor with custom error message.
-	 */
-	explicit SdlException(const char* what) : GameException(what) {}
-
-	virtual const char* class_name() noexcept override { return "SdlException"; }
-};
-
-/**
- * Exception for violated input expectations and contracts.
- */
-struct EnforceException : public GameException
-{
-	explicit EnforceException(const char* condition, const char* func, const char* file, int line)
-		: GameException("Enforced condition violated"), m_condition(condition), m_func(func), m_file(file), m_line(line) {}
-	virtual const char* class_name() noexcept override { return "EnforceException"; }
-	const char* m_condition;
-	const char* m_func;
-	const char* m_file;
-	int m_line;
-};
-
-/**
- * Evaluate the condition and throw an @c EnforceException if it is false.
- * Intended for use through the @c enforce macro.
- */
-void enforce_impl(bool condition, const char* condition_str, const char* func, const char* file, int line);
-
-// expression-to-string helper
-#define STR1(x) #x
-#define SB_STRINGIZE(x) STR1(x)
-
-// align compilers
-#ifdef __GNUC__
-#elif __MINGW32__
-#define SB_FUNC __PRETTY_FUNCTION__
-#elif _MSC_VER
-#define SB_FUNC __FUNCSIG__
-#else
-#define SB_FUNC __func__
-#endif
-
-/**
- * Evaluate the condition and throw an @c EnforceException if it is false.
- */
-#define enforce(CONDITION) enforce_impl((CONDITION), SB_STRINGIZE(CONDITION), SB_FUNC, __FILE__, __LINE__)
-
-/**
- * Validate that the result of an SDL operation is 0 (OK). If not, throw an SdlException.
- */
-void sdlok(int result);
-
-/**
- * Validate that the object created by SDL (cast to bool) is true (not nullptr).
- * If not, throw an SdlException.
- */
-void sdlok(void* pointer);
-
-/**
- * Validate that the object created by SDL_image (cast to bool) is true (not nullptr).
- * If not, throw an SdlException.
- */
-void imgok(void* pointer);

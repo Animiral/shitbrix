@@ -77,6 +77,7 @@
     <ClInclude Include="..\..\src\asset.hpp" />
     <ClInclude Include="..\..\src\director.hpp" />
     <ClInclude Include="..\..\src\draw.hpp" />
+    <ClInclude Include="..\..\src\error.hpp" />
     <ClInclude Include="..\..\src\gameevent.hpp" />
     <ClInclude Include="..\..\src\game_loop.hpp" />
     <ClInclude Include="..\..\src\globals.hpp" />
@@ -93,6 +94,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\director.cpp" />
     <ClCompile Include="..\..\src\draw.cpp" />
+    <ClCompile Include="..\..\src\error.cpp" />
     <ClCompile Include="..\..\src\game_loop.cpp" />
     <ClCompile Include="..\..\src\globals.cpp" />
     <ClCompile Include="..\..\src\input.cpp" />

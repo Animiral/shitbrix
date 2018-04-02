@@ -9,6 +9,7 @@
  */
 
 #include "stage.hpp"
+#include "error.hpp"
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
 
@@ -105,8 +106,8 @@ TEST_F(PitTest, SpawnBlockOutOfBounds)
 {
 	RowCol red_rc{1, -1};
 	RowCol green_rc{3, 6};
-	EXPECT_THROW(pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST), GameException);
-	EXPECT_THROW(pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST), GameException);
+	EXPECT_THROW(pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST), EnforceException);
+	EXPECT_THROW(pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST), EnforceException);
 }
 
 /**
@@ -141,8 +142,8 @@ TEST_F(PitTest, SpawnGarbageOutOfBounds)
 {
 	RowCol combo_rc{1, -1};
 	RowCol chain_rc{3, 1};
-	EXPECT_THROW(pit->spawn_garbage(combo_rc, 3, 1), GameException);
-	EXPECT_THROW(pit->spawn_garbage(chain_rc, 6, 2), GameException);
+	EXPECT_THROW(pit->spawn_garbage(combo_rc, 3, 1), EnforceException);
+	EXPECT_THROW(pit->spawn_garbage(chain_rc, 6, 2), EnforceException);
 }
 
 /**
@@ -234,7 +235,7 @@ TEST_F(PitTest, FallBlockFail)
 	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
 	pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
 
-	EXPECT_THROW(pit->fall(red_block), GameException);
+	EXPECT_THROW(pit->fall(red_block), LogicException);
 }
 
 /**
@@ -274,7 +275,7 @@ TEST_F(PitTest, FallGarbageFail)
 	pit->spawn_garbage(combo_rc, 3, 1);
 	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
 
-	EXPECT_THROW(pit->fall(chain_gb), GameException);
+	EXPECT_THROW(pit->fall(chain_gb), LogicException);
 }
 
 /**

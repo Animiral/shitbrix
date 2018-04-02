@@ -3,6 +3,7 @@
  */
 
 #include "input.hpp"
+#include "error.hpp"
 #include <SDL2/SDL.h>
 
 namespace

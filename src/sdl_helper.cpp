@@ -1,4 +1,5 @@
 #include "sdl_helper.hpp"
+#include "error.hpp"
 #include <cstring>
 #include <SDL2/SDL.h>
 
