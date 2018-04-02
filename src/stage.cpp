@@ -3,7 +3,6 @@
  */
 
 #include "stage.hpp"
-#include <SDL2/SDL_assert.h>
 #include <algorithm>
 #include <functional>
 
@@ -15,13 +14,7 @@ Physical::Physical(RowCol rc, State state)
   m_tag(TAG_NONE)
 {
 	// exclude locations that are well-known to lie out of bounds
-	SDL_assert(rc.c >= 0 && rc.c < PIT_COLS);
-
-	// exclude states in which we know that physicals do not spawn
-	SDL_assert(State::DEAD != state &&
-	           State::FALL != state &&
-	           State::LAND != state &&
-	           State::BREAK != state);
+	enforce(rc.c >= 0 && rc.c < PIT_COLS);
 }
 
 float Physical::eta() const noexcept
@@ -37,12 +30,12 @@ bool Physical::is_arriving() const noexcept
 
 bool Physical::is_fallible() const noexcept
 {
-	return State::REST == m_state || State::LAND == m_state;
+	return State::REST == m_state || State::LAND == m_state; // && !has_tag(TAG_FALL);
 }
 
 void Physical::update()
 {
-	SDL_assert(State::DEAD != m_state);
+	enforce(State::DEAD != m_state);
 
 	m_time -= m_speed;
 	update_impl();
@@ -56,9 +49,9 @@ void Physical::update()
 
 void Physical::set_state(State state, int time, int speed) noexcept
 {
-	SDL_assert(m_state != State::DEAD); // cannot change out of dead state
-	SDL_assert(time >= 1); // state must last at least one tick
-	SDL_assert(speed >= 1); // time must run out, not in
+	enforce(m_state != State::DEAD); // cannot change out of dead state
+	enforce(time >= 1); // state must last at least one tick
+	enforce(speed >= 1); // time must run out, not in
 
 	set_state_impl(state, time, speed);
 
@@ -70,7 +63,7 @@ void Physical::set_state(State state, int time, int speed) noexcept
 void Physical::continue_state(int time_bonus) noexcept
 {
 	// The bonus must be large enough to prime the object for another arrival
-	SDL_assert(m_time + time_bonus > 0);
+	enforce(m_time + time_bonus > 0);
 
 	m_time += time_bonus;
 }
@@ -119,7 +112,7 @@ void Block::update_impl()
 
 void Block::set_state_impl(Physical::State state, int, int) noexcept
 {
-	SDL_assert(State::PREVIEW != static_cast<State>(state));
+	enforce(State::PREVIEW != static_cast<State>(state));
 
 	if(Physical::State::BREAK == state) {
 		m_anim = BlockFrame::BREAK_BEGIN;
@@ -144,23 +137,23 @@ Garbage::Garbage(RowCol rc, int columns, int rows, Loot loot)
 	m_rows(rows),
 	m_loot(loot)
 {
-	SDL_assert(columns > 0);
-	SDL_assert(rows > 0);
-	SDL_assert(loot.size() == columns * rows);
+	enforce(columns > 0);
+	enforce(rows > 0);
+	enforce(loot.size() == columns * rows);
 }
 
 Loot::const_iterator Garbage::loot() const
 {
-	SDL_assert(m_rows > 0);
+	enforce(m_rows > 0);
 	return m_loot.begin();
 }
 
 int Garbage::shrink() noexcept
 {
-	SDL_assert(m_rows > 0);
+	enforce(m_rows > 0);
 	m_loot.erase(m_loot.begin(), m_loot.begin() + m_columns);
 	--m_rows;
-	SDL_assert(m_loot.size() == m_columns * m_rows);
+	enforce(m_loot.size() == m_columns * m_rows);
 	return m_rows;
 }
 
@@ -259,8 +252,8 @@ bool Pit::is_full() const noexcept
 
 Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 {
-	game_assert(rc.c >= 0 && rc.c < PIT_COLS, "Attempt to spawn block out of bounds.");
-	game_assert(!at(rc), "Attempt to spawn block at occupied location.");
+	enforce(rc.c >= 0);
+	enforce(rc.c < PIT_COLS);
 
 	auto block = std::make_unique<Block>(color, rc, state);
 	Block* raw_block = block.get();
@@ -277,7 +270,8 @@ Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 {
 	// make sure the Garbage fits in the Pit
-	game_assert(rc.c >= 0 && rc.c + width <= PIT_COLS, "Attempt to spawn garbage out of bounds.");
+	enforce(rc.c >= 0);
+	enforce(rc.c + width <= PIT_COLS);
 
 	Loot loot(width * height);
 	for(Block::Color& c : loot)
@@ -320,12 +314,12 @@ void Pit::fall(Physical& physical)
 
 	if(block) fall_block(*block);
 	else if(garbage) fall_garbage(*garbage);
-	else game_assert(false, "Attempt to fall unknown object.");
+	else assert(false); // unknown type of object
 
 	refresh_peak();
 }
 
-void Pit::swap(Block& left, Block& right) noexcept
+void Pit::swap(Block& left, Block& right)
 {
 	RowCol lrc = left.rc();
 	RowCol rrc = right.rc();
@@ -334,7 +328,11 @@ void Pit::swap(Block& left, Block& right) noexcept
 	auto right_entry = m_content_map.find(rrc);
 	auto end = m_content_map.end();
 
-	game_assert(left_entry != end && right_entry != end, "Attempt to swap nonexistant blocks.");
+	// sanity checks: blocks must exist where the content map remembers them
+	if(left_entry == end || left_entry->second != &left ||
+	   right_entry == end || right_entry->second != &right) {
+		throw LogicException("Pit: Blocks to be swapped are not recognized and might be foreign.");
+	}
 
 	left.set_rc(rrc);
 	right.set_rc(lrc);
@@ -377,7 +375,7 @@ Garbage* Pit::shrink(Garbage& garbage)
 
 	for(int c = rc.c; c < rc.c + garbage.columns(); c++) {
 		size_t erased = m_content_map.erase(RowCol{low, c});
-		game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+		assert(1 == erased); // sanity check: this space must have been previously occupied
 	}
 
 	// The garbage loses one row. If that is all, remove it entirely.
@@ -396,13 +394,15 @@ Garbage* Pit::shrink(Garbage& garbage)
 
 void Pit::cursor_move(Dir dir) noexcept
 {
+	enforce(Dir::NONE != dir);
+
 	switch(dir)
 	{
 		case Dir::LEFT:  if(m_cursor.rc.c > 0)          m_cursor.rc.c--; break;
 		case Dir::RIGHT: if(m_cursor.rc.c < PIT_COLS-2) m_cursor.rc.c++; break;
 		case Dir::UP:    if(m_cursor.rc.r > top())      m_cursor.rc.r--; break;
 		case Dir::DOWN:  if(m_cursor.rc.r < bottom())   m_cursor.rc.r++; break;
-		default: SDL_assert(false);
+		default: assert(false);
 	}
 }
 
@@ -470,12 +470,13 @@ void Pit::fall_block(Block& block)
 	RowCol rc = block.rc();
 	RowCol to { rc.r+1, rc.c };
 
-	game_assert(!at(to), "Attempt to move block to occupied location.");
+	if(at(to))
+		throw LogicException("Pit: Attempt to move block to occupied location.");
 
 	auto erased = m_content_map.erase(rc);
-	game_assert(1 == erased, "Block not found at expected space in Pit.");
+	assert(1 == erased); // sanity check: this space must have been previously occupied
 	auto emplace_result = m_content_map.emplace(to, &block);
-	game_assert(emplace_result.second, "Attempt to block already blocked space in Pit.");
+	assert(emplace_result.second); // sanity check: this space must be free to place a block in
 	block.set_rc(to);
 }
 
@@ -497,7 +498,9 @@ void Pit::fill_area(Physical& physical)
 		for(int c = rc.c; c < rc.c + physical.columns(); c++) {
 			RowCol target{r, c};
 			auto result = m_content_map.emplace(std::make_pair(target, &physical));
-			game_assert(result.second, "Attempt to block already blocked space in Pit.");
+
+			if(!result.second)
+				throw LogicException("Pit: Attempt to block already blocked space.");
 		}
 	}
 }
@@ -510,7 +513,7 @@ void Pit::clear_area(const Physical& physical)
 		for(int c = rc.c; c < rc.c + physical.columns(); c++) {
 			RowCol target{r, c};
 			size_t erased = m_content_map.erase(target);
-			game_assert(1 == erased, "Attempt to unblock empty space in Pit.");
+			assert(1 == erased); // sanity check: this space must have been previously occupied
 		}
 	}
 }
@@ -542,7 +545,7 @@ Pit::PhysVec Pit::copy_contents() const
 
 void Pit::make_content_map()
 {
-	game_assert(m_content_map.empty(), "Pit: leftover content map");
+	assert(m_content_map.empty()); // leftover content map
 
 	for(const auto& physical : m_contents)
 		fill_area(*physical);
@@ -559,7 +562,7 @@ namespace
  */
 Point layout_pit(int players, int index)
 {
-	game_assert(2 == players, "Unsupported player number");
+	enforce(2 == players); // different player number not supported yet
 
 	return index <= 0 ? LPIT_LOC : RPIT_LOC;
 }
@@ -634,7 +637,7 @@ void BonusIndicator::update() noexcept
 Stage::Stage(GameState init)
 	: m_state(std::move(init))
 {
-	game_assert(2 == m_state.pit().size(), "Unsupported player number");
+	enforce(2 == m_state.pit().size()); // different player number not supported yet
 
 	Point lbanner_loc{LPIT_LOC.offset((PIT_W - BANNER_W) / 2., (PIT_H - BANNER_H) / 2.)};
 	m_sobs.push_back({Banner(lbanner_loc), BonusIndicator(LBONUS_LOC)});

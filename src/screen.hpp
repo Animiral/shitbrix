@@ -110,7 +110,7 @@ public:
 	 * Return the result of the MenuScreen.
 	 * It is an error to ask for this before the screen is done().
 	 */
-	Result result() const { SDL_assert(m_done); return m_result; }
+	Result result() const { enforce(m_done); return m_result; }
 
 private:
 

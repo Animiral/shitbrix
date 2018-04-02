@@ -6,7 +6,6 @@
 #include "stage.hpp"
 #include "gameevent.hpp"
 #include "logic.hpp"
-#include <SDL2/SDL_assert.h>
 #include <algorithm>
 
 /**

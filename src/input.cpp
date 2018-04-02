@@ -53,7 +53,7 @@ ControllerInput key_to_controller(SDL_Keycode key, Uint8 state)
 
 void Keyboard::poll()
 {
-	SDL_assert(m_sink);
+	enforce(m_sink);
 
 	SDL_Event event;
 

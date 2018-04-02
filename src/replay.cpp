@@ -6,7 +6,6 @@
 #include <vector>
 #include <sstream>
 #include <cctype>
-#include <SDL2/SDL_assert.h>
 
 ReplayEvent ReplayEvent::make_set(std::string name, std::string value) noexcept
 {
@@ -50,12 +49,12 @@ Journal::Journal(GameMeta meta, IReplaySink* sink)
 
 void Journal::reproduce(long target_time, GameState& state)
 {
-	game_assert(m_sink, "Journal: cannot reproduce without a sink");
+	enforce(m_sink); // cannot reproduce events without a sink set
 
 	// restore the latest checkpoint before the game_time
 	auto checkpoint_after = [](const GameState& s, long t) { return s.game_time() > t; };
 	auto it = std::lower_bound(m_checkpoint.rbegin(), m_checkpoint.rend(), target_time, checkpoint_after);
-	game_assert(m_checkpoint.rend() != it, "No earlier checkpoint in Journal");
+	enforce(m_checkpoint.rend() != it); // no earlier checkpoint exists in this Journal
 	state = *it;
 
 	// all checkpoints after that become invalid
@@ -89,7 +88,7 @@ void Journal::reproduce(long target_time, GameState& state)
 
 void Journal::poll(long target_time) const
 {
-	game_assert(m_sink, "Journal: cannot poll without a sink");
+	enforce(m_sink); // cannot poll events without a sink
 
 	for(const ReplayEvent& event : m_events) {
 		if(ReplayEvent::Type::INPUT == event.type && event.input.game_time == target_time)
@@ -107,7 +106,7 @@ const char* replay_event_type_string(ReplayEvent::Type type) noexcept
 		case ReplayEvent::Type::START: return "start";
 		case ReplayEvent::Type::INPUT: return "input";
 		case ReplayEvent::Type::END: return "end";
-		default: SDL_assert_paranoid(false); return nullptr;
+		default: assert(false); return nullptr;
 	}
 }
 
@@ -121,7 +120,7 @@ const char* game_button_string(GameButton button) noexcept
 		case GameButton::DOWN: return "down";
 		case GameButton::SWAP: return "swap";
 		case GameButton::RAISE: return "raise";
-		default: SDL_assert_paranoid(false); return nullptr;
+		default: assert(false); return nullptr;
 	}
 }
 
@@ -130,7 +129,7 @@ const char* button_action_string(ButtonAction action) noexcept
 	switch(action) {
 		case ButtonAction::UP: return "up";
 		case ButtonAction::DOWN: return "down";
-		default: SDL_assert_paranoid(false); return nullptr;
+		default: assert(false); return nullptr;
 	}
 }
 
@@ -258,7 +257,7 @@ Journal replay_read(std::istream& stream)
 			break;
 
 		default:
-			SDL_assert_paranoid(false);
+			assert(false);
 
 		}
 	}

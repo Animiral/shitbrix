@@ -23,7 +23,8 @@ void GameLoop::game_loop()
 		Uint64 now = SDL_GetPerformanceCounter();
 		while (now < next_logic) {
 			float fraction = 1.0f - static_cast<float>((next_logic - now) * TPS) / freq;
-			SDL_assert((fraction >= 0) && (fraction <= 1));
+			assert(fraction >= 0);
+			assert(fraction <= 1);
 
 			m_screen->draw(fraction);
 			now = SDL_GetPerformanceCounter();
@@ -31,7 +32,7 @@ void GameLoop::game_loop()
 			// yield CPU if we have the time
 			if(now < next_logic) {
 				Uint64 wait = (next_logic - now) * 1000L / freq; // in ms
-				SDL_assert(wait <= std::numeric_limits<Uint32>::max());
+				assert(wait <= std::numeric_limits<Uint32>::max());
 				SDL_Delay(static_cast<Uint32>(wait));
 				now = SDL_GetPerformanceCounter();
 			}
@@ -106,7 +107,7 @@ void GameLoop::next_screen()
 		}
 	}
 	else {
-		SDL_assert(false);
+		assert(false); // unknown type of m_screen
 	}
 
 	m_keyboard.set_sink(*m_screen);

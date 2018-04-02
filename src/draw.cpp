@@ -6,9 +6,6 @@
 #include <cmath>
 #include <SDL2/SDL.h>
 
-/**
- * Module-internal implementations.
- */
 namespace
 {
 
@@ -27,8 +24,7 @@ void IDraw::draw(float dt) const
 	SDL_RenderPresent(renderer);
 
 	// clear for next frame
-	int render_result = SDL_RenderClear(renderer);
-	game_assert(0 == render_result, SDL_GetError());
+	sdlok(SDL_RenderClear(renderer));
 }
 
 DrawMenu::DrawMenu(const Assets& assets)
@@ -40,15 +36,9 @@ void DrawMenu::draw_offscreen(float) const
 {
 	SDL_Texture* texture = &m_assets.texture(Gfx::MENUBG, 0);
 	SDL_Rect dstrect { 0, 0, 0, 0 };
-	int query_result = SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h);
-	game_assert(0 == query_result, SDL_GetError());
-
-/*
-	int alpha_result = SDL_SetTextureAlphaMod(tex, 255);
-	game_assert(0 == alpha_result, SDL_GetError());
-*/
-	int render_result = SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect);
-	game_assert(0 == render_result, SDL_GetError());
+	sdlok(SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h));
+	//sdlok(SDL_SetTextureAlphaMod(tex, 255));
+	sdlok(SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect));
 }
 
 DrawGame::DrawGame(const Assets& assets)
@@ -59,13 +49,10 @@ DrawGame::DrawGame(const Assets& assets)
 {
 	SDL_Renderer* renderer = &sdl.renderer();
 	m_fadetex.reset(SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
-	game_assert(bool(m_fadetex), SDL_GetError());
+	sdlok(m_fadetex.get());
 
-	int texblend_result = SDL_SetTextureBlendMode(m_fadetex.get(), SDL_BLENDMODE_BLEND);
-	game_assert(0 == texblend_result, SDL_GetError());
-
-	int drawblend_result = SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
-	game_assert(0 == drawblend_result, SDL_GetError());
+	sdlok(SDL_SetTextureBlendMode(m_fadetex.get(), SDL_BLENDMODE_BLEND));
+	sdlok(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD));
 }
 
 void DrawGame::add_pit(const Pit& pit, const Cursor& cursor,
@@ -93,8 +80,8 @@ void DrawGame::shake(float strength) noexcept
 
 void DrawGame::draw_offscreen(float dt) const
 {
-	SDL_assert(dt >= 0.f);
-	SDL_assert(dt <= 1.f);
+	enforce(dt >= 0.f);
+	enforce(dt <= 1.f);
 
 	draw_background();
 
@@ -217,7 +204,7 @@ void DrawGame::draw_block(const Block& block, float dt) const
 	}
 
 	if(Block::State::BREAK == state) {
-		SDL_assert(time >= 0.f);
+		assert(time >= 0.f); // an expired breaking physical should be dead instead
 		int begin = static_cast<int>(BlockFrame::BREAK_BEGIN);
 		int end = static_cast<int>(BlockFrame::BREAK_END);
 		frame = static_cast<BlockFrame>(begin + int(time) % (end - begin));
@@ -249,7 +236,7 @@ void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 	// Animation, for a garbage block, primarily means the part where it dissolves
 	// and turns into small blocks.
 	if(Physical::State::BREAK == garbage.physical_state()) {
-		SDL_assert(time >= 0.f);
+		assert(time >= 0.f); // an expired breaking physical should be dead instead
 		frame = static_cast<size_t>(1 + int(time) % 5);
 		// TODO: use the following for single full break anim
 		// frame = time * frames / (GARBAGE_BREAK_TIME + 1);
@@ -337,7 +324,7 @@ void DrawGame::draw_bonus(const BonusIndicator& bonus, float dt) const
 }
 
 void DrawGame::draw_highlight(Point top_left, int width, int height,
-	                          uint8_t r, uint8_t g, uint8_t b, uint8_t a) const
+                              uint8_t r, uint8_t g, uint8_t b, uint8_t a) const
 {
 	Point loc = translate(top_left);
 	SDL_Rect fill_rect {
@@ -348,10 +335,8 @@ void DrawGame::draw_highlight(Point top_left, int width, int height,
 	};
 
 	SDL_Renderer* renderer = &sdl.renderer();
-	int color_result = SDL_SetRenderDrawColor(renderer, r, g, b, a);
-	game_assert(0 == color_result, SDL_GetError());
-	int fill_result = SDL_RenderFillRect(renderer, &fill_rect);
-	game_assert(0 == fill_result, SDL_GetError());
+	sdlok(SDL_SetRenderDrawColor(renderer, r, g, b, a));
+	sdlok(SDL_RenderFillRect(renderer, &fill_rect));
 }
 
 void DrawGame::putsprite(Point loc, Gfx gfx, size_t frame) const
@@ -359,14 +344,9 @@ void DrawGame::putsprite(Point loc, Gfx gfx, size_t frame) const
 	SDL_Texture* texture = &m_assets.texture(gfx, frame);
 	loc = translate(loc);
 	SDL_Rect dstrect { std::lround(loc.x), std::lround(loc.y), 0, 0 };
-	int query_result = SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h);
-	game_assert(0 == query_result, SDL_GetError());
-
-	int alpha_result = SDL_SetTextureAlphaMod(texture, m_alpha);
-	game_assert(0 == alpha_result, SDL_GetError());
-
-	int render_result = SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect);
-	game_assert(0 == render_result, SDL_GetError());
+	sdlok(SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h));
+	sdlok(SDL_SetTextureAlphaMod(texture, m_alpha));
+	sdlok(SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect));
 }
 
 void DrawGame::tint() const
@@ -374,12 +354,10 @@ void DrawGame::tint() const
 	if(m_fade < 1.f) {
 		SDL_Rect rect_pixel{0,0,1,1};
 		uint32_t fade_pixel = static_cast<uint32_t>(0xff * (1.f - m_fade));
-		int tex_result = SDL_UpdateTexture(m_fadetex.get(), &rect_pixel, &fade_pixel, 1);
-		game_assert(0 == tex_result, SDL_GetError());
+		sdlok(SDL_UpdateTexture(m_fadetex.get(), &rect_pixel, &fade_pixel, 1));
 
 		SDL_Renderer* renderer = &sdl.renderer();
-		int render_result = SDL_RenderCopy(renderer, m_fadetex.get(), nullptr, nullptr);
-		game_assert(0 == render_result, SDL_GetError());
+		sdlok(SDL_RenderCopy(renderer, m_fadetex.get(), nullptr, nullptr));
 	}
 }
 
@@ -395,16 +373,13 @@ void DrawTransition::draw_offscreen(float dt) const
 {
 	SDL_Renderer* renderer = &sdl.renderer();
 
-	int sdl_result = SDL_SetRenderTarget(renderer, m_pred_texture.get());
-	game_assert(0 == sdl_result, SDL_GetError());
+	sdlok(SDL_SetRenderTarget(renderer, m_pred_texture.get()));
 	m_pred_draw.draw_offscreen(dt);
 
-	sdl_result = SDL_SetRenderTarget(renderer, m_succ_texture.get());
-	game_assert(0 == sdl_result, SDL_GetError());
+	sdlok(SDL_SetRenderTarget(renderer, m_succ_texture.get()));
 	m_succ_draw.draw_offscreen(dt);
 
-	sdl_result = SDL_SetRenderTarget(renderer, nullptr);
-	game_assert(0 == sdl_result, SDL_GetError());
+	sdlok(SDL_SetRenderTarget(renderer, nullptr));
 
 	// draw to back buffer
 	int progress_px = CANVAS_W * m_time / TRANSITION_TIME;
@@ -412,11 +387,8 @@ void DrawTransition::draw_offscreen(float dt) const
 	SDL_Rect right_rect{ progress_px, 0, CANVAS_W-progress_px, CANVAS_H };
 
 	// swipe transition: successor screen enters from the left.
-	sdl_result = SDL_RenderCopy(renderer, m_succ_texture.get(), &left_rect, &left_rect);
-	game_assert(0 == sdl_result, SDL_GetError());
-
-	sdl_result = SDL_RenderCopy(renderer, m_pred_texture.get(), &right_rect, &right_rect);
-	game_assert(0 == sdl_result, SDL_GetError());
+	sdlok(SDL_RenderCopy(renderer, m_succ_texture.get(), &left_rect, &left_rect));
+	sdlok(SDL_RenderCopy(renderer, m_pred_texture.get(), &right_rect, &right_rect));
 }
 
 namespace
@@ -471,14 +443,12 @@ void clip(SDL_Renderer* renderer, Point top_left, int width, int height)
 	int y = static_cast<int>(top_left.y);
 	SDL_Rect clip_rect{x, y, width, height};
 
-	int clip_result = SDL_RenderSetClipRect(renderer, &clip_rect);
-	game_assert(0 == clip_result, SDL_GetError());
+	sdlok(SDL_RenderSetClipRect(renderer, &clip_rect));
 }
 
 void unclip(SDL_Renderer* renderer)
 {
-	int clip_result = SDL_RenderSetClipRect(renderer, nullptr);
-	game_assert(0 == clip_result, SDL_GetError());
+	sdlok(SDL_RenderSetClipRect(renderer, nullptr));
 }
 
 }

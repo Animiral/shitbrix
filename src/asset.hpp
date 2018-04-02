@@ -54,8 +54,8 @@ public:
 	SDL_Texture& texture(Gfx gfx, size_t frame = 0) const
 	{
 		size_t gfx_index = static_cast<size_t>(gfx);
-		SDL_assert(gfx_index < textures.size());
-		SDL_assert(frame < textures[gfx_index].size());
+		enforce(gfx_index < textures.size());
+		enforce(frame < textures[gfx_index].size());
 
 		return *textures[gfx_index][frame];
 	}
@@ -63,7 +63,7 @@ public:
 	const Sound& sound(Snd snd) const
 	{
 		size_t snd_index = static_cast<size_t>(snd);
-		SDL_assert(snd_index < sounds.size());
+		enforce(snd_index < sounds.size());
 
 		return sounds[snd_index];
 	}

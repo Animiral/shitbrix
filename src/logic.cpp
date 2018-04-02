@@ -3,7 +3,6 @@
  */
 
 #include "logic.hpp"
-#include <SDL2/SDL_assert.h>
 
 void MatchBuilder::ignite(Block& block)
 {
@@ -62,7 +61,10 @@ bool MatchBuilder::match_at(RowCol rc, Block::Color color)
 void MatchBuilder::insert(RowCol rc)
 {
 	Block* match_block = pit.block_at(rc);
-	game_assert(match_block, "MatchBuilder: expected block not present");
+
+	if(!match_block)
+		throw LogicException("MatchBuilder: expected block not present");
+
 	m_result.insert(*match_block);
 	m_chaining |= match_block->chaining;
 }
@@ -110,7 +112,8 @@ void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sou
 
 		if(Physical::State::FALL == state && is_arriving) {
 			// can never fall lower than the preview row of blocks
-			game_assert(physical->rc().r + physical->rows() - 1 <= m_pit.bottom(), "Object falls too low");
+			if(physical->rc().r + physical->rows() - 1 > m_pit.bottom())
+				throw LogicException("Object falls too low");
 
 			// Re-enter the object as a candidate for falling and hots.
 			// Since falling blocks are automatically excluded from hots,
@@ -173,6 +176,9 @@ void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sou
 				trigger_falls(rc, chaining);
 			}
 		}
+
+		// logic sanity check: dead blocks must not be falling
+		assert(Physical::State::DEAD != physical->physical_state() || !physical->has_tag(Physical::TAG_FALL));
 	}
 }
 

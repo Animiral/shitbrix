@@ -102,13 +102,12 @@ private:
 				m_director.update();
 
 				// clear for next frame
-				int render_result = SDL_RenderClear(&renderer);
-				game_assert(0 == render_result, SDL_GetError());
+				sdlok(SDL_RenderClear(&renderer));
 				m_draw.draw_offscreen(0); // leave finale open for us to draw our indicator
-				SDL_SetRenderDrawColor(&renderer, m_indicator.r, m_indicator.g, m_indicator.b, SDL_ALPHA_OPAQUE);
-				SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_NONE);
-				SDL_RenderFillRect(&renderer, &indicator_rect); // draw indicator
-				SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_ADD);
+				sdlok(SDL_SetRenderDrawColor(&renderer, m_indicator.r, m_indicator.g, m_indicator.b, SDL_ALPHA_OPAQUE));
+				sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_NONE));
+				sdlok(SDL_RenderFillRect(&renderer, &indicator_rect)); // draw indicator
+				sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_ADD));
 				SDL_RenderPresent(&renderer); // finish rendering
 			}
 

@@ -64,10 +64,6 @@ void BlockDirector::update()
 	if(have_dissolvers && m_handler)
 		m_handler->fire(evt::GarbageDissolves());
 
-	pit.for_all(Physical::TAG_FALL, [](const Physical& physical) {
-		game_assert(Physical::State::DEAD != physical.physical_state(), "dead blocks cannot fall");
-	});
-
 	if(dead_block)
 		pit.remove_dead();
 
@@ -133,7 +129,10 @@ void BlockDirector::update()
 bool BlockDirector::swap(RowCol lrc)
 {
 	// bounds check
-	SDL_assert(lrc.r >= pit.top() && lrc.r <= pit.bottom() && lrc.c >= 0 && lrc.c <= PIT_COLS-2);
+	enforce(lrc.r >= pit.top());
+	enforce(lrc.r <= pit.bottom());
+	enforce(lrc.c >= 0);
+	enforce(lrc.c <= PIT_COLS - 2);
 
 	RowCol rrc {lrc.r, lrc.c+1};
 
@@ -185,7 +184,7 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 
 void CursorDirector::move(Dir dir)
 {
-	game_assert(Dir::NONE != dir, "CursorDirector: cannot move nowhere");
+	enforce(Dir::NONE != dir);
 
 	m_pit.cursor_move(dir);
 
@@ -217,7 +216,8 @@ void GarbageThrow::fire(evt::Chain event)
 
 void GarbageThrow::spawn(int columns, int rows, bool right_side)
 {
-	SDL_assert(columns > 0 && columns <= PIT_COLS);
+	enforce(columns > 0);
+	enforce(columns <= PIT_COLS);
 
 	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
 	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};

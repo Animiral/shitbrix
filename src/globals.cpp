@@ -4,6 +4,8 @@
  */
 
 #include "globals.hpp"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 Gfx operator+(Gfx gfx, int delta)
 {
@@ -25,12 +27,30 @@ Point from_rc(RowCol rc)
 	return Point{static_cast<float>(rc.c*BLOCK_W), static_cast<float>(rc.r*BLOCK_H)};
 }
 
-/**
- * Check the condition and, if false, throw a GameException with the given message.
- */
-void game_assert(bool condition, const char* what)
+SdlException::SdlException()
+: GameException(SDL_GetError())
+{}
+
+void enforce_impl(bool condition, const char* condition_str, const char* func, const char* file, int line)
 {
-	if(!condition) {
-		throw GameException(what);
-	}
+	if(!condition)
+		throw EnforceException(condition_str, func, file, line);
+}
+
+void sdlok(int result)
+{
+	if(0 != result)
+		throw SdlException();
+}
+
+void sdlok(void* pointer)
+{
+	if(!pointer)
+		throw SdlException();
+}
+
+void imgok(void* pointer)
+{
+	if(!pointer)
+		throw SdlException(IMG_GetError());
 }

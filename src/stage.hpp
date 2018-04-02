@@ -440,7 +440,7 @@ public:
 	/**
 	 * Swap the locations of the two Blocks.
 	 */
-	void swap(Block& left, Block& right) noexcept;
+	void swap(Block& left, Block& right);
 
 	/**
 	 * Remove dead Physicals from the Pit to clean it up.

@@ -126,6 +126,8 @@ void GamePlay::update()
 
 void GamePlay::input(GameInput ginput)
 {
+	enforce(GameButton::NONE != ginput.button);
+
 	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
 
 	switch(ginput.button) {
@@ -156,7 +158,7 @@ void GamePlay::input(GameInput ginput)
 
 		case GameButton::NONE:
 		default:
-			SDL_assert_paranoid(false);
+			assert(false);
 
 	}
 }
@@ -269,6 +271,7 @@ void GameScreen::input(ControllerInput cinput)
 	// from which we get our ReplayEvents to display the game on the screen.
 
 	// Because we do not have Network yet, we always send ReplayEvents directly to the Journal.
+	enforce(Button::NONE != cinput.button);
 
 	switch(cinput.button) {
 		case Button::LEFT:
@@ -329,7 +332,7 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::NONE:
 		default:
-			SDL_assert_paranoid(false);
+			assert(false);
 
 	}
 }
@@ -417,7 +420,9 @@ std::string make_journal_file()
 	auto now = clock::now();
 	std::time_t time_now = clock::to_time_t(now);
 	struct tm ltime = *std::localtime(&time_now);
-	game_assert(0 == errno, "Failed to get current localtime.");
+
+	if(0 != errno)
+		throw GameException("Failed to get localtime for journal file name.");
 
 	std::ostringstream stream;
 	stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
@@ -426,7 +431,7 @@ std::string make_journal_file()
 
 int opponent(int player)
 {
-	SDL_assert(0 == player || 1 == player);
+	enforce(0 == player || 1 == player);
 	return 0 == player ? 1 : 0;
 }
 

@@ -1,7 +1,6 @@
 #include "sdl_helper.hpp"
 #include <cstring>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_assert.h>
 
 namespace
 {
@@ -21,8 +20,7 @@ TexturePtr cutout_texture(SDL_Renderer& renderer, SDL_Surface& source, SDL_Rect&
 
 Sound::Sound(const char* file)
 {
-	auto load_result = SDL_LoadWAV(file, &m_spec, &m_buffer, &m_length);
-	game_assert(load_result, SDL_GetError());
+	sdlok(SDL_LoadWAV(file, &m_spec, &m_buffer, &m_length));
 }
 
 Sound::~Sound() noexcept
@@ -58,7 +56,8 @@ SdlAudio::SdlAudio()
 	want.userdata = this;
 
 	devid = SDL_OpenAudioDevice(nullptr, 0, &want, &spec, 0);
-	game_assert(devid > 0, SDL_GetError());
+	if(devid <= 0)
+		throw SdlException();
 
 	SDL_PauseAudioDevice(devid, 0);
 }
@@ -97,7 +96,7 @@ Sdl& Sdl::instance()
 TexturePtr Sdl::create_texture(const char* file) const
 {
 	TexturePtr texture(IMG_LoadTexture(m_renderer.get(), file));
-	game_assert(bool(texture), IMG_GetError());
+	imgok(texture.get());
 	return texture;
 }
 
@@ -105,14 +104,14 @@ TexturePtr Sdl::create_target_texture() const
 {
 	TexturePtr texture(SDL_CreateTexture(m_renderer.get(), 0, SDL_TEXTUREACCESS_TARGET,
 	                                     CANVAS_W, CANVAS_H));
-	game_assert(bool(texture), SDL_GetError());
+	sdlok(texture.get());
 	return texture;
 }
 
 std::vector<TexturePtr> Sdl::create_texture_row(const char* file, int width) const
 {
 	SurfacePtr sheet(IMG_Load(file));
-	game_assert(bool(sheet), IMG_GetError());
+	imgok(sheet.get());
 
 	int columns = sheet->w / width;
 	std::vector<TexturePtr> frames(columns);
@@ -128,7 +127,7 @@ std::vector<TexturePtr> Sdl::create_texture_row(const char* file, int width) con
 std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* file, int height, int width) const
 {
 	SurfacePtr sheet(IMG_Load(file));
-	game_assert(bool(sheet), SDL_GetError());
+	imgok(sheet.get());
 
 	int rows = sheet->h / height;
 	int columns = sheet->w / width;
@@ -151,28 +150,27 @@ std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* fil
 Sdl::Sdl()
 {
 	// basic library setup
-	int sdl_result = SDL_Init(SDL_INIT_EVERYTHING);
-	game_assert(0 == sdl_result, SDL_GetError());
+	sdlok(SDL_Init(SDL_INIT_EVERYTHING));
 
 	int flags = IMG_INIT_PNG;
 	int img_result = IMG_Init(flags);
 	if((img_result & flags) != flags) {
 		SDL_Quit();
-		game_assert(false, IMG_GetError());
+		throw SdlException(IMG_GetError());
 	}
 
 	// graphics: window & renderer
 	m_window.reset(SDL_CreateWindow(APP_NAME, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, CANVAS_W, CANVAS_H, 0));
-	game_assert(bool(m_window), SDL_GetError());
+	sdlok(m_window.get());
 
 	m_renderer.reset(SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_TARGETTEXTURE));
-	game_assert(bool(m_renderer), SDL_GetError());
+	sdlok(m_renderer.get());
 
 	// The renderer must declare the capabilities to render stuff offscreen onto target textures.
 	SDL_RendererInfo info;
-	int info_result = SDL_GetRendererInfo(m_renderer.get(), &info);
-	game_assert(0 == info_result, SDL_GetError());
-	game_assert(info.flags & SDL_RENDERER_TARGETTEXTURE, "Render driver does not support target textures.");
+	sdlok(SDL_GetRendererInfo(m_renderer.get(), &info));
+	if((info.flags & SDL_RENDERER_TARGETTEXTURE) != SDL_RENDERER_TARGETTEXTURE)
+		throw SdlException("Render driver does not support target textures.");
 
 	// audio device
 	m_audio.reset(new SdlAudio);
@@ -180,6 +178,7 @@ Sdl::Sdl()
 
 Sdl::~Sdl()
 {
+	// be careful to destroy SDL objects before library shutdown
 	m_audio.reset();
 	m_renderer.reset();
 	m_window.reset();
@@ -207,7 +206,7 @@ SurfacePtr create_surface(int width, int height)
 #endif
 
 	SurfacePtr surface(SDL_CreateRGBSurface(0, width, height, 32, rmask, gmask, bmask, amask));
-	game_assert(bool(surface), SDL_GetError());
+	sdlok(surface.get());
 	return surface;
 }
 
@@ -218,7 +217,7 @@ TexturePtr cutout_texture(SDL_Renderer& renderer, SDL_Surface& source, SDL_Rect&
 	SDL_BlitSurface(&source, &srcrect, surface.get(), &dstrect);
 
 	TexturePtr texture(SDL_CreateTextureFromSurface(&renderer, surface.get()));
-	game_assert(bool(texture), SDL_GetError());
+	sdlok(texture.get());
 	return texture;
 }
 
