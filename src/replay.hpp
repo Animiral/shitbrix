@@ -17,38 +17,40 @@
 #include "stage.hpp"
 #include "input.hpp"
 
-struct ReplayEvent
+struct ReplayRecord
 {
-	enum class Type { SET, START, INPUT, END };
+	enum class Type { START, META, INPUT };
 
 	Type type;
-	std::string set_name;  //!< name of set target
-	std::string set_value; //!< value to set to
-	GameInput input;       //!< Input player and key
+	GameMeta meta;   //!< Meta information
+	GameInput input; //!< Input player and key
 
-	static ReplayEvent make_set(std::string name, std::string value) noexcept;
-	static ReplayEvent make_start() noexcept;
-	static ReplayEvent make_input(GameInput input) noexcept;
-	static ReplayEvent make_end() noexcept;
-};
+	/**
+	 * Meta information specification.
+	 */
+	static ReplayRecord make_meta(GameMeta meta) noexcept;
 
-/**
- * A ReplaySink can handle replay events.
- */
-class IReplaySink
-{
-	public: virtual void do_event(const ReplayEvent& event) =0;
+	/**
+	 * Start of one game replay.
+	 * Replays continue until the next start or until end of file.
+	 */
+	static ReplayRecord make_start() noexcept;
+
+	/**
+	 * Player input.
+	 */
+	static ReplayRecord make_input(GameInput input) noexcept;
 };
 
 /**
  * Keeps the game record.
  */
-class Journal : public IReplaySink
+class Journal
 {
 
 public:
 
-	explicit Journal(GameMeta meta, IReplaySink* sink = nullptr);
+	explicit Journal(GameMeta meta, GameState&& state0);
 
 	/**
 	 * Return the game state as it was or will be at the specified time.
