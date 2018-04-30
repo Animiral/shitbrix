@@ -150,14 +150,19 @@ protected:
 
 class GameIntro : public IGamePhase
 {
+
 public:
+
 	GameIntro(GameScreen* screen);
 
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
+
 private:
+
 	static constexpr int INTRO_TIME = 20; // number of animation frames for intro
 	int countdown;
+
 };
 
 class GamePlay : public IGamePhase
@@ -174,9 +179,10 @@ public:
 
 class GameResult : public IGamePhase
 {
+
 public:
+
 	GameResult(GameScreen* screen, int winner);
-	~GameResult();
 
 	virtual void update() override;
 	virtual void input(GameInput ginput) override {}
@@ -252,7 +258,7 @@ private:
 	void seed(unsigned int rng_seed);
 
 	/* hack before GameRecord */
-	virtual void do_event(const ReplayEvent& event) override;
+	virtual void do_event(const ReplayRecord& event) override;
 
 	/**
 	 * Pass on the update event to child objects.

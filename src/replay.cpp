@@ -31,17 +31,15 @@ ReplayRecord ReplayRecord::make_input(GameInput input) noexcept
 	return record;
 }
 
-ReplayEvent ReplayEvent::make_end() noexcept
-{
-}
-
 
 Journal::Journal(GameMeta meta, IReplaySink* sink)
 : m_meta(meta), m_checkpoint({GameState(meta)}), m_sink(sink)
 {
-	std::ostringstream stream;
-	stream << meta.seed;
-	do_event(ReplayEvent::make_set("rng_seed", stream.str()));
+}
+
+Journal::Journal(GameMeta meta, GameState&& state0)
+: m_meta(meta), m_checkpoint({state0}) //, m_earliest_undiscovered(1)
+{
 }
 
 void Journal::reproduce(long target_time, GameState& state)
@@ -61,8 +59,8 @@ void Journal::reproduce(long target_time, GameState& state)
 	// compile a list of inputs in chronological order
 	std::vector<GameInput> inputs;
 	auto input_before = [](const GameInput& a, const GameInput& b) { return a.game_time < b.game_time; };
-	for(const ReplayEvent& event : m_events) {
-		if(ReplayEvent::Type::INPUT == event.type &&
+	for(const ReplayRecord& event : m_events) {
+		if(ReplayRecord::Type::INPUT == event.type &&
 		   event.input.game_time >= state.game_time() &&
 		   event.input.game_time < target_time) {
 			inputs.insert(std::upper_bound(inputs.begin(), inputs.end(), event.input, input_before), event.input);
@@ -79,7 +77,17 @@ void Journal::reproduce(long target_time, GameState& state)
 			m_checkpoint.push_back(state);
 			game_time = input.game_time;
 		}
-		m_sink->do_event(ReplayEvent::make_input(input));
+		m_sink->do_event(ReplayRecord::make_input(input));
+	}
+}
+
+void Journal::poll(long target_time) const
+{
+	enforce(m_sink); // cannot poll events without a sink
+
+	for(const ReplayRecord& event : m_events) {
+		if(ReplayRecord::Type::INPUT == event.type && event.input.game_time == target_time)
+			m_sink->do_event(event);
 	}
 }
 
@@ -87,23 +95,15 @@ void Journal::add_input(GameInput input)
 {
 	enforce(input.game_time > 0);
 
-	auto at = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(input.game_time));
-	m_inputs.insert(at, InputDiscovered{input, false});
-
-	if(input.game_time < m_earliest_undiscovered)
-		m_earliest_undiscovered = input.game_time;
+	m_inputs.push_back(InputDiscovered{input, false});
 }
 
-const GameState& Journal::checkpoint_before(long game_time) const
+void Journal::set_winner(int winner) noexcept
 {
-	auto at = std::find_if(m_checkpoint.rbegin(), m_checkpoint.rend(),
-	                       [game_time](const GameState& state) { return state.game_time() < game_time; });
-
-	assert(m_checkpoint.rend() != at);
-
-	return *at;
+	enforce(winner == GameMeta::WINNER_UNDECIDED ||
+	        (winner >= 0 && winner < m_meta.players));
+	m_meta.winner = winner;
 }
-
 
 namespace
 {
@@ -135,8 +135,8 @@ const char* game_button_string(GameButton button) noexcept
 const char* button_action_string(ButtonAction action) noexcept
 {
 	switch(action) {
-		case ButtonAction::UP: return "up";
-		case ButtonAction::DOWN: return "down";
+		case ButtonAction::UP: return "release";
+		case ButtonAction::DOWN: return "press";
 		default: assert(false); return nullptr;
 	}
 }
@@ -158,14 +158,15 @@ void replay_write(std::ostream& stream, const Journal& journal)
 		       << " " << id.input.game_time
 		       << " " << id.input.player
 		       << " " << game_button_string(id.input.button)
-		       << " " << button_action_string(id.input.action);
+		       << " " << button_action_string(id.input.action)
+		       << "\n";
 	}
 }
 
 namespace
 {
 
-ReplayRecord::Type string_to_replay_event_type(const std::string& str)
+ReplayRecord::Type string_to_replay_record_type(const std::string& str)
 {
 	if("start" == str) return ReplayRecord::Type::START;
 	else if("meta" == str) return ReplayRecord::Type::META;
@@ -186,8 +187,8 @@ GameButton string_to_game_button(const std::string& str)
 
 ButtonAction string_to_button_action(const std::string& str)
 {
-	if("up" == str) return ButtonAction::UP;
-	else if("down" == str) return ButtonAction::DOWN;
+	if("release" == str) return ButtonAction::UP;
+	else if("press" == str) return ButtonAction::DOWN;
 	else throw ReplayException("Invalid button action string.");
 }
 
@@ -196,14 +197,15 @@ ButtonAction string_to_button_action(const std::string& str)
 Journal replay_read(std::istream& stream)
 {
 	// Replay contents
-	GameMeta meta;
+	GameMeta meta{0, 0};
 	std::vector<GameInput> input;
 
 	// We read only the first game replay. Therefore, we must read
 	// everything following the first start-record.
 	int start_count = 0;
+	int prev_time = 0; // time of previous input, for order check
 
-	while(stream && (stream.eof() || stream.peek(), !stream.eof()) && (start_count < 1)) {
+	while(stream && (stream.eof() || stream.peek(), !stream.eof()) && (start_count <= 1)) {
 		std::string line;
 
 		if(!std::getline(stream, line)) {
@@ -215,7 +217,7 @@ Journal replay_read(std::istream& stream)
 		std::istringstream tokenizer(line);
 		tokenizer >> type_str;
 
-		ReplayRecord::Type type = string_to_replay_event_type(type_str);
+		ReplayRecord::Type type = string_to_replay_record_type(type_str);
 
 		switch(type) {
 
@@ -238,10 +240,11 @@ Journal replay_read(std::istream& stream)
 				GameButton button = string_to_game_button(button_str);
 				ButtonAction action = string_to_button_action(action_str);
 
-				if(game_time < input.back().game_time)
+				if(game_time < prev_time)
 					throw ReplayException("Inputs out of order.");
 
 				input.push_back(GameInput{game_time, player, button, action});
+				prev_time = game_time;
 			}
 			break;
 
@@ -255,7 +258,7 @@ Journal replay_read(std::istream& stream)
 		throw ReplayException("Something went wrong in reading from replay.");
 
 	// separate meta-data from input data
-	Journal journal{meta, GameState{meta}};
+	Journal journal{meta};
 
 	for(GameInput gi : input)
 		journal.add_input(gi);

@@ -29,11 +29,11 @@ TEST(ReplayTest, WriteJournal)
 	std::string expected =
 R"(start
 meta 2 4711 1
-input 3 0 left down
-input 5 1 up down
-input 8 0 raise down
-input 10 0 left down
-input 10 1 swap down
+input 3 0 left press
+input 5 1 up press
+input 8 0 raise press
+input 10 0 left press
+input 10 1 swap press
 )";
 
 	EXPECT_EQ(expected, stream.str());
@@ -47,7 +47,7 @@ TEST(ReplayTest, ReadBasic)
 	std::string replay_str =
 R"(start
 meta 2 4711 1
-input 10 1 swap down
+input 10 1 swap press
 )";
 	std::istringstream stream(replay_str);
 	Journal journal = replay_read(stream);
@@ -58,7 +58,7 @@ input 10 1 swap down
 	EXPECT_EQ(1, meta.winner);
 
 	GameInputs inputs = journal.inputs();
-	EXPECT_EQ(1, inputs.size());
+	ASSERT_EQ(1, inputs.size());
 	EXPECT_EQ(10, inputs[0].input.game_time);
 	EXPECT_EQ(1, inputs[0].input.player);
 	EXPECT_EQ(GameButton::SWAP, inputs[0].input.button);

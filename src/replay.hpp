@@ -6,7 +6,7 @@
  * and recorded events.
  *
  * A replay is a text file that describes the course of a game round.
- * Replays consist of a series of ReplayEvents.
+ * Replays consist of a series of ReplayRecords.
  * Journals can be written to and read from replays.
  */
 #pragma once
@@ -43,13 +43,25 @@ struct ReplayRecord
 };
 
 /**
+ * A ReplaySink can handle replay events.
+ */
+class IReplaySink
+{
+	public: virtual void do_event(const ReplayRecord& event) = 0;
+};
+
+struct InputDiscovered { GameInput input; bool discovered; };
+using GameInputs = std::vector<InputDiscovered>;
+
+/**
  * Keeps the game record.
  */
-class Journal
+class Journal : public IReplaySink
 {
 
 public:
 
+	explicit Journal(GameMeta meta, IReplaySink* sink = nullptr);
 	explicit Journal(GameMeta meta, GameState&& state0);
 
 	/**
@@ -72,17 +84,30 @@ public:
 	 */
 	void poll(long target_time) const;
 
-	const std::vector<ReplayEvent>& events() const noexcept { return m_events; }
+	const GameInputs& inputs() const noexcept { return m_inputs; }
 
-	virtual void do_event(const ReplayEvent& event) override { m_events.push_back(event); }
+	const std::vector<ReplayRecord>& events() const noexcept { return m_events; }
+
+	virtual void do_event(const ReplayRecord& event) override { m_events.push_back(event); }
+
+	/**
+	 * Add an input into the queue and mark it as undiscovered.
+	 */
+	void add_input(GameInput input);
+
+	/**
+	 * Update the winner in the meta information.
+	 */
+	void set_winner(int winner) noexcept;
 
 private:
 
 	static const long CHECKPOINT_INTERVAL = 5 * TPS;
 
-	std::vector<ReplayEvent> m_events;
+	std::vector<ReplayRecord> m_events;
 	std::vector<GameState> m_checkpoint;
 	GameMeta m_meta;
+	GameInputs m_inputs; //!< player inputs ordered by time
 	IReplaySink* m_sink; //!< output for events on @poll, optional
 
 };

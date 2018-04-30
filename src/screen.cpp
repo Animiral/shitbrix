@@ -109,9 +109,7 @@ void GamePlay::update()
 		if(pobjs->block_director.over()) {
 			// NOTE: to determine the winner is a server-side job only.
 			int winner = opponent(static_cast<int>(i));
-			std::ostringstream stream;
-			stream << winner;
-			m_screen->m_journal->do_event(ReplayEvent::make_set("winner", stream.str()));
+			m_screen->m_journal->set_winner(winner);
 
 			// NOTE: this should only happen when the Journal tells us that the game is over.
 			// We should not assume that the winner that we have detected is valid until
@@ -171,11 +169,6 @@ GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 {
 	m_screen->m_draw.show_cursor(false);
 	m_screen->m_draw.show_banner(true);
-}
-
-GameResult::~GameResult()
-{
-	m_screen->m_journal->do_event(ReplayEvent::make_end());
 }
 
 void GameResult::update()
@@ -260,7 +253,7 @@ void GameScreen::reset(GameMeta meta)
 		pobjs->event_hub.append(*m_gameover_relay);
 	}
 
-	m_journal->do_event(ReplayEvent::make_start());
+	m_journal->do_event(ReplayRecord::make_start());
 }
 
 void GameScreen::update()
@@ -277,12 +270,12 @@ void GameScreen::draw(float dt)
 void GameScreen::input(ControllerInput cinput)
 {
 	// Generally, inputs to the game screen are sent to the Network object.
-	// This may happen in the form of full-formed ReplayEvents or simply
+	// This may happen in the form of full-formed ReplayRecords or simply
 	// GameInputs, depending on whether we are Server or Client.
-	// The Network generates ReplayEvents and sends them to the Journal,
-	// from which we get our ReplayEvents to display the game on the screen.
+	// The Network generates ReplayRecords and sends them to the Journal,
+	// from which we get our ReplayRecords to display the game on the screen.
 
-	// Because we do not have Network yet, we always send ReplayEvents directly to the Journal.
+	// Because we do not have Network yet, we always send ReplayRecords directly to the Journal.
 	enforce(Button::NONE != cinput.button);
 
 	switch(cinput.button) {
@@ -297,7 +290,7 @@ void GameScreen::input(ControllerInput cinput)
 			if(oinput.has_value()) {
 				GameInput ginput = oinput.value();
 				ginput.game_time = m_game_time;
-				m_journal->do_event(ReplayEvent::make_input(ginput));
+				m_journal->do_event(ReplayRecord::make_input(ginput));
 			}
 		}
 			break;
@@ -349,11 +342,11 @@ void GameScreen::input(ControllerInput cinput)
 	}
 }
 
-void GameScreen::do_event(const ReplayEvent& event)
+void GameScreen::do_event(const ReplayRecord& event)
 {
 	switch(event.type) {
 
-	//case ReplayEvent::Type::SET:
+	//case ReplayRecord::Type::SET:
 	//	if("rng_seed" == event.set_name) {
 	//		std::istringstream stream(event.set_value);
 	//		unsigned int rng_seed;
@@ -365,16 +358,16 @@ void GameScreen::do_event(const ReplayEvent& event)
 	//	}
 	//	break;
 
-	//case ReplayEvent::Type::START:
+	//case ReplayRecord::Type::START:
 	//	reset();
 	//	break;
 
-	case ReplayEvent::Type::INPUT:
+	case ReplayRecord::Type::INPUT:
 		m_game_phase->input(event.input);
 		// ignore (mixer passes this to game phase)
 		break;
 
-	//case ReplayEvent::Type::END:
+	//case ReplayRecord::Type::END:
 	//	// m_done = true;
 	//	// ignore this for now
 	//	break;
