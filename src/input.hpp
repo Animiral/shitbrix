@@ -17,14 +17,6 @@ class IControllerSink
 };
 
 /**
- * A GameInputSink accepts game actions as input.
- */
-class IGameInputSink
-{
-	public: virtual void input(GameInput input) =0;
-};
-
-/**
  * Reads keys from the keyboard and converts them into ControllerInputs.
  * These inputs are then sent to the keyboard’s sink object.
  *

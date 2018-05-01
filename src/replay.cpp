@@ -32,63 +32,71 @@ ReplayRecord ReplayRecord::make_input(GameInput input) noexcept
 }
 
 
-Journal::Journal(GameMeta meta, IReplaySink* sink)
-: m_meta(meta), m_checkpoint({GameState(meta)}), m_sink(sink)
-{
-}
-
 Journal::Journal(GameMeta meta, GameState&& state0)
-: m_meta(meta), m_checkpoint({state0}) //, m_earliest_undiscovered(1)
+: m_meta(meta), m_checkpoint({state0}), m_earliest_undiscovered(1)
 {
 }
 
-void Journal::reproduce(long target_time, GameState& state)
+//void Journal::reproduce(long target_time, GameState& state)
+//{
+//	enforce(m_sink); // cannot reproduce events without a sink set
+//
+//	// restore the latest checkpoint before the game_time
+//	auto checkpoint_after = [](const GameState& s, long t) { return s.game_time() > t; };
+//	auto it = std::lower_bound(m_checkpoint.rbegin(), m_checkpoint.rend(), target_time, checkpoint_after);
+//	enforce(m_checkpoint.rend() != it); // no earlier checkpoint exists in this Journal
+//	state = *it;
+//
+//	// all checkpoints after that become invalid
+//	auto checkpoint_invalid = [target_time](const GameState& s) { return s.game_time() > target_time; };
+//	m_checkpoint.erase(std::remove_if(m_checkpoint.begin(), m_checkpoint.end(), checkpoint_invalid), m_checkpoint.end());
+//
+//	// compile a list of inputs in chronological order
+//	std::vector<GameInput> inputs;
+//	auto input_before = [](const GameInput& a, const GameInput& b) { return a.game_time < b.game_time; };
+//	for(const ReplayRecord& record : m_events) {
+//		if(ReplayRecord::Type::INPUT == record.type &&
+//		   record.input.game_time >= state.game_time() &&
+//		   record.input.game_time < target_time) {
+//			inputs.insert(std::upper_bound(inputs.begin(), inputs.end(), record.input, input_before), record.input);
+//		}
+//	}
+//
+//	// TODO: sent meta-events
+//	// Right now, we only send input events because there is still some work to do to separate meta-info from inputs in the replay.
+//
+//	// send the inputs to my sink
+//	long game_time = state.game_time();
+//	for(const GameInput& input : inputs) {
+//		if(game_time + CHECKPOINT_INTERVAL <= input.game_time) {
+//			m_checkpoint.push_back(state);
+//			game_time = input.game_time;
+//		}
+//		m_sink->do_event(ReplayRecord::make_input(input));
+//	}
+//}
+
+namespace
 {
-	enforce(m_sink); // cannot reproduce events without a sink set
 
-	// restore the latest checkpoint before the game_time
-	auto checkpoint_after = [](const GameState& s, long t) { return s.game_time() > t; };
-	auto it = std::lower_bound(m_checkpoint.rbegin(), m_checkpoint.rend(), target_time, checkpoint_after);
-	enforce(m_checkpoint.rend() != it); // no earlier checkpoint exists in this Journal
-	state = *it;
-
-	// all checkpoints after that become invalid
-	auto checkpoint_invalid = [target_time](const GameState& s) { return s.game_time() > target_time; };
-	m_checkpoint.erase(std::remove_if(m_checkpoint.begin(), m_checkpoint.end(), checkpoint_invalid), m_checkpoint.end());
-
-	// compile a list of inputs in chronological order
-	std::vector<GameInput> inputs;
-	auto input_before = [](const GameInput& a, const GameInput& b) { return a.game_time < b.game_time; };
-	for(const ReplayRecord& event : m_events) {
-		if(ReplayRecord::Type::INPUT == event.type &&
-		   event.input.game_time >= state.game_time() &&
-		   event.input.game_time < target_time) {
-			inputs.insert(std::upper_bound(inputs.begin(), inputs.end(), event.input, input_before), event.input);
-		}
-	}
-
-	// TODO: sent meta-events
-	// Right now, we only send input events because there is still some work to do to separate meta-info from inputs in the replay.
-
-	// send the inputs to my sink
-	long game_time = state.game_time();
-	for(const GameInput& input : inputs) {
-		if(game_time + CHECKPOINT_INTERVAL <= input.game_time) {
-			m_checkpoint.push_back(state);
-			game_time = input.game_time;
-		}
-		m_sink->do_event(ReplayRecord::make_input(input));
-	}
+auto greater_time(long cutoff) noexcept
+{
+	return [cutoff](const InputDiscovered& id) { return id.input.game_time > cutoff; };
 }
 
-void Journal::poll(long target_time) const
-{
-	enforce(m_sink); // cannot poll events without a sink
+}
 
-	for(const ReplayRecord& event : m_events) {
-		if(ReplayRecord::Type::INPUT == event.type && event.input.game_time == target_time)
-			m_sink->do_event(event);
-	}
+GameInputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
+{
+	enforce(start_time <= end_time);
+
+	auto begin = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(start_time - 1));
+	auto end = std::find_if(begin, m_inputs.end(), greater_time(end_time));
+
+	for(auto it = begin; it != end; ++it)
+		it->discovered = true;
+
+	return {begin, end};
 }
 
 void Journal::add_input(GameInput input)
@@ -103,6 +111,27 @@ void Journal::set_winner(int winner) noexcept
 	enforce(winner == GameMeta::WINNER_UNDECIDED ||
 	        (winner >= 0 && winner < m_meta.players));
 	m_meta.winner = winner;
+}
+
+void Journal::add_checkpoint(GameState&& checkpoint)
+{
+	assert(m_checkpoint.size() > 0);
+	// for the time being, we can insert checkpoints only in order
+	enforce(checkpoint.game_time() > m_checkpoint.back().game_time());
+
+	m_checkpoint.emplace_back(checkpoint);
+}
+
+const GameState& Journal::checkpoint_before(long game_time) const
+{
+	enforce(game_time > 0);
+
+	const auto end = m_checkpoint.rend();
+	const auto it = std::find_if(m_checkpoint.rbegin(), end,
+		[game_time](const GameState& s) { return s.game_time() < game_time; });
+
+	assert(it != end);
+	return *it;
 }
 
 namespace
@@ -258,7 +287,7 @@ Journal replay_read(std::istream& stream)
 		throw ReplayException("Something went wrong in reading from replay.");
 
 	// separate meta-data from input data
-	Journal journal{meta};
+	Journal journal{meta, GameState{meta}};
 
 	for(GameInput gi : input)
 		journal.add_input(gi);

@@ -27,19 +27,20 @@ ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const 
 {
 }
 
-std::unique_ptr<IScreen> ScreenFactory::create_menu() const
+std::unique_ptr<IScreen> ScreenFactory::create_menu()
 {
 	DrawMenu draw_menu(m_assets);
 	return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
 }
 
-std::unique_ptr<IScreen> ScreenFactory::create_game() const
+std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	DrawGame draw_game(m_assets);
-	return std::make_unique<GameScreen>(m_options.replay_path(), make_journal_file().c_str(), std::move(draw_game), m_audio);
+	m_network.reset(new SimpleHost());
+	return std::make_unique<GameScreen>(std::move(draw_game), m_audio, *m_network, m_network->journal());
 }
 
-std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor) const
+std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
 {
 	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw());
 	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
@@ -109,7 +110,7 @@ void GamePlay::update()
 		if(pobjs->block_director.over()) {
 			// NOTE: to determine the winner is a server-side job only.
 			int winner = opponent(static_cast<int>(i));
-			m_screen->m_journal->set_winner(winner);
+			m_screen->m_journal.set_winner(winner);
 
 			// NOTE: this should only happen when the Journal tells us that the game is over.
 			// We should not assume that the winner that we have detected is valid until
@@ -178,15 +179,17 @@ void GameResult::update()
 }
 
 
-GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio)
+GameScreen::GameScreen(DrawGame&& draw, const Audio& audio, SimpleHost& network, Journal& journal)
 : m_pause(false),
-  replay_outstream(replay_outfile),
   m_draw(std::move(draw)),
   m_sound_relay(audio),
-  m_shake_relay(m_draw)
+  m_shake_relay(m_draw),
+  m_network(network),
+  m_journal(journal)
 {
 	Log::info("GameScreen turn on.");
-
+	start();
+/*
 	if(replay_infile) {
 		Log::info("Read replay from file: %s.", replay_infile);
 		std::ifstream stream(replay_infile);
@@ -200,9 +203,9 @@ GameScreen::GameScreen(const char* replay_infile, const char* replay_outfile, Dr
 	else {
 		std::random_device rdev;
 		seed(rdev());
-	}
+	}*/
 
-	reset(m_journal->meta());
+	//reset(m_journal.meta());
 }
 
 GameScreen::~GameScreen() noexcept
@@ -212,48 +215,6 @@ GameScreen::~GameScreen() noexcept
 	// GameScreen becomes invalid.
 	m_next_phase.reset();
 	m_game_phase.reset();
-}
-
-void GameScreen::reset(GameMeta meta)
-{
-	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
-
-	m_draw.clear();
-	m_pobjects.clear();
-
-	change_phase(std::make_unique<GameIntro>(this));
-	change_phase_impl();
-	m_game_time = 0L;
-	m_done = false;
-
-	m_stage = std::make_unique<Stage>(GameState(meta));
-
-	Pit& left_pit = *m_stage->state().pit().at(0);
-	const Cursor& left_cursor = left_pit.cursor();
-	Banner& left_banner = m_stage->sobs().at(0).banner;
-	BonusIndicator& left_bonus = m_stage->sobs().at(0).bonus;
-
-	Pit& right_pit = *m_stage->state().pit().at(1);
-	const Cursor& right_cursor = right_pit.cursor();
-	Banner& right_banner = m_stage->sobs().at(1).banner;
-	BonusIndicator& right_bonus = m_stage->sobs().at(1).bonus;
-
-	auto left_pobjs = std::make_unique<PlayerObjects>(left_pit, right_pit, left_bonus);
-	auto right_pobjs = std::make_unique<PlayerObjects>(right_pit, left_pit, right_bonus);
-	m_pobjects.push_back(std::move(left_pobjs));
-	m_pobjects.push_back(std::move(right_pobjs));
-	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
-	m_draw.add_pit(right_pit, right_cursor, right_banner, right_bonus);
-
-	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
-
-	for(auto& pobjs : m_pobjects) {
-		pobjs->event_hub.append(m_sound_relay);
-		pobjs->event_hub.append(m_shake_relay);
-		pobjs->event_hub.append(*m_gameover_relay);
-	}
-
-	m_journal->do_event(ReplayRecord::make_start());
 }
 
 void GameScreen::update()
@@ -286,11 +247,14 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::A:
 		case Button::B:
 		{
-			const std::optional<GameInput> oinput = controller_to_game(cinput);
+			// Forward game input to the network (or other input handler).
+			// GameInput arrives in the m_phase only after a round trip through
+			// the Journal, which consists of server-approved inputs.
+			std::optional<GameInput> oinput = controller_to_game(cinput);
 			if(oinput.has_value()) {
-				GameInput ginput = oinput.value();
-				ginput.game_time = m_game_time;
-				m_journal->do_event(ReplayRecord::make_input(ginput));
+				// TODO: network should assign the actual input time
+				oinput->game_time = m_game_time;
+				m_network.send_input(oinput.value());
 			}
 		}
 			break;
@@ -300,11 +264,12 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::RESET:
-			{
-				std::random_device rdev;
-				seed(rdev());
-			}
-			reset(m_journal->meta());
+			// This button is disabled until further notice.
+			//{
+			//	std::random_device rdev;
+			//	seed(rdev());
+			//}
+			//reset(m_journal->meta());
 			break;
 
 		case Button::QUIT:
@@ -317,20 +282,24 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG2:
+			// TODO: this does not work with Network
 			update_impl();
 			break;
 
 		case Button::DEBUG3:
+			// TODO: this does not work with Network
 			for(int i = 0; i < 8; i++) update_impl();
 			break;
 
 		case Button::DEBUG4:
+			// TODO: this does not work with Network
 			m_pobjects[0]->block_director.debug_no_gameover ^= true;
 			m_pobjects[1]->block_director.debug_no_gameover ^= true;
 			// debug_print_pit(stage->pits()[0]->pit);
 			break;
 
 		case Button::DEBUG5:
+			// TODO: this does not work with Network
 			m_pobjects[1]->block_director.debug_spawn_garbage(6, 2);
 			// debug_print_pit(stage->pits()[1]->pit);
 			break;
@@ -342,36 +311,44 @@ void GameScreen::input(ControllerInput cinput)
 	}
 }
 
-void GameScreen::do_event(const ReplayRecord& event)
+void GameScreen::start()
 {
-	switch(event.type) {
+	const GameMeta meta = m_journal.meta();
+	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
-	//case ReplayRecord::Type::SET:
-	//	if("rng_seed" == event.set_name) {
-	//		std::istringstream stream(event.set_value);
-	//		unsigned int rng_seed;
-	//		stream >> rng_seed;
-	//		seed(rng_seed);
-	//	}
-	//	else {
-	//		// TODO: handle other “set” names
-	//	}
-	//	break;
+	m_draw.clear();
+	m_pobjects.clear();
 
-	//case ReplayRecord::Type::START:
-	//	reset();
-	//	break;
+	change_phase(std::make_unique<GameIntro>(this));
+	change_phase_impl();
+	m_game_time = 1L;
+	m_done = false;
 
-	case ReplayRecord::Type::INPUT:
-		m_game_phase->input(event.input);
-		// ignore (mixer passes this to game phase)
-		break;
+	m_stage = std::make_unique<Stage>(GameState(meta));
 
-	//case ReplayRecord::Type::END:
-	//	// m_done = true;
-	//	// ignore this for now
-	//	break;
+	Pit& left_pit = *m_stage->state().pit().at(0);
+	const Cursor& left_cursor = left_pit.cursor();
+	Banner& left_banner = m_stage->sobs().at(0).banner;
+	BonusIndicator& left_bonus = m_stage->sobs().at(0).bonus;
 
+	Pit& right_pit = *m_stage->state().pit().at(1);
+	const Cursor& right_cursor = right_pit.cursor();
+	Banner& right_banner = m_stage->sobs().at(1).banner;
+	BonusIndicator& right_bonus = m_stage->sobs().at(1).bonus;
+
+	auto left_pobjs = std::make_unique<PlayerObjects>(left_pit, right_pit, left_bonus);
+	auto right_pobjs = std::make_unique<PlayerObjects>(right_pit, left_pit, right_bonus);
+	m_pobjects.push_back(std::move(left_pobjs));
+	m_pobjects.push_back(std::move(right_pobjs));
+	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
+	m_draw.add_pit(right_pit, right_cursor, right_banner, right_bonus);
+
+	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
+
+	for(auto& pobjs : m_pobjects) {
+		pobjs->event_hub.subscribe(m_sound_relay);
+		pobjs->event_hub.subscribe(m_shake_relay);
+		pobjs->event_hub.subscribe(*m_gameover_relay);
 	}
 }
 
@@ -388,19 +365,18 @@ void GameScreen::change_phase_impl()
 void GameScreen::update_impl()
 {
 	// get events from journal, from which inputs will be relayed to the phase
-	m_journal->poll(m_game_time);
+	// TODO: use checkpoints to re-sync on historic inserts
+	GameInputSpan inputs = m_journal.discover_inputs(m_game_time, m_game_time);
+
+	for(auto it = inputs.first; it != inputs.second; ++it) {
+		m_game_phase->input(it->input);
+	}
 
 	// run game logic
 	m_game_phase->update();
 
 	if(m_next_phase)
 		change_phase_impl();
-}
-
-void GameScreen::seed(unsigned int rng_seed)
-{
-	GameMeta meta{2, rng_seed, GameMeta::WINNER_UNDECIDED};
-	m_journal = std::make_unique<Journal>(meta, this);
 }
 
 void TransitionScreen::update()

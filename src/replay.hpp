@@ -42,26 +42,18 @@ struct ReplayRecord
 	static ReplayRecord make_input(GameInput input) noexcept;
 };
 
-/**
- * A ReplaySink can handle replay events.
- */
-class IReplaySink
-{
-	public: virtual void do_event(const ReplayRecord& event) = 0;
-};
-
 struct InputDiscovered { GameInput input; bool discovered; };
 using GameInputs = std::vector<InputDiscovered>;
+using GameInputSpan = std::pair<GameInputs::const_iterator, GameInputs::const_iterator>;
 
 /**
  * Keeps the game record.
  */
-class Journal : public IReplaySink
+class Journal
 {
 
 public:
 
-	explicit Journal(GameMeta meta, IReplaySink* sink = nullptr);
 	explicit Journal(GameMeta meta, GameState&& state0);
 
 	/**
@@ -72,23 +64,27 @@ public:
 	 * In the regular @c CHECKPOINT_INTERVAL, store the game state as a
 	 * checkpoint. Invalidate all later checkpoints.
 	 */
-	void reproduce(long target_time, GameState& state);
-
-	void set_sink(IReplaySink* sink) noexcept { m_sink = sink; }
+	//void reproduce(long target_time, GameState& state);
 
 	GameMeta meta() const noexcept { return m_meta; }
 
 	/**
-	 * Activate all stored inputs at the specified time and replay them into
-	 * the m_sink.
+	 * Return the earliest time at which an input happens that has not yet been discovered
+	 * through @c discover_inputs.
+	 * If all inputs have been discovered, returns the maximum time of any input + 1.
 	 */
-	void poll(long target_time) const;
+	long earliest_undiscovered() const noexcept { return m_earliest_undiscovered; }
 
+	/**
+	 * Return all inputs with time >= start_time and <= end_time.
+	 * The inputs will be marked as discovered.
+	 */
+	GameInputSpan discover_inputs(long start_time, long end_time) noexcept;
+
+	/**
+	 * Simply return the list of inputs and do not discover anything.
+	 */
 	const GameInputs& inputs() const noexcept { return m_inputs; }
-
-	const std::vector<ReplayRecord>& events() const noexcept { return m_events; }
-
-	virtual void do_event(const ReplayRecord& event) override { m_events.push_back(event); }
 
 	/**
 	 * Add an input into the queue and mark it as undiscovered.
@@ -100,15 +96,24 @@ public:
 	 */
 	void set_winner(int winner) noexcept;
 
+	/**
+	 * Enter a checkpoint into the journal.
+	 */
+	void add_checkpoint(GameState&& checkpoint);
+
+	/**
+	 * Return the latest checkpoint state before the given time.
+	 */
+	const GameState& checkpoint_before(long game_time) const;
+
 private:
 
 	static const long CHECKPOINT_INTERVAL = 5 * TPS;
 
-	std::vector<ReplayRecord> m_events;
-	std::vector<GameState> m_checkpoint;
 	GameMeta m_meta;
 	GameInputs m_inputs; //!< player inputs ordered by time
-	IReplaySink* m_sink; //!< output for events on @poll, optional
+	long m_earliest_undiscovered;
+	std::vector<GameState> m_checkpoint; //!< checkpoints ordered by time
 
 };
 

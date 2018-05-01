@@ -45,7 +45,7 @@ protected:
 
 		counter = std::make_unique<GameEventCounter>();
 		hub = std::make_unique<evt::GameEventHub>();
-		hub->append(*counter);
+		hub->subscribe(*counter);
 		cursor_director->set_handler(*hub);
 		block_director->set_handler(*hub);
 	}
@@ -76,8 +76,8 @@ TEST_F(GameEventTest, CursorMoves)
 {
 	cursor_director->move(Dir::RIGHT);
 	EXPECT_EQ(1, counter->countCursorMoves);
-	cursor_director->move(Dir::NONE);
-	EXPECT_EQ(1, counter->countCursorMoves);
+	cursor_director->move(Dir::LEFT);
+	EXPECT_EQ(2, counter->countCursorMoves);
 }
 
 /**

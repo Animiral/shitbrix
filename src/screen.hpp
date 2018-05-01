@@ -14,6 +14,7 @@
 #include "director.hpp"
 #include "replay.hpp"
 #include "options.hpp"
+#include "network.hpp"
 #include "sdl_helper.hpp"
 #include <fstream>
 #include <typeinfo>
@@ -54,9 +55,9 @@ public:
 
 	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio);
 
-	std::unique_ptr<IScreen> create_menu() const;
-	std::unique_ptr<IScreen> create_game() const;
-	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor) const;
+	std::unique_ptr<IScreen> create_menu();
+	std::unique_ptr<IScreen> create_game();
+	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
 
 private:
 
@@ -64,6 +65,7 @@ private:
 	const Options& m_options;
 	const Assets& m_assets;
 	const Audio& m_audio;
+	std::unique_ptr<SimpleHost> m_network;
 
 };
 
@@ -130,7 +132,7 @@ private:
  * GamePhases control their own life and transition via GameScreen::set_phase(),
  * enabled through the friend relation to GameScreen.
  */
-class IGamePhase : public IGameInputSink
+class IGamePhase
 {
 
 public:
@@ -141,6 +143,7 @@ public:
 	void set_screen(GameScreen* screen) { m_screen = screen; }
 
 	virtual void update() =0;
+	virtual void input(GameInput ginput) = 0;
 
 protected:
 
@@ -189,16 +192,13 @@ public:
 
 };
 
-class GameScreen : public IScreen, public IReplaySink
+class GameScreen : public IScreen
 {
 
 public:
 
-	GameScreen(const char* replay_infile, const char* replay_outfile, DrawGame&& draw, const Audio& audio);
+	explicit GameScreen(DrawGame&& draw, const Audio& audio, SimpleHost& network, Journal& journal);
 	virtual ~GameScreen() noexcept;
-
-	const long& game_time() const { return m_game_time; }
-	void reset(GameMeta meta);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
@@ -218,8 +218,8 @@ private:
 		  event_hub(), garbage_throw(other_pit), bonus_throw(bonus)
 		{
 			block_director.set_handler(event_hub);
-			event_hub.append(garbage_throw);
-			event_hub.append(bonus_throw);
+			event_hub.subscribe(garbage_throw);
+			event_hub.subscribe(bonus_throw);
 		}
 
 		// default move would leave dangling references!
@@ -243,11 +243,10 @@ private:
 	std::unique_ptr<IGamePhase> m_game_phase;
 	std::unique_ptr<IGamePhase> m_next_phase;
 
-	std::ofstream replay_outstream;
-	std::unique_ptr<Journal> m_journal;
-
 	std::unique_ptr<Stage> m_stage;
 	DrawGame m_draw;
+	SimpleHost& m_network;
+	Journal& m_journal;
 	evt::SoundRelay m_sound_relay;
 	ShakeRelay m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
@@ -255,10 +254,8 @@ private:
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();
-	void seed(unsigned int rng_seed);
 
-	/* hack before GameRecord */
-	virtual void do_event(const ReplayRecord& event) override;
+	void start();
 
 	/**
 	 * Pass on the update event to child objects.

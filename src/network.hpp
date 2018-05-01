@@ -333,22 +333,22 @@ private:
 #include "replay.hpp"
 #include "input.hpp"
 
-std::unique_ptr<Reception> the_reception;
-
-class SimpleHost : public IReplaySink
+class SimpleHost
 {
 
 public:
 
 	SimpleHost();
-	void set_input_sink(IGameInputSink& sink) noexcept { m_sink = &sink; }
+
+	Journal& journal() noexcept { return m_journal; }
+	void send_input(GameInput input);
 
 private:
 
-	std::unique_ptr<Server> m_server;
-	std::unique_ptr<Host> m_host;
-	std::unique_ptr<Lobby> m_lobby;
-	std::unique_ptr<Client> m_client;
-	IGameInputSink* m_sink;
+	//std::unique_ptr<Server> m_server;
+	//std::unique_ptr<Host> m_host;
+	//std::unique_ptr<Lobby> m_lobby;
+	//std::unique_ptr<Client> m_client;
+	Journal m_journal;
 
 };

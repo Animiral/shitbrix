@@ -346,9 +346,26 @@ std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
 	return std::make_unique<FakeClient>(m_store, "placeholder");
 }
 
-SimpleHost::SimpleHost()
-	: m_sink(nullptr)
+namespace
 {
-	m_server = the_reception->check_in("placeholder");
-	m_lobby = m_server->offer({});
+
+Journal make_journal()
+{
+	GameMeta meta{2, std::random_device{}()};
+	return Journal(meta, GameState{meta});
+}
+
+}
+
+SimpleHost::SimpleHost()
+	: m_journal(make_journal())
+{
+	//m_server = the_reception->check_in("placeholder");
+	//m_lobby = m_server->offer({});
+}
+
+void SimpleHost::send_input(GameInput input)
+{
+	// TODO: set input.game_time to server's time
+	m_journal.add_input(input);
 }

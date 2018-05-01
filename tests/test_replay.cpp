@@ -75,3 +75,57 @@ TEST(ReplayTest, ReadErrorInput)
 
 	EXPECT_THROW(replay_read(stream), ReplayException);
 }
+
+/**
+ * Test Journal checkpoints
+ */
+TEST(ReplayTest, Checkpoint)
+{
+	GameMeta meta{2 /* players */, 0 /* seed */};
+	GameState state0{meta};
+	Journal journal{meta, GameState(state0)};
+
+	GameState state1 = state0;
+	state1.update();
+	state1.update();
+	state1.update();
+	journal.add_checkpoint(std::move(state1));
+
+	EXPECT_EQ(0, journal.checkpoint_before(3).game_time());
+	EXPECT_EQ(3, journal.checkpoint_before(4).game_time());
+}
+
+/**
+ * Test rewinding the Journal to the last checkpoint
+ */
+TEST(ReplayTest, Rewind)
+{
+	// Pre-test required setup.
+	// We use ASSERT because this is not the topic of this test.
+	GameMeta meta{2 /* players */, 0 /* seed */};
+	GameState state{meta};
+	RowCol block_coords = state.pit()[0]->cursor().rc; // ready for swap later
+	state.pit()[0]->spawn_block(Block::Color::BLUE, block_coords, Block::State::REST); // object with 2 paths
+	Journal journal{meta, std::move(state)};
+
+	// get the working copy of the state from the journal
+	state = journal.checkpoint_before(1);
+
+	ASSERT_EQ(0, state.game_time());
+	state.update(); // time = 1
+	state.update(); // time = 2
+	ASSERT_EQ(2, state.game_time());
+	ASSERT_TRUE(state.pit()[0]->block_at(block_coords)); // block has not moved
+
+	// Test 1: Journal must order new inputs
+	journal.add_input(GameInput{1 /* int time */, 0, GameButton::SWAP, ButtonAction::DOWN});
+	long earliest = journal.earliest_undiscovered();
+	EXPECT_EQ(1, earliest);
+
+	// Test 2: Journal must properly discover inputs
+	state = journal.checkpoint_before(earliest); // reset to time 0
+	EXPECT_EQ(0, state.game_time());
+	const long target_time = 3;
+	GameInputSpan inputs = journal.discover_inputs(state.game_time(), target_time);
+	EXPECT_EQ(1, std::distance(inputs.first, inputs.second)); // we have 1 new input
+}

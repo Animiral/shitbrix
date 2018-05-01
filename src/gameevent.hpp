@@ -134,7 +134,7 @@ class GameEventHub : public IGameEvent
 
 public:
 
-	void append(IGameEvent& event)
+	void subscribe(IGameEvent& event)
 	{
 		m_handlers.push_back(event);
 	}
