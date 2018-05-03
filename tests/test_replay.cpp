@@ -8,23 +8,42 @@
 #include <string>
 #include <sstream>
 
+class ReplayTest : public ::testing::Test
+{
+
+protected:
+
+	virtual void SetUp()
+	{
+		meta = GameMeta{2 /* players */, 4711 /* seed */};
+		state = std::make_unique<GameState>(meta);
+		journal = std::make_unique<Journal>(meta, GameState(*state));
+	}
+
+	// virtual void TearDown() {}
+
+	GameMeta meta;
+	std::unique_ptr<GameState> state;
+	std::unique_ptr<Journal> journal;
+
+};
+
 /**
  * Tests basic replay output via Journal.
  */
-TEST(ReplayTest, WriteJournal)
+TEST_F(ReplayTest, WriteJournal)
 {
 	std::ostringstream stream;
-	const GameMeta meta{2, 4711, 1}; // { nr.players, seed, winner }
-	Journal journal{meta, GameState{meta}};
+	journal->set_winner(1);
 
 	//ReplayRecord events[] =
-	journal.add_input(GameInput{3, 0, GameButton::LEFT, ButtonAction::DOWN});
-	journal.add_input(GameInput{5, 1, GameButton::UP, ButtonAction::DOWN});
-	journal.add_input(GameInput{8, 0, GameButton::RAISE, ButtonAction::DOWN});
-	journal.add_input(GameInput{10, 0, GameButton::LEFT, ButtonAction::DOWN});
-	journal.add_input(GameInput{10, 1, GameButton::SWAP, ButtonAction::DOWN});
+	journal->add_input(GameInput{3, 0, GameButton::LEFT, ButtonAction::DOWN});
+	journal->add_input(GameInput{5, 1, GameButton::UP, ButtonAction::DOWN});
+	journal->add_input(GameInput{8, 0, GameButton::RAISE, ButtonAction::DOWN});
+	journal->add_input(GameInput{10, 0, GameButton::LEFT, ButtonAction::DOWN});
+	journal->add_input(GameInput{10, 1, GameButton::SWAP, ButtonAction::DOWN});
 
-	replay_write(stream, journal);
+	replay_write(stream, *journal);
 
 	std::string expected =
 R"(start
@@ -42,7 +61,7 @@ input 10 1 swap press
 /**
  * Test basic replay parsing
  */
-TEST(ReplayTest, ReadBasic)
+TEST_F(ReplayTest, ReadBasic)
 {
 	std::string replay_str =
 R"(start
@@ -50,14 +69,14 @@ meta 2 4711 1
 input 10 1 swap press
 )";
 	std::istringstream stream(replay_str);
-	Journal journal = replay_read(stream);
+	journal.reset(new Journal(replay_read(stream)));
 
-	GameMeta meta = journal.meta();
+	meta = journal->meta();
 	EXPECT_EQ(2, meta.players);
 	EXPECT_EQ(4711, meta.seed);
 	EXPECT_EQ(1, meta.winner);
 
-	GameInputs inputs = journal.inputs();
+	GameInputs inputs = journal->inputs();
 	ASSERT_EQ(1, inputs.size());
 	EXPECT_EQ(10, inputs[0].input.game_time);
 	EXPECT_EQ(1, inputs[0].input.player);
@@ -68,7 +87,7 @@ input 10 1 swap press
 /**
  * Test replay error (input)
  */
-TEST(ReplayTest, ReadErrorInput)
+TEST_F(ReplayTest, ReadErrorInput)
 {
 	std::string replay_str = "input 10 1\nend\n";
 	std::istringstream stream(replay_str);
@@ -79,53 +98,49 @@ TEST(ReplayTest, ReadErrorInput)
 /**
  * Test Journal checkpoints
  */
-TEST(ReplayTest, Checkpoint)
+TEST_F(ReplayTest, Checkpoint)
 {
-	GameMeta meta{2 /* players */, 0 /* seed */};
-	GameState state0{meta};
-	Journal journal{meta, GameState(state0)};
+	state->update();
+	state->update();
+	state->update();
+	journal->add_checkpoint(std::move(*state));
 
-	GameState state1 = state0;
-	state1.update();
-	state1.update();
-	state1.update();
-	journal.add_checkpoint(std::move(state1));
-
-	EXPECT_EQ(0, journal.checkpoint_before(3).game_time());
-	EXPECT_EQ(3, journal.checkpoint_before(4).game_time());
+	EXPECT_EQ(0, journal->checkpoint_before(3).game_time());
+	EXPECT_EQ(3, journal->checkpoint_before(4).game_time());
 }
 
 /**
- * Test rewinding the Journal to the last checkpoint
+ * Test that the Journal properly discovers inputs
  */
-TEST(ReplayTest, Rewind)
+TEST_F(ReplayTest, DiscoverInputs)
 {
-	// Pre-test required setup.
-	// We use ASSERT because this is not the topic of this test.
-	GameMeta meta{2 /* players */, 0 /* seed */};
-	GameState state{meta};
-	RowCol block_coords = state.pit()[0]->cursor().rc; // ready for swap later
-	state.pit()[0]->spawn_block(Block::Color::BLUE, block_coords, Block::State::REST); // object with 2 paths
-	Journal journal{meta, std::move(state)};
-
-	// get the working copy of the state from the journal
-	state = journal.checkpoint_before(1);
-
-	ASSERT_EQ(0, state.game_time());
-	state.update(); // time = 1
-	state.update(); // time = 2
-	ASSERT_EQ(2, state.game_time());
-	ASSERT_TRUE(state.pit()[0]->block_at(block_coords)); // block has not moved
+	const GameInput input1 = GameInput{1, 0, GameButton::SWAP, ButtonAction::DOWN};
+	const GameInput input2 = GameInput{2, 0, GameButton::SWAP, ButtonAction::DOWN};
+	const GameInput input3 = GameInput{3, 0, GameButton::SWAP, ButtonAction::DOWN};
+	const GameInput input4 = GameInput{4, 0, GameButton::SWAP, ButtonAction::DOWN};
 
 	// Test 1: Journal must order new inputs
-	journal.add_input(GameInput{1 /* int time */, 0, GameButton::SWAP, ButtonAction::DOWN});
-	long earliest = journal.earliest_undiscovered();
+	journal->add_input(input1);
+	journal->add_input(input3);
+	long earliest = journal->earliest_undiscovered();
 	EXPECT_EQ(1, earliest);
 
 	// Test 2: Journal must properly discover inputs
-	state = journal.checkpoint_before(earliest); // reset to time 0
-	EXPECT_EQ(0, state.game_time());
-	const long target_time = 3;
-	GameInputSpan inputs = journal.discover_inputs(state.game_time(), target_time);
-	EXPECT_EQ(1, std::distance(inputs.first, inputs.second)); // we have 1 new input
+	GameInputSpan span = journal->discover_inputs(earliest, 4);
+	ASSERT_EQ(2, std::distance(span.first, span.second));
+	EXPECT_EQ(1, span.first->input.game_time);
+	EXPECT_EQ(3, (span.first+1)->input.game_time);
+
+	// Test 3: insert inputs in the past
+	journal->add_input(input2);
+	journal->add_input(input4);
+	earliest = journal->earliest_undiscovered();
+	EXPECT_EQ(2, earliest);
+
+	// Test 4: Journal must discover only recent inputs
+	span = journal->discover_inputs(earliest, 4);
+	ASSERT_EQ(3, std::distance(span.first, span.second));
+	EXPECT_EQ(2, span.first->input.game_time);
+	EXPECT_EQ(3, (span.first+1)->input.game_time);
+	EXPECT_EQ(4, (span.first+2)->input.game_time);
 }

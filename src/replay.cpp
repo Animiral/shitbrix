@@ -93,17 +93,24 @@ GameInputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
 	auto begin = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(start_time - 1));
 	auto end = std::find_if(begin, m_inputs.end(), greater_time(end_time));
 
-	for(auto it = begin; it != end; ++it)
+	for(auto it = begin; it != end; ++it) {
 		it->discovered = true;
+		m_earliest_undiscovered = it->input.game_time + 1;
+	}
 
 	return {begin, end};
 }
 
 void Journal::add_input(GameInput input)
 {
-	enforce(input.game_time > 0);
+	const long itime = input.game_time;
+	enforce(itime > 0);
 
-	m_inputs.push_back(InputDiscovered{input, false});
+	if(m_earliest_undiscovered > itime)
+		m_earliest_undiscovered = itime;
+
+	const auto after = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(itime));
+	m_inputs.insert(after, InputDiscovered{input, false});
 }
 
 void Journal::set_winner(int winner) noexcept
