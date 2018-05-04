@@ -101,34 +101,62 @@ void GameIntro::update()
 
 void GamePlay::update()
 {
-	m_screen->m_stage->update();
+	// get events from journal, from which inputs will be relayed to the phase
+	// TODO: use checkpoints to re-sync on historic inserts
+	const long time0 = m_screen->m_journal.earliest_undiscovered();
+	long& game_time = m_screen->m_game_time;
+	Journal& journal = m_screen->m_journal;
+	GameState& state = m_screen->m_stage->state();
 
-	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
-		auto& pobjs = m_screen->m_pobjects[i];
-		pobjs->block_director.update();
+	game_time++;
 
-		if(pobjs->block_director.over()) {
-			// NOTE: to determine the winner is a server-side job only.
-			int winner = opponent(static_cast<int>(i));
-			m_screen->m_journal.set_winner(winner);
+	if(time0 < game_time) {
+		state = journal.checkpoint_before(time0);
+	}
 
-			// NOTE: this should only happen when the Journal tells us that the game is over.
-			// We should not assume that the winner that we have detected is valid until
-			// it is part of the game record.
-			m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+	GameInputSpan inputs = journal.discover_inputs(state.game_time() + 1, game_time);
+	auto input_it = inputs.first;
 
-			auto phase = std::make_unique<GameResult>(m_screen, winner);
-			m_screen->change_phase(std::move(phase));
-			break;
+	while(state.game_time() < game_time) {
+		for(auto it = input_it; it != inputs.second && it->input.game_time == game_time; ++it) {
+			apply_input(it->input);
+		}
+
+		// state.game_time() is incremented here.
+		// It belongs to the game state, which belongs to stage.
+		m_screen->m_stage->update();
+
+		for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
+			auto& pobjs = m_screen->m_pobjects[i];
+			pobjs->block_director.update();
+
+			if(pobjs->block_director.over()) {
+				// NOTE: to determine the winner is a server-side job only.
+				int winner = opponent(static_cast<int>(i));
+				m_screen->m_journal.set_winner(winner);
+
+				// NOTE: this should only happen when the Journal tells us that the game is over.
+				// We should not assume that the winner that we have detected is valid until
+				// it is part of the game record.
+				m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+
+				auto phase = std::make_unique<GameResult>(m_screen, winner);
+				m_screen->change_phase(std::move(phase));
+
+				return;
+			}
 		}
 	}
 
-	m_screen->m_game_time++;
+	// save new checkpoint?
+	if(game_time >= journal.checkpoint_before(game_time).game_time() + CHECKPOINT_INTERVAL) {
+		journal.add_checkpoint(GameState(state));
+	}
 }
 
-void GamePlay::input(GameInput ginput)
+void GamePlay::apply_input(GameInput ginput)
 {
-	enforce(GameButton::NONE != ginput.button);
+	assert(GameButton::NONE != ginput.button);
 
 	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
 
@@ -253,7 +281,7 @@ void GameScreen::input(ControllerInput cinput)
 			std::optional<GameInput> oinput = controller_to_game(cinput);
 			if(oinput.has_value()) {
 				// TODO: network should assign the actual input time
-				oinput->game_time = m_game_time;
+				oinput->game_time = m_game_time + 1; // input applies to next frame
 				m_network.send_input(oinput.value());
 			}
 		}
@@ -364,14 +392,6 @@ void GameScreen::change_phase_impl()
 
 void GameScreen::update_impl()
 {
-	// get events from journal, from which inputs will be relayed to the phase
-	// TODO: use checkpoints to re-sync on historic inserts
-	GameInputSpan inputs = m_journal.discover_inputs(m_game_time, m_game_time);
-
-	for(auto it = inputs.first; it != inputs.second; ++it) {
-		m_game_phase->input(it->input);
-	}
-
 	// run game logic
 	m_game_phase->update();
 

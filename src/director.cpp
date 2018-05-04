@@ -29,17 +29,15 @@ BlockDirector::BlockDirector(Pit& pit, Logic& logic)
 
 void BlockDirector::update()
 {
-	// TODO: This function is ripe for refactoring.
+	// TODO: Is this function still ripe for refactoring?
 	//
+	// Previous problems:
 	// It allocates and deallocates memory every frame, which could be eliminated.
 	// The names of the helper functions are nondescriptive and inconsistent (handle_*)
 	// Helper return values use out parameters.
 	//
-	// Measures:
-	// 1. Instead of out parameters, bundle helper results in dedicated structs.
-	// 2. Amend class Physical, Garbage and Block with “tag” fields to be used as markers by this logic. (done)
-	// 3. Define filter iterators to pick out all the marked objects with no memory overhead. (done in for_all)
-	// 4. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
+	// Measure to check:
+	// 1. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
 	bool dead_physical = false; // true if some physical has entered terminal state
 	bool dead_block = false;    // true if pit needs to clean up
 	bool dead_sound = false;    // true if there was at least one non-fake dead

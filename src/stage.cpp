@@ -649,8 +649,7 @@ Stage::Stage(GameState init)
 
 void Stage::update()
 {
-	for(const auto& pit : m_state.pit())
-		pit->update();
+	m_state.update();
 
 	for(auto& sob : m_sobs)
 		sob.bonus.update();

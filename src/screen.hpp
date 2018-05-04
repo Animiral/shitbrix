@@ -143,7 +143,6 @@ public:
 	void set_screen(GameScreen* screen) { m_screen = screen; }
 
 	virtual void update() =0;
-	virtual void input(GameInput ginput) = 0;
 
 protected:
 
@@ -159,7 +158,6 @@ public:
 	GameIntro(GameScreen* screen);
 
 	virtual void update() override;
-	virtual void input(GameInput ginput) override {}
 
 private:
 
@@ -176,7 +174,10 @@ public:
 	GamePlay(GameScreen* screen) : IGamePhase(screen) {}
 
 	virtual void update() override;
-	virtual void input(GameInput ginput) override;
+
+private:
+
+	void apply_input(GameInput ginput);
 
 };
 
@@ -188,7 +189,6 @@ public:
 	GameResult(GameScreen* screen, int winner);
 
 	virtual void update() override;
-	virtual void input(GameInput ginput) override {}
 
 };
 
