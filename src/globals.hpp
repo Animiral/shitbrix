@@ -196,6 +196,7 @@ std::ostream& operator<<(std::ostream& stream, RowCol rc);
 // ================================================
 
 constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
+constexpr long CHECKPOINT_INTERVAL = 5 * TPS; //!< time between checkpoints for journal
 
 // Gameplay constants
 constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each other

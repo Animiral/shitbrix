@@ -144,3 +144,25 @@ TEST_F(ReplayTest, DiscoverInputs)
 	EXPECT_EQ(3, (span.first+1)->input.game_time);
 	EXPECT_EQ(4, (span.first+2)->input.game_time);
 }
+
+/**
+ * Test that the Journal reports when there are no more inputs to discover.
+ */
+TEST_F(ReplayTest, EarliestUndiscovered)
+{
+	const GameInput input = GameInput{5, 0, GameButton::SWAP, ButtonAction::DOWN};
+
+	// Test 1: Initially, there are no inputs to discover.
+	long earliest = journal->earliest_undiscovered();
+	EXPECT_EQ(Journal::NO_UNDISCOVERED, earliest);
+
+	// Test 2: When we add an input, we report its earliest time.
+	journal->add_input(input);
+	earliest = journal->earliest_undiscovered();
+	EXPECT_EQ(5, earliest);
+
+	// Test 3: After input discovery, the time again indicates no new inputs.
+	journal->discover_inputs(5, 5);
+	earliest = journal->earliest_undiscovered();
+	EXPECT_EQ(Journal::NO_UNDISCOVERED, earliest);
+}

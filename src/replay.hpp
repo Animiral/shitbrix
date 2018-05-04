@@ -56,22 +56,15 @@ public:
 
 	explicit Journal(GameMeta meta, GameState&& state0);
 
-	/**
-	 * Return the game state as it was or will be at the specified time.
-	 * Start by assigning the preceding checkpoint to the Pit and follow the
-	 * inputs since then by feeding them into the m_sink, which must be set up
-	 * to manipulate the passed pit.
-	 * In the regular @c CHECKPOINT_INTERVAL, store the game state as a
-	 * checkpoint. Invalidate all later checkpoints.
-	 */
-	//void reproduce(long target_time, GameState& state);
-
 	GameMeta meta() const noexcept { return m_meta; }
+
+	//! Time value of “earliest undiscovered input” if there are no new inputs.
+	static const long NO_UNDISCOVERED = std::numeric_limits<long>::max();
 
 	/**
 	 * Return the earliest time at which an input happens that has not yet been discovered
 	 * through @c discover_inputs.
-	 * If all inputs have been discovered, returns the maximum time of any input + 1.
+	 * If all inputs have been discovered, returns @c NO_UNDISCOVERED.
 	 */
 	long earliest_undiscovered() const noexcept { return m_earliest_undiscovered; }
 
@@ -107,8 +100,6 @@ public:
 	const GameState& checkpoint_before(long game_time) const;
 
 private:
-
-	static const long CHECKPOINT_INTERVAL = 5 * TPS;
 
 	GameMeta m_meta;
 	GameInputs m_inputs; //!< player inputs ordered by time
