@@ -111,10 +111,32 @@ enum class Button
 enum class GameButton { NONE, LEFT, RIGHT, UP, DOWN, SWAP, RAISE };
 
 /**
+ * Return the string representation of the @c GameButton.
+ */
+const char* game_button_to_string(GameButton button) noexcept;
+
+/**
+ * Return the corresponding @c GameButton for the string representation.
+ * @throw GameException if the string is not recognized.
+ */
+GameButton string_to_game_button(const std::string& str);
+
+/**
  * Enumeration of the sorts of inputs that the player can perform on a button.
  * For some buttons (e.g. PAUSE), only DOWN may be registered.
  */
 enum class ButtonAction { DOWN, UP };
+
+/**
+ * Return the string representation of the @c ButtonAction.
+ */
+const char* button_action_to_string(ButtonAction action) noexcept;
+
+/**
+ * Return the corresponding @c ButtonAction for the string representation.
+ * @throw GameException if the string is not recognized.
+ */
+ButtonAction string_to_button_action(const std::string& str);
 
 constexpr int NOONE = -1; // not-a player id
 
@@ -139,6 +161,18 @@ struct GameInput
 	int player;          //!< 0-based player index
 	GameButton button;
 	ButtonAction action;
+
+	/**
+	 * Since @c GameInputs frequently need to be sent over the network or stored
+	 * in a replay file, they have a canonical string representation.
+	 */
+	std::string to_string() const;
+
+	/**
+	 * Return the @c GameInput from the string representation.
+	 * @throw GameException if the string is not recognized.
+	 */
+	static GameInput from_string(std::string str);
 };
 
 /**

@@ -116,29 +116,6 @@ const char* replay_record_type_string(ReplayRecord::Type type) noexcept
 	}
 }
 
-const char* game_button_string(GameButton button) noexcept
-{
-	switch(button) {
-		case GameButton::NONE: return "none";
-		case GameButton::LEFT: return "left";
-		case GameButton::RIGHT: return "right";
-		case GameButton::UP: return "up";
-		case GameButton::DOWN: return "down";
-		case GameButton::SWAP: return "swap";
-		case GameButton::RAISE: return "raise";
-		default: assert(false); return nullptr;
-	}
-}
-
-const char* button_action_string(ButtonAction action) noexcept
-{
-	switch(action) {
-		case ButtonAction::UP: return "release";
-		case ButtonAction::DOWN: return "press";
-		default: assert(false); return nullptr;
-	}
-}
-
 }
 
 void replay_write(std::ostream& stream, const Journal& journal)
@@ -153,11 +130,7 @@ void replay_write(std::ostream& stream, const Journal& journal)
 
 	for(const auto& id : journal.inputs()) {
 		stream << replay_record_type_string(ReplayRecord::Type::INPUT)
-		       << " " << id.input.game_time
-		       << " " << id.input.player
-		       << " " << game_button_string(id.input.button)
-		       << " " << button_action_string(id.input.action)
-		       << "\n";
+		       << " " << id.input.to_string() << "\n";
 	}
 }
 
@@ -170,24 +143,6 @@ ReplayRecord::Type string_to_replay_record_type(const std::string& str)
 	else if("meta" == str) return ReplayRecord::Type::META;
 	else if("input" == str) return ReplayRecord::Type::INPUT;
 	else throw ReplayException("Invalid event type string.");
-}
-
-GameButton string_to_game_button(const std::string& str)
-{
-	if("left" == str) return GameButton::LEFT;
-	else if("right" == str) return GameButton::RIGHT;
-	else if("up" == str) return GameButton::UP;
-	else if("down" == str) return GameButton::DOWN;
-	else if("swap" == str) return GameButton::SWAP;
-	else if("raise" == str) return GameButton::RAISE;
-	else throw ReplayException("Invalid game button string.");
-}
-
-ButtonAction string_to_button_action(const std::string& str)
-{
-	if("release" == str) return ButtonAction::UP;
-	else if("press" == str) return ButtonAction::DOWN;
-	else throw ReplayException("Invalid button action string.");
 }
 
 }
@@ -229,20 +184,13 @@ Journal replay_read(std::istream& stream)
 
 		case ReplayRecord::Type::INPUT:
 			{
-				int game_time;
-				int player;
-				std::string button_str;
-				std::string action_str;
+				const GameInput gi = GameInput::from_string(tokenizer.str());
 
-				tokenizer >> game_time >> player >> button_str >> action_str;
-				GameButton button = string_to_game_button(button_str);
-				ButtonAction action = string_to_button_action(action_str);
-
-				if(game_time < prev_time)
+				if(gi.game_time < prev_time)
 					throw ReplayException("Inputs out of order.");
 
-				input.push_back(GameInput{game_time, player, button, action});
-				prev_time = game_time;
+				input.push_back(gi);
+				prev_time = gi.game_time;
 			}
 			break;
 
