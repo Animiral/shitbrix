@@ -231,6 +231,10 @@ std::ostream& operator<<(std::ostream& stream, RowCol rc);
 
 constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
 constexpr long CHECKPOINT_INTERVAL = 5 * TPS; //!< time between checkpoints for journal
+constexpr size_t MAX_CLIENTS = 8; //!< maximum number of networked players
+constexpr uint16_t NET_PORT = 2414; //!< network port for connections
+constexpr uint32_t CONNECT_TIMEOUT = 5000; //!< peer to server connection time limit
+constexpr uint8_t INPUT_CHANNEL = 1; //!< network communication channel for GameInputs
 
 // Gameplay constants
 constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each other

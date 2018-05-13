@@ -17,6 +17,8 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <future>
+#include <atomic>
 #include "globals.hpp"
 #include "stage.hpp"
 
@@ -332,23 +334,92 @@ private:
 
 #include "replay.hpp"
 #include "input.hpp"
+#include "enet_helper.hpp"
 
-class SimpleHost
+class ENetServer
 {
 
 public:
 
-	SimpleHost();
+	ENetServer();
 
-	Journal& journal() noexcept { return m_journal; }
-	void send_input(GameInput input);
+	void broadcast_input(GameInput input);
+	void poll();
 
 private:
 
-	//std::unique_ptr<Server> m_server;
-	//std::unique_ptr<Host> m_host;
-	//std::unique_ptr<Lobby> m_lobby;
-	//std::unique_ptr<Client> m_client;
+	HostPtr m_host;
+	std::vector<PeerPtr> m_peer;
+
+};
+
+class ENetClient
+{
+
+public:
+
+	explicit ENetClient(const char* server_name);
+	Journal& journal() noexcept { return m_journal; }
+	void send_input(GameInput input);
+	void poll();
+
+private:
+
+	HostPtr m_host;
+	PeerPtr m_peer;
 	Journal m_journal;
+
+};
+
+
+class ClientStub
+{
+
+public:
+
+	ClientStub();
+
+	Journal& journal() noexcept { return m_journal; }
+	void send_input(GameInput input);
+	void poll() {}
+
+private:
+
+	Journal m_journal;
+
+};
+
+/**
+ * Runs a server in a thread until the object is destroyed.
+ */
+class ServerThread
+{
+
+public:
+
+	/**
+	 * Start a game server in a separate thread.
+	 */
+	ServerThread();
+
+	/**
+	 * Exit from the server thread, if necessary.
+	 * Catch all exceptions and log them, if possible.
+	 */
+	~ServerThread();
+
+	/**
+	 * End execution of the server thread, with the possibility to handle
+	 * exceptions that propagate out of the thread.
+	 * In contrast, the destructor swallows all exceptions.
+	 */
+	void exit();
+
+private:
+
+	std::atomic_flag m_exit;
+	std::future<void> m_future;
+
+	void main_loop();
 
 };

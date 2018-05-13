@@ -63,6 +63,9 @@
     <ClInclude Include="..\..\src\error.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\enet_helper.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\director.cpp">
@@ -105,6 +108,9 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\error.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\enet_helper.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

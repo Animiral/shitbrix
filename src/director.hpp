@@ -147,3 +147,45 @@ private:
 	BonusIndicator& m_indicator;
 
 };
+
+class Journal;
+
+/**
+ * Assorted objects that are required on this screen once per player.
+ */
+struct PlayerObjects
+{
+	PlayerObjects(Pit& pit, Pit& other_pit, BonusIndicator& bonus)
+	: logic(pit), block_director(pit, logic), cursor_director(pit),
+		event_hub(), garbage_throw(other_pit), bonus_throw(bonus)
+	{
+		block_director.set_handler(event_hub);
+		event_hub.subscribe(garbage_throw);
+		event_hub.subscribe(bonus_throw);
+	}
+
+	// default move would leave dangling references!
+	PlayerObjects(const PlayerObjects& ) = delete;
+	PlayerObjects(PlayerObjects&& ) = default;
+	PlayerObjects& operator=(const PlayerObjects& ) = delete;
+	PlayerObjects& operator=(PlayerObjects&& ) = delete;
+
+	Logic logic;
+	BlockDirector block_director;
+	CursorDirector cursor_director;
+	evt::GameEventHub event_hub;
+	GarbageThrow garbage_throw; // event handler for generating garbage bricks
+	BonusThrow bonus_throw; // event handler for displaying stars
+};
+
+// The rules contain all the functional information
+// for advancing a game state for all players.
+using Rules = std::vector<std::unique_ptr<PlayerObjects>>;
+
+void apply_input(Rules& rules, GameInput ginput);
+
+/**
+ * Bring the game state to the given @c target_time using the
+ * @c journal for history and @director for logic.
+ */
+void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules);

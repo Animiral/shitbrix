@@ -684,7 +684,9 @@ public:
 	explicit Stage(GameState init);
 	Stage(const Stage& ) =delete;
 
-	//! Helper struct for stage contents (per player)
+	//! Helper struct for stage contents (per player).
+	//! These objects must also be updated regularly,
+	//! but independently of the game logic.
 	struct StageObjects
 	{
 		Banner banner;

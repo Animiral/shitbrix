@@ -53,7 +53,7 @@ class ScreenFactory
 
 public:
 
-	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio);
+	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio, ENetClient& client);
 
 	std::unique_ptr<IScreen> create_menu();
 	std::unique_ptr<IScreen> create_game();
@@ -65,7 +65,7 @@ private:
 	const Options& m_options;
 	const Assets& m_assets;
 	const Audio& m_audio;
-	std::unique_ptr<SimpleHost> m_network;
+	ENetClient& m_client;
 
 };
 
@@ -175,10 +175,6 @@ public:
 
 	virtual void update() override;
 
-private:
-
-	void apply_input(GameInput ginput);
-
 };
 
 class GameResult : public IGamePhase
@@ -197,7 +193,7 @@ class GameScreen : public IScreen
 
 public:
 
-	explicit GameScreen(DrawGame&& draw, const Audio& audio, SimpleHost& network, Journal& journal);
+	explicit GameScreen(DrawGame&& draw, const Audio& audio, Journal& journal, ENetClient& client);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
@@ -208,34 +204,6 @@ public:
 
 private:
 
-	/**
-	 * Assorted objects that are required on this screen once per player.
-	 */
-	struct PlayerObjects
-	{
-		PlayerObjects(Pit& pit, Pit& other_pit, BonusIndicator& bonus)
-		: logic(pit), block_director(pit, logic), cursor_director(pit),
-		  event_hub(), garbage_throw(other_pit), bonus_throw(bonus)
-		{
-			block_director.set_handler(event_hub);
-			event_hub.subscribe(garbage_throw);
-			event_hub.subscribe(bonus_throw);
-		}
-
-		// default move would leave dangling references!
-		PlayerObjects(const PlayerObjects& ) = delete;
-		PlayerObjects(PlayerObjects&& ) = delete;
-		PlayerObjects& operator=(const PlayerObjects& ) = delete;
-		PlayerObjects& operator=(PlayerObjects&& ) = delete;
-
-		Logic logic;
-		BlockDirector block_director;
-		CursorDirector cursor_director;
-		evt::GameEventHub event_hub;
-		GarbageThrow garbage_throw; // event handler for generating garbage bricks
-		BonusThrow bonus_throw; // event handler for displaying stars
-	};
-
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
 	bool m_pause; // true if tick updates are supressed
@@ -245,12 +213,12 @@ private:
 
 	std::unique_ptr<Stage> m_stage;
 	DrawGame m_draw;
-	SimpleHost& m_network;
 	Journal& m_journal;
+	ENetClient& m_client;
 	evt::SoundRelay m_sound_relay;
 	ShakeRelay m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
-	std::vector<std::unique_ptr<PlayerObjects>> m_pobjects;
+	Rules m_pobjects;
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();

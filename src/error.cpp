@@ -4,6 +4,7 @@
 #include <fstream>
 #include <ctime>
 #include <cassert>
+#include <mutex>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -34,6 +35,18 @@ void imgok(void* pointer)
 {
 	if(!pointer)
 		throw SdlException(IMG_GetError());
+}
+
+void enetok_impl(int result, const char* what)
+{
+	if(0 != result)
+		throw ENetException(what);
+}
+
+void enetok_impl(void* pointer, const char* what)
+{
+	if(!pointer)
+		throw ENetException(what);
 }
 
 void show_error(const std::exception& exception) noexcept
@@ -127,6 +140,16 @@ void Log::init(std::unique_ptr<LogImpl> impl)
 	info("Log initialized.");
 }
 
+void Log::trace(const char *format, ...) noexcept
+{
+	if(m_instance) {
+		va_list vlist;
+		va_start(vlist, format);
+		m_instance->write("TRACE", format, vlist);
+		va_end(vlist);
+	}
+}
+
 void Log::info(const char *format, ...) noexcept
 {
 	if(m_instance) {
@@ -178,6 +201,12 @@ void Log::write(const char* level, const char *format, va_list vlist) const noex
 
 	if(vsprintf_result < 0)
 		return;
+
+	buffer.resize(buffer.size() - 1); // drop trailing '\0' from vsprintf
+
+	// Thread safety: from here on, only one thread at a time can write.
+	static std::mutex write_mutex;
+	std::lock_guard<std::mutex> lock(write_mutex);
 
 	m_impl->write(buffer);
 }

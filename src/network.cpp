@@ -1,4 +1,10 @@
 #include "network.hpp"
+#include "error.hpp"
+
+// These two libraries are dependencies of ENet.
+
+#pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "Ws2_32.lib")
 
 void Mailbox::enqueue(Message message)
 {
@@ -346,6 +352,77 @@ std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
 	return std::make_unique<FakeClient>(m_store, "placeholder");
 }
 
+
+ENetServer::ENetServer()
+	: m_host(ENet::instance().create_server())
+{
+}
+
+void ENetServer::broadcast_input(GameInput input)
+{
+	PacketPtr packet = ENet::instance().create_packet(input.to_string(), ENET_PACKET_FLAG_RELIABLE);
+
+	enet_host_broadcast(m_host.get(), INPUT_CHANNEL, packet.get());
+	enet_host_flush(m_host.get());
+}
+
+void ENetServer::poll()
+{
+	ENetEvent event;
+
+	while (enet_host_service (m_host.get(), &event, 0) > 0)
+	{
+		switch (event.type)
+		{
+
+		case ENET_EVENT_TYPE_CONNECT:
+			Log::info("New client from %x:%u.", event.peer->address.host, event.peer->address.port);
+			/* Store any relevant client information here. */
+			//event.peer -> data = "Client information";
+			m_peer.emplace_back(event.peer);
+			break;
+
+		case ENET_EVENT_TYPE_RECEIVE:
+		{
+			PacketPtr packet{event.packet};
+			// event.peer->data; // use this to identify the peer
+
+			switch(event.channelID) {
+
+			case INPUT_CHANNEL:
+			{
+				std::string input_string{reinterpret_cast<char*>(packet->data)};
+				Log::trace("Server got input: %s", input_string.c_str());
+				GameInput input = GameInput::from_string(input_string);
+				// TODO: validate input
+				broadcast_input(input);
+			}
+				break;
+
+			default:
+				// drop packets from unknown channels
+				Log::trace("Server got unknown data: %s", std::string{reinterpret_cast<char*>(packet->data)}.c_str());
+				break;
+
+			}
+		}
+			break;
+
+		case ENET_EVENT_TYPE_DISCONNECT:
+			Log::info("Client %x:%u disconnected.", event.peer->address.host, event.peer->address.port);
+			/* Reset the peer's client information. */
+			event.peer -> data = NULL;
+			break;
+
+		default:
+			Log::error("ENet: unhandled event, type %d.", event.type);
+			break;
+
+		}
+	}
+}
+
+
 namespace
 {
 
@@ -357,15 +434,115 @@ Journal make_journal()
 
 }
 
-SimpleHost::SimpleHost()
+
+ENetClient::ENetClient(const char* server_name)
+	: m_journal(make_journal())
+{
+	std::tie(m_host, m_peer) = ENet::instance().create_client(server_name);
+
+	/* Wait up to 5 seconds for the connection attempt to succeed. */
+	ENetEvent event;
+	if (enet_host_service(m_host.get(), &event, CONNECT_TIMEOUT) <= 0 ||
+		event.type != ENET_EVENT_TYPE_CONNECT)
+	{
+		throw ENetException("Connection to server failed.");
+	}
+}
+
+void ENetClient::send_input(GameInput input)
+{
+	PacketPtr packet = ENet::instance().create_packet(input.to_string(), ENET_PACKET_FLAG_RELIABLE);
+
+	/* enet_host_broadcast (host, 0, packet);         */
+	enetok(enet_peer_send(m_peer.get(), INPUT_CHANNEL, packet.get()));
+	enet_host_flush(m_host.get());
+}
+
+void ENetClient::poll()
+{
+	ENetEvent event;
+
+	while (enet_host_service (m_host.get(), &event, 0) > 0)
+	{
+		switch (event.type)
+		{
+
+		case ENET_EVENT_TYPE_RECEIVE:
+		{
+			PacketPtr packet{event.packet};
+
+			enforce(INPUT_CHANNEL == event.channelID); // more channels in the future?
+
+			std::string input_string{reinterpret_cast<char*>(packet->data)};
+			GameInput input = GameInput::from_string(input_string);
+			m_journal.add_input(input);
+		}
+			break;
+
+		case ENET_EVENT_TYPE_DISCONNECT:
+			Log::info("Disconnected from server.");
+			/* Reset the peer's client information. */
+			event.peer->data = NULL;
+			break;
+
+		default:
+			Log::error("ENet: unhandled event, type %d.", event.type);
+			break;
+
+		}
+	}
+}
+
+
+ClientStub::ClientStub()
 	: m_journal(make_journal())
 {
 	//m_server = the_reception->check_in("placeholder");
 	//m_lobby = m_server->offer({});
 }
 
-void SimpleHost::send_input(GameInput input)
+void ClientStub::send_input(GameInput input)
 {
 	// TODO: set input.game_time to server's time
 	m_journal.add_input(input);
+}
+
+
+ServerThread::ServerThread()
+{
+	m_exit.test_and_set(); // flag is now known set
+	m_future = std::async([this] { main_loop(); });
+}
+
+ServerThread::~ServerThread()
+{
+	try {
+		exit();
+	}
+	catch(const std::exception& ex) {
+		show_error(ex);
+	}
+	catch(...) {
+		Log::error("Unknown exception occurred.");
+	}
+}
+
+void ServerThread::exit()
+{
+	if(m_future.valid()) {
+		Log::info("Server thread exit.");
+		m_exit.clear(); // this signals the server to exit
+		m_future.get(); // propagate exceptions from server thread
+	}
+}
+
+void ServerThread::main_loop()
+{
+	ENetServer server;
+
+	while(m_exit.test_and_set())
+	{
+		server.poll();
+		std::this_thread::yield();
+	}
 }

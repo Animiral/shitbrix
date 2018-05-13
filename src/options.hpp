@@ -26,10 +26,16 @@ public:
 	 */
 	const char* log_path() const noexcept;
 
+	/**
+	 * Which server to connect to.
+	 */
+	const char* server_url() const noexcept;
+
 private:
 
 	const char* m_replay_path;
 	const char* m_log_path;
+	const char* m_server_url;
 
 	const char* str_option(int argc, const char* argv[], const std::string& option) noexcept;
 	bool bool_option(int argc, const char* argv[], const std::string& option) noexcept;

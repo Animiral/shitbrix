@@ -3,6 +3,7 @@
  */
 
 #include "director.hpp"
+#include "replay.hpp"
 
 // elemental game logic functions and helpers
 namespace
@@ -177,6 +178,80 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
 	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 2;
 	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
+}
+
+
+void apply_input(Rules& rules, GameInput ginput)
+{
+	assert(GameButton::NONE != ginput.button);
+
+	PlayerObjects& pobjs = *rules.at(ginput.player);
+
+	switch(ginput.button) {
+		case GameButton::LEFT:
+		case GameButton::RIGHT:
+		case GameButton::UP:
+		case GameButton::DOWN:
+			if(ButtonAction::DOWN == ginput.action)
+			{
+				Dir dir = static_cast<Dir>(ginput.button);
+				pobjs.cursor_director.move(dir);
+			}
+
+			break;
+
+		case GameButton::SWAP:
+			if(ButtonAction::DOWN == ginput.action)
+			{
+				RowCol swap_rc = pobjs.cursor_director.rc();
+				pobjs.block_director.swap(swap_rc);
+			}
+
+			break;
+
+		case GameButton::RAISE:
+			pobjs.block_director.set_raise(ButtonAction::DOWN == ginput.action);
+			break;
+
+		case GameButton::NONE:
+		default:
+			assert(false);
+
+	}
+}
+
+void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
+{
+	// get events from journal, from which inputs will be relayed to the phase
+	// TODO: use checkpoints to re-sync on historic inserts
+	const long time0 = journal.earliest_undiscovered();
+
+	if(time0 < target_time) {
+		state = journal.checkpoint_before(time0);
+	}
+
+	GameInputSpan inputs = journal.discover_inputs(state.game_time() + 1, target_time);
+	auto input_it = inputs.first;
+
+	while(state.game_time() < target_time) {
+		for(auto it = input_it; it != inputs.second && it->input.game_time == state.game_time() + 1; ++it) {
+			apply_input(rules, it->input);
+		}
+
+		// state.game_time() is incremented here.
+		state.update();
+
+		for(size_t i = 0; i < rules.size(); i++) {
+			auto& director = rules[i]->block_director;
+			if(!director.over())
+				director.update();
+		}
+	}
+
+	// save new checkpoint?
+	if(target_time >= journal.checkpoint_before(target_time).game_time() + CHECKPOINT_INTERVAL) {
+		journal.add_checkpoint(GameState(state));
+	}
 }
 
 

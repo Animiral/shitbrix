@@ -22,8 +22,8 @@ void debug_print_pit(const Pit& pit);
 
 IScreen::~IScreen() = default;
 
-ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const Audio& audio)
-: m_options(options), m_assets(assets), m_audio(audio)
+ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const Audio& audio, ENetClient& client)
+: m_options(options), m_assets(assets), m_audio(audio), m_client(client)
 {
 }
 
@@ -36,8 +36,7 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu()
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	DrawGame draw_game(m_assets);
-	m_network.reset(new SimpleHost());
-	return std::make_unique<GameScreen>(std::move(draw_game), m_audio, *m_network, m_network->journal());
+	return std::make_unique<GameScreen>(std::move(draw_game), m_audio, m_client.journal(), m_client);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
@@ -102,97 +101,29 @@ void GameIntro::update()
 void GamePlay::update()
 {
 	// get events from journal, from which inputs will be relayed to the phase
-	// TODO: use checkpoints to re-sync on historic inserts
-	const long time0 = m_screen->m_journal.earliest_undiscovered();
 	long& game_time = m_screen->m_game_time;
-	Journal& journal = m_screen->m_journal;
-	GameState& state = m_screen->m_stage->state();
-
 	game_time++;
 
-	if(time0 < game_time) {
-		state = journal.checkpoint_before(time0);
-	}
+	synchronurse(m_screen->m_stage->state(), game_time, m_screen->m_journal, m_screen->m_pobjects);
 
-	GameInputSpan inputs = journal.discover_inputs(state.game_time() + 1, game_time);
-	auto input_it = inputs.first;
+	// NOTE: to determine the winner is a server-side job only.
+	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
+		if(m_screen->m_pobjects[i]->block_director.over()) {
+			int winner = opponent(static_cast<int>(i));
+			m_screen->m_journal.set_winner(winner);
 
-	while(state.game_time() < game_time) {
-		for(auto it = input_it; it != inputs.second && it->input.game_time == game_time; ++it) {
-			apply_input(it->input);
-		}
+			// NOTE: this should only happen when the Journal tells us that the game is over.
+			// We should not assume that the winner that we have detected is valid until
+			// it is part of the game record.
+			m_screen->m_gameover_relay->fire(evt::GameOver{winner});
 
-		// state.game_time() is incremented here.
-		// It belongs to the game state, which belongs to stage.
-		m_screen->m_stage->update();
+			auto phase = std::make_unique<GameResult>(m_screen, winner);
+			m_screen->change_phase(std::move(phase));
 
-		for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
-			auto& pobjs = m_screen->m_pobjects[i];
-			pobjs->block_director.update();
-
-			if(pobjs->block_director.over()) {
-				// NOTE: to determine the winner is a server-side job only.
-				int winner = opponent(static_cast<int>(i));
-				m_screen->m_journal.set_winner(winner);
-
-				// NOTE: this should only happen when the Journal tells us that the game is over.
-				// We should not assume that the winner that we have detected is valid until
-				// it is part of the game record.
-				m_screen->m_gameover_relay->fire(evt::GameOver{winner});
-
-				auto phase = std::make_unique<GameResult>(m_screen, winner);
-				m_screen->change_phase(std::move(phase));
-
-				return;
-			}
+			return;
 		}
 	}
-
-	// save new checkpoint?
-	if(game_time >= journal.checkpoint_before(game_time).game_time() + CHECKPOINT_INTERVAL) {
-		journal.add_checkpoint(GameState(state));
-	}
 }
-
-void GamePlay::apply_input(GameInput ginput)
-{
-	assert(GameButton::NONE != ginput.button);
-
-	GameScreen::PlayerObjects& pobjs = *m_screen->m_pobjects[ginput.player];
-
-	switch(ginput.button) {
-		case GameButton::LEFT:
-		case GameButton::RIGHT:
-		case GameButton::UP:
-		case GameButton::DOWN:
-			if(ButtonAction::DOWN == ginput.action)
-			{
-				Dir dir = static_cast<Dir>(ginput.button);
-				pobjs.cursor_director.move(dir);
-			}
-
-			break;
-
-		case GameButton::SWAP:
-			if(ButtonAction::DOWN == ginput.action)
-			{
-				RowCol swap_rc = pobjs.cursor_director.rc();
-				pobjs.block_director.swap(swap_rc);
-			}
-
-			break;
-
-		case GameButton::RAISE:
-			pobjs.block_director.set_raise(ButtonAction::DOWN == ginput.action);
-			break;
-
-		case GameButton::NONE:
-		default:
-			assert(false);
-
-	}
-}
-
 
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 {
@@ -207,13 +138,13 @@ void GameResult::update()
 }
 
 
-GameScreen::GameScreen(DrawGame&& draw, const Audio& audio, SimpleHost& network, Journal& journal)
+GameScreen::GameScreen(DrawGame&& draw, const Audio& audio, Journal& journal, ENetClient& client)
 : m_pause(false),
   m_draw(std::move(draw)),
   m_sound_relay(audio),
   m_shake_relay(m_draw),
-  m_network(network),
-  m_journal(journal)
+  m_journal(journal),
+  m_client(client)
 {
 	Log::info("GameScreen turn on.");
 	start();
@@ -282,7 +213,7 @@ void GameScreen::input(ControllerInput cinput)
 			if(oinput.has_value()) {
 				// TODO: network should assign the actual input time
 				oinput->game_time = m_game_time + 1; // input applies to next frame
-				m_network.send_input(oinput.value());
+				m_client.send_input(oinput.value());
 			}
 		}
 			break;

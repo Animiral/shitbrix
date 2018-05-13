@@ -14,10 +14,10 @@
  */
 struct GameException : public std::exception
 {
-	explicit GameException(const char* what = "") : m_what(what) {}
+	explicit GameException(std::string what) : m_what(move(what)) {}
 	virtual const char* class_name() const noexcept { return "GameException"; }
-	virtual const char* what() const override { return m_what; }
-	const char* m_what;
+	virtual const char* what() const override { return m_what.c_str(); }
+	const std::string m_what;
 };
 
 /**
@@ -57,6 +57,20 @@ struct SdlException : public GameException
 	explicit SdlException(const char* what) : GameException(what) {}
 
 	virtual const char* class_name() const noexcept override { return "SdlException"; }
+};
+
+/**
+ * Umbrella exception for error conditions that arise from use of the ENet library.
+ * Their common feature is that they can not be handled.
+ */
+struct ENetException : public GameException
+{
+	/**
+	 * Constructor with custom error message.
+	 */
+	explicit ENetException(const char* what) : GameException(what) {}
+
+	virtual const char* class_name() const noexcept override { return "ENetException"; }
 };
 
 /**
@@ -115,6 +129,19 @@ void sdlok(void* pointer);
  */
 void imgok(void* pointer);
 
+#define enetok(VALUE) enetok_impl((VALUE), "Bad result: " SB_STRINGIZE(VALUE))
+
+/**
+ * Validate that the result of an ENet operation is 0 (OK). If not, throw an ENetException.
+ */
+void enetok_impl(int result, const char* what);
+
+/**
+ * Validate that the object created by ENet (cast to bool) is true (not nullptr).
+ * If not, throw an ENetException.
+ */
+void enetok_impl(void* pointer, const char* what);
+
 /**
  * Display the error to the user in an appropriate way.
  * If SDL is up and running, this means that the error will be rendered to the
@@ -147,8 +174,10 @@ std::unique_ptr<LogImpl> create_file_log(const char* path);
 
 /**
  * Singleton main logging class.
- * Formats messages on different log levels and hands them to a logging implementation
- * e.g. to be written to a file.
+ * Formats messages on different log levels and hands them to a logging
+ * implementation, e.g. to be written to a file.
+ * Writing to the log through this interface is thread-safe, but
+ * initialization is not.
  */
 class Log
 {
@@ -162,6 +191,12 @@ public:
 	 * Initialize the logger with the given backend.
 	 */
 	static void init(std::unique_ptr<LogImpl> impl);
+
+	/**
+	 * Write a trace-level log message.
+	 * If the logger is not intialized, do nothing.
+	 */
+	static void trace(const char *format, ...) noexcept;
 
 	/**
 	 * Write an info-level log message.

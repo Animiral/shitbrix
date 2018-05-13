@@ -50,7 +50,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\googletest\googletest\include;..\..\src;..\..\..\SDL2-2.0.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\googletest\googletest\include;..\..\..\enet\include;..\..\src;..\..\..\SDL2-2.0.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -89,6 +89,7 @@
     <ClCompile Include="..\..\tests\test_block.cpp" />
     <ClCompile Include="..\..\tests\test_blockdirector.cpp" />
     <ClCompile Include="..\..\tests\test_gameevent.cpp" />
+    <ClCompile Include="..\..\tests\test_globals.cpp" />
     <ClCompile Include="..\..\tests\test_network.cpp" />
     <ClCompile Include="..\..\tests\test_pit.cpp" />
     <ClCompile Include="..\..\tests\test_replay.cpp" />

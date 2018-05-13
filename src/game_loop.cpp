@@ -1,11 +1,20 @@
 #include "game_loop.hpp"
 #include "error.hpp"
 
+namespace
+{
+
+std::unique_ptr<ENetClient> make_client(const Options& options);
+
+}
+
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
   m_assets(),
   m_audio(Sdl::instance().audio(), m_assets),
-  m_screen_factory(m_options, m_assets, m_audio),
+  m_server(new ServerThread()),
+  m_client(new ENetClient("localhost")),
+  m_screen_factory(m_options, m_assets, m_audio, *m_client),
   m_screen(),
   m_keyboard()
 {
@@ -44,6 +53,7 @@ void GameLoop::game_loop()
 		// like it does currently, or should the input object return a list of
 		// queued inputs which are then passed on by some controller object?
 		m_keyboard.poll();
+		m_client->poll();
 
 		// run one frame of local logic
 		m_screen->update();
@@ -114,4 +124,14 @@ void GameLoop::next_screen()
 	}
 
 	m_keyboard.set_sink(*m_screen);
+}
+
+namespace
+{
+
+std::unique_ptr<ENetClient> make_client(const Options& options)
+{
+	return std::make_unique<ENetClient>(options.server_url());
+}
+
 }

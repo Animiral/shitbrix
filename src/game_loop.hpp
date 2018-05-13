@@ -30,15 +30,22 @@ public:
 
 private:
 
+	// resources
 	Options m_options;
 	Assets m_assets;
 	Audio m_audio;
+	Keyboard m_keyboard;
+
+	// network hosts
+	std::unique_ptr<ServerThread> m_server;
+	std::unique_ptr<ENetClient> m_client;
+
+	// screens
 	ScreenFactory m_screen_factory;
 	IScreen* m_screen; //!< currently active screen
 	std::unique_ptr<IScreen> m_menu_screen; //!< menu screen when active, nullptr otherwise
 	std::unique_ptr<IScreen> m_game_screen; //!< game screen when active, nullptr otherwise
 	std::unique_ptr<IScreen> m_transition_screen; //!< transition screen when active, nullptr otherwise
-	Keyboard m_keyboard;
 
 	// debug screens
 	std::unique_ptr<IScreen> m_pink_screen; //!< pink screen when active, nullptr otherwise
