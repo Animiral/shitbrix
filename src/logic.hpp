@@ -77,7 +77,7 @@ class Logic
 
 public:
 
-	Logic(Pit& pit) : m_pit(pit) {}
+	explicit Logic(Pit& pit) : m_pit(pit) {}
 
 	/**
 	 * Mark all objects at the given location and above as potentially falling.

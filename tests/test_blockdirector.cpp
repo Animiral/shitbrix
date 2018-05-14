@@ -32,7 +32,13 @@ protected:
 
 	virtual void SetUp()
 	{
-		pit = std::make_unique<Pit>(Point{0,0}, std::make_unique<RainbowBlocksQueue>(), std::make_unique<RainbowBlocksQueue>());
+		state = std::make_unique<GameState>(GameMeta{1, 0});
+		pit = new Pit(Point{0,0},
+			std::make_unique<RainbowBlocksQueue>(),
+			std::make_unique<RainbowBlocksQueue>());
+
+		// inject our own Pit into the state
+		const_cast<std::unique_ptr<Pit>&>(state->pit().at(0)).reset(pit);
 		logic = std::make_unique<Logic>(*pit);
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
@@ -62,7 +68,7 @@ protected:
 		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 
 		const int SEED = 0;
-		director = std::make_unique<BlockDirector>(*pit, *logic);
+		director = std::make_unique<BlockDirector>(*state);
 	}
 
 	// virtual void TearDown() {}
@@ -75,7 +81,8 @@ protected:
 		}
 	}
 
-	std::unique_ptr<Pit> pit;
+	Pit* pit = nullptr;
+	std::unique_ptr<GameState> state;
 	std::unique_ptr<Logic> logic;
 	std::unique_ptr<BlockDirector> director;
 
@@ -114,7 +121,7 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
 	pit->spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
 	auto& fall_block = pit->spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
 	const RowCol swap_target_rc{-4,1};
-	bool swapping = director->swap(swap_target_rc);
+	bool swapping = swap_at(*pit, *director, swap_target_rc);
 	ASSERT_TRUE(swapping);
 	ASSERT_EQ(swap_target_rc, fall_block.rc());
 	ASSERT_EQ(Block::State::SWAP_LEFT, fall_block.block_state());
@@ -262,7 +269,7 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 
 	for(int t = 0; t < LAND_MOMENT; t++) {
 		if(SWAP_START == t) {
-			swapping = director->swap(RowCol{-4,4});
+			swapping = swap_at(*pit, *director, RowCol{-4, 4});
 		}
 		if(SPAWN_MOMENT == t) {
 			green_block = &spawn_falling_block(*pit, Block::Color::GREEN, RowCol{-6, 5});
@@ -300,7 +307,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 	Block* red_block = pit->block_at(RowCol{-3,2}); // to fall down
 	ASSERT_TRUE(red_block);
 
-	bool swapping = director->swap(RowCol{-1,2}); // match yellow blocks vertically
+	bool swapping = swap_at(*pit, *director, RowCol{-1, 2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
 
 	// wait until the yellow blocks have cleared and the red one falls down
@@ -329,7 +336,7 @@ TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 	const int GARBAGE_COLS = 6;
 	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
-	bool swapping = director->swap(RowCol{-2,2}); // match yellow blocks vertically
+	bool swapping = swap_at(*pit, *director, RowCol{-2, 2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
@@ -361,7 +368,7 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 	Block* red_block = pit->block_at(RowCol{-3,2}); // to fall down
 	ASSERT_TRUE(red_block);
 
-	bool swapping = director->swap(RowCol{-1,2}); // match yellow blocks vertically
+	bool swapping = swap_at(*pit, *director, RowCol{-1, 2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
 
 	const int BREAK_T = SWAP_TIME + BREAK_TIME;
@@ -380,7 +387,7 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 	Block* green_block = pit->block_at(RowCol{0,3});
 	ASSERT_TRUE(green_block);
 
-	swapping = director->swap(RowCol{0,2}); // skill-chain move
+	swapping = swap_at(*pit, *director, RowCol{0, 2}); // skill-chain move
 	ASSERT_TRUE(swapping);
 	EXPECT_FALSE(red_block->chaining);
 	EXPECT_TRUE(green_block->chaining);

@@ -218,7 +218,7 @@ private:
 	evt::SoundRelay m_sound_relay;
 	ShakeRelay m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
-	Rules m_pobjects;
+	Rules m_rules;
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();

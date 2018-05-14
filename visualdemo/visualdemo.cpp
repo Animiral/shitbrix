@@ -143,7 +143,7 @@ struct DemoFactory
 		Pit& pit = *m_stage->state().pit().at(0);
 		m_draw.add_pit(pit, m_stage->state().pit().at(0)->cursor(), m_stage->sobs().at(0).banner, m_stage->sobs().at(0).bonus);
 		m_logic = std::make_unique<Logic>(pit);
-		m_director = std::make_unique<BlockDirector>(pit, *m_logic);
+		m_director = std::make_unique<BlockDirector>(m_stage->state());
 		return VisualDemo(pit, m_draw, *m_director);
 	}
 };
@@ -185,7 +185,8 @@ void VisualDemo::scenario_dissolve_garbage()
 	garbage.set_state(Physical::State::REST);
 
 	// 3 in a row
-	m_director.swap({-2,2});
+	const_cast<Cursor&>(m_pit.cursor()).rc = {-2,2};
+	m_director.swap(0);
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -204,7 +205,8 @@ void VisualDemo::scenario_match_horizontal()
 
 	m_pit.spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
 	m_pit.spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
-	m_director.swap({-4,1});
+	const_cast<Cursor&>(m_pit.cursor()).rc = {-4,1};
+	m_director.swap(0);
 
 	// wait until block has swapped above the gap
 	const int SWAP_T = SWAP_TIME;
@@ -241,7 +243,8 @@ void VisualDemo::scenario_fall_after_shrink()
 	m_pit.spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
 
 	// 3 in a row
-	m_director.swap({-3,2});
+	const_cast<Cursor&>(m_pit.cursor()).rc = {-3,2};
+	m_director.swap(0);
 
 	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -261,7 +264,8 @@ void VisualDemo::scenario_chaining_garbage()
 	const int GARBAGE_COLS = 6;
 	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
-	m_director.swap({-2,2}); // match yellow blocks vertically
+	const_cast<Cursor&>(m_pit.cursor()).rc = {-2, 2};
+	m_director.swap(0); // match yellow blocks vertically
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME;

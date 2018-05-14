@@ -20,9 +20,8 @@ bool spawn_previews(Pit& pit);
 
 }
 
-BlockDirector::BlockDirector(Pit& pit, Logic& logic)
-: pit(pit),
-  m_logic(logic),
+BlockDirector::BlockDirector(GameState& state)
+: m_state(state),
   m_handler(nullptr),
   m_raise(false),
   m_over(false)
@@ -30,110 +29,21 @@ BlockDirector::BlockDirector(Pit& pit, Logic& logic)
 
 void BlockDirector::update()
 {
-	// TODO: Is this function still ripe for refactoring?
-	//
-	// Previous problems:
-	// It allocates and deallocates memory every frame, which could be eliminated.
-	// The names of the helper functions are nondescriptive and inconsistent (handle_*)
-	// Helper return values use out parameters.
-	//
-	// Measure to check:
-	// 1. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
-	bool dead_physical = false; // true if some physical has entered terminal state
-	bool dead_block = false;    // true if pit needs to clean up
-	bool dead_sound = false;    // true if there was at least one non-fake dead
-	bool chainstop = false;     // true if the pit should be examined for chain finish
-
-	pit.untag_all();
-
-	bool new_row = spawn_previews(pit);
-
-	// raise until new row, except if player is holding down the button
-	if(new_row && !m_raise)
-		pit.set_speed(SCROLL_SPEED);
-
-	m_logic.examine_finish(dead_physical, dead_block, dead_sound, chainstop);
-
-	auto& pit_contents = pit.contents();
-	const bool have_dissolvers = std::any_of(begin(pit_contents), end(pit_contents), [](const auto& p) { return p->has_tag(Physical::TAG_DISSOLVE); });
-	dead_physical |= have_dissolvers;
-
-	m_logic.convert_garbage();
-
-	if(have_dissolvers && m_handler)
-		m_handler->fire(evt::GarbageDissolves());
-
-	if(dead_block)
-		pit.remove_dead();
-
-	if(dead_sound && m_handler)
-		m_handler->fire(evt::BlockDies());
-
-	m_logic.handle_fallers();
-
-	if(m_handler) {
-		pit.for_all(Physical::TAG_LAND, [this](const Physical& p) {
-			m_handler->fire(evt::PhysicalLands{p}); });
-	}
-
-	bool have_match = false;
-	bool chaining = false;
-	int combo = 0;
-	m_logic.handle_hots(have_match, combo, chaining, chainstop);
-
-	if(have_match && m_handler)
-		m_handler->fire(evt::Match{combo, chaining});
-
-	if(chaining)
-		pit.do_chain();
-
-	bool recovering = false;
-	if(chaining || combo > 3)
-		pit.replenish_recovery();
-	else
-		recovering = pit.do_recovery() > 0;
-
-	bool pit_chaining = false;  // true if there is any block in the pit currently chaining
-	bool breaking = false;      // true if there is any physical in the pit currently breaking
-	bool pit_full = false;      // true if some resting object overflows the pit
-
-	m_logic.examine_pit(pit_chaining, breaking, pit_full);
-
-	// close current chain
-	if(chainstop && m_handler && !pit_chaining) {
-		m_handler->fire(evt::Chain{pit.finish_chain()});
-	}
-
-	// panic time and game over check
-	if(pit_full) {
-		if(!pit_chaining && !breaking && !recovering) {
-			const bool panic = pit.do_panic() <= 0;
-			if(panic && !debug_no_gameover)
-				m_over = true;
-		}
-	}
-	else {
-		pit.replenish_panic();
-	}
-
-	if(pit_full || pit_chaining || breaking || recovering)
-		pit.stop();
-	else
-		pit.start();
-
-	// debug: show what the pit considers to be its peak row
-	pit.highlight(pit.peak());
+	for(auto& pit : m_state.get().pit())
+		update_single(*pit);
 }
 
-bool BlockDirector::swap(RowCol lrc)
+bool BlockDirector::swap(int player)
 {
-	// bounds check
-	enforce(lrc.r >= pit.top());
-	enforce(lrc.r <= pit.bottom());
-	enforce(lrc.c >= 0);
-	enforce(lrc.c <= PIT_COLS - 2);
+	Pit& pit = *m_state.get().pit().at(player);
+	const RowCol lrc = pit.cursor().rc; // left row/column
+	const RowCol rrc {lrc.r, lrc.c+1}; // right row/column
 
-	RowCol rrc {lrc.r, lrc.c+1};
+	// bounds check
+	assert(lrc.r >= pit.top());
+	assert(lrc.r <= pit.bottom());
+	assert(lrc.c >= 0);
+	assert(lrc.c <= PIT_COLS - 2);
 
 	Physical* left_phys = pit.at(lrc);
 	Physical* right_phys = pit.at(rrc);
@@ -168,24 +78,125 @@ bool BlockDirector::swap(RowCol lrc)
 
 void BlockDirector::set_raise(bool raise)
 {
+	// TODO: move raise flag to Pit
 	m_raise = raise;
 
-	if(raise)
-		pit.set_speed(RAISE_SPEED);
+	//if(raise)
+		//pit.set_speed(RAISE_SPEED);
 }
 
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
+	Pit& pit = *m_state.get().pit().at(0); // first pit
 	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 2;
 	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
 }
 
+void BlockDirector::update_single(Pit& pit)
+{
+	// TODO: Is this function still ripe for refactoring?
+	//
+	// Previous problems:
+	// It allocates and deallocates memory every frame, which could be eliminated.
+	// The names of the helper functions are nondescriptive and inconsistent (handle_*)
+	// Helper return values use out parameters.
+	//
+	// Measure to check:
+	// 1. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
 
-void apply_input(Rules& rules, GameInput ginput)
+	// Implementation object for low-level pit examination
+	Logic logic{pit};
+
+	bool dead_physical = false; // true if some physical has entered terminal state
+	bool dead_block = false;    // true if pit needs to clean up
+	bool dead_sound = false;    // true if there was at least one non-fake dead
+	bool chainstop = false;     // true if the pit should be examined for chain finish
+
+	pit.untag_all();
+
+	bool new_row = spawn_previews(pit);
+
+	// raise until new row, except if player is holding down the button
+	if(new_row && !m_raise)
+		pit.set_speed(SCROLL_SPEED);
+
+	logic.examine_finish(dead_physical, dead_block, dead_sound, chainstop);
+
+	auto& pit_contents = pit.contents();
+	const bool have_dissolvers = std::any_of(begin(pit_contents), end(pit_contents), [](const auto& p) { return p->has_tag(Physical::TAG_DISSOLVE); });
+	dead_physical |= have_dissolvers;
+
+	logic.convert_garbage();
+
+	if(have_dissolvers && m_handler)
+		m_handler->fire(evt::GarbageDissolves());
+
+	if(dead_block)
+		pit.remove_dead();
+
+	if(dead_sound && m_handler)
+		m_handler->fire(evt::BlockDies());
+
+	logic.handle_fallers();
+
+	if(m_handler) {
+		pit.for_all(Physical::TAG_LAND, [this](const Physical& p) {
+			m_handler->fire(evt::PhysicalLands{p}); });
+	}
+
+	bool have_match = false;
+	bool chaining = false;
+	int combo = 0;
+	logic.handle_hots(have_match, combo, chaining, chainstop);
+
+	if(have_match && m_handler)
+		m_handler->fire(evt::Match{combo, chaining});
+
+	if(chaining)
+		pit.do_chain();
+
+	bool recovering = false;
+	if(chaining || combo > 3)
+		pit.replenish_recovery();
+	else
+		recovering = pit.do_recovery() > 0;
+
+	bool pit_chaining = false;  // true if there is any block in the pit currently chaining
+	bool breaking = false;      // true if there is any physical in the pit currently breaking
+	bool pit_full = false;      // true if some resting object overflows the pit
+
+	logic.examine_pit(pit_chaining, breaking, pit_full);
+
+	// close current chain
+	if(chainstop && m_handler && !pit_chaining) {
+		m_handler->fire(evt::Chain{pit.finish_chain()});
+	}
+
+	// panic time and game over check
+	if(pit_full) {
+		if(!pit_chaining && !breaking && !recovering) {
+			const bool panic = pit.do_panic() <= 0;
+			if(panic && !debug_no_gameover)
+				m_over = true;
+		}
+	}
+	else {
+		pit.replenish_panic();
+	}
+
+	if(pit_full || pit_chaining || breaking || recovering)
+		pit.stop();
+	else
+		pit.start();
+
+	// debug: show what the pit considers to be its peak row
+	pit.highlight(pit.peak());
+}
+
+
+void apply_input(GameState& state, Rules& rules, GameInput ginput)
 {
 	assert(GameButton::NONE != ginput.button);
-
-	PlayerObjects& pobjs = *rules.at(ginput.player);
 
 	switch(ginput.button) {
 		case GameButton::LEFT:
@@ -195,7 +206,7 @@ void apply_input(Rules& rules, GameInput ginput)
 			if(ButtonAction::DOWN == ginput.action)
 			{
 				Dir dir = static_cast<Dir>(ginput.button);
-				pobjs.cursor_director.move(dir);
+				state.pit().at(ginput.player)->cursor_move(dir);
 			}
 
 			break;
@@ -203,14 +214,14 @@ void apply_input(Rules& rules, GameInput ginput)
 		case GameButton::SWAP:
 			if(ButtonAction::DOWN == ginput.action)
 			{
-				RowCol swap_rc = pobjs.cursor_director.rc();
-				pobjs.block_director.swap(swap_rc);
+				rules.block_director.swap(ginput.player);
 			}
 
 			break;
 
 		case GameButton::RAISE:
-			pobjs.block_director.set_raise(ButtonAction::DOWN == ginput.action);
+			// TODO: set raise in pit instead
+			rules.block_director.set_raise(ButtonAction::DOWN == ginput.action);
 			break;
 
 		case GameButton::NONE:
@@ -234,18 +245,15 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 	auto input_it = inputs.first;
 
 	while(state.game_time() < target_time) {
-		for(auto it = input_it; it != inputs.second && it->input.game_time == state.game_time() + 1; ++it) {
-			apply_input(rules, it->input);
+		for(; input_it != inputs.second && input_it->input.game_time == state.game_time() + 1; ++input_it) {
+			apply_input(state, rules, input_it->input);
 		}
 
 		// state.game_time() is incremented here.
 		state.update();
 
-		for(size_t i = 0; i < rules.size(); i++) {
-			auto& director = rules[i]->block_director;
-			if(!director.over())
-				director.update();
-		}
+		if(!rules.block_director.over())
+			rules.block_director.update();
 	}
 
 	// save new checkpoint?

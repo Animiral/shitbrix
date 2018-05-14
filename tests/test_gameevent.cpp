@@ -36,12 +36,18 @@ protected:
 
 	virtual void SetUp()
 	{
-		pit = std::make_unique<Pit>(Point{0,0}, std::make_unique<RainbowBlocksQueue>(), std::make_unique<RainbowBlocksQueue>());
+		state = std::make_unique<GameState>(GameMeta{1, 0});
+		pit = new Pit(Point{0,0},
+			std::make_unique<RainbowBlocksQueue>(),
+			std::make_unique<RainbowBlocksQueue>());
+
+		// inject our own Pit into the state
+		const_cast<std::unique_ptr<Pit>&>(state->pit().at(0)).reset(pit);
 
 		cursor_director = std::make_unique<CursorDirector>(*pit);
 
 		logic = std::make_unique<Logic>(*pit);
-		block_director = std::make_unique<BlockDirector>(*pit, *logic);
+		block_director = std::make_unique<BlockDirector>(*state);
 
 		counter = std::make_unique<GameEventCounter>();
 		hub = std::make_unique<evt::GameEventHub>();
@@ -60,7 +66,8 @@ protected:
 		}
 	}
 
-	std::unique_ptr<Pit> pit;
+	Pit* pit = nullptr;
+	std::unique_ptr<GameState> state;
 	std::unique_ptr<CursorDirector> cursor_director;
 	std::unique_ptr<Logic> logic;
 	std::unique_ptr<BlockDirector> block_director;
@@ -88,11 +95,13 @@ TEST_F(GameEventTest, Swap)
 	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
 	pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
 
-	block_director->swap(RowCol{0,0});
+	swap_at(*pit, *block_director, RowCol{0, 0});
 	EXPECT_EQ(1, counter->countSwap);
-	block_director->swap(RowCol{0,1});
+
+	swap_at(*pit, *block_director, RowCol{0, 1});
 	EXPECT_EQ(2, counter->countSwap);
-	block_director->swap(RowCol{-1,1});
+
+	swap_at(*pit, *block_director, RowCol{-1, 1});
 	EXPECT_EQ(2, counter->countSwap);
 }
 
@@ -108,7 +117,7 @@ TEST_F(GameEventTest, Match)
 	pit->spawn_block(Block::Color::RED, RowCol{0, 4}, Block::State::REST);
 	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
 
-	block_director->swap(RowCol{0,2});
+	swap_at(*pit, *block_director, RowCol{0, 2});
 
 	run_game_ticks(SWAP_TIME);
 	EXPECT_EQ(3, counter->last_match.combo);
@@ -132,7 +141,7 @@ TEST_F(GameEventTest, Chain)
 	pit->spawn_block(Block::Color::RED, RowCol{0, 4}, Block::State::REST);
 	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
 
-	block_director->swap(RowCol{0,2});
+	swap_at(*pit, *block_director, RowCol{0, 2});
 
 	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED));
 	run_game_ticks(SWAP_TIME + BREAK_TIME + FALL1_TIME + BREAK_TIME);
@@ -165,7 +174,7 @@ TEST_F(GameEventTest, GarbageDissolves)
 	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
 	pit->spawn_garbage(RowCol{-1, 2}, 3, 1);
 
-	block_director->swap(RowCol{0,2});
+	swap_at(*pit, *block_director, RowCol{0, 2});
 	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);
 	EXPECT_EQ(1, counter->countGarbageDissolves);
 }

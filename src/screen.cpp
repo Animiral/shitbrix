@@ -104,24 +104,24 @@ void GamePlay::update()
 	long& game_time = m_screen->m_game_time;
 	game_time++;
 
-	synchronurse(m_screen->m_stage->state(), game_time, m_screen->m_journal, m_screen->m_pobjects);
+	GameState& state = m_screen->m_stage->state();
+	Rules& rules = m_screen->m_rules;
+	synchronurse(state, game_time, m_screen->m_journal, rules);
 
 	// NOTE: to determine the winner is a server-side job only.
-	for(size_t i = 0; i < m_screen->m_pobjects.size(); i++) {
-		if(m_screen->m_pobjects[i]->block_director.over()) {
-			int winner = opponent(static_cast<int>(i));
-			m_screen->m_journal.set_winner(winner);
+	if(rules.block_director.over()) {
+		int winner = 0; // opponent(static_cast<int>(i));
+		m_screen->m_journal.set_winner(winner);
 
-			// NOTE: this should only happen when the Journal tells us that the game is over.
-			// We should not assume that the winner that we have detected is valid until
-			// it is part of the game record.
-			m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+		// NOTE: this should only happen when the Journal tells us that the game is over.
+		// We should not assume that the winner that we have detected is valid until
+		// it is part of the game record.
+		m_screen->m_gameover_relay->fire(evt::GameOver{winner});
 
-			auto phase = std::make_unique<GameResult>(m_screen, winner);
-			m_screen->change_phase(std::move(phase));
+		auto phase = std::make_unique<GameResult>(m_screen, winner);
+		m_screen->change_phase(std::move(phase));
 
-			return;
-		}
+		return;
 	}
 }
 
@@ -144,7 +144,8 @@ GameScreen::GameScreen(DrawGame&& draw, const Audio& audio, Journal& journal, EN
   m_sound_relay(audio),
   m_shake_relay(m_draw),
   m_journal(journal),
-  m_client(client)
+  m_client(client),
+  m_rules{BlockDirector(m_stage->state())}
 {
 	Log::info("GameScreen turn on.");
 	start();
@@ -252,14 +253,13 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::DEBUG4:
 			// TODO: this does not work with Network
-			m_pobjects[0]->block_director.debug_no_gameover ^= true;
-			m_pobjects[1]->block_director.debug_no_gameover ^= true;
+			m_rules.block_director.debug_no_gameover ^= true;
 			// debug_print_pit(stage->pits()[0]->pit);
 			break;
 
 		case Button::DEBUG5:
 			// TODO: this does not work with Network
-			m_pobjects[1]->block_director.debug_spawn_garbage(6, 2);
+			m_rules.block_director.debug_spawn_garbage(6, 2);
 			// debug_print_pit(stage->pits()[1]->pit);
 			break;
 
@@ -276,7 +276,6 @@ void GameScreen::start()
 	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
 	m_draw.clear();
-	m_pobjects.clear();
 
 	change_phase(std::make_unique<GameIntro>(this));
 	change_phase_impl();
@@ -295,20 +294,18 @@ void GameScreen::start()
 	Banner& right_banner = m_stage->sobs().at(1).banner;
 	BonusIndicator& right_bonus = m_stage->sobs().at(1).bonus;
 
-	auto left_pobjs = std::make_unique<PlayerObjects>(left_pit, right_pit, left_bonus);
-	auto right_pobjs = std::make_unique<PlayerObjects>(right_pit, left_pit, right_bonus);
-	m_pobjects.push_back(std::move(left_pobjs));
-	m_pobjects.push_back(std::move(right_pobjs));
+	m_rules = {BlockDirector(m_stage->state())};
+
 	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
 	m_draw.add_pit(right_pit, right_cursor, right_banner, right_bonus);
 
 	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
 
-	for(auto& pobjs : m_pobjects) {
-		pobjs->event_hub.subscribe(m_sound_relay);
-		pobjs->event_hub.subscribe(m_shake_relay);
-		pobjs->event_hub.subscribe(*m_gameover_relay);
-	}
+	//for(auto& pobjs : m_pobjects) {
+	//	pobjs->event_hub.subscribe(m_sound_relay);
+	//	pobjs->event_hub.subscribe(m_shake_relay);
+	//	pobjs->event_hub.subscribe(*m_gameover_relay);
+	//}
 }
 
 void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "stage.hpp"
+#include "director.hpp"
 
 /**
  * A block-spawning queue for testing that simply rotates through colors.
@@ -31,3 +32,10 @@ private:
 	Block::Color m_color;
 
 };
+
+/**
+ * Swap the blocks at the specified location, regardless of the current cursor position.
+ * This is not normally allowed in the game (the cursor does not give random access).
+ * @return success of the swapping, just like @c BlockDirector::swap.
+ */
+bool swap_at(Pit& pit, BlockDirector& director, RowCol rc);
