@@ -588,7 +588,7 @@ public:
 
 	explicit GameState(GameMeta meta);
 	GameState(const GameState& rhs);
-	GameState(GameState&& ) =default;
+	GameState(GameState&& rhs);
 
 	GameState& operator=(GameState rhs) noexcept;
 

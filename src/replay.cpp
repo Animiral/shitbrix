@@ -65,6 +65,8 @@ GameInputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
 
 void Journal::add_input(GameInput input)
 {
+	Log::trace("Journal add_input: %s.", input.to_string().c_str());
+
 	const long itime = input.game_time;
 	enforce(itime > 0);
 
@@ -84,6 +86,8 @@ void Journal::set_winner(int winner) noexcept
 
 void Journal::add_checkpoint(GameState&& checkpoint)
 {
+	Log::trace("Journal add_checkpoint(time=%d).", checkpoint.game_time());
+
 	assert(m_checkpoint.size() > 0);
 	// for the time being, we can insert checkpoints only in order
 	enforce(checkpoint.game_time() > m_checkpoint.back().game_time());
