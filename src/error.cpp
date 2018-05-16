@@ -121,6 +121,7 @@ public:
 	{
 		// we don't care to check errors as the log is best-effort
 		m_stream << message << "\n";
+		m_stream.flush();
 	}
 
 private:
