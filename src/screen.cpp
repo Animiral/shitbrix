@@ -22,8 +22,8 @@ void debug_print_pit(const Pit& pit);
 
 IScreen::~IScreen() = default;
 
-ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const Audio& audio, ENetClient& client)
-: m_options(options), m_assets(assets), m_audio(audio), m_client(client)
+ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const Audio& audio)
+: m_options(options), m_assets(assets), m_audio(audio), m_client(nullptr)
 {
 }
 
@@ -35,8 +35,14 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu()
 
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
+	enforce(m_client);
 	DrawGame draw_game(m_assets);
-	return std::make_unique<GameScreen>(std::move(draw_game), m_audio, m_client.journal(), m_client);
+	return std::make_unique<GameScreen>(std::move(draw_game), m_audio, m_client->journal(), *m_client);
+}
+
+std::unique_ptr<IScreen> ScreenFactory::create_server()
+{
+	return std::make_unique<ServerScreen>();
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
@@ -326,6 +332,41 @@ void GameScreen::update_impl()
 	if(m_next_phase)
 		change_phase_impl();
 }
+
+
+ServerScreen::ServerScreen()
+	: m_server(), m_draw(20, 235, 0), m_done(false)
+{
+}
+
+ServerScreen::~ServerScreen() noexcept
+{
+	try {
+		m_server.exit();
+	}
+	catch(const std::exception& ex) {
+		show_error(ex);
+	}
+	catch(...) {
+		Log::error("Unknown exception occurred.");
+	}
+}
+
+void ServerScreen::update()
+{
+}
+
+void ServerScreen::draw(float dt)
+{
+	m_draw.draw(dt);
+}
+
+void ServerScreen::input(ControllerInput cinput)
+{
+	if(Button::QUIT == cinput.button)
+		m_done = true;
+}
+
 
 void TransitionScreen::update()
 {

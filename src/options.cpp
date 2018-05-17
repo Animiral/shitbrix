@@ -2,28 +2,15 @@
 #include <sstream>
 
 Options::Options(int argc, const char* argv[])
-: m_replay_path(str_option(argc, argv, "--replay")),
+: m_run_mode(str_option(argc, argv, "--run")),
+  m_replay_path(str_option(argc, argv, "--replay")),
   m_log_path(str_option(argc, argv, "--logfile")),
   m_server_url(str_option(argc, argv, "--server-url"))
 {
 	// set defaults for missing options
+	if(!m_run_mode) m_run_mode = "client";
 	if(!m_log_path) m_log_path = "logfile.txt";
 	if(!m_server_url) m_server_url = "localhost6";
-}
-
-const char* Options::replay_path() const noexcept
-{
-	return m_replay_path;
-}
-
-const char* Options::log_path() const noexcept
-{
-	return m_log_path;
-}
-
-const char* Options::server_url() const noexcept
-{
-	return m_server_url;
 }
 
 // Minimalistic opts parsing from http://stackoverflow.com/questions/865668/how-to-parse-command-line-arguments-in-c

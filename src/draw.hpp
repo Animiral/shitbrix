@@ -44,12 +44,12 @@ protected:
  * Debugging draw implementation.
  * This is never used in actual releases.
  */
-class PinkDraw : public IDraw
+class DrawPink : public IDraw
 {
 
 public:
 
-	PinkDraw(Uint8 r, Uint8 g, Uint8 b) : m_r(r), m_g(g), m_b(b) {}
+	DrawPink(Uint8 r, Uint8 g, Uint8 b) : m_r(r), m_g(g), m_b(b) {}
 	virtual void draw_offscreen(float dt) const override
 	{
 		SDL_Renderer* renderer = &Sdl::instance().renderer();

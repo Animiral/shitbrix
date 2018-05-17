@@ -53,10 +53,17 @@ class ScreenFactory
 
 public:
 
-	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio, ENetClient& client);
+	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio);
+
+	/**
+	 * Configure the client dependency.
+	 * In the future, this will hopefully be taken from a central repository.
+	 */
+	void set_client(ENetClient& client) noexcept { m_client = &client; }
 
 	std::unique_ptr<IScreen> create_menu();
 	std::unique_ptr<IScreen> create_game();
+	std::unique_ptr<IScreen> create_server();
 	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
 
 private:
@@ -65,7 +72,7 @@ private:
 	const Options& m_options;
 	const Assets& m_assets;
 	const Audio& m_audio;
-	ENetClient& m_client;
+	ENetClient* m_client;
 
 };
 
@@ -79,7 +86,7 @@ class PinkScreen : public IScreen
 
 public:
 
-	PinkScreen(PinkDraw&& draw) : m_draw(draw) {}
+	PinkScreen(DrawPink&& draw) : m_draw(draw) {}
 	virtual void update() override {}
 	virtual void draw(float dt) override { m_draw.draw(dt); }
 	virtual bool done() const override { return m_done; }
@@ -88,7 +95,7 @@ public:
 
 private:
 
-	PinkDraw m_draw;
+	DrawPink m_draw;
 	bool m_done = false;
 
 };
@@ -234,6 +241,31 @@ private:
 	friend class GameIntro;
 	friend class GamePlay;
 	friend class GameResult;
+
+};
+
+/**
+ * A Screen that does nothing but run a ServerThread.
+ */
+class ServerScreen : public IScreen
+{
+
+public:
+
+	explicit ServerScreen();
+	virtual ~ServerScreen() noexcept;
+
+	virtual void update() override;
+	virtual void draw(float dt) override;
+	virtual bool done() const override { return m_done; }
+	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual void input(ControllerInput cinput) override;
+
+private:
+
+	ServerThread m_server;
+	DrawPink m_draw;
+	bool m_done;
 
 };
 

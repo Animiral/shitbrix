@@ -12,10 +12,10 @@ GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
   m_assets(),
   m_audio(Sdl::instance().audio(), m_assets),
-  m_server(new ServerThread()),
-  m_client(new ENetClient("localhost")),
-  m_screen_factory(m_options, m_assets, m_audio, *m_client),
-  m_screen(),
+  //m_server(new ServerThread()),
+  //m_client(new ENetClient("localhost")),
+  m_screen_factory(m_options, m_assets, m_audio),
+  m_screen(nullptr),
   m_keyboard()
 {
 	next_screen();
@@ -53,7 +53,7 @@ void GameLoop::game_loop()
 		// like it does currently, or should the input object return a list of
 		// queued inputs which are then passed on by some controller object?
 		m_keyboard.poll();
-		m_client->poll();
+		if(m_client) m_client->poll();
 
 		// run one frame of local logic
 		m_screen->update();
@@ -76,13 +76,25 @@ void GameLoop::game_loop()
 void GameLoop::next_screen()
 {
 	if(nullptr == m_screen) {
-		m_menu_screen = m_screen_factory.create_menu();
-		m_screen = m_menu_screen.get();
+		if(0 == std::strcmp("server", m_options.run_mode())) {
+			m_server_screen = m_screen_factory.create_server();
+			m_screen = m_server_screen.get();
+		}
+		else {
+			m_menu_screen = m_screen_factory.create_menu();
+			m_screen = m_menu_screen.get();
+			m_client = std::make_unique<ENetClient>("localhost");
+			m_screen_factory.set_client(*m_client);
+		}
 
 		// debug
-		//PinkDraw pink_draw(m_sdl_factory, 255, 0, 255);
+		//DrawPink pink_draw(m_sdl_factory, 255, 0, 255);
 		//m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
 		//m_screen = m_pink_screen.get();
+	} else
+	if(ServerScreen* serv = dynamic_cast<ServerScreen*>(m_screen)) {
+		m_server_screen.release();
+		m_screen = nullptr;
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
@@ -107,13 +119,13 @@ void GameLoop::next_screen()
 	} else
 	if(PinkScreen* pink = dynamic_cast<PinkScreen*>(m_screen)) {
 		if(m_pink_screen.get() == pink) {
-			PinkDraw creme_draw(250, 220, 220);
+			DrawPink creme_draw(250, 220, 220);
 			m_creme_screen = std::make_unique<PinkScreen>(std::move(creme_draw));
 			m_transition_screen = m_screen_factory.create_transition(*pink, *m_creme_screen);
 			m_screen = m_transition_screen.get();
 		}
 		else {
-			PinkDraw pink_draw(255, 0, 255);
+			DrawPink pink_draw(255, 0, 255);
 			m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
 			m_transition_screen = m_screen_factory.create_transition(*pink, *m_pink_screen);
 			m_screen = m_transition_screen.get();
