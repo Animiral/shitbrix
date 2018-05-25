@@ -127,11 +127,10 @@ struct DemoFactory
 	std::unique_ptr<Logic> m_logic;
 	std::unique_ptr<BlockDirector> m_director;
 	Assets m_assets;
-	DrawGame m_draw;
+	std::unique_ptr<DrawGame> m_draw;
 
 	DemoFactory() :
-		m_assets(),
-		m_draw(m_assets)
+		m_assets()
 	{
 	}
 
@@ -141,10 +140,10 @@ struct DemoFactory
 		m_meta = GameMeta{2, 0, GameMeta::WINNER_UNDECIDED};
 		m_stage = std::make_unique<Stage>(GameState{m_meta});
 		Pit& pit = *m_stage->state().pit().at(0);
-		m_draw.add_pit(pit, m_stage->state().pit().at(0)->cursor(), m_stage->sobs().at(0).banner, m_stage->sobs().at(0).bonus);
+		m_draw = std::make_unique<DrawGame>(*m_stage, m_assets);
 		m_logic = std::make_unique<Logic>(pit);
 		m_director = std::make_unique<BlockDirector>(m_stage->state());
-		return VisualDemo(pit, m_draw, *m_director);
+		return VisualDemo(pit, *m_draw, *m_director);
 	}
 };
 

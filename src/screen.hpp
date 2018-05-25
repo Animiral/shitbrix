@@ -200,13 +200,18 @@ class GameScreen : public IScreen
 
 public:
 
-	explicit GameScreen(DrawGame&& draw, const Audio& audio, Journal& journal, ENetClient& client);
+	explicit GameScreen(
+		std::unique_ptr<Stage> stage,
+		std::unique_ptr<DrawGame> draw,
+		const Audio& audio,
+		Journal& journal,
+		ENetClient& client);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual const IDraw& get_draw() const override { assert(m_draw); return *m_draw; }
 	virtual void input(ControllerInput cinput) override;
 
 private:
@@ -219,11 +224,11 @@ private:
 	std::unique_ptr<IGamePhase> m_next_phase;
 
 	std::unique_ptr<Stage> m_stage;
-	DrawGame m_draw;
+	std::unique_ptr<DrawGame> m_draw;
 	Journal& m_journal;
 	ENetClient& m_client;
 	evt::SoundRelay m_sound_relay;
-	ShakeRelay m_shake_relay;
+	std::unique_ptr<ShakeRelay> m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
 	Rules m_rules;
 

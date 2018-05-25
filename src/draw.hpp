@@ -93,19 +93,7 @@ public:
 	/**
 	 * Construct a new DrawGame object from the given dependencies.
 	 */
-	DrawGame(const Assets& assets);
-
-	/**
-	 * Add the specified pit to be drawn.
-	 * DrawGame always associates several player-specific objects with the pit.
-	 */
-	void add_pit(const Pit& pit, const Cursor& cursor,
-	             const Banner& banner, const BonusIndicator& indicator);
-
-	/**
-	 * Removes all drawables known to this DrawGame object.
-	 */
-	void clear();
+	DrawGame(const Stage& stage, const Assets& assets);
 
 	void fade(float fraction);
 
@@ -148,19 +136,7 @@ public:
 
 private:
 
-	/**
-	 * Helper type for draw compound.
-	 * We always draw a pit with a cursor in it.
-	 */
-	struct PlayerDrawables
-	{
-		const Pit& pit;
-		const Cursor& cursor;
-		const Banner& banner;
-		const BonusIndicator& indicator;
-	};
-
-	std::vector<PlayerDrawables> m_drawables;
+	const Stage& m_stage; // drawable objects container
 	bool m_show_cursor;
 	bool m_show_banner;
 	bool m_show_pit_debug_overlay = false;

@@ -42,8 +42,9 @@ void DrawMenu::draw_offscreen(float) const
 	sdlok(SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect));
 }
 
-DrawGame::DrawGame(const Assets& assets)
-: m_show_cursor(false),
+DrawGame::DrawGame(const Stage& stage, const Assets& assets)
+: m_stage(stage),
+  m_show_cursor(false),
   m_show_banner(false),
   m_show_pit_debug_overlay(false),
   m_assets(assets)
@@ -54,19 +55,6 @@ DrawGame::DrawGame(const Assets& assets)
 
 	sdlok(SDL_SetTextureBlendMode(m_fadetex.get(), SDL_BLENDMODE_BLEND));
 	sdlok(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD));
-}
-
-void DrawGame::add_pit(const Pit& pit, const Cursor& cursor,
-					   const Banner& banner, const BonusIndicator& indicator)
-{
-	m_drawables.emplace_back(PlayerDrawables{pit, cursor, banner, indicator});
-}
-
-void DrawGame::clear()
-{
-	m_drawables.clear();
-	m_show_cursor = false;
-	m_show_banner = false;
 }
 
 void DrawGame::fade(float fraction)
@@ -88,8 +76,9 @@ void DrawGame::draw_offscreen(float dt) const
 
 	SDL_Renderer* renderer = &sdl.renderer();
 
-	for(const PlayerDrawables& drawable : m_drawables) {
-		const Pit& pit = drawable.pit;
+	assert(m_stage.sobs().size() == m_stage.state().pit().size());
+	for(size_t i = 0; i < m_stage.sobs().size(); ++i) {
+		const Pit& pit = *m_stage.state().pit()[i];
 		clip(renderer, pit.loc(), PIT_W, PIT_H); // restrict drawing area to pit
 		m_pitloc = pit.transform(Point{0,0}); // draw all pit objects relative to pit origin
 
@@ -105,15 +94,17 @@ void DrawGame::draw_offscreen(float dt) const
 		}
 
 		if(m_show_cursor)
-			draw_cursor(drawable.cursor, dt);
+			draw_cursor(pit.cursor(), dt);
 
 		m_pitloc = Point{0,0}; // reset to screen origin
 		unclip(renderer); // unrestrict drawing
 
-		if(m_show_banner)
-			draw_banner(drawable.banner, dt);
+		const Stage::StageObjects& sob = m_stage.sobs()[i];
 
-		draw_bonus(drawable.indicator, dt);
+		if(m_show_banner)
+			draw_banner(sob.banner, dt);
+
+		draw_bonus(sob.bonus, dt);
 	}
 
 	tint();

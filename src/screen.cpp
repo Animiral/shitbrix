@@ -36,8 +36,11 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu()
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	enforce(m_client);
-	DrawGame draw_game(m_assets);
-	return std::make_unique<GameScreen>(std::move(draw_game), m_audio, m_client->journal(), *m_client);
+	Journal& journal = m_client->journal();
+	auto stage = std::make_unique<Stage>(GameState(journal.meta()));
+	auto draw = std::make_unique<DrawGame>(*stage, m_assets);
+	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, journal, *m_client);
+	return std::move(screen);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_server()
@@ -47,7 +50,9 @@ std::unique_ptr<IScreen> ScreenFactory::create_server()
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
 {
-	DrawTransition draw_transition(predecessor.get_draw(), successor.get_draw());
+	const IDraw& predecessor_draw = predecessor.get_draw();
+	const IDraw& successor_draw = successor.get_draw();
+	DrawTransition draw_transition(predecessor_draw, successor_draw);
 	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
 }
 
@@ -89,13 +94,13 @@ IGamePhase::~IGamePhase() =default;
 GameIntro::GameIntro(GameScreen* screen)
 : IGamePhase(screen), countdown(INTRO_TIME)
 {
-	m_screen->m_draw.show_cursor(true);
+	m_screen->m_draw->show_cursor(true);
 }
 
 void GameIntro::update()
 {
 	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
-	m_screen->m_draw.fade(fadeness);
+	m_screen->m_draw->fade(fadeness);
 
 	if(0 == --countdown) {
 		auto phase = std::make_unique<GamePlay>(m_screen);
@@ -133,8 +138,8 @@ void GamePlay::update()
 
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
 {
-	m_screen->m_draw.show_cursor(false);
-	m_screen->m_draw.show_banner(true);
+	m_screen->m_draw->show_cursor(false);
+	m_screen->m_draw->show_banner(true);
 }
 
 void GameResult::update()
@@ -144,15 +149,22 @@ void GameResult::update()
 }
 
 
-GameScreen::GameScreen(DrawGame&& draw, const Audio& audio, Journal& journal, ENetClient& client)
-: m_pause(false),
+GameScreen::GameScreen(
+	std::unique_ptr<Stage> stage,
+	std::unique_ptr<DrawGame> draw,
+	const Audio& audio,
+	Journal& journal,
+	ENetClient& client)
+: m_stage(std::move(stage)),
   m_draw(std::move(draw)),
+  m_pause(false),
   m_sound_relay(audio),
-  m_shake_relay(m_draw),
   m_journal(journal),
   m_client(client),
   m_rules{BlockDirector(m_stage->state())}
 {
+	assert(m_stage);
+	assert(m_draw);
 	Log::info("GameScreen turn on.");
 	start();
 /*
@@ -191,7 +203,7 @@ void GameScreen::update()
 
 void GameScreen::draw(float dt)
 {
-	m_draw.draw(dt);
+	m_draw->draw(dt);
 }
 
 void GameScreen::input(ControllerInput cinput)
@@ -243,8 +255,8 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG1:
-			m_draw.toggle_pit_debug_overlay();
-			m_draw.toggle_pit_debug_highlight();
+			m_draw->toggle_pit_debug_overlay();
+			m_draw->toggle_pit_debug_highlight();
 			break;
 
 		case Button::DEBUG2:
@@ -281,31 +293,14 @@ void GameScreen::start()
 	const GameMeta meta = m_journal.meta();
 	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
-	m_draw.clear();
-
 	change_phase(std::make_unique<GameIntro>(this));
 	change_phase_impl();
 	m_game_time = 1L;
 	m_done = false;
 
-	m_stage = std::make_unique<Stage>(GameState(meta));
-
-	Pit& left_pit = *m_stage->state().pit().at(0);
-	const Cursor& left_cursor = left_pit.cursor();
-	Banner& left_banner = m_stage->sobs().at(0).banner;
-	BonusIndicator& left_bonus = m_stage->sobs().at(0).bonus;
-
-	Pit& right_pit = *m_stage->state().pit().at(1);
-	const Cursor& right_cursor = right_pit.cursor();
-	Banner& right_banner = m_stage->sobs().at(1).banner;
-	BonusIndicator& right_bonus = m_stage->sobs().at(1).bonus;
-
 	m_rules = {BlockDirector(m_stage->state())};
-
-	m_draw.add_pit(left_pit, left_cursor, left_banner, left_bonus);
-	m_draw.add_pit(right_pit, right_cursor, right_banner, right_bonus);
-
 	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
+	m_shake_relay.reset(new ShakeRelay(*m_draw));
 
 	//for(auto& pobjs : m_pobjects) {
 	//	pobjs->event_hub.subscribe(m_sound_relay);
