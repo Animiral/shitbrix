@@ -349,7 +349,6 @@ public:
 private:
 
 	HostPtr m_host;
-	std::vector<PeerPtr> m_peer;
 
 };
 
@@ -366,7 +365,7 @@ public:
 private:
 
 	HostPtr m_host;
-	PeerPtr m_peer;
+	ENetPeer* m_peer;
 	Journal m_journal;
 
 };

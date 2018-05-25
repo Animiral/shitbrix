@@ -51,7 +51,7 @@ public:
 	/**
 	 * Create a client host and connect to the server.
 	 */
-	std::pair<HostPtr, PeerPtr> create_client(const char* server_name) const;
+	std::pair<HostPtr, ENetPeer*> create_client(const char* server_name) const;
 
 	/**
 	 * Create a packet.

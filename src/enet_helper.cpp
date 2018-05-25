@@ -32,7 +32,7 @@ HostPtr ENet::create_server() const
 	return server;
 }
 
-std::pair<HostPtr, PeerPtr> ENet::create_client(const char* server_name) const
+std::pair<HostPtr, ENetPeer*> ENet::create_client(const char* server_name) const
 {
 	Log::info("ENet: Create Client.");
 	HostPtr host{enet_host_create(NULL, 1, NET_CHANNELS, 0, 0)};
@@ -43,9 +43,10 @@ std::pair<HostPtr, PeerPtr> ENet::create_client(const char* server_name) const
 	address.port = NET_PORT;
 
 	Log::info("ENet: Connect to \"%s\".", server_name);
-	PeerPtr peer{enet_host_connect(host.get(), &address, 2, 0)};
+	ENetPeer* peer;
+	enetok(peer = enet_host_connect(host.get(), &address, 2, 0));
 
-	return std::make_pair(move(host), move(peer));
+	return std::make_pair(move(host), peer);
 }
 
 PacketPtr ENet::create_packet(const std::string &data, ENetPacketFlag flag) const

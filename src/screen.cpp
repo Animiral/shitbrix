@@ -208,13 +208,10 @@ void GameScreen::draw(float dt)
 
 void GameScreen::input(ControllerInput cinput)
 {
-	// Generally, inputs to the game screen are sent to the Network object.
-	// This may happen in the form of full-formed ReplayRecords or simply
-	// GameInputs, depending on whether we are Server or Client.
-	// The Network generates ReplayRecords and sends them to the Journal,
-	// from which we get our ReplayRecords to display the game on the screen.
-
-	// Because we do not have Network yet, we always send ReplayRecords directly to the Journal.
+	// Generally, inputs to the game screen are sent to the network through
+	// the client object.
+	// The network sends back all acknowledged inputs and sends them to the Journal,
+	// from which we get them back to display the game on the screen.
 	enforce(Button::NONE != cinput.button);
 
 	switch(cinput.button) {

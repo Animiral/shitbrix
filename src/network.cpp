@@ -362,7 +362,7 @@ void ENetServer::broadcast_input(GameInput input)
 {
 	PacketPtr packet = ENet::instance().create_packet(input.to_string(), ENET_PACKET_FLAG_RELIABLE);
 
-	enet_host_broadcast(m_host.get(), INPUT_CHANNEL, packet.get());
+	enet_host_broadcast(m_host.get(), INPUT_CHANNEL, packet.release());
 	enet_host_flush(m_host.get());
 }
 
@@ -379,7 +379,7 @@ void ENetServer::poll()
 			Log::info("New client from %x:%u.", event.peer->address.host, event.peer->address.port);
 			/* Store any relevant client information here. */
 			//event.peer -> data = "Client information";
-			m_peer.emplace_back(event.peer);
+			//m_peer.emplace_back(event.peer);
 			break;
 
 		case ENET_EVENT_TYPE_RECEIVE:
@@ -454,7 +454,7 @@ void ENetClient::send_input(GameInput input)
 	PacketPtr packet = ENet::instance().create_packet(input.to_string(), ENET_PACKET_FLAG_RELIABLE);
 
 	/* enet_host_broadcast (host, 0, packet);         */
-	enetok(enet_peer_send(m_peer.get(), INPUT_CHANNEL, packet.get()));
+	enetok(enet_peer_send(m_peer, INPUT_CHANNEL, packet.release()));
 	enet_host_flush(m_host.get());
 }
 
