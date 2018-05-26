@@ -16,10 +16,11 @@ public:
 	Options(int argc, const char* argv[]);
 
 	/**
-	 * Option: --run=[client|server]
+	 * Option: --run=[client|server|with-server]
 	 * Which application mode to launch.
 	 * - "client" (default)
 	 * - "server": run only the server
+	 * - "with-server": run the server in a thread together with the client
 	 */
 	const char* run_mode() const noexcept { return m_run_mode; }
 

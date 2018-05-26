@@ -59,7 +59,13 @@ public:
 	 * Configure the client dependency.
 	 * In the future, this will hopefully be taken from a central repository.
 	 */
-	void set_client(ENetClient& client) noexcept { m_client = &client; }
+	void set_client(ENetClient* client) noexcept { m_client = client; }
+
+	/**
+	 * Configure the server dependency.
+	 * In the future, this will hopefully be taken from a central repository.
+	 */
+	void set_server(ServerThread* server) noexcept { m_server = server; }
 
 	std::unique_ptr<IScreen> create_menu();
 	std::unique_ptr<IScreen> create_game();
@@ -73,6 +79,7 @@ private:
 	const Assets& m_assets;
 	const Audio& m_audio;
 	ENetClient* m_client;
+	ServerThread* m_server;
 
 };
 
@@ -205,7 +212,8 @@ public:
 		std::unique_ptr<DrawGame> draw,
 		const Audio& audio,
 		Journal& journal,
-		ENetClient& client);
+		ENetClient& client,
+		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
@@ -227,6 +235,7 @@ private:
 	std::unique_ptr<DrawGame> m_draw;
 	Journal& m_journal;
 	ENetClient& m_client;
+	ServerThread* m_server;
 	evt::SoundRelay m_sound_relay;
 	std::unique_ptr<ShakeRelay> m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
@@ -257,7 +266,7 @@ class ServerScreen : public IScreen
 
 public:
 
-	explicit ServerScreen();
+	explicit ServerScreen(ServerThread& server);
 	virtual ~ServerScreen() noexcept;
 
 	virtual void update() override;
@@ -268,7 +277,7 @@ public:
 
 private:
 
-	ServerThread m_server;
+	ServerThread* m_server;
 	DrawPink m_draw;
 	bool m_done;
 

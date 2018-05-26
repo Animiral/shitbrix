@@ -37,7 +37,7 @@ private:
 	Keyboard m_keyboard;
 
 	// network hosts
-	//std::unique_ptr<ServerThread> m_server;
+	std::unique_ptr<ServerThread> m_server;
 	std::unique_ptr<ENetClient> m_client;
 
 	// screens (instance if active, nullptr otherwise)

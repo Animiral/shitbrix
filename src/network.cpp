@@ -549,6 +549,6 @@ void ServerThread::main_loop()
 	while(m_exit.test_and_set())
 	{
 		server.poll();
-		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }

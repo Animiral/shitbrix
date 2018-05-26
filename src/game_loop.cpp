@@ -12,12 +12,15 @@ GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
   m_assets(),
   m_audio(Sdl::instance().audio(), m_assets),
-  //m_server(new ServerThread()),
-  //m_client(new ENetClient("localhost")),
   m_screen_factory(m_options, m_assets, m_audio),
   m_screen(nullptr),
   m_keyboard()
 {
+	if(nullptr != std::strstr(m_options.run_mode(), "server")) {
+		m_server.reset(new ServerThread());
+		m_screen_factory.set_server(m_server.get());
+	}
+
 	next_screen();
 }
 
@@ -84,7 +87,7 @@ void GameLoop::next_screen()
 			m_menu_screen = m_screen_factory.create_menu();
 			m_screen = m_menu_screen.get();
 			m_client = std::make_unique<ENetClient>("localhost");
-			m_screen_factory.set_client(*m_client);
+			m_screen_factory.set_client(m_client.get());
 		}
 
 		// debug

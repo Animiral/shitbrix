@@ -45,7 +45,8 @@ std::unique_ptr<IScreen> ScreenFactory::create_game()
 
 std::unique_ptr<IScreen> ScreenFactory::create_server()
 {
-	return std::make_unique<ServerScreen>();
+	assert(m_server);
+	return std::make_unique<ServerScreen>(*m_server);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
@@ -154,13 +155,15 @@ GameScreen::GameScreen(
 	std::unique_ptr<DrawGame> draw,
 	const Audio& audio,
 	Journal& journal,
-	ENetClient& client)
+	ENetClient& client,
+	ServerThread* server)
 : m_stage(std::move(stage)),
   m_draw(std::move(draw)),
   m_pause(false),
   m_sound_relay(audio),
   m_journal(journal),
   m_client(client),
+  m_server(server),
   m_rules{BlockDirector(m_stage->state())}
 {
 	assert(m_stage);
@@ -326,15 +329,15 @@ void GameScreen::update_impl()
 }
 
 
-ServerScreen::ServerScreen()
-	: m_server(), m_draw(20, 235, 0), m_done(false)
+ServerScreen::ServerScreen(ServerThread& server)
+	: m_server(&server), m_draw(20, 235, 0), m_done(false)
 {
 }
 
 ServerScreen::~ServerScreen() noexcept
 {
 	try {
-		m_server.exit();
+		m_server->exit();
 	}
 	catch(const std::exception& ex) {
 		show_error(ex);
