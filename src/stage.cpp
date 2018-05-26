@@ -190,6 +190,8 @@ void RandomBlocksQueue::backtrack(size_t index) noexcept
 Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept
 : m_loc(loc),
   m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, 0},
+  m_want_raise(false),
+  m_raise(false),
   m_enabled(true),
   m_scroll((1-PIT_ROWS) * ROW_HEIGHT),
   m_speed(SCROLL_SPEED),
@@ -412,6 +414,20 @@ void Pit::cursor_move(Dir dir) noexcept
 	}
 }
 
+void Pit::set_raise(bool raise)
+{
+	m_want_raise = raise;
+
+	if(m_want_raise)
+		m_raise = true;
+}
+
+void Pit::stop_raise()
+{
+	if(!m_want_raise)
+		m_raise = false;
+}
+
 int Pit::top() const noexcept
 {
 	return static_cast<int>(std::ceil(float(m_scroll) / ROW_HEIGHT));
@@ -447,7 +463,7 @@ void Pit::update()
 		p->update();
 
 	if(m_enabled)
-		m_scroll += m_speed;
+		m_scroll += m_raise ? RAISE_SPEED : m_speed;
 
 	// keep cursor in accessible bounds at all times
 	while(m_cursor.rc.r < top())
@@ -528,6 +544,8 @@ void Pit::assign_basic(const Pit& rhs)
 {
 	m_loc = rhs.m_loc;
 	m_cursor = rhs.m_cursor;
+	m_want_raise = rhs.m_want_raise;
+	m_raise = rhs.m_raise;
 	m_enabled = rhs.m_enabled;
 	m_scroll = rhs.m_scroll;
 	m_speed = rhs.m_speed;

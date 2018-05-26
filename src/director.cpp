@@ -23,7 +23,6 @@ bool spawn_previews(Pit& pit);
 BlockDirector::BlockDirector(GameState& state)
 : m_state(state),
   m_handler(nullptr),
-  m_raise(false),
   m_over(false)
 {}
 
@@ -76,15 +75,6 @@ bool BlockDirector::swap(int player)
 	return true;
 }
 
-void BlockDirector::set_raise(bool raise)
-{
-	// TODO: move raise flag to Pit
-	m_raise = raise;
-
-	//if(raise)
-		//pit.set_speed(RAISE_SPEED);
-}
-
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
 	Pit& pit = *m_state.get().pit().at(0); // first pit
@@ -117,8 +107,8 @@ void BlockDirector::update_single(Pit& pit)
 	bool new_row = spawn_previews(pit);
 
 	// raise until new row, except if player is holding down the button
-	if(new_row && !m_raise)
-		pit.set_speed(SCROLL_SPEED);
+	if(new_row)
+		pit.stop_raise();
 
 	logic.examine_finish(dead_physical, dead_block, dead_sound, chainstop);
 
@@ -221,8 +211,7 @@ void apply_input(GameState& state, Rules& rules, GameInput ginput)
 			break;
 
 		case GameButton::RAISE:
-			// TODO: set raise in pit instead
-			rules.block_director.set_raise(ButtonAction::DOWN == ginput.action);
+			state.pit().at(ginput.player)->set_raise(ButtonAction::DOWN == ginput.action);
 			break;
 
 		case GameButton::NONE:

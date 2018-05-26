@@ -44,14 +44,6 @@ public:
 	 */
 	bool swap(int player);
 
-	/**
-	 * Set the block raise mode. If raise mode is on, the pit will scroll upwards
-	 * at an accelerated speed, revealing more block material in a short time.
-	 * Raise mode will always last until the next whole row of blocks turns from
-	 * preview to normal, even after just a short tap of the raise button.
-	 */
-	void set_raise(bool raise);
-
 	void debug_spawn_garbage(int columns, int rows); // spawn some stuff to demo garbage
 
 	bool debug_no_gameover = false;
@@ -65,8 +57,7 @@ private:
 
 	std::reference_wrapper<GameState> m_state;
 	evt::IGameEvent* m_handler;
-	bool m_raise; //!< whether the pit should scroll in new blocks as fast as possible
-	bool m_over;  //!< whether the game is over (the player with this Director loses)
+	bool m_over;  //!< whether the game is over (there is a definite winner)
 
 };
 

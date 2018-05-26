@@ -473,6 +473,24 @@ public:
 	void cursor_move(Dir dir) noexcept;
 
 	/**
+	 * Sets the want_raise flag for block raise mode. If raise mode is on, the pit
+	 * will scroll upwards at an accelerated speed, revealing more block material
+	 * in a short time.
+	 * Once the want_raise flag is @c true, the pit will immediately accelerate
+	 * scrolling. It will stop only when @stop_raise gets called while the
+	 * want_raise flag is set to @c false.
+	 */
+	void set_raise(bool raise);
+
+	/**
+	 * If the raise intention flag is @c false, discontinue raise mode.
+	 * The BlockDirector calls this when the next whole row of blocks turns from
+	 * preview to normal. Until then, just a short tap of the raise button
+	 * activates the accelerated scrolling.
+	 */
+	void stop_raise();
+
+	/**
 	 * Returns the number of the top accessible row in the pit
 	 */
 	int top() const noexcept;
@@ -551,6 +569,8 @@ private:
 
 	Point m_loc;     //!< draw location, upper left corner
 	Cursor m_cursor; //!< player cursor
+	bool m_want_raise; //!< whether the pit should persist in accelerated scrolling
+	bool m_raise;    //!< whether the pit should scroll in new blocks as fast as possible
 	bool m_enabled;  //!< whether or not to scroll the pit on update()
 
 	int m_scroll;    //!< y-offset in points for view on pit contents
