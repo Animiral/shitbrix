@@ -357,16 +357,37 @@ class ENetClient
 
 public:
 
+	/**
+	 * Construct the client by connecting to the given server.
+	 */
 	explicit ENetClient(const char* server_name);
+
+	/**
+	 * Start a new game Journal.
+	 * TODO: to signal restart and to randomize the seed is the server's job.
+	 */
+	void reset_journal();
+
+	/**
+	 * Return the authoritative Journal kept by the Client.
+	 */
 	Journal& journal() noexcept { return m_journal; }
+
+	/**
+	 * Send the given input to the server on the INPUT_CHANNEL.
+	 */
 	void send_input(GameInput input);
+
+	/**
+	 * Handle events and possible new messages from the server.
+	 */
 	void poll();
 
 private:
 
-	HostPtr m_host;
-	ENetPeer* m_peer;
-	Journal m_journal;
+	HostPtr m_host;    //!< ENetHost object
+	ENetPeer* m_peer;  //!< ENet peer associated with the server
+	Journal m_journal; //!< Game events and checkpoints record
 
 };
 

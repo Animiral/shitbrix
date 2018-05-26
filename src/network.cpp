@@ -428,6 +428,7 @@ namespace
 
 Journal make_journal()
 {
+	// TODO: to randomize the seed is the server's job
 	GameMeta meta{2, std::random_device{}()};
 	return Journal(meta, GameState{meta});
 }
@@ -447,6 +448,11 @@ ENetClient::ENetClient(const char* server_name)
 	{
 		throw ENetException("Connection to server failed.");
 	}
+}
+
+void ENetClient::reset_journal()
+{
+	m_journal = make_journal();
 }
 
 void ENetClient::send_input(GameInput input)

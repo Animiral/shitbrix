@@ -98,6 +98,7 @@ void GameLoop::next_screen()
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
+			m_client->reset_journal(); // start from fresh game state
 			m_game_screen = m_screen_factory.create_game();
 			m_transition_screen = m_screen_factory.create_transition(*menu, *m_game_screen);
 			m_screen = m_transition_screen.get();
