@@ -9,7 +9,7 @@
 #include <ostream> // debug stuff
 
 // ================================================
-// Basic global types and structures
+// Enumeration types and constants
 // ================================================
 
 /**
@@ -138,78 +138,9 @@ const char* button_action_to_string(ButtonAction action) noexcept;
  */
 ButtonAction string_to_button_action(const std::string& action_string);
 
-constexpr int NOONE = -1; // not-a player id
-
-/**
- * Holds one button input and the number of the player who pressed it.
- */
-struct ControllerInput
-{
-	int player; // 0-based player index
-	Button button;
-	ButtonAction action;
-};
-
-/**
- * Holds one in-game action and the number of the player who pressed it.
- */
-struct GameInput
-{
-	static const long TIME_ASAP = -1; //!< this input should be part of the next update
-
-	long game_time;      //!< time when this input takes effect
-	int player;          //!< 0-based player index
-	GameButton button;
-	ButtonAction action;
-
-	/**
-	 * Since @c GameInputs frequently need to be sent over the network or stored
-	 * in a replay file, they have a canonical string representation.
-	 */
-	std::string to_string() const;
-
-	/**
-	 * Return the @c GameInput from the string representation.
-	 * @throw GameException if the string is not recognized.
-	 */
-	static GameInput from_string(std::string input_string);
-};
-
-/**
- * Holds meta-information about a game round.
- * This information does not change over time like the @c GameState does.
- * It is also used to generate the initial game state and reproduce the replay.
- */
-struct GameMeta
-{
-	int players;   //!< number of participant players
-	unsigned seed; //!< initial random seed
-	int winner = WINNER_UNDECIDED; //!< player who won the game
-
-	static const int WINNER_UNDECIDED = -1; //!< default value of winner
-
-	/**
-	 * Since @c GameMetas need to be sent over the network and stored
-	 * in a replay file, they have a canonical string representation.
-	 */
-	std::string to_string() const;
-
-	/**
-	 * Return the @c GameMeta from the string representation.
-	 * @throw GameException if the string is not recognized.
-	 */
-	static GameMeta from_string(std::string meta_string);
-};
-
-/**
- * These dials contain general parameters that govern the current game session
- * outside the journal record of the game. They can be manipulated by the
- * server.
- */
-struct Dials
-{
-	int speed = 1; //!< display speed of the game (currently just 0 for pause and 1 normally)
-};
+// ================================================
+// Elemental utility structures
+// ================================================
 
 /**
  * Represents a screen location in canvas pixels.
@@ -247,6 +178,41 @@ struct RowColHash
 
 std::ostream& operator<<(std::ostream& stream, RowCol rc);
 
+/**
+ * Holds one button input and the number of the player who pressed it.
+ */
+struct ControllerInput
+{
+	int player; // 0-based player index
+	Button button;
+	ButtonAction action;
+};
+
+/**
+ * Holds one in-game action and the number of the player who pressed it.
+ */
+struct GameInput
+{
+	static const long TIME_ASAP = -1; //!< this input should be part of the next update
+
+	long game_time;      //!< time when this input takes effect
+	int player;          //!< 0-based player index
+	GameButton button;
+	ButtonAction action;
+
+	/**
+	 * Since @c GameInputs frequently need to be sent over the network or stored
+	 * in a replay file, they have a canonical string representation.
+	 */
+	std::string to_string() const;
+
+	/**
+	 * Return the @c GameInput from the string representation.
+	 * @throw GameException if the string is not recognized.
+	 */
+	static GameInput from_string(std::string input_string);
+};
+
 // ================================================
 // Application constants
 // ================================================
@@ -265,12 +231,14 @@ constexpr int ROW_HEIGHT = 200; //!< gameplay height of a row; determines scroll
 constexpr int FALL_SPEED = 35; //!< points per update that a falling block moves down
 constexpr int SCROLL_SPEED = 5; //!< points per update that the pit moves up
 constexpr int RAISE_SPEED = 15; //!< pit speed when raising the stack (max speed)
+constexpr int INTRO_TIME = 20; // number of ticks for intro to game round
 constexpr int SWAP_TIME = 6; //!< number of ticks to swap two blocks
 constexpr int BREAK_TIME = 30; //!< number of ticks for a block to break
 constexpr int DISSOLVE_TIME = 30; //!< number of ticks for a garbage brick to dissolve
 constexpr int LAND_TIME = 20; //!< number of ticks in an object’s landing state
 constexpr int RECOVERY_TIME = 50; //!< number of ticks in which scrolling stops after quality match
 constexpr int PANIC_TIME = 90; //!< number of ticks until game over when the pit is full
+constexpr int NOONE = -1; //!< not-a player id
 
 // Presentation constants (graphics, animation, sounds)
 constexpr const char* APP_NAME = "shitbrix";
@@ -303,6 +271,44 @@ constexpr int BANNER_W = 200; //!< width of the win/lose banner in canvas pixels
 constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixels
 
 constexpr int TRANSITION_TIME = 20; //!< Number of frames for screen transition
+
+// ================================================
+// Global types and shared structures
+// ================================================
+
+/**
+ * Holds meta-information about a game round.
+ * This information does not change over time like the @c GameState does.
+ * It is also used to generate the initial game state and reproduce the replay.
+ */
+struct GameMeta
+{
+	int players;   //!< number of participant players
+	unsigned seed; //!< initial random seed
+	int winner = NOONE; //!< player who won the game
+
+	/**
+	 * Since @c GameMetas need to be sent over the network and stored
+	 * in a replay file, they have a canonical string representation.
+	 */
+	std::string to_string() const;
+
+	/**
+	 * Return the @c GameMeta from the string representation.
+	 * @throw GameException if the string is not recognized.
+	 */
+	static GameMeta from_string(std::string meta_string);
+};
+
+/**
+ * These dials contain general parameters that govern the current game session
+ * outside the journal record of the game. They can be manipulated by the
+ * server.
+ */
+struct Dials
+{
+	int speed = 1; //!< display speed of the game (currently just 0 for pause and 1 normally)
+};
 
 // ================================================
 // Miscellaneous

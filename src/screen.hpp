@@ -176,7 +176,6 @@ public:
 
 private:
 
-	static constexpr int INTRO_TIME = 20; // number of animation frames for intro
 	int countdown;
 
 };
@@ -242,11 +241,6 @@ private:
 	void change_phase_impl();
 
 	void start();
-
-	/**
-	 * Pass on the update event to child objects.
-	 */
-	void update_impl();
 
 	friend class IGamePhase;
 	friend class GameIntro;

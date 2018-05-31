@@ -25,7 +25,8 @@ public:
 	 */
 	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
 
-	bool over() const { return m_over; }
+	int winner() const noexcept { return m_winner; }
+	bool over() const noexcept { return NOONE != m_winner; }
 
 	/**
 	 * Run one tick of game logic over the game state.
@@ -50,13 +51,13 @@ public:
 private:
 
 	/**
-	 * Run one tick of game logic over one pit.
+	 * Run one tick of game logic over one player's pit.
 	 */
-	void update_single(Pit& pit);
+	void update_single(int player);
 
 	GameState* m_state;
 	evt::IGameEvent* m_handler;
-	bool m_over;  //!< whether the game is over (there is a definite winner)
+	int m_winner = NOONE; //!< number of the player who wins the game
 
 };
 

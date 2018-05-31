@@ -158,6 +158,7 @@ enum class MsgType
 	SYNC,    //!< whole game state
 	CLIENTS, //!< request for or sync info about connected clients
 	START,   //!< start game
+	GAMEEND, //!< end game
 	BYE,     //!< withdraw from the specified room
 	OFFER,   //!< place a game offer
 	REMOVE,  //!< retract a game offer
@@ -548,6 +549,11 @@ public:
 	 * Initialize the game state from the meta information.
 	 */
 	void game_start();
+
+	/**
+	 * Notify the clients that the game has been decided in favor of the given player.
+	 */
+	void send_gameend(int winner);
 
 	/**
 	 * Receive and handle incoming messages from the clients.

@@ -118,27 +118,23 @@ void GameIntro::update()
 
 void GamePlay::update()
 {
+	// detect game over
+	const int winner = m_screen->m_client->gamedata().journal.meta().winner;
+	if(NOONE != winner) {
+		m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+
+		auto phase = std::make_unique<GameResult>(m_screen, winner);
+		m_screen->change_phase(std::move(phase));
+
+		return; // skip the usual; we don't need more game logic
+	}
+
+	// reach the target time, considering even retcon inputs
 	long& game_time = m_screen->m_game_time;
 	game_time++;
 
 	GameData& gamedata = m_screen->m_client->gamedata();
 	synchronurse(gamedata.state, game_time, gamedata.journal, gamedata.rules);
-
-	//// NOTE: to determine the winner is a server-side job only.
-	//if(rules.block_director.over()) {
-	//	int winner = 0; // opponent(static_cast<int>(i));
-	//	journal.set_winner(winner);
-
-	//	// NOTE: this should only happen when the Journal tells us that the game is over.
-	//	// We should not assume that the winner that we have detected is valid until
-	//	// it is part of the game record.
-	//	m_screen->m_gameover_relay->fire(evt::GameOver{winner});
-
-	//	auto phase = std::make_unique<GameResult>(m_screen, winner);
-	//	m_screen->change_phase(std::move(phase));
-
-	//	return;
-	//}
 }
 
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
@@ -185,9 +181,22 @@ GameScreen::~GameScreen() noexcept
 
 void GameScreen::update()
 {
+	// detect restarts from server
+	if(m_client->is_game_ready()) {
+		m_client->game_start();
+		start();
+	}
+
 	// check pause
-	if(0 < m_client->gamedata().dials.speed)
-		update_impl();
+	if(0 == m_client->gamedata().dials.speed)
+		return;
+
+	// run game logic
+	assert(m_game_phase);
+	m_game_phase->update();
+
+	if(m_next_phase)
+		change_phase_impl();
 }
 
 void GameScreen::draw(float dt)
@@ -248,12 +257,12 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::DEBUG2:
 			// TODO: this does not work with Network
-			update_impl();
+			//update_impl();
 			break;
 
 		case Button::DEBUG3:
 			// TODO: this does not work with Network
-			for(int i = 0; i < 8; i++) update_impl();
+			//for(int i = 0; i < 8; i++) update_impl();
 			break;
 
 		case Button::DEBUG4:
@@ -304,22 +313,6 @@ void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
 void GameScreen::change_phase_impl()
 {
 	m_game_phase = std::move(m_next_phase);
-}
-
-void GameScreen::update_impl()
-{
-	// detect restarts from server
-	if(m_client->is_game_ready()) {
-		m_client->game_start();
-		start();
-	}
-
-	// run game logic
-	assert(m_game_phase);
-	m_game_phase->update();
-
-	if(m_next_phase)
-		change_phase_impl();
 }
 
 
@@ -386,12 +379,6 @@ std::string make_journal_file()
 	std::ostringstream stream;
 	stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
 	return stream.str();
-}
-
-int opponent(int player)
-{
-	enforce(0 == player || 1 == player);
-	return 0 == player ? 1 : 0;
 }
 
 [[ maybe_unused ]]

@@ -613,6 +613,16 @@ void BasicClient::handle_message(const Message& message)
 	}
 		break;
 
+	case MsgType::GAMEEND:
+	{
+		if(!m_gamedata.has_value())
+			throw new GameException("Got gameend from server before the game is running.");
+
+		const int winner = std::stoi(message.data);
+		m_gamedata->journal.set_winner(winner);
+	}
+		break;
+
 	default:
 		assert(!"not implemented yet");
 
@@ -665,6 +675,12 @@ void BasicServer::game_start()
 	m_gamedata = GameData{Dials(), std::move(state), Rules{BlockDirector(m_gamedata->state)}, std::move(journal)};
 }
 
+void BasicServer::send_gameend(int winner)
+{
+	const Message out_msg{0, 0, MsgType::GAMEEND, std::to_string(winner)};
+	m_server->broadcast_message(std::move(out_msg));
+}
+
 void BasicServer::poll()
 {
 	const auto messages = m_server->poll();
@@ -693,7 +709,7 @@ void BasicServer::handle_message(const Message& message)
 			message.recipient,
 			MsgType::INPUT,
 			input.to_string()};
-		m_server->broadcast_message(out_msg);
+		m_server->broadcast_message(std::move(out_msg));
 	}
 		break;
 
@@ -711,7 +727,7 @@ void BasicServer::handle_message(const Message& message)
 			message.recipient,
 			MsgType::SPEED,
 			std::to_string(speed)};
-		m_server->broadcast_message(out_msg);
+		m_server->broadcast_message(std::move(out_msg));
 	}
 		break;
 
@@ -726,7 +742,7 @@ void BasicServer::handle_message(const Message& message)
 			message.recipient,
 			MsgType::META,
 			m_meta->to_string()};
-		m_server->broadcast_message(out_msg);
+		m_server->broadcast_message(std::move(out_msg));
 	}
 		break;
 
@@ -738,7 +754,7 @@ void BasicServer::handle_message(const Message& message)
 			message.recipient,
 			MsgType::START,
 			{}};
-		m_server->broadcast_message(out_msg);
+		m_server->broadcast_message(std::move(out_msg));
 	}
 		break;
 
@@ -784,14 +800,55 @@ void ServerThread::main_loop()
 {
 	set_thread_name("Server Thread");
 
+	Uint64 t0 = SDL_GetPerformanceCounter(); // start of game time
+	Uint64 freq = SDL_GetPerformanceFrequency();
+	long tick = 0; // current logic tick counter
+	Uint64 next_logic = t0 + freq / TPS; // time for next logic update
+	bool in_game = false; // true if the game round is in progress
+
 	while(m_exit.test_and_set())
 	{
-		m_server->poll();
+		// process messages as long as logic is up to date
+		Uint64 now = SDL_GetPerformanceCounter();
+		while (now < next_logic) {
+			m_server->poll();
+			now = SDL_GetPerformanceCounter();
+
+			// yield CPU if we have the time
+			if(now < next_logic) {
+				Uint64 wait = (next_logic - now) * 1000L / freq; // in ms
+				assert(wait <= std::numeric_limits<Uint32>::max());
+				SDL_Delay(static_cast<Uint32>(wait));
+				now = SDL_GetPerformanceCounter();
+			}
+		}
+
+		// run logic update, if applicable
+		if(in_game && tick > INTRO_TIME) {
+			const long game_time = tick - INTRO_TIME;
+			GameData& gamedata = m_server->gamedata();
+			synchronurse(gamedata.state, game_time, gamedata.journal, gamedata.rules);
+
+			// game over check
+			if(gamedata.rules.block_director.over()) {
+				const int winner = gamedata.rules.block_director.winner();
+				gamedata.journal.set_winner(winner);
+				m_server->send_gameend(winner);
+				in_game = false;
+			}
+		}
 
 		// start game at every opportunity
-		if(m_server->is_game_ready())
+		if(m_server->is_game_ready()) {
 			m_server->game_start();
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			t0 = SDL_GetPerformanceCounter();
+			tick = 0;
+			next_logic = t0 + freq / TPS;
+			in_game = true;
+		}
+		else {
+			tick++;
+			next_logic = t0 + (tick + 1) * freq / TPS;
+		}
 	}
 }

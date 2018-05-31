@@ -13,23 +13,27 @@ namespace
  * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
  * At the same time, the previous previews become normal blocks at rest.
  * In this instant, they are tagged as *hot*.
- *
- * @param pit Pit object
  */
 bool spawn_previews(Pit& pit);
+
+/**
+ * Given the number of one player in the game, returns the target opponent.
+ * If the given player loses, the opponent wins.
+ * If the given player produces a combo or chain, the opponent receives garbage.
+ */
+int opponent(int player);
 
 }
 
 BlockDirector::BlockDirector(GameState& state)
 : m_state(&state),
-  m_handler(nullptr),
-  m_over(false)
+  m_handler(nullptr)
 {}
 
 void BlockDirector::update()
 {
-	for(auto& pit : m_state->pit())
-		update_single(*pit);
+	for(int player = 0; player < m_state->pit().size(); player++)
+		update_single(player);
 }
 
 bool BlockDirector::swap(int player)
@@ -82,7 +86,7 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
 }
 
-void BlockDirector::update_single(Pit& pit)
+void BlockDirector::update_single(int player)
 {
 	// TODO: Is this function still ripe for refactoring?
 	//
@@ -93,6 +97,9 @@ void BlockDirector::update_single(Pit& pit)
 	//
 	// Measure to check:
 	// 1. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
+
+	// Target player's pit object
+	Pit& pit = *m_state->pit().at(player);
 
 	// Implementation object for low-level pit examination
 	Logic logic{pit};
@@ -167,7 +174,7 @@ void BlockDirector::update_single(Pit& pit)
 		if(!pit_chaining && !breaking && !recovering) {
 			const bool panic = pit.do_panic() <= 0;
 			if(panic && !debug_no_gameover)
-				m_over = true;
+				m_winner = opponent(player);
 		}
 	}
 	else {
@@ -346,6 +353,12 @@ bool spawn_previews(Pit& pit)
 	}
 
 	return true;
+}
+
+int opponent(int player)
+{
+	assert(0 == player || 1 == player || "more than two players not implemented yet");
+	return 0 == player ? 1 : 0;
 }
 
 }

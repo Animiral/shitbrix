@@ -79,8 +79,7 @@ void Journal::add_input(GameInput input)
 
 void Journal::set_winner(int winner) noexcept
 {
-	enforce(winner == GameMeta::WINNER_UNDECIDED ||
-	        (winner >= 0 && winner < m_meta.players));
+	enforce(winner == NOONE || (winner >= 0 && winner < m_meta.players));
 	m_meta.winner = winner;
 }
 

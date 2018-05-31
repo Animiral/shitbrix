@@ -138,7 +138,7 @@ struct DemoFactory
 	VisualDemo construct()
 	{
 		assert(!m_stage);
-		m_meta = GameMeta{2, 0, GameMeta::WINNER_UNDECIDED};
+		m_meta = GameMeta{2, 0, NOONE};
 		m_state = std::make_unique<GameState>(m_meta);
 		m_stage = std::make_unique<Stage>(*m_state);
 		Pit& pit = *m_stage->state().pit().at(0);
