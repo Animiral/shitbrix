@@ -136,7 +136,7 @@ const char* button_action_to_string(ButtonAction action) noexcept;
  * Return the corresponding @c ButtonAction for the string representation.
  * @throw GameException if the string is not recognized.
  */
-ButtonAction string_to_button_action(const std::string& str);
+ButtonAction string_to_button_action(const std::string& action_string);
 
 constexpr int NOONE = -1; // not-a player id
 
@@ -172,7 +172,7 @@ struct GameInput
 	 * Return the @c GameInput from the string representation.
 	 * @throw GameException if the string is not recognized.
 	 */
-	static GameInput from_string(std::string str);
+	static GameInput from_string(std::string input_string);
 };
 
 /**
@@ -198,7 +198,17 @@ struct GameMeta
 	 * Return the @c GameMeta from the string representation.
 	 * @throw GameException if the string is not recognized.
 	 */
-	static GameMeta from_string(std::string str);
+	static GameMeta from_string(std::string meta_string);
+};
+
+/**
+ * These dials contain general parameters that govern the current game session
+ * outside the journal record of the game. They can be manipulated by the
+ * server.
+ */
+struct Dials
+{
+	int speed = 1; //!< display speed of the game (currently just 0 for pause and 1 normally)
 };
 
 /**
@@ -293,3 +303,15 @@ constexpr int BANNER_W = 200; //!< width of the win/lose banner in canvas pixels
 constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixels
 
 constexpr int TRANSITION_TIME = 20; //!< Number of frames for screen transition
+
+// ================================================
+// Miscellaneous
+// ================================================
+
+/**
+ * Set the current thread name.
+ * Since we use libraries like SDL, which spawns a ridiculous number of its own
+ * threads, we name our threads so that we can find them in the list when
+ * debugging.
+ */
+void set_thread_name(const char* thread_name);

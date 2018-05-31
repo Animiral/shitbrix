@@ -141,12 +141,12 @@ void replay_write(std::ostream& stream, const Journal& journal)
 namespace
 {
 
-ReplayRecord::Type string_to_replay_record_type(const std::string& str)
+ReplayRecord::Type string_to_replay_record_type(const std::string& type_string)
 {
-	if("start" == str) return ReplayRecord::Type::START;
-	else if("meta" == str) return ReplayRecord::Type::META;
-	else if("input" == str) return ReplayRecord::Type::INPUT;
-	else throw ReplayException("Invalid event type string.");
+	if("start" == type_string) return ReplayRecord::Type::START;
+	else if("meta" == type_string) return ReplayRecord::Type::META;
+	else if("input" == type_string) return ReplayRecord::Type::INPUT;
+	else throw ReplayException("Invalid event type string: \"" + type_string + "\"");
 }
 
 }

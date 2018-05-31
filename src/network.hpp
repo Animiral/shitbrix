@@ -154,6 +154,7 @@ enum class MsgType
 	META,    //!< game meta-information
 	PLAYER,  //!< set player number of client
 	INPUT,   //!< player input in the game
+	SPEED,   //!< game playback speed
 	SYNC,    //!< whole game state
 	CLIENTS, //!< request for or sync info about connected clients
 	START,   //!< start game
@@ -423,6 +424,12 @@ public:
 	explicit BasicClient(std::unique_ptr<ENetClient> client);
 
 	/**
+	 * Return the extra-journal control structure.
+	 * Since these settings are tuned by the server, they are read-only.
+	 */
+	const Dials& dials() const noexcept { return m_dials; }
+
+	/**
 	 * Return the authoritative @c GameState kept by the Client.
 	 */
 	std::optional<GameState>& state() noexcept { return m_state; }
@@ -456,6 +463,14 @@ public:
 	void send_reset();
 
 	/**
+	 * Signal to the server that we want to change the speed of the game.
+	 * To pause the game, set the speed to 0.
+	 * To run at regular speed, set the speed to 1.
+	 * TODO: This should only work from a privileged client.
+	 */
+	void send_speed(int speed);
+
+	/**
 	 * Receive and handle incoming messages from the server.
 	 */
 	void poll();
@@ -464,6 +479,7 @@ private:
 
 	const std::unique_ptr<ENetClient> m_client; //!< low-level communicator object
 	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
+	Dials m_dials; //!< extra-journal control settings for the current game session
 	std::optional<GameState> m_state; //!< Active and always current game state container
 	std::optional<Journal> m_journal; //!< Game events and checkpoints record
 

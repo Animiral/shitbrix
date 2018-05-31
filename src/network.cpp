@@ -10,7 +10,8 @@ namespace
 {
 
 const char* msgtype_string[] =
-{"META", "PLAYER", "INPUT", "SYNC", "CLIENTS", "START", "BYE", "OFFER", "REMOVE", "JOIN", "LIST", "CHECKIN"};
+{"META", "PLAYER", "INPUT", "SPEED", "SYNC", "CLIENTS", "START", "BYE", "OFFER",
+ "REMOVE", "JOIN", "LIST", "CHECKIN"};
 
 }
 
@@ -36,14 +37,14 @@ Message Message::from_string(std::string message_string)
 
 	tokenizer >> sender >> recipient >> type_string >> std::ws;
 	if(!tokenizer)
-		throw GameException("Invalid Message string");
+		throw GameException("Invalid Message string: \"" + message_string + "\"");
 
 	std::getline(tokenizer, data);
 
 	const auto type_found = std::find(msgtype_string, std::end(msgtype_string), type_string);
 	const size_t type_index = std::distance(msgtype_string, type_found);
 	if(std::size(msgtype_string) <= type_index)
-		throw GameException("Invalid Message type string");
+		throw GameException("Invalid Message type string: \"" + type_string + "\"");
 
 	return Message{sender, recipient, static_cast<MsgType>(type_index), data};
 }
@@ -402,6 +403,7 @@ ENetServer::ENetServer()
 
 void ENetServer::broadcast_message(Message message)
 {
+	Log::trace("Server send message: %s", message.to_string().c_str());
 	PacketPtr packet = ENet::instance().create_packet(message.to_string(), ENET_PACKET_FLAG_RELIABLE);
 
 	enet_host_broadcast(m_host.get(), MESSAGE_CHANNEL, packet.release());
@@ -482,6 +484,7 @@ ENetClient::ENetClient(const char* server_name)
 void ENetClient::send_message(MsgType type, std::string data)
 {
 	const Message message{0, 0, type, data};
+	Log::trace("Client send message: %s", message.to_string().c_str());
 	PacketPtr packet = ENet::instance().create_packet(message.to_string(), ENET_PACKET_FLAG_RELIABLE);
 
 	/* enet_host_broadcast (host, 0, packet);         */
@@ -506,6 +509,7 @@ std::vector<Message> ENetClient::poll()
 			enforce(MESSAGE_CHANNEL == event.channelID); // more channels in the future?
 
 			const std::string message_string{reinterpret_cast<char*>(packet->data)};
+			Log::trace("Client got message: %s", message_string.c_str());
 			messages.push_back(Message::from_string(message_string));
 		}
 			break;
@@ -539,6 +543,7 @@ bool BasicClient::is_game_ready() const noexcept
 void BasicClient::game_start()
 {
 	enforce(is_game_ready());
+	m_dials = Dials();
 	m_state = GameState{m_meta.value()};
 	m_journal = Journal(m_meta.value(), m_state.value());
 }
@@ -555,6 +560,11 @@ void BasicClient::send_reset()
 	const GameMeta meta{2, rdev()};
 	m_client->send_message(MsgType::META, meta.to_string());
 	m_client->send_message(MsgType::START, {});
+}
+
+void BasicClient::send_speed(int speed)
+{
+	m_client->send_message(MsgType::SPEED, std::to_string(speed));
 }
 
 void BasicClient::poll()
@@ -576,6 +586,13 @@ void BasicClient::handle_message(const Message& message)
 
 		const GameInput input = GameInput::from_string(message.data);
 		m_journal.value().add_input(input);
+	}
+		break;
+
+	case MsgType::SPEED:
+	{
+		const int speed = std::stoi(message.data);
+		m_dials.speed = speed;
 	}
 		break;
 
@@ -658,6 +675,8 @@ void ServerThread::exit()
 
 void ServerThread::main_loop()
 {
+	set_thread_name("Server Thread");
+
 	while(m_exit.test_and_set())
 	{
 		const auto messages = m_server.poll();
@@ -682,6 +701,19 @@ void ServerThread::handle_message(const Message& message)
 			message.recipient,
 			MsgType::INPUT,
 			input.to_string()};
+		m_server.broadcast_message(out_msg);
+	}
+		break;
+
+	case MsgType::SPEED:
+	{
+		const int speed = std::stoi(message.data);
+		// TODO: validate sender and input
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::SPEED,
+			std::to_string(speed)};
 		m_server.broadcast_message(out_msg);
 	}
 		break;

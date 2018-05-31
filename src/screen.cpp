@@ -37,12 +37,10 @@ std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	enforce(m_client);
 	std::optional<GameState>& state = m_client->state();
-	std::optional<Journal>& journal = m_client->journal();
 	assert(state.has_value());
-	assert(journal.has_value());
 	auto stage = std::make_unique<Stage>(state.value());
 	auto draw = std::make_unique<DrawGame>(*stage, m_assets);
-	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, journal.value(), *m_client);
+	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, *m_client);
 	return std::move(screen);
 }
 
@@ -126,13 +124,15 @@ void GamePlay::update()
 
 	std::optional<GameState>& state = m_screen->m_client->state();
 	assert(state.has_value());
+	std::optional<Journal>& journal = m_screen->m_client->journal();
+	assert(journal.has_value());
 	Rules& rules = m_screen->m_rules;
-	synchronurse(state.value(), game_time, m_screen->m_journal, rules);
+	synchronurse(*state, game_time, *journal, rules);
 
 	// NOTE: to determine the winner is a server-side job only.
 	if(rules.block_director.over()) {
 		int winner = 0; // opponent(static_cast<int>(i));
-		m_screen->m_journal.set_winner(winner);
+		journal->set_winner(winner);
 
 		// NOTE: this should only happen when the Journal tells us that the game is over.
 		// We should not assume that the winner that we have detected is valid until
@@ -163,15 +163,12 @@ GameScreen::GameScreen(
 	std::unique_ptr<Stage> stage,
 	std::unique_ptr<DrawGame> draw,
 	const Audio& audio,
-	Journal& journal,
 	BasicClient& client,
 	ServerThread* server)
 : m_game_time(0),
   m_done(false),
-  m_pause(false),
   m_stage(std::move(stage)),
   m_draw(std::move(draw)),
-  m_journal(journal),
   m_client(&client),
   m_rules{BlockDirector(client.state().value())},
   m_server(server),
@@ -194,7 +191,8 @@ GameScreen::~GameScreen() noexcept
 
 void GameScreen::update()
 {
-	if(!m_pause)
+	// check pause
+	if(0 < m_client->dials().speed)
 		update_impl();
 }
 
@@ -232,7 +230,10 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::PAUSE:
-			m_pause = !m_pause;
+			if(0 == m_client->dials().speed)
+				m_client->send_speed(1);
+			else
+				m_client->send_speed(0);
 			break;
 
 		case Button::RESET:
@@ -282,7 +283,9 @@ void GameScreen::input(ControllerInput cinput)
 
 void GameScreen::start()
 {
-	const GameMeta meta = m_journal.meta();
+	std::optional<Journal>& journal = m_client->journal();
+	assert(journal.has_value());
+	const GameMeta meta = journal->meta();
 	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
 	change_phase(std::make_unique<GameIntro>(this));

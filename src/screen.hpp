@@ -212,7 +212,6 @@ public:
 		std::unique_ptr<Stage> stage,
 		std::unique_ptr<DrawGame> draw,
 		const Audio& audio,
-		Journal& journal,
 		BasicClient& client,
 		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
@@ -227,14 +226,12 @@ private:
 
 	long m_game_time; // starts at 0 with each game round
 	bool m_done; // true if this screen has reached its end
-	bool m_pause; // true if tick updates are supressed
 
 	std::unique_ptr<IGamePhase> m_game_phase;
 	std::unique_ptr<IGamePhase> m_next_phase;
 
 	std::unique_ptr<Stage> m_stage;
 	std::unique_ptr<DrawGame> m_draw;
-	Journal& m_journal;
 	BasicClient* const m_client;
 	ServerThread* const m_server;
 	Rules m_rules;
