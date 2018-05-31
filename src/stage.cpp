@@ -586,7 +586,7 @@ namespace
  */
 Point layout_pit(int players, int index)
 {
-	enforce(2 == players); // different player number not supported yet
+	enforce(2 >= players); // higher player number not supported yet
 
 	return index <= 0 ? LPIT_LOC : RPIT_LOC;
 }
