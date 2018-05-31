@@ -10,7 +10,9 @@ GameLoop::GameLoop(Options options)
   m_keyboard()
 {
 	if(nullptr != std::strstr(m_options.run_mode(), "server")) {
-		m_server.reset(new ServerThread());
+		auto server_backend = std::make_unique<ENetServer>();
+		auto server_impl = std::make_unique<BasicServer>(std::move(server_backend));
+		m_server.reset(new ServerThread(std::move(server_impl)));
 		m_screen_factory.set_server(m_server.get());
 	}
 

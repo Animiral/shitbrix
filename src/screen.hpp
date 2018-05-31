@@ -234,7 +234,6 @@ private:
 	std::unique_ptr<DrawGame> m_draw;
 	BasicClient* const m_client;
 	ServerThread* const m_server;
-	Rules m_rules;
 	evt::SoundRelay m_sound_relay;
 	std::unique_ptr<ShakeRelay> m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;

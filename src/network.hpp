@@ -12,8 +12,6 @@
  */
 #pragma once
 
-// ==================== high-level interfaces ====================
-
 #include <vector>
 #include <string>
 #include <memory>
@@ -21,6 +19,8 @@
 #include <atomic>
 #include "globals.hpp"
 #include "stage.hpp"
+
+// ==================== high-level interfaces ====================
 
 /**
  * Represents a game not yet in progress.
@@ -343,8 +343,21 @@ private:
 // ==================== simple integration with game logic ====================
 
 #include "replay.hpp"
+#include "director.hpp"
 #include "input.hpp"
 #include "enet_helper.hpp"
+
+/**
+ * Contains the data that one side in a networked game needs to keep track of
+ * the ongoing game round.
+ */
+struct GameData
+{
+	Dials dials; //!< Extra-journal control settings for the current game session
+	GameState state; //!< Active and always current game state container
+	Rules rules; //!< Game state manipulation routines
+	Journal journal; //!< Game events and checkpoints record
+};
 
 /**
  * Low-level server implementation.
@@ -419,20 +432,14 @@ public:
 
 	/**
 	 * Construct the client to communicate via the given low-level interface.
-	 * The @c BasicClient is the owner of the game state, initially given here.
+	 * The @c BasicClient is the owner of the game state during the game round.
 	 */
 	explicit BasicClient(std::unique_ptr<ENetClient> client);
 
 	/**
-	 * Return the extra-journal control structure.
-	 * Since these settings are tuned by the server, they are read-only.
+	 * Return the game-round data, if the game is currently ongoing.
 	 */
-	const Dials& dials() const noexcept { return m_dials; }
-
-	/**
-	 * Return the authoritative @c GameState kept by the Client.
-	 */
-	std::optional<GameState>& state() noexcept { return m_state; }
+	GameData& gamedata() noexcept { enforce(m_gamedata.has_value()); return *m_gamedata; }
 
 	/**
 	 * Return true if the server expects us to start the game now, but the game
@@ -444,11 +451,6 @@ public:
 	 * Initialize the game state from the meta information.
 	 */
 	void game_start();
-
-	/**
-	 * Return the authoritative Journal kept by the Client.
-	 */
-	std::optional<Journal>& journal() noexcept { return m_journal; }
 
 	/**
 	 * Apply the given input to the game by sending it to the server.
@@ -478,10 +480,9 @@ public:
 private:
 
 	const std::unique_ptr<ENetClient> m_client; //!< low-level communicator object
+
 	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
-	Dials m_dials; //!< extra-journal control settings for the current game session
-	std::optional<GameState> m_state; //!< Active and always current game state container
-	std::optional<Journal> m_journal; //!< Game events and checkpoints record
+	std::optional<GameData> m_gamedata; //!< information during the game round
 
 	/**
 	 * Process a single message.
@@ -518,6 +519,57 @@ private:
 };
 
 /**
+ * Server logic implementation.
+ * Connects network messages with the game state and function calls.
+ */
+class BasicServer
+{
+
+public:
+
+	/**
+	 * Construct the server to communicate via the given low-level interface.
+	 * The @c BasicServer is the owner of the game state during the game round.
+	 */
+	explicit BasicServer(std::unique_ptr<ENetServer> server);
+
+	/**
+	 * Return the game-round data, if the game is currently ongoing.
+	 */
+	GameData& gamedata() noexcept { enforce(m_gamedata.has_value()); return *m_gamedata; }
+
+	/**
+	 * Return true if the prerequisite data is available, but the game
+	 * state is not yet constructed.
+	 */
+	bool is_game_ready() const noexcept;
+
+	/**
+	 * Initialize the game state from the meta information.
+	 */
+	void game_start();
+
+	/**
+	 * Receive and handle incoming messages from the clients.
+	 */
+	void poll();
+
+private:
+
+	std::unique_ptr<ENetServer> m_server;
+
+	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
+	std::optional<GameData> m_gamedata; //!< information during the game round
+
+	/**
+	 * Process a single message.
+	 * Most often, this means to validate it and forward it to all connected peers.
+	 */
+	void handle_message(const Message& message);
+
+};
+
+/**
  * Runs a server in a thread until the object is destroyed.
  */
 class ServerThread
@@ -528,7 +580,7 @@ public:
 	/**
 	 * Start a game server in a separate thread.
 	 */
-	ServerThread();
+	ServerThread(std::unique_ptr<BasicServer> server);
 
 	/**
 	 * Exit from the server thread, if necessary.
@@ -547,18 +599,12 @@ private:
 
 	std::atomic_flag m_exit;
 	std::future<void> m_future;
-	ENetServer m_server;
+	std::unique_ptr<BasicServer> m_server;
 
 	/**
 	 * Main entry point of the thread.
 	 * It will periodically check the @c m_exit flag while handling requests.
 	 */
 	void main_loop();
-
-	/**
-	 * Process a single message.
-	 * Most often, this means to validate it and forward it to all connected peers.
-	 */
-	void handle_message(const Message& message);
 
 };

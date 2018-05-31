@@ -537,15 +537,16 @@ BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
 
 bool BasicClient::is_game_ready() const noexcept
 {
-	return m_meta.has_value() && !m_state.has_value();
+	return m_meta.has_value() && !m_gamedata.has_value();
 }
 
 void BasicClient::game_start()
 {
 	enforce(is_game_ready());
-	m_dials = Dials();
-	m_state = GameState{m_meta.value()};
-	m_journal = Journal(m_meta.value(), m_state.value());
+
+	GameState state{*m_meta};
+	Journal journal{*m_meta, state};
+	m_gamedata = GameData{Dials(), std::move(state), Rules{BlockDirector(m_gamedata->state)}, std::move(journal)};
 }
 
 void BasicClient::send_input(GameInput input)
@@ -581,26 +582,28 @@ void BasicClient::handle_message(const Message& message)
 
 	case MsgType::INPUT:
 	{
-		if(!m_journal.has_value())
+		if(!m_gamedata.has_value())
 			throw new GameException("Got input from server before the game is running.");
 
 		const GameInput input = GameInput::from_string(message.data);
-		m_journal.value().add_input(input);
+		m_gamedata->journal.add_input(input);
 	}
 		break;
 
 	case MsgType::SPEED:
 	{
+		if(!m_gamedata.has_value())
+			throw new GameException("Got speed from server before the game is running.");
+
 		const int speed = std::stoi(message.data);
-		m_dials.speed = speed;
+		m_gamedata->dials.speed = speed;
 	}
 		break;
 
 	case MsgType::META:
 	{
 		m_meta = GameMeta::from_string(message.data);
-		m_state.reset(); // new meta info invalidates game state and history
-		m_journal.reset();
+		m_gamedata.reset(); // new meta info invalidates game state and history
 	}
 		break;
 
@@ -644,9 +647,113 @@ void ClientStub::send_input(GameInput input)
 }
 
 
-ServerThread::ServerThread()
-	: m_server()
+BasicServer::BasicServer(std::unique_ptr<ENetServer> server)
+: m_server(std::move(server))
+{}
+
+bool BasicServer::is_game_ready() const noexcept
 {
+	return m_meta.has_value() && !m_gamedata.has_value();
+}
+
+void BasicServer::game_start()
+{
+	enforce(is_game_ready());
+
+	GameState state{*m_meta};
+	Journal journal{*m_meta, state};
+	m_gamedata = GameData{Dials(), std::move(state), Rules{BlockDirector(m_gamedata->state)}, std::move(journal)};
+}
+
+void BasicServer::poll()
+{
+	const auto messages = m_server->poll();
+
+	for(const auto& m : messages)
+		handle_message(m);
+}
+
+void BasicServer::handle_message(const Message& message)
+{
+	// TODO: on error, properly discard the message and offending client
+
+	switch(message.type) {
+
+	case MsgType::INPUT:
+	{
+		const GameInput input = GameInput::from_string(message.data);
+		// TODO: validate input
+
+		if(!m_gamedata.has_value())
+			throw new GameException("Got input from client before the game is running.");
+		m_gamedata->journal.add_input(input);
+
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::INPUT,
+			input.to_string()};
+		m_server->broadcast_message(out_msg);
+	}
+		break;
+
+	case MsgType::SPEED:
+	{
+		const int speed = std::stoi(message.data);
+		// TODO: validate sender and input
+
+		if(!m_gamedata.has_value())
+			throw new GameException("Got speed from client before the game is running.");
+		m_gamedata->dials.speed = speed;
+
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::SPEED,
+			std::to_string(speed)};
+		m_server->broadcast_message(out_msg);
+	}
+		break;
+
+	case MsgType::META:
+	{
+		// TODO: validate sender
+		m_meta = GameMeta::from_string(message.data);
+		m_gamedata.reset(); // new meta info invalidates game state and history
+
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::META,
+			m_meta->to_string()};
+		m_server->broadcast_message(out_msg);
+	}
+		break;
+
+	case MsgType::START:
+	{
+		// TODO: validate sender
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::START,
+			{}};
+		m_server->broadcast_message(out_msg);
+	}
+		break;
+
+	default:
+		assert(!"not implemented yet");
+
+	}
+}
+
+
+ServerThread::ServerThread(std::unique_ptr<BasicServer> server)
+	: m_server(std::move(server))
+{
+	enforce(nullptr != m_server);
+
 	m_exit.test_and_set(); // flag is now known set
 	m_future = std::async([this] { main_loop(); });
 }
@@ -679,72 +786,12 @@ void ServerThread::main_loop()
 
 	while(m_exit.test_and_set())
 	{
-		const auto messages = m_server.poll();
+		m_server->poll();
 
-		for(const auto& m : messages)
-			handle_message(m);
+		// start game at every opportunity
+		if(m_server->is_game_ready())
+			m_server->game_start();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	}
-}
-
-void ServerThread::handle_message(const Message& message)
-{
-	switch(message.type) {
-
-	case MsgType::INPUT:
-	{
-		const GameInput input = GameInput::from_string(message.data);
-		// TODO: validate input
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::INPUT,
-			input.to_string()};
-		m_server.broadcast_message(out_msg);
-	}
-		break;
-
-	case MsgType::SPEED:
-	{
-		const int speed = std::stoi(message.data);
-		// TODO: validate sender and input
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::SPEED,
-			std::to_string(speed)};
-		m_server.broadcast_message(out_msg);
-	}
-		break;
-
-	case MsgType::META:
-	{
-		const GameMeta meta = GameMeta::from_string(message.data);
-		// TODO: validate sender
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::META,
-			meta.to_string()};
-		m_server.broadcast_message(out_msg);
-	}
-		break;
-
-	case MsgType::START:
-	{
-		// TODO: validate sender
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::START,
-			{}};
-		m_server.broadcast_message(out_msg);
-	}
-		break;
-
-	default:
-		assert(!"not implemented yet");
-
 	}
 }

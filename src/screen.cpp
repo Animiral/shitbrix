@@ -36,9 +36,8 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu()
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	enforce(m_client);
-	std::optional<GameState>& state = m_client->state();
-	assert(state.has_value());
-	auto stage = std::make_unique<Stage>(state.value());
+	GameState& state = m_client->gamedata().state;
+	auto stage = std::make_unique<Stage>(state);
 	auto draw = std::make_unique<DrawGame>(*stage, m_assets);
 	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, *m_client);
 	return std::move(screen);
@@ -122,28 +121,24 @@ void GamePlay::update()
 	long& game_time = m_screen->m_game_time;
 	game_time++;
 
-	std::optional<GameState>& state = m_screen->m_client->state();
-	assert(state.has_value());
-	std::optional<Journal>& journal = m_screen->m_client->journal();
-	assert(journal.has_value());
-	Rules& rules = m_screen->m_rules;
-	synchronurse(*state, game_time, *journal, rules);
+	GameData& gamedata = m_screen->m_client->gamedata();
+	synchronurse(gamedata.state, game_time, gamedata.journal, gamedata.rules);
 
-	// NOTE: to determine the winner is a server-side job only.
-	if(rules.block_director.over()) {
-		int winner = 0; // opponent(static_cast<int>(i));
-		journal->set_winner(winner);
+	//// NOTE: to determine the winner is a server-side job only.
+	//if(rules.block_director.over()) {
+	//	int winner = 0; // opponent(static_cast<int>(i));
+	//	journal.set_winner(winner);
 
-		// NOTE: this should only happen when the Journal tells us that the game is over.
-		// We should not assume that the winner that we have detected is valid until
-		// it is part of the game record.
-		m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+	//	// NOTE: this should only happen when the Journal tells us that the game is over.
+	//	// We should not assume that the winner that we have detected is valid until
+	//	// it is part of the game record.
+	//	m_screen->m_gameover_relay->fire(evt::GameOver{winner});
 
-		auto phase = std::make_unique<GameResult>(m_screen, winner);
-		m_screen->change_phase(std::move(phase));
+	//	auto phase = std::make_unique<GameResult>(m_screen, winner);
+	//	m_screen->change_phase(std::move(phase));
 
-		return;
-	}
+	//	return;
+	//}
 }
 
 GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
@@ -170,7 +165,6 @@ GameScreen::GameScreen(
   m_stage(std::move(stage)),
   m_draw(std::move(draw)),
   m_client(&client),
-  m_rules{BlockDirector(client.state().value())},
   m_server(server),
   m_sound_relay(audio)
 {
@@ -192,7 +186,7 @@ GameScreen::~GameScreen() noexcept
 void GameScreen::update()
 {
 	// check pause
-	if(0 < m_client->dials().speed)
+	if(0 < m_client->gamedata().dials.speed)
 		update_impl();
 }
 
@@ -230,7 +224,7 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::PAUSE:
-			if(0 == m_client->dials().speed)
+			if(0 == m_client->gamedata().dials.speed)
 				m_client->send_speed(1);
 			else
 				m_client->send_speed(0);
@@ -264,13 +258,13 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::DEBUG4:
 			// TODO: this does not work with Network
-			m_rules.block_director.debug_no_gameover ^= true;
+			//m_rules.block_director.debug_no_gameover ^= true;
 			// debug_print_pit(stage->pits()[0]->pit);
 			break;
 
 		case Button::DEBUG5:
 			// TODO: this does not work with Network
-			m_rules.block_director.debug_spawn_garbage(6, 2);
+			//m_rules.block_director.debug_spawn_garbage(6, 2);
 			// debug_print_pit(stage->pits()[1]->pit);
 			break;
 
@@ -283,19 +277,15 @@ void GameScreen::input(ControllerInput cinput)
 
 void GameScreen::start()
 {
-	std::optional<Journal>& journal = m_client->journal();
-	assert(journal.has_value());
-	const GameMeta meta = journal->meta();
+	GameData& gamedata = m_client->gamedata();
+	const GameMeta meta = gamedata.journal.meta();
 	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
 	change_phase(std::make_unique<GameIntro>(this));
 	change_phase_impl();
-	std::optional<GameState>& state = m_client->state();
-	assert(state.has_value());
-	m_game_time = state.value().game_time();
+	m_game_time = gamedata.state.game_time();
 	m_done = false;
 
-	m_rules = {BlockDirector(state.value())};
 	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
 	m_shake_relay.reset(new ShakeRelay(*m_draw));
 
