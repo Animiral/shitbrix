@@ -38,7 +38,7 @@ private:
 
 	// network hosts
 	std::unique_ptr<ServerThread> m_server;
-	std::unique_ptr<ENetClient> m_client;
+	std::unique_ptr<BasicClient> m_client;
 
 	// screens (instance if active, nullptr otherwise)
 	ScreenFactory m_screen_factory;

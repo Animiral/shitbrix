@@ -670,10 +670,10 @@ void BonusIndicator::update() noexcept
 }
 
 
-Stage::Stage(GameState init)
-	: m_state(std::move(init))
+Stage::Stage(GameState& state)
+	: m_state(&state)
 {
-	enforce(2 == m_state.pit().size()); // different player number not supported yet
+	enforce(2 == state.pit().size()); // different player number not supported yet
 
 	Point lbanner_loc{LPIT_LOC.offset((PIT_W - BANNER_W) / 2., (PIT_H - BANNER_H) / 2.)};
 	m_sobs.push_back({Banner(lbanner_loc), BonusIndicator(LBONUS_LOC)});
@@ -684,7 +684,7 @@ Stage::Stage(GameState init)
 
 void Stage::update()
 {
-	m_state.update();
+	m_state->update();
 
 	for(auto& sob : m_sobs)
 		sob.bonus.update();

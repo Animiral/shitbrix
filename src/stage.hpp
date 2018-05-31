@@ -701,7 +701,7 @@ class Stage
 
 public:
 
-	explicit Stage(GameState init);
+	explicit Stage(GameState& state);
 	Stage(const Stage& ) =delete;
 
 	//! Helper struct for stage contents (per player).
@@ -717,14 +717,13 @@ public:
 
 	void update();
 
-	GameState& state() { return m_state; }
-	const GameState& state() const { return m_state; }
+	const GameState& state() const { return *m_state; }
 	SobVector& sobs() { return m_sobs; }
 	const SobVector& sobs() const { return m_sobs; }
 
 private:
 
-	GameState m_state;
+	GameState* const m_state;
 	SobVector m_sobs;
 
 };

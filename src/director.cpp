@@ -21,20 +21,20 @@ bool spawn_previews(Pit& pit);
 }
 
 BlockDirector::BlockDirector(GameState& state)
-: m_state(state),
+: m_state(&state),
   m_handler(nullptr),
   m_over(false)
 {}
 
 void BlockDirector::update()
 {
-	for(auto& pit : m_state.get().pit())
+	for(auto& pit : m_state->pit())
 		update_single(*pit);
 }
 
 bool BlockDirector::swap(int player)
 {
-	Pit& pit = *m_state.get().pit().at(player);
+	Pit& pit = *m_state->pit().at(player);
 	const RowCol lrc = pit.cursor().rc; // left row/column
 	const RowCol rrc {lrc.r, lrc.c+1}; // right row/column
 
@@ -77,7 +77,7 @@ bool BlockDirector::swap(int player)
 
 void BlockDirector::debug_spawn_garbage(int columns, int rows)
 {
-	Pit& pit = *m_state.get().pit().at(0); // first pit
+	Pit& pit = *m_state->pit().at(0); // first pit
 	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 2;
 	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows);
 }
@@ -221,6 +221,10 @@ void apply_input(GameState& state, Rules& rules, GameInput ginput)
 	}
 }
 
+/**
+ * Bring the game state to the @c target_time by calculation from the game
+ * journal and the game rules.
+ */
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
 {
 	// get events from journal, from which inputs will be relayed to the phase
@@ -235,16 +239,14 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 	GameInputSpan inputs = journal.discover_inputs(state.game_time() + 1, target_time);
 	auto input_it = inputs.first;
 
-	while(state.game_time() < target_time) {
+	while(state.game_time() < target_time && !rules.block_director.over()) {
 		for(; input_it != inputs.second && input_it->input.game_time == state.game_time() + 1; ++input_it) {
 			apply_input(state, rules, input_it->input);
 		}
 
 		// state.game_time() is incremented here.
 		state.update();
-
-		if(!rules.block_director.over())
-			rules.block_director.update();
+		rules.block_director.update();
 	}
 
 	// save new checkpoint?

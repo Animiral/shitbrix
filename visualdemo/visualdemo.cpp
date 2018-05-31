@@ -123,6 +123,7 @@ private:
 struct DemoFactory
 {
 	GameMeta m_meta;
+	std::unique_ptr<GameState> m_state;
 	std::unique_ptr<Stage> m_stage;
 	std::unique_ptr<Logic> m_logic;
 	std::unique_ptr<BlockDirector> m_director;
@@ -138,11 +139,12 @@ struct DemoFactory
 	{
 		assert(!m_stage);
 		m_meta = GameMeta{2, 0, GameMeta::WINNER_UNDECIDED};
-		m_stage = std::make_unique<Stage>(GameState{m_meta});
+		m_state = std::make_unique<GameState>(m_meta);
+		m_stage = std::make_unique<Stage>(*m_state);
 		Pit& pit = *m_stage->state().pit().at(0);
 		m_draw = std::make_unique<DrawGame>(*m_stage, m_assets);
 		m_logic = std::make_unique<Logic>(pit);
-		m_director = std::make_unique<BlockDirector>(m_stage->state());
+		m_director = std::make_unique<BlockDirector>(*m_state);
 		return VisualDemo(pit, *m_draw, *m_director);
 	}
 };

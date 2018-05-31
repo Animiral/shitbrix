@@ -165,12 +165,21 @@ enum class MsgType
 	CHECKIN, //!< initialize communication with Reception
 };
 
+/**
+ * Network message representation.
+ * All messages sent in ENet packets are represented in this low-level structure.
+ * The message payload is still encoded as a free-form string and must be
+ * parsed in the proper context.
+ */
 struct Message
 {
 	int sender;       //!< sender queue number
 	int recipient;    //!< recipient queue number
 	MsgType type;     //!< message category
 	std::string data; //!< encoded message arguments / payload
+
+	std::string to_string() const;
+	static Message from_string(std::string message_string);
 };
 
 class Mailbox
@@ -336,22 +345,41 @@ private:
 #include "input.hpp"
 #include "enet_helper.hpp"
 
+/**
+ * Low-level server implementation.
+ * Keeps track of client connections and communicates in @c Messages.
+ */
 class ENetServer
 {
 
 public:
 
+	/**
+	 * Construct the server to listen on all network addresses on the port
+	 * number specified in the global constant @c NET_PORT.
+	 */
 	ENetServer();
 
-	void broadcast_input(GameInput input);
-	void poll();
+	/**
+	 * Send the message to all clients.
+	 */
+	void broadcast_message(Message message);
+
+	/**
+	 * Listen for client messages and return them.
+	 */
+	std::vector<Message> poll();
 
 private:
 
-	HostPtr m_host;
+	const HostPtr m_host;
 
 };
 
+/**
+ * Low-level client implementation.
+ * Keeps track of the connection to the server and communicates in @c Messages.
+ */
 class ENetClient
 {
 
@@ -363,31 +391,87 @@ public:
 	explicit ENetClient(const char* server_name);
 
 	/**
-	 * Start a new game Journal.
-	 * TODO: to signal restart and to randomize the seed is the server's job.
+	 * Send the given message to the server on the MESSAGE_CHANNEL.
 	 */
-	void reset_journal();
-
-	/**
-	 * Return the authoritative Journal kept by the Client.
-	 */
-	Journal& journal() noexcept { return m_journal; }
-
-	/**
-	 * Send the given input to the server on the INPUT_CHANNEL.
-	 */
-	void send_input(GameInput input);
+	void send_message(MsgType type, std::string data);
 
 	/**
 	 * Handle events and possible new messages from the server.
 	 */
-	void poll();
+	std::vector<Message> poll();
 
 private:
 
 	HostPtr m_host;    //!< ENetHost object
 	ENetPeer* m_peer;  //!< ENet peer associated with the server
-	Journal m_journal; //!< Game events and checkpoints record
+
+};
+
+/**
+ * Client logic implementation.
+ * Connects network messages with the game state and function calls.
+ */
+class BasicClient
+{
+
+public:
+
+	/**
+	 * Construct the client to communicate via the given low-level interface.
+	 * The @c BasicClient is the owner of the game state, initially given here.
+	 */
+	explicit BasicClient(std::unique_ptr<ENetClient> client);
+
+	/**
+	 * Return the authoritative @c GameState kept by the Client.
+	 */
+	std::optional<GameState>& state() noexcept { return m_state; }
+
+	/**
+	 * Return true if the server expects us to start the game now, but the game
+	 * state is not yet constructed.
+	 */
+	bool is_game_ready() const noexcept;
+
+	/**
+	 * Initialize the game state from the meta information.
+	 */
+	void game_start();
+
+	/**
+	 * Return the authoritative Journal kept by the Client.
+	 */
+	std::optional<Journal>& journal() noexcept { return m_journal; }
+
+	/**
+	 * Apply the given input to the game by sending it to the server.
+	 * In the future, we will pre-emptively trust our self-made inputs.
+	 */
+	void send_input(GameInput input);
+
+	/**
+	 * Signal to the server that we want to start a fresh game.
+	 * TODO: This should only work from a privileged client.
+	 */
+	void send_reset();
+
+	/**
+	 * Receive and handle incoming messages from the server.
+	 */
+	void poll();
+
+private:
+
+	const std::unique_ptr<ENetClient> m_client; //!< low-level communicator object
+	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
+	std::optional<GameState> m_state; //!< Active and always current game state container
+	std::optional<Journal> m_journal; //!< Game events and checkpoints record
+
+	/**
+	 * Process a single message.
+	 * The appropriate changes and effects are then seen in the game state and journal.
+	 */
+	void handle_message(const Message& message);
 
 };
 
@@ -399,13 +483,21 @@ public:
 
 	ClientStub();
 
+	/**
+	 * Return the authoritative Journal kept by the Client.
+	 */
 	Journal& journal() noexcept { return m_journal; }
+
+	/**
+	 * Apply the given input to the game by inserting it into the journal.
+	 */
 	void send_input(GameInput input);
+
 	void poll() {}
 
 private:
 
-	Journal m_journal;
+	Journal m_journal; //!< Game events and checkpoints record
 
 };
 
@@ -439,7 +531,18 @@ private:
 
 	std::atomic_flag m_exit;
 	std::future<void> m_future;
+	ENetServer m_server;
 
+	/**
+	 * Main entry point of the thread.
+	 * It will periodically check the @c m_exit flag while handling requests.
+	 */
 	void main_loop();
+
+	/**
+	 * Process a single message.
+	 * Most often, this means to validate it and forward it to all connected peers.
+	 */
+	void handle_message(const Message& message);
 
 };

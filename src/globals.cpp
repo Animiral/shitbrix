@@ -14,29 +14,30 @@ BlockFrame& operator++(BlockFrame& frame)
 	return frame = static_cast<BlockFrame>(static_cast<size_t>(frame) + 1);
 }
 
-const char* game_button_to_string(GameButton button) noexcept
+namespace
 {
-	switch(button) {
-		case GameButton::NONE: return "none";
-		case GameButton::LEFT: return "left";
-		case GameButton::RIGHT: return "right";
-		case GameButton::UP: return "up";
-		case GameButton::DOWN: return "down";
-		case GameButton::SWAP: return "swap";
-		case GameButton::RAISE: return "raise";
-		default: assert(false); return nullptr;
-	}
+
+const char* gamebutton_string[] =
+{"none", "left", "right", "up", "down", "swap", "raise"};
+
 }
 
-GameButton string_to_game_button(const std::string& str)
+const char* game_button_to_string(GameButton button) noexcept
 {
-	if("left" == str) return GameButton::LEFT;
-	else if("right" == str) return GameButton::RIGHT;
-	else if("up" == str) return GameButton::UP;
-	else if("down" == str) return GameButton::DOWN;
-	else if("swap" == str) return GameButton::SWAP;
-	else if("raise" == str) return GameButton::RAISE;
-	else throw GameException("Invalid game button string");
+	const size_t button_index = static_cast<size_t>(button);
+	assert(button_index < std::size(gamebutton_string));
+	return gamebutton_string[button_index];
+}
+
+GameButton string_to_game_button(const std::string& button_string)
+{
+	const auto button_found = std::find(gamebutton_string, std::end(gamebutton_string), button_string);
+	const size_t button_index = std::distance(gamebutton_string, button_found);
+
+	if(std::size(gamebutton_string) <= button_index)
+		throw GameException("Invalid game button string");
+
+	return static_cast<GameButton>(button_index);
 }
 
 const char* button_action_to_string(ButtonAction action) noexcept
@@ -73,13 +74,34 @@ GameInput GameInput::from_string(std::string str)
 	std::string action_str;
 
 	tokenizer >> game_time >> player >> button_str >> action_str;
-	if(tokenizer.bad())
+	if(!tokenizer)
 		throw GameException("Invalid GameInput string");
 
 	GameButton button = string_to_game_button(button_str);
 	ButtonAction action = string_to_button_action(action_str);
 
 	return GameInput{game_time, player, button, action};
+}
+
+std::string GameMeta::to_string() const
+{
+	std::ostringstream ss;
+	ss << players << " " << seed << " " << winner;
+	return ss.str();
+}
+
+GameMeta GameMeta::from_string(std::string str)
+{
+	std::istringstream tokenizer(str);
+	int players;
+	unsigned seed;
+	int winner;
+
+	tokenizer >> players >> seed >> winner;
+	if(!tokenizer)
+		throw GameException("Invalid GameMeta string");
+
+	return GameMeta{players, seed, winner};
 }
 
 Point from_rc(RowCol rc)

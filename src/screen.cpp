@@ -30,16 +30,19 @@ ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const 
 std::unique_ptr<IScreen> ScreenFactory::create_menu()
 {
 	DrawMenu draw_menu(m_assets);
-	return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio);
+	return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio, *m_client);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	enforce(m_client);
-	Journal& journal = m_client->journal();
-	auto stage = std::make_unique<Stage>(GameState(journal.meta()));
+	std::optional<GameState>& state = m_client->state();
+	std::optional<Journal>& journal = m_client->journal();
+	assert(state.has_value());
+	assert(journal.has_value());
+	auto stage = std::make_unique<Stage>(state.value());
 	auto draw = std::make_unique<DrawGame>(*stage, m_assets);
-	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, journal, *m_client);
+	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, journal.value(), *m_client);
 	return std::move(screen);
 }
 
@@ -58,10 +61,11 @@ std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, 
 }
 
 
-MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio)
+MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio, BasicClient& client)
 : m_game_time(0),
   m_done(false),
-  m_draw(std::move(draw))
+  m_draw(std::move(draw)),
+  m_client(&client)
 {
 	Log::info("MenuScreen turn on.");
 }
@@ -69,6 +73,10 @@ MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio)
 void MenuScreen::update()
 {
 	m_game_time++;
+
+	// If the client has a fresh new game state, we know that the game starts.
+	if(m_client->is_game_ready())
+		m_done = true;
 }
 
 void MenuScreen::draw(float dt)
@@ -81,7 +89,7 @@ void MenuScreen::input(ControllerInput cinput)
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
 			m_result = Result::PLAY;
-			m_done = true;
+			m_client->send_reset(); // TODO: this should only work from privileged client
 		} else
 		if(Button::QUIT == cinput.button) {
 			m_result = Result::QUIT;
@@ -96,6 +104,7 @@ GameIntro::GameIntro(GameScreen* screen)
 : IGamePhase(screen), countdown(INTRO_TIME)
 {
 	m_screen->m_draw->show_cursor(true);
+	m_screen->m_draw->show_banner(false);
 }
 
 void GameIntro::update()
@@ -112,13 +121,13 @@ void GameIntro::update()
 
 void GamePlay::update()
 {
-	// get events from journal, from which inputs will be relayed to the phase
 	long& game_time = m_screen->m_game_time;
 	game_time++;
 
-	GameState& state = m_screen->m_stage->state();
+	std::optional<GameState>& state = m_screen->m_client->state();
+	assert(state.has_value());
 	Rules& rules = m_screen->m_rules;
-	synchronurse(state, game_time, m_screen->m_journal, rules);
+	synchronurse(state.value(), game_time, m_screen->m_journal, rules);
 
 	// NOTE: to determine the winner is a server-side job only.
 	if(rules.block_director.over()) {
@@ -155,38 +164,23 @@ GameScreen::GameScreen(
 	std::unique_ptr<DrawGame> draw,
 	const Audio& audio,
 	Journal& journal,
-	ENetClient& client,
+	BasicClient& client,
 	ServerThread* server)
-: m_stage(std::move(stage)),
-  m_draw(std::move(draw)),
+: m_game_time(0),
+  m_done(false),
   m_pause(false),
-  m_sound_relay(audio),
+  m_stage(std::move(stage)),
+  m_draw(std::move(draw)),
   m_journal(journal),
-  m_client(client),
+  m_client(&client),
+  m_rules{BlockDirector(client.state().value())},
   m_server(server),
-  m_rules{BlockDirector(m_stage->state())}
+  m_sound_relay(audio)
 {
 	assert(m_stage);
 	assert(m_draw);
 	Log::info("GameScreen turn on.");
 	start();
-/*
-	if(replay_infile) {
-		Log::info("Read replay from file: %s.", replay_infile);
-		std::ifstream stream(replay_infile);
-
-		if(!stream)
-			throw ReplayException("Could not open replay file.");
-
-		m_journal = std::make_unique<Journal>(replay_read(stream));
-		m_journal->set_sink(this);
-	}
-	else {
-		std::random_device rdev;
-		seed(rdev());
-	}*/
-
-	//reset(m_journal.meta());
 }
 
 GameScreen::~GameScreen() noexcept
@@ -232,7 +226,7 @@ void GameScreen::input(ControllerInput cinput)
 			if(oinput.has_value()) {
 				// TODO: network should assign the actual input time
 				oinput->game_time = m_game_time + 1; // input applies to next frame
-				m_client.send_input(oinput.value());
+				m_client->send_input(oinput.value());
 			}
 		}
 			break;
@@ -242,12 +236,10 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::RESET:
-			// This button is disabled until further notice.
-			//{
-			//	std::random_device rdev;
-			//	seed(rdev());
-			//}
-			//reset(m_journal->meta());
+		{
+			// TODO: this is supposed to work only in client-with-server mode
+			m_client->send_reset();
+		}
 			break;
 
 		case Button::QUIT:
@@ -295,10 +287,12 @@ void GameScreen::start()
 
 	change_phase(std::make_unique<GameIntro>(this));
 	change_phase_impl();
-	m_game_time = 1L;
+	std::optional<GameState>& state = m_client->state();
+	assert(state.has_value());
+	m_game_time = state.value().game_time();
 	m_done = false;
 
-	m_rules = {BlockDirector(m_stage->state())};
+	m_rules = {BlockDirector(state.value())};
 	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
 	m_shake_relay.reset(new ShakeRelay(*m_draw));
 
@@ -321,7 +315,14 @@ void GameScreen::change_phase_impl()
 
 void GameScreen::update_impl()
 {
+	// detect restarts from server
+	if(m_client->is_game_ready()) {
+		m_client->game_start();
+		start();
+	}
+
 	// run game logic
+	assert(m_game_phase);
 	m_game_phase->update();
 
 	if(m_next_phase)

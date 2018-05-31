@@ -6,7 +6,6 @@
 #include "stage.hpp"
 #include "gameevent.hpp"
 #include "logic.hpp"
-#include <algorithm>
 
 /**
  * The BlockDirector implements game-logical interactions between objects which these
@@ -55,7 +54,7 @@ private:
 	 */
 	void update_single(Pit& pit);
 
-	std::reference_wrapper<GameState> m_state;
+	GameState* m_state;
 	evt::IGameEvent* m_handler;
 	bool m_over;  //!< whether the game is over (there is a definite winner)
 
@@ -184,8 +183,6 @@ struct Rules
 	//GarbageThrow garbage_throw; // event handler for generating garbage bricks
 	//BonusThrow bonus_throw; // event handler for displaying stars
 };
-
-void apply_input(Rules& rules, GameInput ginput);
 
 /**
  * Bring the game state to the given @c target_time using the

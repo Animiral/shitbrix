@@ -32,7 +32,7 @@ ReplayRecord ReplayRecord::make_input(GameInput input) noexcept
 }
 
 
-Journal::Journal(GameMeta meta, GameState&& state0)
+Journal::Journal(GameMeta meta, GameState state0)
 : m_meta(meta), m_checkpoint({state0}), m_earliest_undiscovered(NO_UNDISCOVERED)
 {
 }

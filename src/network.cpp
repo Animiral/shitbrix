@@ -1,10 +1,52 @@
 #include "network.hpp"
+#include <sstream>
 #include "error.hpp"
 
 // These two libraries are dependencies of ENet.
-
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "Ws2_32.lib")
+
+namespace
+{
+
+const char* msgtype_string[] =
+{"META", "PLAYER", "INPUT", "SYNC", "CLIENTS", "START", "BYE", "OFFER", "REMOVE", "JOIN", "LIST", "CHECKIN"};
+
+}
+
+std::string Message::to_string() const
+{
+	const size_t type_index = static_cast<size_t>(type);
+	assert(type_index < std::size(msgtype_string));
+
+	std::ostringstream ss;
+	ss << sender << " " << recipient << " "
+	   << msgtype_string[type_index] << " " << data;
+	return ss.str();
+}
+
+Message Message::from_string(std::string message_string)
+{
+	std::istringstream tokenizer(message_string);
+
+	int sender;
+	int recipient;
+	std::string type_string;
+	std::string data;
+
+	tokenizer >> sender >> recipient >> type_string >> std::ws;
+	if(!tokenizer)
+		throw GameException("Invalid Message string");
+
+	std::getline(tokenizer, data);
+
+	const auto type_found = std::find(msgtype_string, std::end(msgtype_string), type_string);
+	const size_t type_index = std::distance(msgtype_string, type_found);
+	if(std::size(msgtype_string) <= type_index)
+		throw GameException("Invalid Message type string");
+
+	return Message{sender, recipient, static_cast<MsgType>(type_index), data};
+}
 
 void Mailbox::enqueue(Message message)
 {
@@ -358,17 +400,18 @@ ENetServer::ENetServer()
 {
 }
 
-void ENetServer::broadcast_input(GameInput input)
+void ENetServer::broadcast_message(Message message)
 {
-	PacketPtr packet = ENet::instance().create_packet(input.to_string(), ENET_PACKET_FLAG_RELIABLE);
+	PacketPtr packet = ENet::instance().create_packet(message.to_string(), ENET_PACKET_FLAG_RELIABLE);
 
-	enet_host_broadcast(m_host.get(), INPUT_CHANNEL, packet.release());
+	enet_host_broadcast(m_host.get(), MESSAGE_CHANNEL, packet.release());
 	enet_host_flush(m_host.get());
 }
 
-void ENetServer::poll()
+std::vector<Message> ENetServer::poll()
 {
 	ENetEvent event;
+	std::vector<Message> messages;
 
 	while (enet_host_service (m_host.get(), &event, 0) > 0)
 	{
@@ -389,13 +432,11 @@ void ENetServer::poll()
 
 			switch(event.channelID) {
 
-			case INPUT_CHANNEL:
+			case MESSAGE_CHANNEL:
 			{
-				std::string input_string{reinterpret_cast<char*>(packet->data)};
-				Log::trace("Server got input: %s", input_string.c_str());
-				GameInput input = GameInput::from_string(input_string);
-				// TODO: validate input
-				broadcast_input(input);
+				const std::string message_string{reinterpret_cast<char*>(packet->data)};
+				Log::trace("Server got message: %s", message_string.c_str());
+				messages.push_back(Message::from_string(message_string));
 			}
 				break;
 
@@ -420,24 +461,12 @@ void ENetServer::poll()
 
 		}
 	}
-}
 
-
-namespace
-{
-
-Journal make_journal()
-{
-	// TODO: to randomize the seed is the server's job
-	GameMeta meta{2, std::random_device{}()};
-	return Journal(meta, GameState{meta});
-}
-
+	return messages;
 }
 
 
 ENetClient::ENetClient(const char* server_name)
-	: m_journal(make_journal())
 {
 	std::tie(m_host, m_peer) = ENet::instance().create_client(server_name);
 
@@ -450,23 +479,20 @@ ENetClient::ENetClient(const char* server_name)
 	}
 }
 
-void ENetClient::reset_journal()
+void ENetClient::send_message(MsgType type, std::string data)
 {
-	m_journal = make_journal();
-}
-
-void ENetClient::send_input(GameInput input)
-{
-	PacketPtr packet = ENet::instance().create_packet(input.to_string(), ENET_PACKET_FLAG_RELIABLE);
+	const Message message{0, 0, type, data};
+	PacketPtr packet = ENet::instance().create_packet(message.to_string(), ENET_PACKET_FLAG_RELIABLE);
 
 	/* enet_host_broadcast (host, 0, packet);         */
-	enetok(enet_peer_send(m_peer, INPUT_CHANNEL, packet.release()));
+	enetok(enet_peer_send(m_peer, MESSAGE_CHANNEL, packet.release()));
 	enet_host_flush(m_host.get());
 }
 
-void ENetClient::poll()
+std::vector<Message> ENetClient::poll()
 {
 	ENetEvent event;
+	std::vector<Message> messages;
 
 	while (enet_host_service (m_host.get(), &event, 0) > 0)
 	{
@@ -475,13 +501,12 @@ void ENetClient::poll()
 
 		case ENET_EVENT_TYPE_RECEIVE:
 		{
-			PacketPtr packet{event.packet};
+			const PacketPtr packet{event.packet};
 
-			enforce(INPUT_CHANNEL == event.channelID); // more channels in the future?
+			enforce(MESSAGE_CHANNEL == event.channelID); // more channels in the future?
 
-			std::string input_string{reinterpret_cast<char*>(packet->data)};
-			GameInput input = GameInput::from_string(input_string);
-			m_journal.add_input(input);
+			const std::string message_string{reinterpret_cast<char*>(packet->data)};
+			messages.push_back(Message::from_string(message_string));
 		}
 			break;
 
@@ -497,6 +522,94 @@ void ENetClient::poll()
 
 		}
 	}
+
+	return messages;
+}
+
+
+BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
+: m_client(std::move(client))
+{}
+
+bool BasicClient::is_game_ready() const noexcept
+{
+	return m_meta.has_value() && !m_state.has_value();
+}
+
+void BasicClient::game_start()
+{
+	enforce(is_game_ready());
+	m_state = GameState{m_meta.value()};
+	m_journal = Journal(m_meta.value(), m_state.value());
+}
+
+void BasicClient::send_input(GameInput input)
+{
+	m_client->send_message(MsgType::INPUT, input.to_string());
+}
+
+void BasicClient::send_reset()
+{
+	// TODO: maybe the randomization should be done on the server.
+	static std::random_device rdev;
+	const GameMeta meta{2, rdev()};
+	m_client->send_message(MsgType::META, meta.to_string());
+	m_client->send_message(MsgType::START, {});
+}
+
+void BasicClient::poll()
+{
+	const auto messages = m_client->poll();
+
+	for(const auto& m : messages)
+		handle_message(m);
+}
+
+void BasicClient::handle_message(const Message& message)
+{
+	switch(message.type) {
+
+	case MsgType::INPUT:
+	{
+		if(!m_journal.has_value())
+			throw new GameException("Got input from server before the game is running.");
+
+		const GameInput input = GameInput::from_string(message.data);
+		m_journal.value().add_input(input);
+	}
+		break;
+
+	case MsgType::META:
+	{
+		m_meta = GameMeta::from_string(message.data);
+		m_state.reset(); // new meta info invalidates game state and history
+		m_journal.reset();
+	}
+		break;
+
+	case MsgType::START:
+	{
+		// do nothing? reset game time to 0?
+	}
+		break;
+
+	default:
+		assert(!"not implemented yet");
+
+	}
+}
+
+
+namespace
+{
+
+Journal make_journal()
+{
+	// TODO: to randomize the seed is the server's job
+	const GameMeta meta{2, std::random_device{}()};
+	return Journal(meta, GameState{meta});
+}
+
 }
 
 
@@ -515,6 +628,7 @@ void ClientStub::send_input(GameInput input)
 
 
 ServerThread::ServerThread()
+	: m_server()
 {
 	m_exit.test_and_set(); // flag is now known set
 	m_future = std::async([this] { main_loop(); });
@@ -544,11 +658,61 @@ void ServerThread::exit()
 
 void ServerThread::main_loop()
 {
-	ENetServer server;
-
 	while(m_exit.test_and_set())
 	{
-		server.poll();
+		const auto messages = m_server.poll();
+
+		for(const auto& m : messages)
+			handle_message(m);
+
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+}
+
+void ServerThread::handle_message(const Message& message)
+{
+	switch(message.type) {
+
+	case MsgType::INPUT:
+	{
+		const GameInput input = GameInput::from_string(message.data);
+		// TODO: validate input
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::INPUT,
+			input.to_string()};
+		m_server.broadcast_message(out_msg);
+	}
+		break;
+
+	case MsgType::META:
+	{
+		const GameMeta meta = GameMeta::from_string(message.data);
+		// TODO: validate sender
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::META,
+			meta.to_string()};
+		m_server.broadcast_message(out_msg);
+	}
+		break;
+
+	case MsgType::START:
+	{
+		// TODO: validate sender
+		const Message out_msg{
+			message.sender,
+			message.recipient,
+			MsgType::START,
+			{}};
+		m_server.broadcast_message(out_msg);
+	}
+		break;
+
+	default:
+		assert(!"not implemented yet");
+
 	}
 }

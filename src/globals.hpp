@@ -119,7 +119,7 @@ const char* game_button_to_string(GameButton button) noexcept;
  * Return the corresponding @c GameButton for the string representation.
  * @throw GameException if the string is not recognized.
  */
-GameButton string_to_game_button(const std::string& str);
+GameButton string_to_game_button(const std::string& button_string);
 
 /**
  * Enumeration of the sorts of inputs that the player can perform on a button.
@@ -187,6 +187,18 @@ struct GameMeta
 	int winner = WINNER_UNDECIDED; //!< player who won the game
 
 	static const int WINNER_UNDECIDED = -1; //!< default value of winner
+
+	/**
+	 * Since @c GameMetas need to be sent over the network and stored
+	 * in a replay file, they have a canonical string representation.
+	 */
+	std::string to_string() const;
+
+	/**
+	 * Return the @c GameMeta from the string representation.
+	 * @throw GameException if the string is not recognized.
+	 */
+	static GameMeta from_string(std::string str);
 };
 
 /**
@@ -234,7 +246,7 @@ constexpr long CHECKPOINT_INTERVAL = 5 * TPS; //!< time between checkpoints for 
 constexpr size_t MAX_CLIENTS = 8; //!< maximum number of networked players
 constexpr uint16_t NET_PORT = 2414; //!< network port for connections
 constexpr uint32_t CONNECT_TIMEOUT = 5000; //!< peer to server connection time limit
-constexpr uint8_t INPUT_CHANNEL = 1; //!< network communication channel for GameInputs
+constexpr uint8_t MESSAGE_CHANNEL = 1; //!< network communication channel for gameplay messages
 
 // Gameplay constants
 constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each other

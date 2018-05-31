@@ -59,7 +59,7 @@ public:
 	 * Configure the client dependency.
 	 * In the future, this will hopefully be taken from a central repository.
 	 */
-	void set_client(ENetClient* client) noexcept { m_client = client; }
+	void set_client(BasicClient* client) noexcept { m_client = client; }
 
 	/**
 	 * Configure the server dependency.
@@ -78,7 +78,7 @@ private:
 	const Options& m_options;
 	const Assets& m_assets;
 	const Audio& m_audio;
-	ENetClient* m_client;
+	BasicClient* m_client;
 	ServerThread* m_server;
 
 };
@@ -114,7 +114,7 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	MenuScreen(DrawMenu&& draw, const Audio& sound);
+	MenuScreen(DrawMenu&& draw, const Audio& sound, BasicClient& client);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
@@ -135,6 +135,7 @@ private:
 	Result m_result; //!< valid only when m_done
 
 	DrawMenu m_draw; //!< Interface for drawing the screen
+	BasicClient* const m_client; //!< Network communication endpoint
 
 };
 
@@ -212,7 +213,7 @@ public:
 		std::unique_ptr<DrawGame> draw,
 		const Audio& audio,
 		Journal& journal,
-		ENetClient& client,
+		BasicClient& client,
 		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
@@ -234,12 +235,12 @@ private:
 	std::unique_ptr<Stage> m_stage;
 	std::unique_ptr<DrawGame> m_draw;
 	Journal& m_journal;
-	ENetClient& m_client;
-	ServerThread* m_server;
+	BasicClient* const m_client;
+	ServerThread* const m_server;
+	Rules m_rules;
 	evt::SoundRelay m_sound_relay;
 	std::unique_ptr<ShakeRelay> m_shake_relay;
 	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
-	Rules m_rules;
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();
@@ -277,7 +278,7 @@ public:
 
 private:
 
-	ServerThread* m_server;
+	ServerThread* const m_server;
 	DrawPink m_draw;
 	bool m_done;
 

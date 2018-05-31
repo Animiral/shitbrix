@@ -1,13 +1,6 @@
 #include "game_loop.hpp"
 #include "error.hpp"
 
-namespace
-{
-
-std::unique_ptr<ENetClient> make_client(const Options& options);
-
-}
-
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
   m_assets(),
@@ -84,10 +77,11 @@ void GameLoop::next_screen()
 			m_screen = m_server_screen.get();
 		}
 		else {
+			auto net_client = std::make_unique<ENetClient>("localhost"); // network implementation
+			m_client = std::make_unique<BasicClient>(std::move(net_client));
+			m_screen_factory.set_client(m_client.get());
 			m_menu_screen = m_screen_factory.create_menu();
 			m_screen = m_menu_screen.get();
-			m_client = std::make_unique<ENetClient>("localhost");
-			m_screen_factory.set_client(m_client.get());
 		}
 
 		// debug
@@ -101,7 +95,7 @@ void GameLoop::next_screen()
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
-			m_client->reset_journal(); // start from fresh game state
+			m_client->game_start(); // create game state from meta info
 			m_game_screen = m_screen_factory.create_game();
 			m_transition_screen = m_screen_factory.create_transition(*menu, *m_game_screen);
 			m_screen = m_transition_screen.get();
@@ -140,14 +134,4 @@ void GameLoop::next_screen()
 	}
 
 	m_keyboard.set_sink(*m_screen);
-}
-
-namespace
-{
-
-std::unique_ptr<ENetClient> make_client(const Options& options)
-{
-	return std::make_unique<ENetClient>(options.server_url());
-}
-
 }

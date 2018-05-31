@@ -54,7 +54,7 @@ class Journal
 
 public:
 
-	explicit Journal(GameMeta meta, GameState&& state0);
+	explicit Journal(GameMeta meta, GameState state0);
 
 	GameMeta meta() const noexcept { return m_meta; }
 
