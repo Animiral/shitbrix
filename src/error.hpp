@@ -6,6 +6,7 @@
 #include <exception>
 #include <memory>
 #include <string>
+#include <optional>
 
 // NOTE: we use the standard assert macro for never-happens conditions.
 
@@ -14,10 +15,19 @@
  */
 struct GameException : public std::exception
 {
-	explicit GameException(std::string what) : m_what(move(what)) {}
+	/**
+	 * Construct the @c GameException from a message and an optional root cause.
+	 */
+	explicit GameException(std::string what, std::unique_ptr<GameException> cause = {});
+	GameException(const GameException& rhs);
+	GameException(GameException&& rhs) = default;
+
+	virtual std::unique_ptr<GameException> clone() const;
 	virtual const char* class_name() const noexcept { return "GameException"; }
 	virtual const char* what() const override { return m_what.c_str(); }
+
 	const std::string m_what;
+	std::unique_ptr<GameException> m_cause;
 };
 
 /**
@@ -26,8 +36,12 @@ struct GameException : public std::exception
  */
 struct LogicException : public GameException
 {
-	explicit LogicException(const char* what = "") : GameException(what) {}
+	explicit LogicException(std::string what = "") : GameException(std::move(what)) {}
+	LogicException(const LogicException& rhs) : GameException(rhs) {}
+	LogicException(LogicException&& rhs) = default;
+
 	virtual const char* class_name() const noexcept override { return "LogicException"; }
+	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<LogicException>(*this); }
 };
 
 /**
@@ -35,8 +49,12 @@ struct LogicException : public GameException
  */
 struct ReplayException : public GameException
 {
-	explicit ReplayException(const char* what = "") : GameException(what) {}
+	explicit ReplayException(std::string what = "", std::unique_ptr<GameException> cause = {});
+	ReplayException(const ReplayException& rhs) : GameException(rhs) {}
+	ReplayException(ReplayException&& rhs) = default;
+
 	virtual const char* class_name() const noexcept override { return "ReplayException"; }
+	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<ReplayException>(*this); }
 };
 
 /**
@@ -55,8 +73,11 @@ struct SdlException : public GameException
 	 * Constructor with custom error message.
 	 */
 	explicit SdlException(const char* what) : GameException(what) {}
+	SdlException(const SdlException& rhs) : GameException(rhs) {}
+	SdlException(SdlException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "SdlException"; }
+	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<SdlException>(*this); }
 };
 
 /**
@@ -69,8 +90,11 @@ struct ENetException : public GameException
 	 * Constructor with custom error message.
 	 */
 	explicit ENetException(const char* what) : GameException(what) {}
+	ENetException(const ENetException& rhs) : GameException(rhs) {}
+	ENetException(ENetException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "ENetException"; }
+	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<ENetException>(*this); }
 };
 
 /**
@@ -78,9 +102,13 @@ struct ENetException : public GameException
  */
 struct EnforceException : public GameException
 {
-	explicit EnforceException(const char* condition, const char* func, const char* file, int line)
-		: GameException("Enforced condition violated"), m_condition(condition), m_func(func), m_file(file), m_line(line) {}
+	explicit EnforceException(const char* condition, const char* func, const char* file, int line);
+	EnforceException(const EnforceException& rhs);
+	EnforceException(EnforceException&& rhs) = default;
+
 	virtual const char* class_name() const noexcept override { return "EnforceException"; }
+	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<EnforceException>(*this); }
+
 	const char* m_condition;
 	const char* m_func;
 	const char* m_file;

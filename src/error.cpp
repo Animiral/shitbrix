@@ -8,10 +8,45 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
+GameException::GameException(std::string what, std::unique_ptr<GameException> cause)
+	: m_what(std::move(what)), m_cause(std::move(cause))
+{
+}
+
+GameException::GameException(const GameException& rhs)
+	: m_what(rhs.m_what), m_cause()
+{
+	if(rhs.m_cause)
+		m_cause = rhs.m_cause->clone();
+}
+
+std::unique_ptr<GameException> GameException::clone() const
+{
+	if(m_cause)
+		return std::make_unique<GameException>(m_what, m_cause->clone());
+	else
+		return std::make_unique<GameException>(m_what);
+}
+
+ReplayException::ReplayException(std::string what, std::unique_ptr<GameException> cause)
+	: GameException(std::move(what), std::move(cause))
+{}
+
 SdlException::SdlException()
 : GameException(SDL_GetError())
 {
 }
+
+EnforceException::EnforceException(const char* condition, const char* func, const char* file, int line)
+	: GameException("Enforced condition violated"),
+	  m_condition(condition), m_func(func), m_file(file), m_line(line)
+{}
+
+EnforceException::EnforceException(const EnforceException& rhs)
+	: GameException(rhs),
+	  m_condition(rhs.m_condition), m_func(rhs.m_func), m_file(rhs.m_file), m_line(rhs.m_line)
+{}
+
 
 void enforce_impl(bool condition, const char* condition_str, const char* func, const char* file, int line)
 {

@@ -184,11 +184,23 @@ Journal replay_read(std::istream& stream)
 
 		case ReplayRecord::Type::META:
 			tokenizer >> meta.players >> meta.seed >> meta.winner;
+			// TODO: if(!tokenizer) ReplayException failed to parse line
 			break;
 
 		case ReplayRecord::Type::INPUT:
 			{
-				const GameInput gi = GameInput::from_string(tokenizer.str());
+				tokenizer >> std::ws;
+				std::string input_string;
+				std::getline(tokenizer, input_string);
+
+				GameInput gi;
+				try {
+					gi = GameInput::from_string(input_string);
+				}
+				catch(GameException ex) {
+					throw ReplayException("Failed to parse input.",
+					                      std::make_unique<GameException>(std::move(ex)));
+				}
 
 				if(gi.game_time < prev_time)
 					throw ReplayException("Inputs out of order.");
@@ -199,6 +211,7 @@ Journal replay_read(std::istream& stream)
 			break;
 
 		default:
+			// TODO: ReplayException unknown replay record type
 			assert(false);
 
 		}
