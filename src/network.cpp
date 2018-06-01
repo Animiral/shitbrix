@@ -823,6 +823,14 @@ void ServerThread::main_loop()
 			}
 		}
 
+		// start game at every opportunity
+		if(m_server->is_game_ready()) {
+			m_server->game_start();
+			t0 = SDL_GetPerformanceCounter();
+			tick = 0;
+			in_game = true;
+		}
+
 		// run logic update, if applicable
 		if(in_game && tick > INTRO_TIME) {
 			const long game_time = tick - INTRO_TIME;
@@ -838,17 +846,7 @@ void ServerThread::main_loop()
 			}
 		}
 
-		// start game at every opportunity
-		if(m_server->is_game_ready()) {
-			m_server->game_start();
-			t0 = SDL_GetPerformanceCounter();
-			tick = 0;
-			next_logic = t0 + freq / TPS;
-			in_game = true;
-		}
-		else {
-			tick++;
-			next_logic = t0 + (tick + 1) * freq / TPS;
-		}
+		tick++;
+		next_logic = t0 + (tick + 1) * freq / TPS;
 	}
 }
