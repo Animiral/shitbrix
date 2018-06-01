@@ -5,6 +5,7 @@
 #include "stage.hpp"
 #include "director.hpp"
 #include "gameevent.hpp"
+#include "replay.hpp"
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
 
@@ -29,6 +30,20 @@ public:
 
 };
 
+// all important objects of our test environment
+struct Environment
+{
+	explicit Environment(GameState s, Journal j)
+		: state(std::move(s)),
+		  journal(std::move(j)),
+		  rules{BlockDirector(state), evt::GameEventHub()}
+	{}
+
+	GameState state;
+	Journal journal;
+	Rules rules;
+};
+
 class GameEventTest : public ::testing::Test
 {
 
@@ -36,43 +51,36 @@ protected:
 
 	virtual void SetUp()
 	{
-		state = std::make_unique<GameState>(GameMeta{1, 0});
+		const GameMeta meta{1, 0};
+		GameState state{meta};
 		pit = new Pit(Point{0,0},
 			std::make_unique<RainbowBlocksQueue>(),
 			std::make_unique<RainbowBlocksQueue>());
 
 		// inject our own Pit into the state
-		const_cast<std::unique_ptr<Pit>&>(state->pit().at(0)).reset(pit);
+		const_cast<std::unique_ptr<Pit>&>(state.pit().at(0)).reset(pit);
+		Journal journal{meta, state};
 
-		cursor_director = std::make_unique<CursorDirector>(*pit);
+		environment = std::make_unique<Environment>(std::move(state), std::move(journal));
+		environment->rules.block_director.set_handler(environment->rules.event_hub);
+		environment->rules.event_hub.subscribe(counter);
 
-		logic = std::make_unique<Logic>(*pit);
-		block_director = std::make_unique<BlockDirector>(*state);
-
-		counter = std::make_unique<GameEventCounter>();
-		hub = std::make_unique<evt::GameEventHub>();
-		hub->subscribe(*counter);
-		cursor_director->set_handler(*hub);
-		block_director->set_handler(*hub);
+		block_director = &environment->rules.block_director;
 	}
 
 	// virtual void TearDown() {}
 
 	void run_game_ticks(int ticks)
 	{
-		for(int t = 0; t < ticks; t++) {
-			pit->update();
-			block_director->update();
-		}
+		assert(0 < ticks);
+		ticks += environment->state.game_time();
+		synchronurse(environment->state, ticks, environment->journal, environment->rules);
 	}
 
-	Pit* pit = nullptr;
-	std::unique_ptr<GameState> state;
-	std::unique_ptr<CursorDirector> cursor_director;
-	std::unique_ptr<Logic> logic;
-	std::unique_ptr<BlockDirector> block_director;
-	std::unique_ptr<GameEventCounter> counter;
-	std::unique_ptr<evt::GameEventHub> hub;
+	Pit* pit = nullptr; // special Pit with non-random spawn queue
+	BlockDirector* block_director = nullptr; // shortcut to the environment's director
+	std::unique_ptr<Environment> environment;
+	GameEventCounter counter;
 
 };
 
@@ -81,10 +89,14 @@ protected:
  */
 TEST_F(GameEventTest, CursorMoves)
 {
-	cursor_director->move(Dir::RIGHT);
-	EXPECT_EQ(1, counter->countCursorMoves);
-	cursor_director->move(Dir::LEFT);
-	EXPECT_EQ(2, counter->countCursorMoves);
+	environment->journal.add_input(GameInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN});
+	environment->journal.add_input(GameInput{2, 0, GameButton::LEFT, ButtonAction::DOWN});
+
+	run_game_ticks(1);
+	EXPECT_EQ(1, counter.countCursorMoves);
+
+	run_game_ticks(1);
+	EXPECT_EQ(2, counter.countCursorMoves);
 }
 
 /**
@@ -96,13 +108,13 @@ TEST_F(GameEventTest, Swap)
 	pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
 
 	swap_at(*pit, *block_director, RowCol{0, 0});
-	EXPECT_EQ(1, counter->countSwap);
+	EXPECT_EQ(1, counter.countSwap);
 
 	swap_at(*pit, *block_director, RowCol{0, 1});
-	EXPECT_EQ(2, counter->countSwap);
+	EXPECT_EQ(2, counter.countSwap);
 
 	swap_at(*pit, *block_director, RowCol{-1, 1});
-	EXPECT_EQ(2, counter->countSwap);
+	EXPECT_EQ(2, counter.countSwap);
 }
 
 /**
@@ -120,13 +132,13 @@ TEST_F(GameEventTest, Match)
 	swap_at(*pit, *block_director, RowCol{0, 2});
 
 	run_game_ticks(SWAP_TIME);
-	EXPECT_EQ(3, counter->last_match.combo);
-	EXPECT_FALSE(counter->last_match.chaining);
+	EXPECT_EQ(3, counter.last_match.combo);
+	EXPECT_FALSE(counter.last_match.chaining);
 
 	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED));
 	run_game_ticks(BREAK_TIME + FALL1_TIME);
-	EXPECT_EQ(3, counter->last_match.combo);
-	EXPECT_TRUE(counter->last_match.chaining);
+	EXPECT_EQ(3, counter.last_match.combo);
+	EXPECT_TRUE(counter.last_match.chaining);
 }
 
 /**
@@ -145,7 +157,7 @@ TEST_F(GameEventTest, Chain)
 
 	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED));
 	run_game_ticks(SWAP_TIME + BREAK_TIME + FALL1_TIME + BREAK_TIME);
-	EXPECT_EQ(1, counter->last_chain.counter);
+	EXPECT_EQ(1, counter.last_chain.counter);
 }
 
 /**
@@ -156,12 +168,12 @@ TEST_F(GameEventTest, BlockDies)
 	Block& blue_block = pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
 	blue_block.set_state(Physical::State::BREAK, BREAK_TIME);
 	run_game_ticks(BREAK_TIME);
-	EXPECT_EQ(1, counter->countBlockDies);
+	EXPECT_EQ(1, counter.countBlockDies);
 
 	Block& fake_block = pit->spawn_block(Block::Color::FAKE, RowCol{0, 0}, Block::State::REST);
 	fake_block.set_state(Physical::State::BREAK, BREAK_TIME);
 	run_game_ticks(BREAK_TIME);
-	EXPECT_EQ(1, counter->countBlockDies);
+	EXPECT_EQ(1, counter.countBlockDies);
 }
 
 /**
@@ -176,5 +188,5 @@ TEST_F(GameEventTest, GarbageDissolves)
 
 	swap_at(*pit, *block_director, RowCol{0, 2});
 	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);
-	EXPECT_EQ(1, counter->countGarbageDissolves);
+	EXPECT_EQ(1, counter.countGarbageDissolves);
 }

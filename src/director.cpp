@@ -10,6 +10,16 @@ namespace
 {
 
 /**
+ * Change the given game state according to the rules and the given current
+ * game input.
+ * For example, we move the cursor or change some blocks to the swapping state.
+ * This function is used by our recalculation logic @c synchronurse to
+ * advance the game state to the current game time continuously as well as
+ * from a past checkpoint on-demand.
+ */
+void apply_input(GameState& state, Rules& rules, GameInput ginput);
+
+/**
  * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
  * At the same time, the previous previews become normal blocks at rest.
  * In this instant, they are tagged as *hot*.
@@ -25,13 +35,6 @@ void spawn_garbage(Pit& pit, int columns, int rows, bool right_side);
  * Place new garbage blocks, ready to fall, based on a given combo achievement.
  */
 void spawn_garbage_from_combo(Pit& pit, int combo);
-
-/**
- * Given the number of one player in the game, returns the target opponent.
- * If the given player loses, the opponent wins.
- * If the given player produces a combo or chain, the opponent receives garbage.
- */
-int opponent(int player);
 
 }
 
@@ -162,7 +165,7 @@ void BlockDirector::update_single(int player)
 
 		// trigger effects outside game state (these will not roll back)
 		if(m_handler)
-			m_handler->fire(evt::Match{combo, chaining});
+			m_handler->fire(evt::Match{player, combo, chaining});
 	}
 
 	if(chaining)
@@ -191,7 +194,7 @@ void BlockDirector::update_single(int player)
 
 		// trigger effects outside game state (these will not roll back)
 		if(m_handler)
-			m_handler->fire(evt::Chain{chain});
+			m_handler->fire(evt::Chain{player, chain});
 	}
 
 	// panic time and game over check
@@ -215,43 +218,6 @@ void BlockDirector::update_single(int player)
 	pit.highlight(pit.peak());
 }
 
-
-void apply_input(GameState& state, Rules& rules, GameInput ginput)
-{
-	assert(GameButton::NONE != ginput.button);
-	Log::trace(__FUNCTION__ " %s", ginput.to_string().c_str());
-
-	switch(ginput.button) {
-		case GameButton::LEFT:
-		case GameButton::RIGHT:
-		case GameButton::UP:
-		case GameButton::DOWN:
-			if(ButtonAction::DOWN == ginput.action)
-			{
-				Dir dir = static_cast<Dir>(ginput.button);
-				state.pit().at(ginput.player)->cursor_move(dir);
-			}
-
-			break;
-
-		case GameButton::SWAP:
-			if(ButtonAction::DOWN == ginput.action)
-			{
-				rules.block_director.swap(ginput.player);
-			}
-
-			break;
-
-		case GameButton::RAISE:
-			state.pit().at(ginput.player)->set_raise(ButtonAction::DOWN == ginput.action);
-			break;
-
-		case GameButton::NONE:
-		default:
-			assert(false);
-
-	}
-}
 
 /**
  * Bring the game state to the @c target_time by calculation from the game
@@ -288,28 +254,16 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 	}
 }
 
-
-void CursorDirector::move(Dir dir)
+int BlockDirector::opponent(int player) const noexcept
 {
-	enforce(Dir::NONE != dir);
+	assert(0 == player || 1 == player || "more than two players not implemented yet");
 
-	m_pit.cursor_move(dir);
-
-	if(m_handler)
-		m_handler->fire(evt::CursorMoves());
-}
-
-
-void BonusThrow::fire(evt::Match event)
-{
-	if(event.combo > 3)
-		m_indicator.display_combo(event.combo);
-}
-
-void BonusThrow::fire(evt::Chain event)
-{
-	if(event.counter > 0)
-		m_indicator.display_chain(event.counter + 1);
+	// In some test scenarios, we are playing with just one pit.
+	// In those cases, we are our own opponent.
+	if(1 == m_state->pit().size())
+		return 0;
+	else
+		return 0 == player ? 1 : 0;
 }
 
 
@@ -317,6 +271,44 @@ void BonusThrow::fire(evt::Chain event)
 
 namespace
 {
+
+void apply_input(GameState& state, Rules& rules, GameInput ginput)
+{
+	assert(GameButton::NONE != ginput.button);
+	Log::trace(__FUNCTION__ " %s", ginput.to_string().c_str());
+
+	switch(ginput.button) {
+		case GameButton::LEFT:
+		case GameButton::RIGHT:
+		case GameButton::UP:
+		case GameButton::DOWN:
+			if(ButtonAction::DOWN == ginput.action)
+			{
+				Dir dir = static_cast<Dir>(ginput.button);
+				state.pit().at(ginput.player)->cursor_move(dir);
+				rules.event_hub.fire(evt::CursorMoves());
+			}
+
+			break;
+
+		case GameButton::SWAP:
+			if(ButtonAction::DOWN == ginput.action)
+			{
+				rules.block_director.swap(ginput.player);
+			}
+
+			break;
+
+		case GameButton::RAISE:
+			state.pit().at(ginput.player)->set_raise(ButtonAction::DOWN == ginput.action);
+			break;
+
+		case GameButton::NONE:
+		default:
+			assert(false);
+
+	}
+}
 
 bool spawn_previews(Pit& pit)
 {
@@ -371,12 +363,6 @@ void spawn_garbage_from_combo(Pit& pit, int combo)
 		counter -= 3;
 		right_side = !right_side;
 	}
-}
-
-int opponent(int player)
-{
-	assert(0 == player || 1 == player || "more than two players not implemented yet");
-	return 0 == player ? 1 : 0;
 }
 
 }

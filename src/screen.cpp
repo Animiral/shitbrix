@@ -121,7 +121,12 @@ void GamePlay::update()
 	// detect game over
 	const int winner = m_screen->m_client->gamedata().journal.meta().winner;
 	if(NOONE != winner) {
-		m_screen->m_gameover_relay->fire(evt::GameOver{winner});
+		// display winner
+		auto& stage_objects = m_screen->m_stage->sobs();
+		for(size_t i = 0; i < stage_objects.size(); i++) {
+			BannerFrame frame = (i == winner) ? BannerFrame::WIN : BannerFrame::LOSE;
+			stage_objects[i].banner.frame = frame;
+		}
 
 		auto phase = std::make_unique<GameResult>(m_screen, winner);
 		m_screen->change_phase(std::move(phase));
@@ -162,11 +167,15 @@ GameScreen::GameScreen(
   m_draw(std::move(draw)),
   m_client(&client),
   m_server(server),
-  m_sound_relay(audio)
+  m_bonus_relay(*m_stage),
+  m_sound_relay(audio),
+  m_shake_relay(*m_draw)
 {
 	assert(m_stage);
 	assert(m_draw);
+
 	Log::info("GameScreen turn on.");
+
 	start();
 }
 
@@ -177,6 +186,15 @@ GameScreen::~GameScreen() noexcept
 	// GameScreen becomes invalid.
 	m_next_phase.reset();
 	m_game_phase.reset();
+
+	// The client, which can outlive this screen, must not be left with a
+	// dangling pointer to our member relay.
+	if(m_client->is_ingame()) {
+		evt::GameEventHub& hub = m_client->gamedata().rules.event_hub;
+		hub.unsubscribe(m_bonus_relay);
+		hub.unsubscribe(m_sound_relay);
+		hub.unsubscribe(m_shake_relay);
+	}
 }
 
 void GameScreen::update()
@@ -295,14 +313,13 @@ void GameScreen::start()
 	m_game_time = gamedata.state.game_time();
 	m_done = false;
 
-	m_gameover_relay.reset(new evt::GameOverRelay(m_stage->sobs()));
-	m_shake_relay.reset(new ShakeRelay(*m_draw));
-
-	//for(auto& pobjs : m_pobjects) {
-	//	pobjs->event_hub.subscribe(m_sound_relay);
-	//	pobjs->event_hub.subscribe(m_shake_relay);
-	//	pobjs->event_hub.subscribe(*m_gameover_relay);
-	//}
+	// BUG! Due to lack of RAII wrapping, these relays will not be properly
+	// unsubscribed from the hub if this is being called from the GameScreen
+	// constructor and one of the subscriptions fails.
+	evt::GameEventHub& hub = m_client->gamedata().rules.event_hub;
+	hub.subscribe(m_bonus_relay);
+	hub.subscribe(m_sound_relay);
+	hub.subscribe(m_shake_relay);
 }
 
 void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)

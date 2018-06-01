@@ -540,13 +540,27 @@ bool BasicClient::is_game_ready() const noexcept
 	return m_meta.has_value() && !m_gamedata.has_value();
 }
 
+bool BasicClient::is_ingame() const noexcept
+{
+	return m_gamedata.has_value();
+}
+
 void BasicClient::game_start()
 {
 	enforce(is_game_ready());
 
 	GameState state{*m_meta};
 	Journal journal{*m_meta, state};
-	m_gamedata = GameData{Dials(), std::move(state), Rules{BlockDirector(m_gamedata->state)}, std::move(journal)};
+	Rules rules{BlockDirector(m_gamedata->state), evt::GameEventHub()};
+
+	m_gamedata = GameData{
+		Dials(),
+		std::move(state),
+		std::move(rules),
+		std::move(journal)
+	};
+
+	m_gamedata->rules.block_director.set_handler(m_gamedata->rules.event_hub);
 }
 
 void BasicClient::send_input(GameInput input)

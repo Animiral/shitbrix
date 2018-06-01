@@ -26,6 +26,7 @@ struct Swap {};
  */
 struct Match
 {
+	int player; //!< index of the player who performed the match
 	int combo; //!< combo counter, >= 3
 	bool chaining; //!< chain indicator: whether a chaining block was involved
 };
@@ -37,6 +38,7 @@ struct Match
  */
 struct Chain
 {
+	int player; //!< index of the player who performed the chain
 	int counter; //!< chain counter: how many chaining matches there were
 };
 
@@ -134,9 +136,15 @@ class GameEventHub : public IGameEvent
 
 public:
 
-	void subscribe(IGameEvent& event)
+	void subscribe(IGameEvent& handler)
 	{
-		m_handlers.push_back(event);
+		m_handlers.push_back(&handler);
+	}
+
+	void unsubscribe(IGameEvent& handler)
+	{
+		auto it = std::remove(m_handlers.end(), m_handlers.end(), &handler);
+		m_handlers.erase(it, m_handlers.end());
 	}
 
 	virtual void fire(CursorMoves event) override { fire_all(event); }
@@ -152,11 +160,40 @@ private:
 	template<typename Event>
 	void fire_all(Event event)
 	{
-		for(auto& handler : m_handlers)
-			handler.get().fire(event);
+		for(auto handler : m_handlers)
+			handler->fire(event);
 	}
 
-	std::vector<std::reference_wrapper<IGameEvent>> m_handlers;
+	std::vector<IGameEvent*> m_handlers;
+
+};
+
+/**
+ * This glue class connects combo and chain events reported by the director (logic)
+ * with the BonusIndicator display class.
+ */
+class BonusRelay : public IGameEvent
+{
+
+public:
+
+	BonusRelay(Stage& stage) : m_stage(&stage) {}
+
+	virtual void fire(evt::Match event) override
+	{
+		if(event.combo > 3)
+			m_stage->sobs().at(event.player).bonus.display_combo(event.combo);
+	}
+
+	virtual void fire(evt::Chain event) override
+	{
+		if(event.counter > 0)
+			m_stage->sobs().at(event.player).bonus.display_combo(event.counter + 1);
+	}
+
+private:
+
+	Stage* m_stage;
 
 };
 
@@ -181,27 +218,6 @@ public:
 private:
 
 	const Audio& m_audio;
-
-};
-
-class GameOverRelay : public IGameEvent
-{
-
-public:
-
-	GameOverRelay(Stage::SobVector& pobjects) : m_pobjects(pobjects) {}
-
-	virtual void fire(GameOver ended) override
-	{
-		for(size_t i = 0; i < m_pobjects.size(); i++) {
-			BannerFrame frame = (i == ended.winner) ? BannerFrame::WIN : BannerFrame::LOSE;
-			m_pobjects[i].banner.frame = frame;
-		}
-	}
-
-private:
-
-	Stage::SobVector& m_pobjects;
 
 };
 

@@ -233,9 +233,9 @@ private:
 	std::unique_ptr<DrawGame> m_draw;
 	BasicClient* const m_client;
 	ServerThread* const m_server;
+	evt::BonusRelay m_bonus_relay;
 	evt::SoundRelay m_sound_relay;
-	std::unique_ptr<ShakeRelay> m_shake_relay;
-	std::unique_ptr<evt::GameOverRelay> m_gameover_relay;
+	ShakeRelay m_shake_relay;
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();

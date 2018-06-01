@@ -439,8 +439,9 @@ public:
 
 	/**
 	 * Return the game-round data, if the game is currently ongoing.
+	 * The game must be in progress on this client when calling.
 	 */
-	GameData& gamedata() noexcept { enforce(m_gamedata.has_value()); return *m_gamedata; }
+	GameData& gamedata() { enforce(m_gamedata.has_value()); return *m_gamedata; }
 
 	/**
 	 * Return true if the server expects us to start the game now, but the game
@@ -449,7 +450,16 @@ public:
 	bool is_game_ready() const noexcept;
 
 	/**
+	 * Return true if the gamedata is valid at the moment.
+	 * If this is not the case, accessing `gamedata()` will throw.
+	 */
+	bool is_ingame() const noexcept;
+
+	/**
 	 * Initialize the game state from the meta information.
+	 * Note: After this call, all game event handlers in
+	 *       `gamedata().rules.event_hub` need to be freshly set up
+	 *       as they are not preserved in-between game restarts.
 	 */
 	void game_start();
 
