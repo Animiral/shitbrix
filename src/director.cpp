@@ -17,6 +17,16 @@ namespace
 bool spawn_previews(Pit& pit);
 
 /**
+ * Place a new garbage block, ready to fall, into the given pit.
+ */
+void spawn_garbage(Pit& pit, int columns, int rows, bool right_side);
+
+/**
+ * Place new garbage blocks, ready to fall, based on a given combo achievement.
+ */
+void spawn_garbage_from_combo(Pit& pit, int combo);
+
+/**
  * Given the number of one player in the game, returns the target opponent.
  * If the given player loses, the opponent wins.
  * If the given player produces a combo or chain, the opponent receives garbage.
@@ -146,8 +156,14 @@ void BlockDirector::update_single(int player)
 	int combo = 0;
 	logic.handle_hots(have_match, combo, chaining, chainstop);
 
-	if(have_match && m_handler)
-		m_handler->fire(evt::Match{combo, chaining});
+	if(have_match) {
+		Pit& opponent_pit = *m_state->pit().at(opponent(player));
+		spawn_garbage_from_combo(opponent_pit, combo);
+
+		// trigger effects outside game state (these will not roll back)
+		if(m_handler)
+			m_handler->fire(evt::Match{combo, chaining});
+	}
 
 	if(chaining)
 		pit.do_chain();
@@ -165,8 +181,17 @@ void BlockDirector::update_single(int player)
 	logic.examine_pit(pit_chaining, breaking, pit_full);
 
 	// close current chain
-	if(chainstop && m_handler && !pit_chaining) {
-		m_handler->fire(evt::Chain{pit.finish_chain()});
+	if(chainstop && !pit_chaining) {
+		const int chain = pit.finish_chain();
+
+		if(chain > 0) {
+			Pit& opponent_pit = *m_state->pit().at(opponent(player));
+			spawn_garbage(opponent_pit, PIT_COLS, chain, false);
+		}
+
+		// trigger effects outside game state (these will not roll back)
+		if(m_handler)
+			m_handler->fire(evt::Chain{chain});
 	}
 
 	// panic time and game over check
@@ -275,39 +300,6 @@ void CursorDirector::move(Dir dir)
 }
 
 
-void GarbageThrow::fire(evt::Match event)
-{
-	int combo = event.combo - 3;
-	bool right_side = false;
-
-	while(combo > 0) {
-		if(1 == combo) spawn(3, 1, right_side);
-		else if(2 == combo) spawn(4, 1, right_side);
-		else spawn(5, 1, right_side);
-
-		combo -= 3;
-		right_side = !right_side;
-	}
-}
-
-void GarbageThrow::fire(evt::Chain event)
-{
-	if(event.counter > 0)
-		spawn(PIT_COLS, event.counter, false);
-}
-
-void GarbageThrow::spawn(int columns, int rows, bool right_side)
-{
-	enforce(columns > 0);
-	enforce(columns <= PIT_COLS);
-
-	int spawn_row = std::min(m_pit.peak(), m_pit.top()) - rows - 1;
-	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
-	Garbage& garbage = m_pit.spawn_garbage(rc, columns, rows);
-	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
-}
-
-
 void BonusThrow::fire(evt::Match event)
 {
 	if(event.combo > 3)
@@ -353,6 +345,32 @@ bool spawn_previews(Pit& pit)
 	}
 
 	return true;
+}
+
+void spawn_garbage(Pit& pit, int columns, int rows, bool right_side)
+{
+	assert(columns > 0);
+	assert(columns <= PIT_COLS);
+
+	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 1;
+	RowCol rc{spawn_row, right_side ? PIT_COLS-columns : 0};
+	Garbage& garbage = pit.spawn_garbage(rc, columns, rows);
+	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
+}
+
+void spawn_garbage_from_combo(Pit& pit, int combo)
+{
+	int counter = combo - 3; // number of small blocks to drop
+	bool right_side = false;
+
+	while(counter > 0) {
+		if(1 == counter) spawn_garbage(pit, 3, 1, right_side);
+		else if(2 == counter) spawn_garbage(pit, 4, 1, right_side);
+		else spawn_garbage(pit, 5, 1, right_side);
+
+		counter -= 3;
+		right_side = !right_side;
+	}
 }
 
 int opponent(int player)

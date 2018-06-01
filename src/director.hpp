@@ -96,33 +96,6 @@ private:
 };
 
 /**
- * A game event handler that converts combos and chains into garbage spawns.
- * It is attached to a source BlockDirector as event handler. Every
- * combo and chain event that the director raises is converted into
- * garbage block dimensions. The garbage is then spawned / dropped
- * in a target pit (the pit of the other player).
- */
-class GarbageThrow : public evt::IGameEvent
-{
-
-public:
-
-	GarbageThrow(Pit& pit)
-	: m_pit(pit)
-	{}
-
-	virtual void fire(evt::Match event) override;
-	virtual void fire(evt::Chain event) override;
-
-private:
-
-	Pit& m_pit;
-
-	void spawn(int columns, int rows, bool right_side);
-
-};
-
-/**
  * This glue class connects combo and chain events reported by the director (logic)
  * with the BonusIndicator display class.
  */
