@@ -74,7 +74,18 @@ void GameLoop::game_loop()
 
 		// get different sources of input
 		const auto inputs = m_input_devices.poll();
-		for(auto i : inputs) m_screen->input(i);
+		for(auto i : inputs) {
+			// Debug functionality: take control of a certain player.
+			// F2 key: take control of player 0
+			// F3 key: take control of player 1
+			if(Button::DEBUG2 == i.button && ButtonAction::DOWN == i.action)
+				m_input_devices.set_player_number(0);
+			else if(Button::DEBUG3 == i.button && ButtonAction::DOWN == i.action)
+				m_input_devices.set_player_number(1);
+
+			m_screen->input(i);
+		}
+
 
 		if(m_client) m_client->poll();
 
