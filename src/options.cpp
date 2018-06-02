@@ -1,4 +1,5 @@
 #include "options.hpp"
+#include "globals.hpp"
 #include <sstream>
 
 Options::Options(int argc, const char* argv[])
@@ -7,7 +8,8 @@ Options::Options(int argc, const char* argv[])
   m_joystick_number(int_option(argc, argv, "--joystick_number")),
   m_replay_path(str_option(argc, argv, "--replay")),
   m_log_path(str_option(argc, argv, "--logfile")),
-  m_server_url(str_option(argc, argv, "--server-url"))
+  m_server_url(str_option(argc, argv, "--server-url")),
+  m_port(int_option(argc, argv, "--port"))
 {
 	// set defaults for missing options
 	if(!m_run_mode) m_run_mode = "client";
@@ -16,6 +18,7 @@ Options::Options(int argc, const char* argv[])
 		else m_log_path = "logfile.txt";
 	}
 	if(!m_server_url) m_server_url = "localhost6";
+	if(!m_port) m_port = DEFAULT_PORT;
 }
 
 // Minimalistic opts parsing from http://stackoverflow.com/questions/865668/how-to-parse-command-line-arguments-in-c

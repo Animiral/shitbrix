@@ -46,12 +46,12 @@ public:
 	/**
 	 * Create a server host.
 	 */
-	HostPtr create_server() const;
+	HostPtr create_server(enet_uint16 port) const;
 
 	/**
 	 * Create a client host and connect to the server.
 	 */
-	std::pair<HostPtr, ENetPeer*> create_client(const char* server_name) const;
+	std::pair<HostPtr, ENetPeer*> create_client(const char* server_name, enet_uint16 port) const;
 
 	/**
 	 * Create a packet.

@@ -9,8 +9,10 @@ GameLoop::GameLoop(Options options)
   m_screen_factory(m_options, m_assets, m_audio),
   m_screen(nullptr)
 {
+	assert(options.port().has_value());
+
 	if(nullptr != std::strstr(m_options.run_mode(), "server")) {
-		auto server_backend = std::make_unique<ENetServer>();
+		auto server_backend = std::make_unique<ENetServer>(*options.port());
 		auto server_impl = std::make_unique<BasicServer>(std::move(server_backend));
 		m_server.reset(new ServerThread(std::move(server_impl)));
 		m_screen_factory.set_server(m_server.get());
@@ -115,7 +117,7 @@ void GameLoop::next_screen()
 			m_screen = m_server_screen.get();
 		}
 		else {
-			auto net_client = std::make_unique<ENetClient>("localhost"); // network implementation
+			auto net_client = std::make_unique<ENetClient>("localhost", *m_options.port()); // network implementation
 			m_client = std::make_unique<BasicClient>(std::move(net_client));
 			m_screen_factory.set_client(m_client.get());
 			m_menu_screen = m_screen_factory.create_menu();

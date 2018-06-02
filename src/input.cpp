@@ -59,7 +59,7 @@ ControllerInput key_to_controller(SDL_Keycode key, Uint8 state, std::optional<in
 std::vector<ControllerInput> InputDevices::poll()
 {
 	// default player for input if we do not have anyone assigned
-	const int player0 = m_player_number.has_value() ? *m_player_number : 0;
+	const int player1 = m_player_number.has_value() ? *m_player_number : 1;
 
 	std::vector<ControllerInput> buffer;
 	SDL_Event event;
@@ -91,16 +91,16 @@ std::vector<ControllerInput> InputDevices::poll()
 				break;
 
 			const Uint8 hat_up = m_joy_hat & ~event.jhat.value;
-			if(hat_up & SDL_HAT_LEFT)  buffer.push_back({player0, Button::LEFT,  ButtonAction::UP});
-			if(hat_up & SDL_HAT_RIGHT) buffer.push_back({player0, Button::RIGHT, ButtonAction::UP});
-			if(hat_up & SDL_HAT_UP)    buffer.push_back({player0, Button::UP,    ButtonAction::UP});
-			if(hat_up & SDL_HAT_DOWN)  buffer.push_back({player0, Button::DOWN,  ButtonAction::UP});
+			if(hat_up & SDL_HAT_LEFT)  buffer.push_back({player1, Button::LEFT,  ButtonAction::UP});
+			if(hat_up & SDL_HAT_RIGHT) buffer.push_back({player1, Button::RIGHT, ButtonAction::UP});
+			if(hat_up & SDL_HAT_UP)    buffer.push_back({player1, Button::UP,    ButtonAction::UP});
+			if(hat_up & SDL_HAT_DOWN)  buffer.push_back({player1, Button::DOWN,  ButtonAction::UP});
 
 			const Uint8 hat_down = event.jhat.value & ~m_joy_hat;
-			if(hat_down & SDL_HAT_LEFT)  buffer.push_back({player0, Button::LEFT,  ButtonAction::DOWN});
-			if(hat_down & SDL_HAT_RIGHT) buffer.push_back({player0, Button::RIGHT, ButtonAction::DOWN});
-			if(hat_down & SDL_HAT_UP)    buffer.push_back({player0, Button::UP,    ButtonAction::DOWN});
-			if(hat_down & SDL_HAT_DOWN)  buffer.push_back({player0, Button::DOWN,  ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_LEFT)  buffer.push_back({player1, Button::LEFT,  ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_RIGHT) buffer.push_back({player1, Button::RIGHT, ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_UP)    buffer.push_back({player1, Button::UP,    ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_DOWN)  buffer.push_back({player1, Button::DOWN,  ButtonAction::DOWN});
 		}
 			break;
 
@@ -109,7 +109,7 @@ std::vector<ControllerInput> InputDevices::poll()
 		{
 			const Button button{static_cast<Button>(static_cast<int>(Button::A) + event.jbutton.button)};
 			const ButtonAction action = event.type == SDL_JOYBUTTONDOWN ? ButtonAction::DOWN : ButtonAction::UP;
-			buffer.push_back({player0, button, action});
+			buffer.push_back({player1, button, action});
 		}
 			break;
 

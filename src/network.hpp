@@ -373,7 +373,7 @@ public:
 	 * Construct the server to listen on all network addresses on the port
 	 * number specified in the global constant @c NET_PORT.
 	 */
-	ENetServer();
+	ENetServer(enet_uint16 port);
 
 	/**
 	 * Send the message to all clients.
@@ -403,7 +403,7 @@ public:
 	/**
 	 * Construct the client by connecting to the given server.
 	 */
-	explicit ENetClient(const char* server_name);
+	explicit ENetClient(const char* server_name, enet_uint16 port);
 
 	/**
 	 * Send the given message to the server on the MESSAGE_CHANNEL.

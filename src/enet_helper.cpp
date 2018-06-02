@@ -15,7 +15,7 @@ ENet& ENet::instance()
 	return enet;
 }
 
-HostPtr ENet::create_server() const
+HostPtr ENet::create_server(enet_uint16 port) const
 {
 	ENetAddress address;
 
@@ -23,7 +23,7 @@ HostPtr ENet::create_server() const
 	/* A specific host address can be specified by   */
 	/* enet_address_set_host (& address, "x.x.x.x"); */
 	address.host = ENET_HOST_ANY;
-	address.port = NET_PORT;
+	address.port = port;
 
 	Log::info("ENet: Create Server.");
 	HostPtr server{enet_host_create(&address, MAX_CLIENTS, NET_CHANNELS, 0, 0)};
@@ -32,7 +32,7 @@ HostPtr ENet::create_server() const
 	return server;
 }
 
-std::pair<HostPtr, ENetPeer*> ENet::create_client(const char* server_name) const
+std::pair<HostPtr, ENetPeer*> ENet::create_client(const char* server_name, enet_uint16 port) const
 {
 	Log::info("ENet: Create Client.");
 	HostPtr host{enet_host_create(NULL, 1, NET_CHANNELS, 0, 0)};
@@ -40,7 +40,7 @@ std::pair<HostPtr, ENetPeer*> ENet::create_client(const char* server_name) const
 
 	ENetAddress address;
 	enet_address_set_host(&address, server_name);
-	address.port = NET_PORT;
+	address.port = port;
 
 	Log::info("ENet: Connect to \"%s\".", server_name);
 	ENetPeer* peer;

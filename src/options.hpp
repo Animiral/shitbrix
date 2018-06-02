@@ -62,6 +62,12 @@ public:
 	 */
 	const char* server_url() const noexcept { return m_server_url; }
 
+	/**
+	 * Option: --port [number]
+	 * Which port to host or connect to.
+	 */
+	std::optional<int> port() const noexcept { return m_port; }
+
 private:
 
 	const char* m_run_mode;
@@ -70,6 +76,7 @@ private:
 	const char* m_replay_path;
 	const char* m_log_path;
 	const char* m_server_url;
+	std::optional<int> m_port;
 
 	const char* str_option(int argc, const char* argv[], const std::string& option) noexcept;
 	std::optional<int> int_option(int argc, const char* argv[], const std::string& option);

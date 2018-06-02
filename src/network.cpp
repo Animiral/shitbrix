@@ -396,8 +396,8 @@ std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
 }
 
 
-ENetServer::ENetServer()
-	: m_host(ENet::instance().create_server())
+ENetServer::ENetServer(enet_uint16 port)
+	: m_host(ENet::instance().create_server(port))
 {
 }
 
@@ -468,9 +468,9 @@ std::vector<Message> ENetServer::poll()
 }
 
 
-ENetClient::ENetClient(const char* server_name)
+ENetClient::ENetClient(const char* server_name, enet_uint16 port)
 {
-	std::tie(m_host, m_peer) = ENet::instance().create_client(server_name);
+	std::tie(m_host, m_peer) = ENet::instance().create_client(server_name, port);
 
 	/* Wait up to 5 seconds for the connection attempt to succeed. */
 	ENetEvent event;
