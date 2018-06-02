@@ -4,6 +4,7 @@
 Options::Options(int argc, const char* argv[])
 : m_run_mode(str_option(argc, argv, "--run")),
   m_player_number(int_option(argc, argv, "--player_number")),
+  m_joystick_number(int_option(argc, argv, "--joystick_number")),
   m_replay_path(str_option(argc, argv, "--replay")),
   m_log_path(str_option(argc, argv, "--logfile")),
   m_server_url(str_option(argc, argv, "--server-url"))

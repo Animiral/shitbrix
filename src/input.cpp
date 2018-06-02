@@ -55,18 +55,20 @@ ControllerInput key_to_controller(SDL_Keycode key, Uint8 state, std::optional<in
 
 }
 
-void Keyboard::poll()
-{
-	enforce(m_sink);
 
+std::vector<ControllerInput> InputDevices::poll()
+{
+	// default player for input if we do not have anyone assigned
+	const int player0 = m_player_number.has_value() ? *m_player_number : 0;
+
+	std::vector<ControllerInput> buffer;
 	SDL_Event event;
 
 	while(SDL_PollEvent(&event)) {
 		switch(event.type) {
 
-		case SDL_QUIT:
-			m_sink->input(ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN});
-			break;
+		case SDL_QUIT: // overrides all other inputs
+			return {ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN}};
 
 		case SDL_KEYUP:
 		case SDL_KEYDOWN:
@@ -78,12 +80,45 @@ void Keyboard::poll()
 					break;
 
 				if(input.button != Button::NONE)
-					m_sink->input(input);
+					buffer.push_back(input);
 			}
 			break;
+
+		case SDL_JOYHATMOTION:
+		{
+			// TODO: find the mapping from the joystick to the player number
+			if(SDL_JoystickInstanceID(m_joystick.get()) != event.jhat.which)
+				break;
+
+			const Uint8 hat_up = m_joy_hat & ~event.jhat.value;
+			if(hat_up & SDL_HAT_LEFT)  buffer.push_back({player0, Button::LEFT,  ButtonAction::UP});
+			if(hat_up & SDL_HAT_RIGHT) buffer.push_back({player0, Button::RIGHT, ButtonAction::UP});
+			if(hat_up & SDL_HAT_UP)    buffer.push_back({player0, Button::UP,    ButtonAction::UP});
+			if(hat_up & SDL_HAT_DOWN)  buffer.push_back({player0, Button::DOWN,  ButtonAction::UP});
+
+			const Uint8 hat_down = event.jhat.value & ~m_joy_hat;
+			if(hat_down & SDL_HAT_LEFT)  buffer.push_back({player0, Button::LEFT,  ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_RIGHT) buffer.push_back({player0, Button::RIGHT, ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_UP)    buffer.push_back({player0, Button::UP,    ButtonAction::DOWN});
+			if(hat_down & SDL_HAT_DOWN)  buffer.push_back({player0, Button::DOWN,  ButtonAction::DOWN});
+		}
+			break;
+
+		case SDL_JOYBUTTONDOWN:
+		case SDL_JOYBUTTONUP:
+		{
+			const Button button{static_cast<Button>(static_cast<int>(Button::A) + event.jbutton.button)};
+			const ButtonAction action = event.type == SDL_JOYBUTTONDOWN ? ButtonAction::DOWN : ButtonAction::UP;
+			buffer.push_back({player0, button, action});
+		}
+			break;
+
 		}
 	}
+
+	return buffer;
 }
+
 
 std::optional<GameInput> controller_to_game(ControllerInput input) noexcept
 {

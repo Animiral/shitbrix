@@ -34,7 +34,7 @@ private:
 	Options m_options;
 	Assets m_assets;
 	Audio m_audio;
-	Keyboard m_keyboard;
+	InputDevices m_input_devices;
 
 	// network hosts
 	std::unique_ptr<ServerThread> m_server;

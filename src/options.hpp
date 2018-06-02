@@ -35,6 +35,15 @@ public:
 	std::optional<int> player_number() const noexcept { return m_player_number; }
 
 	/**
+	 * Option: --joystick_number [NUMBER]
+	 * Number of the joystick that we use for input.
+	 * By default, we do not accept joystick input.
+	 * We currently only support using one joystick at a time.
+	 * There is currently no way to identify it by name.
+	 */
+	std::optional<int> joystick_number() const noexcept { return m_joystick_number; }
+
+	/**
 	 * Option: --replay [path-string]
 	 * The path location of the replay file to be played back.
 	 * If nullptr, we run the game interactively.
@@ -57,6 +66,7 @@ private:
 
 	const char* m_run_mode;
 	std::optional<int> m_player_number;
+	std::optional<int> m_joystick_number;
 	const char* m_replay_path;
 	const char* m_log_path;
 	const char* m_server_url;

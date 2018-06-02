@@ -175,6 +175,10 @@ Sdl::Sdl()
 
 	// audio device
 	m_audio.reset(new SdlAudio);
+
+	// Enable joysticks in event handling
+	if(1 != SDL_JoystickEventState(SDL_ENABLE))
+		throw SdlException();
 }
 
 Sdl::~Sdl()

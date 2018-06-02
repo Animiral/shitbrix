@@ -19,7 +19,7 @@
 #include <fstream>
 #include <typeinfo>
 
-class IScreen : public IControllerSink
+class IScreen
 {
 public:
 	IScreen() = default;
@@ -42,7 +42,6 @@ public:
 	virtual const IDraw& get_draw() const =0;
 
 	virtual void input(ControllerInput cinput) =0;
-	virtual void input_debug(int func) {} // developer help function
 };
 
 /**

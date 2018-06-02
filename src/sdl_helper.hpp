@@ -21,10 +21,12 @@ public:
 	void operator()(SDL_Texture* p) const { SDL_DestroyTexture(p); }
 	void operator()(SDL_Window* p) const { SDL_DestroyWindow(p); }
 	void operator()(SDL_Renderer* p) const { SDL_DestroyRenderer(p); }
+	void operator()(SDL_Joystick* p) const { SDL_JoystickClose(p); }
 };
 
 using SurfacePtr = std::unique_ptr<SDL_Surface, SdlDeleter>;
 using TexturePtr = std::unique_ptr<SDL_Texture, SdlDeleter>;
+using JoystickPtr = std::unique_ptr<SDL_Joystick, SdlDeleter>;
 
 /**
  * RAII for an SDL sound asset.

@@ -5,20 +5,12 @@
 #pragma once
 
 #include "globals.hpp"
+#include "sdl_helper.hpp"
 #include <optional>
-#include <memory>
+#include <vector>
 
 /**
- * A ControllerSink accepts input from an (imagined) controller.
- */
-class IControllerSink
-{
-	public: virtual void input(ControllerInput input) =0;
-};
-
-/**
- * Reads keys from the keyboard and converts them into ControllerInputs.
- * These inputs are then sent to the keyboard’s sink object.
+ * The @InputDevices read inputs from the available devices: keyboard and joysticks.
  *
  * By default, this keyboard collects the following inputs:
  *  * \[RETURN]: reset key
@@ -29,19 +21,24 @@ class IControllerSink
  *
  * The keys can currently not be remapped.
  */
-class Keyboard
+class InputDevices
 {
 
 public:
 
-	void set_sink(IControllerSink* sink) { m_sink = sink; }
 	void set_player_number(std::optional<int> player_number) { m_player_number = player_number; }
-	void poll(); //!< read events from the keyboard buffer, send to sink
+	void set_joystick(JoystickPtr joystick) { m_joystick = std::move(joystick); }
+
+	/**
+	 * Read inputs from the keyboard buffer and return them in order.
+	 */
+	std::vector<ControllerInput> poll();
 
 private:
 
-	IControllerSink* m_sink = nullptr;
 	std::optional<int> m_player_number;
+	JoystickPtr m_joystick; //!< Optional SDL joystick object
+	Uint8 m_joy_hat = SDL_HAT_CENTERED; //!< last known joystick hat position
 
 };
 

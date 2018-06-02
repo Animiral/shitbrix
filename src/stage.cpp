@@ -672,8 +672,6 @@ Stage::Stage(GameState& state)
 
 void Stage::update()
 {
-	m_state->update();
-
 	for(auto& sob : m_sobs)
 		sob.bonus.update();
 }

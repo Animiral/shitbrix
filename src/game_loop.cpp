@@ -7,7 +7,7 @@ GameLoop::GameLoop(Options options)
   m_audio(Sdl::instance().audio(), m_assets),
   m_screen_factory(m_options, m_assets, m_audio),
   m_screen(nullptr),
-  m_keyboard()
+  m_input_devices()
 {
 	if(nullptr != std::strstr(m_options.run_mode(), "server")) {
 		auto server_backend = std::make_unique<ENetServer>();
@@ -16,14 +16,30 @@ GameLoop::GameLoop(Options options)
 		m_screen_factory.set_server(m_server.get());
 	}
 
+	// configure player control
 	if(m_options.player_number().has_value()) {
 		const int player_number = *m_options.player_number();
 		if(2 <= player_number) {
-			throw new GameException("Cannot control player "
+			throw GameException("Cannot control player "
 				+ std::to_string(player_number)
 				+ ". More than two players are currently not yet supported.");
 		}
-		m_keyboard.set_player_number(*m_options.player_number());
+		m_input_devices.set_player_number(*m_options.player_number());
+	}
+
+	// attack joystick input
+	if(m_options.joystick_number().has_value()) {
+		const int joystick_number = *m_options.joystick_number();
+		const int joysticks_count = SDL_NumJoysticks();
+		if(joystick_number < 0 || joystick_number >= joysticks_count) {
+			throw GameException("Joystick "
+				+ std::to_string(joystick_number)
+				+ " not found. There are "
+				+ std::to_string(joysticks_count) + " joysticks.");
+		}
+		JoystickPtr joystick(SDL_JoystickOpen(joystick_number));
+		sdlok(joystick.get());
+		m_input_devices.set_joystick(std::move(joystick));
 	}
 
 	next_screen();
@@ -56,11 +72,10 @@ void GameLoop::game_loop()
 			}
 		}
 
-		// TODO: handle all different sources of input
-		// Should the input object send events directly to the IControllerSink,
-		// like it does currently, or should the input object return a list of
-		// queued inputs which are then passed on by some controller object?
-		m_keyboard.poll();
+		// get different sources of input
+		const auto inputs = m_input_devices.poll();
+		for(auto i : inputs) m_screen->input(i);
+
 		if(m_client) m_client->poll();
 
 		// run one frame of local logic
@@ -144,6 +159,4 @@ void GameLoop::next_screen()
 	else {
 		assert(false); // unknown type of m_screen
 	}
-
-	m_keyboard.set_sink(m_screen);
 }

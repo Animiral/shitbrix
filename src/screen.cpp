@@ -209,6 +209,9 @@ void GameScreen::update()
 	if(0 == m_client->gamedata().dials.speed)
 		return;
 
+	// logic-independent stage effects
+	m_stage->update();
+
 	// run game logic
 	assert(m_game_phase);
 	m_game_phase->update();
@@ -251,6 +254,10 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::PAUSE:
+			// this is a toggle
+			if(ButtonAction::DOWN != cinput.action)
+				break;
+
 			if(0 == m_client->gamedata().dials.speed)
 				m_client->send_speed(1);
 			else
@@ -259,6 +266,10 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::RESET:
 		{
+			// Only reset once
+			if(ButtonAction::DOWN != cinput.action)
+				break;
+
 			// TODO: this is supposed to work only in client-with-server mode
 			m_client->send_reset();
 		}
@@ -269,6 +280,10 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG1:
+			// this is a toggle
+			if(ButtonAction::DOWN != cinput.action)
+				break;
+
 			m_draw->toggle_pit_debug_overlay();
 			m_draw->toggle_pit_debug_highlight();
 			break;
