@@ -72,8 +72,10 @@ void MenuScreen::update()
 	m_game_time++;
 
 	// If the client has a fresh new game state, we know that the game starts.
-	if(m_client->is_game_ready())
+	if(m_client->is_game_ready()) {
+		m_result = Result::PLAY;
 		m_done = true;
+	}
 }
 
 void MenuScreen::draw(float dt)
@@ -85,7 +87,6 @@ void MenuScreen::input(ControllerInput cinput)
 {
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
-			m_result = Result::PLAY;
 			m_client->send_reset(); // TODO: this should only work from privileged client
 		} else
 		if(Button::QUIT == cinput.button) {

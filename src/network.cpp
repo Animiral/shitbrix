@@ -537,30 +537,20 @@ BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
 
 bool BasicClient::is_game_ready() const noexcept
 {
-	return m_meta.has_value() && !m_gamedata.has_value();
+	return 1 == m_ready;
+	//return m_meta.has_value() && !m_gamedata.has_value();
 }
 
 bool BasicClient::is_ingame() const noexcept
 {
-	return m_gamedata.has_value();
+	return 2 == m_ready;
+	//return m_gamedata.has_value();
 }
 
 void BasicClient::game_start()
 {
-	enforce(is_game_ready());
-
-	GameState state{*m_meta};
-	Journal journal{*m_meta, state};
-	Rules rules{BlockDirector(m_gamedata->state), evt::GameEventHub()};
-
-	m_gamedata = GameData{
-		Dials(),
-		std::move(state),
-		std::move(rules),
-		std::move(journal)
-	};
-
-	m_gamedata->rules.block_director.set_handler(m_gamedata->rules.event_hub);
+	game_start_impl();
+	m_ready = 2;
 }
 
 void BasicClient::send_input(GameInput input)
@@ -597,7 +587,7 @@ void BasicClient::handle_message(const Message& message)
 	case MsgType::INPUT:
 	{
 		if(!m_gamedata.has_value())
-			throw new GameException("Got input from server before the game is running.");
+			throw GameException("Got input from server before the game is running.");
 
 		const GameInput input = GameInput::from_string(message.data);
 		m_gamedata->journal.add_input(input);
@@ -607,7 +597,7 @@ void BasicClient::handle_message(const Message& message)
 	case MsgType::SPEED:
 	{
 		if(!m_gamedata.has_value())
-			throw new GameException("Got speed from server before the game is running.");
+			throw GameException("Got speed from server before the game is running.");
 
 		const int speed = std::stoi(message.data);
 		m_gamedata->dials.speed = speed;
@@ -618,19 +608,23 @@ void BasicClient::handle_message(const Message& message)
 	{
 		m_meta = GameMeta::from_string(message.data);
 		m_gamedata.reset(); // new meta info invalidates game state and history
+		m_ready = 1;
 	}
 		break;
 
 	case MsgType::START:
 	{
-		// do nothing? reset game time to 0?
+		// Towards the outside, we must pretend not to have constructed the
+		// game state yet. We are merely “ready”. However, the server might
+		// already send us input messages, which we must be able to handle.
+		game_start_impl();
 	}
 		break;
 
 	case MsgType::GAMEEND:
 	{
 		if(!m_gamedata.has_value())
-			throw new GameException("Got gameend from server before the game is running.");
+			throw GameException("Got gameend from server before the game is running.");
 
 		const int winner = std::stoi(message.data);
 		m_gamedata->journal.set_winner(winner);
@@ -641,6 +635,27 @@ void BasicClient::handle_message(const Message& message)
 		assert(!"not implemented yet");
 
 	}
+}
+
+void BasicClient::game_start_impl()
+{
+	enforce(is_game_ready() || is_ingame());
+
+	if(m_gamedata.has_value())
+		return; // do not prepare twice
+
+	GameState state{*m_meta};
+	Journal journal{*m_meta, state};
+	Rules rules{BlockDirector(m_gamedata->state), evt::GameEventHub()};
+
+	m_gamedata = GameData{
+		Dials(),
+		std::move(state),
+		std::move(rules),
+		std::move(journal)
+	};
+
+	m_gamedata->rules.block_director.set_handler(m_gamedata->rules.event_hub);
 }
 
 
@@ -680,6 +695,11 @@ bool BasicServer::is_game_ready() const noexcept
 	return m_meta.has_value() && !m_gamedata.has_value();
 }
 
+bool BasicServer::is_ingame() const noexcept
+{
+	return m_gamedata.has_value();
+}
+
 void BasicServer::game_start()
 {
 	enforce(is_game_ready());
@@ -714,8 +734,8 @@ void BasicServer::handle_message(const Message& message)
 		const GameInput input = GameInput::from_string(message.data);
 		// TODO: validate input
 
-		if(!m_gamedata.has_value())
-			throw new GameException("Got input from client before the game is running.");
+		if(!is_ingame())
+			throw GameException("Got input from client before the game is running.");
 		m_gamedata->journal.add_input(input);
 
 		const Message out_msg{
@@ -732,8 +752,8 @@ void BasicServer::handle_message(const Message& message)
 		const int speed = std::stoi(message.data);
 		// TODO: validate sender and input
 
-		if(!m_gamedata.has_value())
-			throw new GameException("Got speed from client before the game is running.");
+		if(!is_ingame())
+			throw GameException("Got speed from client before the game is running.");
 		m_gamedata->dials.speed = speed;
 
 		const Message out_msg{

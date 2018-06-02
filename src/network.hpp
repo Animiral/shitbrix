@@ -494,12 +494,21 @@ private:
 
 	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
 	std::optional<GameData> m_gamedata; //!< information during the game round
+	int m_ready = 0; //!< quick-and-dirty state machine. 0=menu, 1=ready, 2=ingame
 
 	/**
 	 * Process a single message.
 	 * The appropriate changes and effects are then seen in the game state and journal.
 	 */
 	void handle_message(const Message& message);
+
+	/**
+	 * Initialize the game state from the meta information.
+	 * Note: After this call, all game event handlers in
+	 *       `gamedata().rules.event_hub` need to be freshly set up
+	 *       as they are not preserved in-between game restarts.
+	 */
+	void game_start_impl();
 
 };
 
@@ -554,6 +563,12 @@ public:
 	 * state is not yet constructed.
 	 */
 	bool is_game_ready() const noexcept;
+
+	/**
+	 * Return true if the gamedata is valid at the moment.
+	 * If this is not the case, accessing `gamedata()` will throw.
+	 */
+	bool is_ingame() const noexcept;
 
 	/**
 	 * Initialize the game state from the meta information.

@@ -5,9 +5,9 @@ GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),
   m_assets(),
   m_audio(Sdl::instance().audio(), m_assets),
+  m_input_devices(),
   m_screen_factory(m_options, m_assets, m_audio),
-  m_screen(nullptr),
-  m_input_devices()
+  m_screen(nullptr)
 {
 	if(nullptr != std::strstr(m_options.run_mode(), "server")) {
 		auto server_backend = std::make_unique<ENetServer>();
