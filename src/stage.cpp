@@ -203,7 +203,6 @@ Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IB
   m_emerge_queue(move(emerge_queue)),
   m_highlight_row(0)
 {
-	Log::trace("Construct Pit %p.", this);
 }
 
 Pit::Pit(const Pit& rhs)
@@ -211,16 +210,12 @@ Pit::Pit(const Pit& rhs)
   m_emerge_queue(rhs.m_emerge_queue->clone()),
   m_contents(rhs.copy_contents())
 {
-	Log::trace("CopyConstruct from Pit %p -> %p.", &rhs, this);
 	assign_basic(rhs);
 	make_content_map();
 }
 
 Pit& Pit::operator=(const Pit& rhs)
 {
-	Log::trace("Assign Pit %p at %d/%d with %d Ps to Pit %p at %d/%d with %d Ps.",
-		&rhs, rhs.m_loc.x, rhs.m_loc.y, rhs.m_contents.size(),
-		this, m_loc.x, m_loc.y, m_contents.size());
 	assign_basic(rhs);
 	m_grow_queue = rhs.m_grow_queue->clone();
 	m_emerge_queue = rhs.m_emerge_queue->clone();
@@ -596,8 +591,6 @@ Point layout_pit(int players, int index)
 GameState::GameState(GameMeta meta)
 : m_game_time(0)
 {
-	Log::trace("Construct GameState %p for %d players.", this, meta.players);
-
 	static const RowCol CURSOR_DEFAULT{-PIT_ROWS / 2, PIT_COLS / 2 - 1};
 
 	for(int i = 0; i < meta.players; i++)
@@ -612,8 +605,6 @@ GameState::GameState(GameMeta meta)
 GameState::GameState(const GameState& rhs)
 : m_game_time(rhs.m_game_time)
 {
-	Log::trace("CopyConstruct GameState %p at time=%d -> %p.", &rhs, m_game_time, this);
-
 	for(const auto& pit : rhs.m_pit)
 		m_pit.push_back(std::make_unique<Pit>(*pit));
 }
@@ -621,13 +612,10 @@ GameState::GameState(const GameState& rhs)
 GameState::GameState(GameState&& rhs)
 	: m_pit(move(rhs.m_pit)), m_game_time(rhs.m_game_time)
 {
-	Log::trace("MoveConstruct GameState %p at time=%d -> %p.", &rhs, m_game_time, this);
 }
 
 GameState& GameState::operator=(GameState rhs) noexcept
 {
-	Log::trace("Assign GameState %p with time=%d to state %p with time=%d.", &rhs, rhs.m_game_time, this, m_game_time);
-
 	m_game_time = rhs.m_game_time;
 	swap(m_pit, rhs.m_pit);
 	return *this;

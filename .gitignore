@@ -11,6 +11,7 @@ visualcpp/**/*Release/
 # Runtime-generated files
 replay/*
 logfile.txt
+server-logfile.txt
 
 # Trash from tools
 .gdbinit

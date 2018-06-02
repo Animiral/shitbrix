@@ -226,7 +226,6 @@ void BlockDirector::update_single(int player)
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
 {
 	// get events from journal, from which inputs will be relayed to the phase
-	// TODO: use checkpoints to re-sync on historic inserts
 	const long time0 = journal.earliest_undiscovered();
 
 	if(time0 < target_time) {
@@ -246,6 +245,9 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 		state.update();
 		rules.block_director.update();
 	}
+
+	if(rules.block_director.over())
+		return; // stop feeding the journal now
 
 	// save new checkpoint?
 	if(target_time >= journal.checkpoint_before(target_time).game_time() + CHECKPOINT_INTERVAL) {

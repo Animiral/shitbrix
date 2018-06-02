@@ -9,7 +9,10 @@ Options::Options(int argc, const char* argv[])
 {
 	// set defaults for missing options
 	if(!m_run_mode) m_run_mode = "client";
-	if(!m_log_path) m_log_path = "logfile.txt";
+	if(!m_log_path) {
+		if(0 == strcmp("server", m_run_mode)) m_log_path = "server-logfile.txt";
+		else m_log_path = "logfile.txt";
+	}
 	if(!m_server_url) m_server_url = "localhost6";
 }
 

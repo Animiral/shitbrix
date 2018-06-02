@@ -81,6 +81,7 @@ public:
 
 	/**
 	 * Add an input into the queue and mark it as undiscovered.
+	 * All checkpoints made at or after the time of the input become obsolete.
 	 */
 	void add_input(GameInput input);
 

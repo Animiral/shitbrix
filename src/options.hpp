@@ -16,7 +16,7 @@ public:
 	Options(int argc, const char* argv[]);
 
 	/**
-	 * Option: --run=[client|server|with-server]
+	 * Option: --run [client|server|with-server]
 	 * Which application mode to launch.
 	 * - "client" (default)
 	 * - "server": run only the server
@@ -25,20 +25,20 @@ public:
 	const char* run_mode() const noexcept { return m_run_mode; }
 
 	/**
-	 * Option: --replay=[path-string]
+	 * Option: --replay [path-string]
 	 * The path location of the replay file to be played back.
 	 * If nullptr, we run the game interactively.
 	 */
 	const char* replay_path() const noexcept { return m_replay_path; }
 
 	/**
-	 * Option: --logfile=[path-string]
+	 * Option: --logfile [path-string]
 	 * The path location of the output log file.
 	 */
 	const char* log_path() const noexcept { return m_log_path; }
 
 	/**
-	 * Option: --server-url=[url-string]
+	 * Option: --server-url [url-string]
 	 * Which server to connect to.
 	 */
 	const char* server_url() const noexcept { return m_server_url; }

@@ -73,8 +73,14 @@ void Journal::add_input(GameInput input)
 	if(m_earliest_undiscovered > itime)
 		m_earliest_undiscovered = itime;
 
+	// ordered insert of the input into the record
 	const auto after = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(itime));
 	m_inputs.insert(after, InputDiscovered{input, false});
+
+	// prune checkpoints to maintain integrity
+	auto is_obsolete = [itime](const GameState& s) { return s.game_time() >= itime; };
+	auto obs_it = std::remove_if(m_checkpoint.begin(), m_checkpoint.end(), is_obsolete);
+	m_checkpoint.erase(obs_it, m_checkpoint.end());
 }
 
 void Journal::set_winner(int winner) noexcept
@@ -88,8 +94,8 @@ void Journal::add_checkpoint(GameState&& checkpoint)
 	Log::trace("Journal add_checkpoint(time=%d).", checkpoint.game_time());
 
 	assert(m_checkpoint.size() > 0);
-	// for the time being, we can insert checkpoints only in order
-	enforce(checkpoint.game_time() > m_checkpoint.back().game_time());
+	// we should only ever insert new checkpoints if there is new history
+	assert(checkpoint.game_time() > m_checkpoint.back().game_time());
 
 	m_checkpoint.emplace_back(checkpoint);
 }
