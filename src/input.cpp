@@ -9,27 +9,31 @@
 namespace
 {
 
-ControllerInput key_to_controller(SDL_Keycode key, Uint8 state)
+ControllerInput key_to_controller(SDL_Keycode key, Uint8 state, std::optional<int> default_player)
 {
+	// default assignments for the left- and right-hand key sets
+	const int player0 = default_player.has_value() ? *default_player : 0;
+	const int player1 = default_player.has_value() ? *default_player : 1;
+
 	int player = NOONE;
-	Button button;
+	Button button = Button::NONE;
 
 	switch(key) {
 		// player 0 default keys
-		case SDLK_LEFT:  player = 0; button = Button::LEFT;  break;
-		case SDLK_RIGHT: player = 0; button = Button::RIGHT; break;
-		case SDLK_UP:    player = 0; button = Button::UP;    break;
-		case SDLK_DOWN:  player = 0; button = Button::DOWN;  break;
-		case SDLK_z:     player = 0; button = Button::A;     break;
-		case SDLK_x:     player = 0; button = Button::B;     break;
+		case SDLK_LEFT:  player = player0; button = Button::LEFT;  break;
+		case SDLK_RIGHT: player = player0; button = Button::RIGHT; break;
+		case SDLK_UP:    player = player0; button = Button::UP;    break;
+		case SDLK_DOWN:  player = player0; button = Button::DOWN;  break;
+		case SDLK_z:     player = player0; button = Button::A;     break;
+		case SDLK_x:     player = player0; button = Button::B;     break;
 
 		// player 1 default keys
-		case SDLK_KP_4: case SDLK_j: player = 1; button = Button::LEFT;  break;
-		case SDLK_KP_6: case SDLK_l: player = 1; button = Button::RIGHT; break;
-		case SDLK_KP_8: case SDLK_i: player = 1; button = Button::UP;    break;
-		case SDLK_KP_5: case SDLK_k: player = 1; button = Button::DOWN;  break;
-		case SDLK_KP_0: case SDLK_g: player = 1; button = Button::A;     break;
-		case SDLK_KP_1: case SDLK_h: player = 1; button = Button::B;     break;
+		case SDLK_KP_4: case SDLK_j: player = player1; button = Button::LEFT;  break;
+		case SDLK_KP_6: case SDLK_l: player = player1; button = Button::RIGHT; break;
+		case SDLK_KP_8: case SDLK_i: player = player1; button = Button::UP;    break;
+		case SDLK_KP_5: case SDLK_k: player = player1; button = Button::DOWN;  break;
+		case SDLK_KP_0: case SDLK_g: player = player1; button = Button::A;     break;
+		case SDLK_KP_1: case SDLK_h: player = player1; button = Button::B;     break;
 
 		// debug keys
 		case SDLK_F1:     button = Button::DEBUG1; break;
@@ -42,7 +46,6 @@ ControllerInput key_to_controller(SDL_Keycode key, Uint8 state)
 		case SDLK_RETURN: button = Button::RESET;  break;
 		case SDLK_SPACE:  button = Button::PAUSE;  break;
 		case SDLK_ESCAPE: button = Button::QUIT;   break;
-		default:          button = Button::NONE;   break;
 	}
 
 	ButtonAction action = state == SDL_RELEASED ? ButtonAction::UP : ButtonAction::DOWN;
@@ -68,7 +71,7 @@ void Keyboard::poll()
 		case SDL_KEYUP:
 		case SDL_KEYDOWN:
 			if(!event.key.repeat) {
-				ControllerInput input = key_to_controller(event.key.keysym.sym, event.key.state);
+				ControllerInput input = key_to_controller(event.key.keysym.sym, event.key.state, m_player_number);
 
 				// with function keys, we only care about press, not release
 				if(NOONE == input.player && ButtonAction::UP == input.action)

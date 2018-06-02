@@ -3,6 +3,7 @@
 
 Options::Options(int argc, const char* argv[])
 : m_run_mode(str_option(argc, argv, "--run")),
+  m_player_number(int_option(argc, argv, "--player_number")),
   m_replay_path(str_option(argc, argv, "--replay")),
   m_log_path(str_option(argc, argv, "--logfile")),
   m_server_url(str_option(argc, argv, "--server-url"))
@@ -26,6 +27,17 @@ const char* Options::str_option(int argc, const char* argv[], const std::string&
 		return *itr;
 	}
 	return nullptr;
+}
+
+std::optional<int> Options::int_option(int argc, const char* argv[], const std::string& option)
+{
+	auto end = argv + argc;
+	const char** itr = std::find(argv, end, option);
+	if (itr != end && ++itr != end)
+	{
+		return std::stoi(*itr);
+	}
+	return std::nullopt;
 }
 
 bool Options::bool_option(int argc, const char* argv[], const std::string& option) noexcept

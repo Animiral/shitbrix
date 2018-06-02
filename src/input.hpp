@@ -33,11 +33,15 @@ class Keyboard
 {
 
 public:
-	void set_sink(IControllerSink& sink) { m_sink = &sink; }
+
+	void set_sink(IControllerSink* sink) { m_sink = sink; }
+	void set_player_number(std::optional<int> player_number) { m_player_number = player_number; }
 	void poll(); //!< read events from the keyboard buffer, send to sink
 
 private:
+
 	IControllerSink* m_sink = nullptr;
+	std::optional<int> m_player_number;
 
 };
 

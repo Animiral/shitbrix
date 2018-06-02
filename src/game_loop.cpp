@@ -16,6 +16,16 @@ GameLoop::GameLoop(Options options)
 		m_screen_factory.set_server(m_server.get());
 	}
 
+	if(m_options.player_number().has_value()) {
+		const int player_number = *m_options.player_number();
+		if(2 <= player_number) {
+			throw new GameException("Cannot control player "
+				+ std::to_string(player_number)
+				+ ". More than two players are currently not yet supported.");
+		}
+		m_keyboard.set_player_number(*m_options.player_number());
+	}
+
 	next_screen();
 }
 
@@ -135,5 +145,5 @@ void GameLoop::next_screen()
 		assert(false); // unknown type of m_screen
 	}
 
-	m_keyboard.set_sink(*m_screen);
+	m_keyboard.set_sink(m_screen);
 }
