@@ -8,8 +8,8 @@
 #include "stage.hpp"
 #include "gameevent.hpp"
 #include "asset.hpp"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL.h>
+#include <SDL_image.h>
 
 /**
  * Interface for classes that can draw stuff.

@@ -7,8 +7,8 @@
 #include "globals.hpp"
 #include <memory>
 #include <vector>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_audio.h>
+#include <SDL_image.h>
+#include <SDL_audio.h>
 
 /**
  * Custom deleter for SDL objects, to be used with unique_ptrs

@@ -3,15 +3,14 @@
 
 # Output directories
 bin/
-visualcpp/**/x64*/
-visualcpp/**/Win32*/
-visualcpp/**/*Debug/
-visualcpp/**/*Release/
+msvc/**/x64*/
+msvc/**/Win32*/
+msvc/**/*Debug/
+msvc/**/*Release/
 
 # Runtime-generated files
 replay/*
-logfile.txt
-server-logfile.txt
+*logfile*.txt
 
 # Trash from tools
 .gdbinit

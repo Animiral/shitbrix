@@ -5,8 +5,8 @@
 #include <ctime>
 #include <cassert>
 #include <mutex>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL.h>
+#include <SDL_image.h>
 
 GameException::GameException(std::string what, std::unique_ptr<GameException> cause)
 	: m_what(std::move(what)), m_cause(std::move(cause))

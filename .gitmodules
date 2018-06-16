@@ -1,0 +1,12 @@
+[submodule "ext/enet"]
+	path = ext/enet
+	url = https://github.com/lsalzman/enet
+[submodule "ext/sdl"]
+	path = ext/sdl
+	url = https://github.com/SDL-mirror/SDL
+[submodule "ext/sdl_image"]
+	path = ext/sdl_image
+	url = https://github.com/SDL-mirror/SDL_image
+[submodule "ext/googletest"]
+	path = ext/googletest
+	url = https://github.com/google/googletest
