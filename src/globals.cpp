@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <cassert>
+#include <algorithm>
 #include "error.hpp"
 
 Gfx operator+(Gfx gfx, int delta)

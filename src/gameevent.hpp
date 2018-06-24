@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <algorithm>
 #include "audio.hpp"
 #include "stage.hpp"
 
@@ -143,7 +144,7 @@ public:
 
 	void unsubscribe(IGameEvent& handler)
 	{
-		auto it = std::remove(m_handlers.end(), m_handlers.end(), &handler);
+		auto it = std::remove(m_handlers.begin(), m_handlers.end(), &handler);
 		m_handlers.erase(it, m_handlers.end());
 	}
 

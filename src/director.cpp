@@ -230,7 +230,7 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 
 	if(time0 < target_time) {
 		state = journal.checkpoint_before(time0);
-		Log::trace(__FUNCTION__ "(%d): revert to checkpoint before time=%d -> at time=%d.", target_time, time0, state.game_time());
+		Log::trace("%s(%d): revert to checkpoint before time=%d -> at time=%d.", __FUNCTION__, target_time, time0, state.game_time());
 	}
 
 	GameInputSpan inputs = journal.discover_inputs(state.game_time() + 1, target_time);
@@ -251,7 +251,7 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 
 	// save new checkpoint?
 	if(target_time >= journal.checkpoint_before(target_time).game_time() + CHECKPOINT_INTERVAL) {
-		Log::trace(__FUNCTION__ "(%d): save checkpoint at time=%d.", target_time, state.game_time());
+		Log::trace("%s(%d): save checkpoint at time=%d.", __FUNCTION__, target_time, state.game_time());
 		journal.add_checkpoint(GameState(state));
 	}
 }
@@ -277,7 +277,7 @@ namespace
 void apply_input(GameState& state, Rules& rules, GameInput ginput)
 {
 	assert(GameButton::NONE != ginput.button);
-	Log::trace(__FUNCTION__ " %s", ginput.to_string().c_str());
+	Log::trace("%s %s", __FUNCTION__, ginput.to_string().c_str());
 
 	switch(ginput.button) {
 		case GameButton::LEFT:

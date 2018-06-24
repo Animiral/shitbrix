@@ -24,7 +24,7 @@ struct GameException : public std::exception
 
 	virtual std::unique_ptr<GameException> clone() const;
 	virtual const char* class_name() const noexcept { return "GameException"; }
-	virtual const char* what() const override { return m_what.c_str(); }
+	virtual const char* what() const noexcept override { return m_what.c_str(); }
 
 	const std::string m_what;
 	std::unique_ptr<GameException> m_cause;
@@ -126,8 +126,7 @@ void enforce_impl(bool condition, const char* condition_str, const char* func, c
 #define SB_STRINGIZE(x) STR1(x)
 
 // align compilers
-#ifdef __GNUC__
-#elif __MINGW32__
+#if defined(__GNUC__) || defined(__MINGW32__)
 #define SB_FUNC __PRETTY_FUNCTION__
 #elif _MSC_VER
 #define SB_FUNC __FUNCSIG__

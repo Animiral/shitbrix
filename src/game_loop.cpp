@@ -1,5 +1,6 @@
 #include "game_loop.hpp"
 #include "error.hpp"
+#include <cstring>
 
 GameLoop::GameLoop(Options options)
 : m_options(std::move(options)),

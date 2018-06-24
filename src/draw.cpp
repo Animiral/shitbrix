@@ -335,7 +335,10 @@ void DrawGame::putsprite(Point loc, Gfx gfx, size_t frame) const
 {
 	SDL_Texture* texture = &m_assets.texture(gfx, frame);
 	loc = translate(loc);
-	SDL_Rect dstrect { std::lround(loc.x), std::lround(loc.y), 0, 0 };
+	SDL_Rect dstrect {
+		static_cast<int>(std::lround(loc.x)),
+		static_cast<int>(std::lround(loc.y)),
+		0, 0 };
 	sdlok(SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h));
 	sdlok(SDL_SetTextureAlphaMod(texture, m_alpha));
 	sdlok(SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect));
