@@ -11,6 +11,7 @@
 #include "draw.hpp"
 #include "stage.hpp"
 #include "director.hpp"
+#include "error.hpp"
 #include <cassert>
 #include <sstream>
 
@@ -91,7 +92,7 @@ private:
 
 	void run_game_ticks(int ticks)
 	{
-		SDL_Renderer& renderer = Sdl::instance().renderer();
+		SDL_Renderer& renderer = the_context.sdl->renderer();
 		SDL_Rect indicator_rect{400, 20, 40, 40};
 
 		for(int t = 0; t < ticks; t++) {
@@ -127,13 +128,7 @@ struct DemoFactory
 	std::unique_ptr<Stage> m_stage;
 	std::unique_ptr<Logic> m_logic;
 	std::unique_ptr<BlockDirector> m_director;
-	Assets m_assets;
 	std::unique_ptr<DrawGame> m_draw;
-
-	DemoFactory() :
-		m_assets()
-	{
-	}
 
 	VisualDemo construct()
 	{
@@ -142,7 +137,7 @@ struct DemoFactory
 		m_state = std::make_unique<GameState>(m_meta);
 		m_stage = std::make_unique<Stage>(*m_state);
 		Pit& pit = *m_stage->state().pit().at(0);
-		m_draw = std::make_unique<DrawGame>(*m_stage, m_assets);
+		m_draw = std::make_unique<DrawGame>(*m_stage);
 		m_logic = std::make_unique<Logic>(pit);
 		m_director = std::make_unique<BlockDirector>(*m_state);
 		return VisualDemo(pit, *m_draw, *m_director);
@@ -366,6 +361,8 @@ private:
 int main(int argc, char* argv[])
 {
 	Options options(argc, const_cast<const char**>(argv));
+	// BUG: need to set up global context
+	// (this is breaking for visual demo)
 	DemoFactory mkvd;
 	VisualDemo demo(mkvd.construct());
 

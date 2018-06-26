@@ -1,5 +1,6 @@
 #include "error.hpp"
 #include "globals.hpp"
+#include "context.hpp"
 #include "sdl_helper.hpp"
 #include <fstream>
 #include <ctime>
@@ -111,7 +112,7 @@ void show_error(const std::exception& exception) noexcept
 	Uint32 init = SDL_WasInit(SDL_INIT_EVERYTHING);
 
 	if(init & SDL_INIT_VIDEO) {
-		SDL_Renderer* renderer = &Sdl::instance().renderer();
+		SDL_Renderer* renderer = &the_context.sdl->renderer();
 		SDL_Event event;
 		if(0 == SDL_WaitEvent(&event)) return;
 
@@ -136,24 +137,27 @@ void show_error(const std::exception& exception) noexcept
 }
 
 
-Log::~Log() =default;
-
 /**
  * Log to file implementation.
  */
-class LogFile : public LogImpl
+class FileLogger : public Logger
 {
 
 public:
 
-	explicit LogFile(const char* path)
+	explicit FileLogger(const char* path)
 	{
 		m_stream.rdbuf()->pubsetbuf(nullptr, 0); // make unbuffered
 		m_stream.open(path, std::ios_base::out | std::ios_base::app);
+		write("Log initialized.");
 	}
 
 	virtual void write(const std::string& message) noexcept override
 	{
+		// Thread safety: from here on, only one thread at a time can write.
+		static std::mutex write_mutex;
+		std::lock_guard<std::mutex> lock(write_mutex);
+
 		// we don't care to check errors as the log is best-effort
 		m_stream << message << "\n";
 		m_stream.flush();
@@ -165,48 +169,36 @@ private:
 
 };
 
-std::unique_ptr<LogImpl> create_file_log(const char* path)
+std::unique_ptr<Logger> create_file_log(const char* path)
 {
-	return std::make_unique<LogFile>(path);
-}
-
-void Log::init(std::unique_ptr<LogImpl> impl)
-{
-	m_instance.reset(new Log(move(impl)));
-	info("Log initialized.");
+	return std::make_unique<FileLogger>(path);
 }
 
 void Log::trace(const char *format, ...) noexcept
 {
-	if(m_instance) {
-		va_list vlist;
-		va_start(vlist, format);
-		m_instance->write("TRACE", format, vlist);
-		va_end(vlist);
-	}
+	va_list vlist;
+	va_start(vlist, format);
+	write("TRACE", format, vlist);
+	va_end(vlist);
 }
 
 void Log::info(const char *format, ...) noexcept
 {
-	if(m_instance) {
-		va_list vlist;
-		va_start(vlist, format);
-		m_instance->write("INFO", format, vlist);
-		va_end(vlist);
-	}
+	va_list vlist;
+	va_start(vlist, format);
+	write("INFO", format, vlist);
+	va_end(vlist);
 }
 
 void Log::error(const char *format, ...) noexcept
 {
-	if(m_instance) {
-		va_list vlist;
-		va_start(vlist, format);
-		m_instance->write("ERROR", format, vlist);
-		va_end(vlist);
-	}
+	va_list vlist;
+	va_start(vlist, format);
+	write("ERROR", format, vlist);
+	va_end(vlist);
 }
 
-void Log::write(const char* level, const char *format, va_list vlist) const noexcept
+void Log::write(const char* level, const char *format, va_list vlist) noexcept
 {
 	const size_t level_size = strlen(level);
 	const int format_size = vsnprintf(NULL, 0, format, vlist);
@@ -240,17 +232,5 @@ void Log::write(const char* level, const char *format, va_list vlist) const noex
 
 	buffer.resize(buffer.size() - 1); // drop trailing '\0' from vsprintf
 
-	// Thread safety: from here on, only one thread at a time can write.
-	static std::mutex write_mutex;
-	std::lock_guard<std::mutex> lock(write_mutex);
-
-	m_impl->write(buffer);
+	the_context.log->write(buffer);
 }
-
-Log::Log(std::unique_ptr<LogImpl> impl)
-: m_impl(move(impl))
-{
-	assert(m_impl);
-}
-
-std::unique_ptr<Log> Log::m_instance;

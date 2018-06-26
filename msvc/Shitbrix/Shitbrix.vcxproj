@@ -65,11 +65,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\asset.hpp" />
+    <ClInclude Include="..\..\src\context.hpp" />
     <ClInclude Include="..\..\src\director.hpp" />
     <ClInclude Include="..\..\src\draw.hpp" />
     <ClInclude Include="..\..\src\enet_helper.hpp" />
     <ClInclude Include="..\..\src\error.hpp" />
-    <ClInclude Include="..\..\src\gameevent.hpp" />
+    <ClInclude Include="..\..\src\event.hpp" />
     <ClInclude Include="..\..\src\game_loop.hpp" />
     <ClInclude Include="..\..\src\globals.hpp" />
     <ClInclude Include="..\..\src\input.hpp" />
@@ -83,10 +84,13 @@
     <ClInclude Include="..\..\src\stage.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\asset.cpp" />
+    <ClCompile Include="..\..\src\context.cpp" />
     <ClCompile Include="..\..\src\director.cpp" />
     <ClCompile Include="..\..\src\draw.cpp" />
     <ClCompile Include="..\..\src\enet_helper.cpp" />
     <ClCompile Include="..\..\src\error.cpp" />
+    <ClCompile Include="..\..\src\event.cpp" />
     <ClCompile Include="..\..\src\game_loop.cpp" />
     <ClCompile Include="..\..\src\globals.cpp" />
     <ClCompile Include="..\..\src\input.cpp" />

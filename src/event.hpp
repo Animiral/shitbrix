@@ -6,7 +6,6 @@
 #pragma once
 
 #include <algorithm>
-#include "audio.hpp"
 #include "stage.hpp"
 
 namespace evt
@@ -137,16 +136,8 @@ class GameEventHub : public IGameEvent
 
 public:
 
-	void subscribe(IGameEvent& handler)
-	{
-		m_handlers.push_back(&handler);
-	}
-
-	void unsubscribe(IGameEvent& handler)
-	{
-		auto it = std::remove(m_handlers.begin(), m_handlers.end(), &handler);
-		m_handlers.erase(it, m_handlers.end());
-	}
+	void subscribe(IGameEvent& handler);
+	void unsubscribe(IGameEvent& handler);
 
 	virtual void fire(CursorMoves event) override { fire_all(event); }
 	virtual void fire(Swap event) override { fire_all(event); }
@@ -178,19 +169,10 @@ class BonusRelay : public IGameEvent
 
 public:
 
-	BonusRelay(Stage& stage) : m_stage(&stage) {}
+	explicit BonusRelay(Stage& stage);
 
-	virtual void fire(evt::Match event) override
-	{
-		if(event.combo > 3)
-			m_stage->sobs().at(event.player).bonus.display_combo(event.combo);
-	}
-
-	virtual void fire(evt::Chain event) override
-	{
-		if(event.counter > 0)
-			m_stage->sobs().at(event.player).bonus.display_combo(event.counter + 1);
-	}
+	virtual void fire(evt::Match event) override;
+	virtual void fire(evt::Chain event) override;
 
 private:
 
@@ -206,19 +188,13 @@ class SoundRelay : public IGameEvent
 
 public:
 
-	SoundRelay(const Audio& audio) : m_audio(audio) {}
-
-	virtual void fire(CursorMoves event) override {}
-	virtual void fire(Swap event) override { m_audio.play(Snd::SWAP); }
-	virtual void fire(Match event) override { m_audio.play(Snd::MATCH); }
-	// virtual void fire(Chain event) override { }
-	virtual void fire(PhysicalLands event) override { m_audio.play(Snd::LANDING); }
-	virtual void fire(BlockDies event) override { m_audio.play(Snd::BREAK); }
-	virtual void fire(GarbageDissolves event) override { m_audio.play(Snd::BREAK); }
-
-private:
-
-	const Audio& m_audio;
+	virtual void fire(CursorMoves event) override;
+	virtual void fire(Swap event) override;
+	virtual void fire(Match event) override;
+	// virtual void fire(Chain event) override;
+	virtual void fire(PhysicalLands event);
+	virtual void fire(BlockDies event);
+	virtual void fire(GarbageDissolves event);
 
 };
 

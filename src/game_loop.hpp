@@ -2,8 +2,6 @@
 
 #include "screen.hpp"
 #include "draw.hpp"
-#include "audio.hpp"
-#include "options.hpp"
 
 /**
  * Top-level class which owns general application resources such as the initialized SDL library
@@ -14,7 +12,7 @@ class GameLoop
 
 public:
 
-	GameLoop(Options options);
+	GameLoop();
 
 	/**
 	 * Main loop.
@@ -31,9 +29,6 @@ public:
 private:
 
 	// resources
-	Options m_options;
-	Assets m_assets;
-	Audio m_audio;
 	InputDevices m_input_devices;
 
 	// network hosts

@@ -9,11 +9,9 @@
 #include "input.hpp"
 #include "stage.hpp"
 #include "draw.hpp"
-#include "audio.hpp"
 #include "logic.hpp"
 #include "director.hpp"
 #include "replay.hpp"
-#include "options.hpp"
 #include "network.hpp"
 #include "sdl_helper.hpp"
 #include <fstream>
@@ -52,8 +50,6 @@ class ScreenFactory
 
 public:
 
-	ScreenFactory(const Options& options, const Assets& assets, const Audio& audio);
-
 	/**
 	 * Configure the client dependency.
 	 * In the future, this will hopefully be taken from a central repository.
@@ -74,9 +70,6 @@ public:
 private:
 
 	// resources to create the Screens
-	const Options& m_options;
-	const Assets& m_assets;
-	const Audio& m_audio;
 	BasicClient* m_client;
 	ServerThread* m_server;
 
@@ -113,7 +106,7 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	MenuScreen(DrawMenu&& draw, const Audio& sound, BasicClient& client);
+	MenuScreen(DrawMenu&& draw, BasicClient& client);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
@@ -209,7 +202,6 @@ public:
 	explicit GameScreen(
 		std::unique_ptr<Stage> stage,
 		std::unique_ptr<DrawGame> draw,
-		const Audio& audio,
 		BasicClient& client,
 		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
@@ -260,7 +252,7 @@ public:
 	virtual ~ServerScreen() noexcept;
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
+	virtual void draw(float dt) override {}
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
 	virtual void input(ControllerInput cinput) override;
@@ -268,7 +260,7 @@ public:
 private:
 
 	ServerThread* const m_server;
-	DrawPink m_draw;
+	NoDraw m_draw;
 	bool m_done;
 
 };

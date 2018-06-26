@@ -90,12 +90,13 @@ include_directories(${SRC_DIR})
 set(INCLUDE_FILES
     ${SRC_DIR}/asset.hpp
     ${SRC_DIR}/audio.hpp
+    ${SRC_DIR}/context.hpp
     ${SRC_DIR}/director.hpp
     ${SRC_DIR}/draw.hpp
     ${SRC_DIR}/enet_helper.hpp
     ${SRC_DIR}/error.hpp
+    ${SRC_DIR}/event.hpp
     ${SRC_DIR}/game_loop.hpp
-    ${SRC_DIR}/gameevent.hpp
     ${SRC_DIR}/globals.hpp
     ${SRC_DIR}/input.hpp
     ${SRC_DIR}/logic.hpp
@@ -108,11 +109,14 @@ set(INCLUDE_FILES
 )
 
 set(SOURCE_FILES
+    ${SRC_DIR}/asset.cpp
     ${SRC_DIR}/audio.cpp
+    ${SRC_DIR}/context.cpp
     ${SRC_DIR}/director.cpp
     ${SRC_DIR}/draw.cpp
     ${SRC_DIR}/enet_helper.cpp
     ${SRC_DIR}/error.cpp
+    ${SRC_DIR}/event.cpp
     ${SRC_DIR}/game_loop.cpp
     ${SRC_DIR}/globals.cpp
     ${SRC_DIR}/input.cpp

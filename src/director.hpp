@@ -4,7 +4,7 @@
 #pragma once
 
 #include "stage.hpp"
-#include "gameevent.hpp"
+#include "event.hpp"
 #include "logic.hpp"
 
 /**

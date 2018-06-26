@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shitbrix", "Shitbrix\Shitbr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShitbrixTest", "ShitbrixTest\ShitbrixTest.vcxproj", "{18500BB4-AD0A-4F38-87A7-919E8C85A9E4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShitbrixWinmain", "ShitbrixWinmain\ShitbrixWinmain.vcxproj", "{F435B3DA-7FF5-4701-9B3E-0CC0DC23FE5C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShitbrixMain", "ShitbrixMain\ShitbrixMain.vcxproj", "{F435B3DA-7FF5-4701-9B3E-0CC0DC23FE5C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VisualDemo", "VisualDemo\VisualDemo.vcxproj", "{CA8AA762-DA5D-4604-BE85-791FDD9AACE8}"
 EndProject

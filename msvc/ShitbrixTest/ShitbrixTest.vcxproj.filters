@@ -18,12 +18,6 @@
     <ClCompile Include="..\..\tests\test_block.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\test_blockdirector.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\tests\test_gameevent.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\tests\test_pit.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
@@ -37,6 +31,12 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="..\..\tests\test_globals.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tests\test_director.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tests\test_event.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

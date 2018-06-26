@@ -80,8 +80,8 @@
   <ItemGroup>
     <ClCompile Include="..\..\tests\tests_common.cpp" />
     <ClCompile Include="..\..\tests\test_block.cpp" />
-    <ClCompile Include="..\..\tests\test_blockdirector.cpp" />
-    <ClCompile Include="..\..\tests\test_gameevent.cpp" />
+    <ClCompile Include="..\..\tests\test_director.cpp" />
+    <ClCompile Include="..\..\tests\test_event.cpp" />
     <ClCompile Include="..\..\tests\test_globals.cpp" />
     <ClCompile Include="..\..\tests\test_network.cpp" />
     <ClCompile Include="..\..\tests\test_pit.cpp" />

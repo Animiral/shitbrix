@@ -24,9 +24,6 @@
     <ClInclude Include="..\..\src\draw.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\gameevent.hpp">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\game_loop.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -64,6 +61,12 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\enet_helper.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\context.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\event.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
@@ -111,6 +114,15 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\enet_helper.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\context.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\event.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\asset.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

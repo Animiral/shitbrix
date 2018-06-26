@@ -20,6 +20,8 @@
  *  * [D], [H]: toggle debug view on pits
  *
  * The keys can currently not be remapped.
+ * BUG: This implementation reads all SDL events, when it can only handle
+ *      those which are inputs. Might need refactoring.
  */
 class InputDevices
 {

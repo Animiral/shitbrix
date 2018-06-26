@@ -183,13 +183,14 @@ void show_error(const std::exception& exception) noexcept;
 
 /**
  * Interface for the underlying logging implementation.
+ * All implementations should be thread-safe.
  */
-class LogImpl
+class Logger
 {
 
 public:
 
-	virtual ~LogImpl() =default;
+	virtual ~Logger() =default;
 	virtual void write(const std::string& message) noexcept =0;
 
 };
@@ -197,57 +198,37 @@ public:
 /**
  * Create a logging implementation that writes to the specified file.
  */
-std::unique_ptr<LogImpl> create_file_log(const char* path);
+std::unique_ptr<Logger> create_file_log(const char* path);
 
 /**
- * Singleton main logging class.
- * Formats messages on different log levels and hands them to a logging
- * implementation, e.g. to be written to a file.
- * Writing to the log through this interface is thread-safe, but
- * initialization is not.
+ * Logging convenience functions.
+ * Format messages on different log levels and hands them to a the logging
+ * implementation defined in the global context, e.g. to be written to a file.
  */
-class Log
+namespace Log
 {
 
-public:
+/**
+	* Write a trace-level log message.
+	* If the logger is not intialized, do nothing.
+	*/
+void trace(const char *format, ...) noexcept;
 
-	Log(const Log& ) =delete;
-	~Log();
+/**
+	* Write an info-level log message.
+	* If the logger is not intialized, do nothing.
+	*/
+void info(const char *format, ...) noexcept;
 
-	/**
-	 * Initialize the logger with the given backend.
-	 */
-	static void init(std::unique_ptr<LogImpl> impl);
+/**
+	* Write an error-level log message.
+	* If the logger is not intialized, do nothing.
+	*/
+void error(const char *format, ...) noexcept;
 
-	/**
-	 * Write a trace-level log message.
-	 * If the logger is not intialized, do nothing.
-	 */
-	static void trace(const char *format, ...) noexcept;
+/**
+	* Format the given message and write it using the implementation.
+	*/
+void write(const char* level, const char *format, va_list vlist) noexcept;
 
-	/**
-	 * Write an info-level log message.
-	 * If the logger is not intialized, do nothing.
-	 */
-	static void info(const char *format, ...) noexcept;
-
-	/**
-	 * Write an error-level log message.
-	 * If the logger is not intialized, do nothing.
-	 */
-	static void error(const char *format, ...) noexcept;
-
-	/**
-	 * Format the given message and write it using the implementation.
-	 */
-	void write(const char* level, const char *format, va_list vlist) const noexcept;
-
-private:
-
-	explicit Log(std::unique_ptr<LogImpl> impl);
-
-	std::unique_ptr<LogImpl> m_impl;
-
-	static std::unique_ptr<Log> m_instance;
-
-};
+}
