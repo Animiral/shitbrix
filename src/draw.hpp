@@ -213,17 +213,17 @@ class ShakeRelay : public evt::IEventObserver
 
 public:
 
-	ShakeRelay(DrawGame& draw) : m_draw(draw) {}
+	ShakeRelay(DrawGame& draw) : m_draw(&draw) {}
 
 	virtual void fire(evt::PhysicalLands lands) override
 	{
 		if(const Garbage* garbage = dynamic_cast<const Garbage*> (&lands.physical)) {
-			m_draw.shake(garbage->rows() * SHAKE_SCALE);
+			m_draw->shake(garbage->rows() * SHAKE_SCALE);
 		}
 	}
 
 private:
 
-	DrawGame& m_draw;
+	DrawGame* m_draw;
 
 };

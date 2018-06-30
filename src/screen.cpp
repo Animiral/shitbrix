@@ -321,9 +321,12 @@ void GameScreen::start()
 	m_game_time = gamedata.state.game_time();
 	m_done = false;
 
+	m_sound_relay = evt::DupeFiltered<evt::SoundRelay>();
+	m_shake_relay = evt::DupeFiltered<ShakeRelay>(*m_draw);
+
 	// BUG! Due to lack of RAII wrapping, these relays will not be properly
 	// unsubscribed from the hub if this is being called from the GameScreen
-	// constructor and one of the subscriptions fails.
+	// constructor and one of the subscriptions throws an exception.
 	evt::GameEventHub& hub = m_client->gamedata().rules.event_hub;
 	hub.subscribe(m_bonus_relay);
 	hub.subscribe(m_sound_relay);

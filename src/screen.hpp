@@ -225,8 +225,8 @@ private:
 	BasicClient* const m_client;
 	ServerThread* const m_server;
 	evt::BonusRelay m_bonus_relay;
-	evt::SoundRelay m_sound_relay;
-	ShakeRelay m_shake_relay;
+	evt::DupeFiltered<evt::SoundRelay> m_sound_relay;
+	evt::DupeFiltered<ShakeRelay> m_shake_relay;
 
 	void change_phase(std::unique_ptr<IGamePhase> phase);
 	void change_phase_impl();

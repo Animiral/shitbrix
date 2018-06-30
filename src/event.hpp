@@ -152,7 +152,7 @@ public:
 inline IEventObserver::~IEventObserver() {}
 
 /**
- * A pseudo-handler for GameEvents that forwards them to other handlers.
+ * A pseudo-handler for game events that forwards them to other handlers.
  */
 class GameEventHub : public IEventObserver
 {
@@ -180,6 +180,45 @@ private:
 	}
 
 	std::vector<IEventObserver*> m_handlers;
+
+};
+
+/**
+ * A pseudo-handler for game events that forwards them to a
+ * subsequent handler only in a strictly ascending order of game_time.
+ * It suppresses all late or repeat events.
+ * This behavior filters events from re-calculation of game state.
+ */
+template<typename EventObserver>
+class DupeFiltered : public IEventObserver
+{
+
+public:
+
+	template<typename... Args>
+	explicit DupeFiltered(Args&&... args) : m_next(std::forward<Args>(args)...) {}
+
+	virtual void fire(CursorMoves event) override { fire_next(event); }
+	virtual void fire(Swap event) override { fire_next(event); }
+	virtual void fire(Match event) override { fire_next(event); }
+	virtual void fire(Chain event) override { fire_next(event); }
+	virtual void fire(PhysicalLands event) override { fire_next(event); }
+	virtual void fire(BlockDies event) override { fire_next(event); }
+	virtual void fire(GarbageDissolves event) override { fire_next(event); }
+
+private:
+
+	template<typename Event>
+	void fire_next(Event event)
+	{
+		if(event.trivia.game_time > m_cutoff) {
+			m_cutoff = event.trivia.game_time;
+			static_cast<IEventObserver&>(m_next).fire(event);
+		}
+	}
+
+	EventObserver m_next; //!< successor event handler
+	long m_cutoff = 0; //!< time of last observed event
 
 };
 
