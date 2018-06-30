@@ -6,10 +6,11 @@
 
 // TODO: use pImpl to remove SDL dependencies from draw interface.
 #include "stage.hpp"
-#include "gameevent.hpp"
+#include "event.hpp"
 #include "asset.hpp"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include "context.hpp"
+#include <SDL.h>
+#include <SDL_image.h>
 
 /**
  * Interface for classes that can draw stuff.
@@ -34,9 +35,20 @@ public:
 	 */
 	virtual void draw_offscreen(float dt) const =0;
 
-protected:
+};
 
-	Sdl& sdl = Sdl::instance();
+/**
+ * Not-drawaing implementation.
+ * This implementation does nothing when asked to draw.
+ * It can be used when SDL's video subsystem was not initialized,
+ * i.e. on the server.
+ */
+class NoDraw : public IDraw
+{
+
+public:
+
+	virtual void draw_offscreen(float dt) const override {}
 
 };
 
@@ -52,7 +64,7 @@ public:
 	DrawPink(Uint8 r, Uint8 g, Uint8 b) : m_r(r), m_g(g), m_b(b) {}
 	virtual void draw_offscreen(float dt) const override
 	{
-		SDL_Renderer* renderer = &Sdl::instance().renderer();
+		SDL_Renderer* renderer = &the_context.sdl->renderer();
 		SDL_SetRenderDrawColor(renderer, m_r, m_g, m_b, SDL_ALPHA_OPAQUE);
 		SDL_Rect canvas_rect{0, 0, CANVAS_W, CANVAS_H};
 		SDL_RenderFillRect(renderer, &canvas_rect);
@@ -72,12 +84,7 @@ class DrawMenu : public IDraw
 
 public:
 
-	DrawMenu(const Assets& assets);
 	virtual void draw_offscreen(float) const override;
-
-private:
-
-	const Assets& m_assets;
 
 };
 
@@ -93,7 +100,7 @@ public:
 	/**
 	 * Construct a new DrawGame object from the given dependencies.
 	 */
-	DrawGame(const Stage& stage, const Assets& assets);
+	DrawGame(const Stage& stage);
 
 	void fade(float fraction);
 
@@ -141,8 +148,6 @@ private:
 	bool m_show_banner;
 	bool m_show_pit_debug_overlay = false;
 	bool m_show_pit_debug_highlight = false;
-
-	const Assets& m_assets;
 
 	float m_fade = 1.f;
 	mutable Point m_shake{0,0}; //!< shake effect offset

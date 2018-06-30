@@ -7,8 +7,8 @@
 #include "globals.hpp"
 #include <memory>
 #include <vector>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_audio.h>
+#include <SDL_image.h>
+#include <SDL_audio.h>
 
 /**
  * Custom deleter for SDL objects, to be used with unique_ptrs
@@ -66,18 +66,18 @@ private:
  * Every instance opens an audio device upon instantiation.
  * The SDL audio subsystem must be initialized to successfully instantiate Audio.
  */
-class SdlAudio
+class SdlSoundPlayer
 {
 
 public:
 
-	SdlAudio();
-	~SdlAudio();
+	SdlSoundPlayer();
+	~SdlSoundPlayer();
 
-	SdlAudio(const SdlAudio& ) =delete;
-	SdlAudio(SdlAudio&& ) =default;
-	SdlAudio& operator=(const SdlAudio& ) =delete;
-	SdlAudio& operator=(SdlAudio&& ) =default;
+	SdlSoundPlayer(const SdlSoundPlayer& ) =delete;
+	SdlSoundPlayer(SdlSoundPlayer&& ) =default;
+	SdlSoundPlayer& operator=(const SdlSoundPlayer& ) =delete;
+	SdlSoundPlayer& operator=(SdlSoundPlayer&& ) =default;
 
 	void play(const Sound& sound);
 
@@ -93,7 +93,7 @@ private:
 };
 
 /**
- * Singleton wrapper class and factory for SDL asset objects and wrappers.
+ * Wrapper class and factory for SDL asset objects and wrappers.
  * Handles safe initialization and shutdown of the SDL library.
  * Methods get_* return a lazy-initialized object of which there is only one.
  * Methods create_* return a new object, often wrapped in a container.
@@ -103,15 +103,13 @@ class Sdl
 
 public:
 
-	static Sdl& instance();
+	explicit Sdl(Uint32 flags);
+	~Sdl();
 
-	Sdl(const Sdl& ) =delete;
-	Sdl& operator=(const Sdl& ) =delete;
-
-	// access single-instance objects
-	SDL_Window& window() const { return *m_window; }
-	SDL_Renderer& renderer() const { return *m_renderer; }
-	SdlAudio& audio() const { return *m_audio; }
+	// accessors
+	SDL_Window& window() const;
+	SDL_Renderer& renderer() const;
+	SdlSoundPlayer& audio() const;
 
 	// creation methods
 
@@ -130,11 +128,8 @@ public:
 
 private:
 
-	Sdl();
-	~Sdl();
-
 	std::unique_ptr<SDL_Window, SdlDeleter> m_window;
 	std::unique_ptr<SDL_Renderer, SdlDeleter> m_renderer;
-	std::unique_ptr<SdlAudio> m_audio;
+	std::unique_ptr<SdlSoundPlayer> m_audio;
 
 };

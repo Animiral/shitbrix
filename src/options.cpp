@@ -1,6 +1,8 @@
 #include "options.hpp"
 #include "globals.hpp"
 #include <sstream>
+#include <cstring>
+#include <algorithm>
 
 Options::Options(int argc, const char* argv[])
 : m_run_mode(str_option(argc, argv, "--run")),

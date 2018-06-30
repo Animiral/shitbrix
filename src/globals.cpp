@@ -2,8 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <cassert>
+#include <algorithm>
 #include "error.hpp"
-#include <windows.h>
 
 Gfx operator+(Gfx gfx, int delta)
 {
@@ -115,9 +115,26 @@ std::ostream& operator<<(std::ostream& stream, RowCol rc)
 	return stream << "{r" << rc.r << "c" << rc.c << "}";
 }
 
+#ifdef __linux__
+
+#include <sys/prctl.h>
+#include <cstring>
+
+void set_thread_name(const char* thread_name)
+{
+	int result = prctl(PR_SET_NAME, reinterpret_cast<unsigned long>(thread_name), 0, 0, 0);
+
+	if(0 != result) {
+		throw GameException(std::strerror(result));
+	}
+}
+
+#elif defined(_WIN32) || defined(_WIN64)
 
 // This magic sauce code was taken from:
 // https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
+
+#include <windows.h>
 
 #pragma pack(push,8)
 struct THREADNAME_INFO
@@ -145,3 +162,12 @@ void set_thread_name(const char* thread_name)
     }
 #pragma warning(pop)
 }
+
+#else
+
+void set_thread_name(const char* )
+{
+	// not implemented for this platform
+}
+
+#endif // platform switches

@@ -5,7 +5,7 @@
 #include "globals.hpp"
 #include "error.hpp"
 #include <cmath>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 namespace
 {
@@ -21,35 +21,29 @@ void IDraw::draw(float dt) const
 {
 	draw_offscreen(dt);
 
-	SDL_Renderer* renderer = &sdl.renderer();
+	SDL_Renderer* renderer = &the_context.sdl->renderer();
 	SDL_RenderPresent(renderer);
 
 	// clear for next frame
 	sdlok(SDL_RenderClear(renderer));
 }
 
-DrawMenu::DrawMenu(const Assets& assets)
-: m_assets(assets)
-{
-}
-
 void DrawMenu::draw_offscreen(float) const
 {
-	SDL_Texture* texture = &m_assets.texture(Gfx::MENUBG, 0);
+	SDL_Texture* texture = &the_context.assets->texture(Gfx::MENUBG, 0);
 	SDL_Rect dstrect { 0, 0, 0, 0 };
 	sdlok(SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h));
 	//sdlok(SDL_SetTextureAlphaMod(tex, 255));
-	sdlok(SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect));
+	sdlok(SDL_RenderCopy(&the_context.sdl->renderer(), texture, nullptr, &dstrect));
 }
 
-DrawGame::DrawGame(const Stage& stage, const Assets& assets)
+DrawGame::DrawGame(const Stage& stage)
 : m_stage(stage),
   m_show_cursor(false),
   m_show_banner(false),
-  m_show_pit_debug_overlay(false),
-  m_assets(assets)
+  m_show_pit_debug_overlay(false)
 {
-	SDL_Renderer* renderer = &sdl.renderer();
+	SDL_Renderer* renderer = &the_context.sdl->renderer();
 	m_fadetex.reset(SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 1, 1)); // 1x1 pixel for fading
 	sdlok(m_fadetex.get());
 
@@ -74,7 +68,7 @@ void DrawGame::draw_offscreen(float dt) const
 
 	draw_background();
 
-	SDL_Renderer* renderer = &sdl.renderer();
+	SDL_Renderer* renderer = &the_context.sdl->renderer();
 
 	assert(m_stage.sobs().size() == m_stage.state().pit().size());
 	for(size_t i = 0; i < m_stage.sobs().size(); ++i) {
@@ -326,19 +320,22 @@ void DrawGame::draw_highlight(Point top_left, int width, int height,
 		height
 	};
 
-	SDL_Renderer* renderer = &sdl.renderer();
+	SDL_Renderer* renderer = &the_context.sdl->renderer();
 	sdlok(SDL_SetRenderDrawColor(renderer, r, g, b, a));
 	sdlok(SDL_RenderFillRect(renderer, &fill_rect));
 }
 
 void DrawGame::putsprite(Point loc, Gfx gfx, size_t frame) const
 {
-	SDL_Texture* texture = &m_assets.texture(gfx, frame);
+	SDL_Texture* texture = &the_context.assets->texture(gfx, frame);
 	loc = translate(loc);
-	SDL_Rect dstrect { std::lround(loc.x), std::lround(loc.y), 0, 0 };
+	SDL_Rect dstrect {
+		static_cast<int>(std::lround(loc.x)),
+		static_cast<int>(std::lround(loc.y)),
+		0, 0 };
 	sdlok(SDL_QueryTexture(texture, nullptr, nullptr, &dstrect.w, &dstrect.h));
 	sdlok(SDL_SetTextureAlphaMod(texture, m_alpha));
-	sdlok(SDL_RenderCopy(&sdl.renderer(), texture, nullptr, &dstrect));
+	sdlok(SDL_RenderCopy(&the_context.sdl->renderer(), texture, nullptr, &dstrect));
 }
 
 void DrawGame::tint() const
@@ -348,7 +345,7 @@ void DrawGame::tint() const
 		uint32_t fade_pixel = static_cast<uint32_t>(0xff * (1.f - m_fade));
 		sdlok(SDL_UpdateTexture(m_fadetex.get(), &rect_pixel, &fade_pixel, 1));
 
-		SDL_Renderer* renderer = &sdl.renderer();
+		SDL_Renderer* renderer = &the_context.sdl->renderer();
 		sdlok(SDL_RenderCopy(renderer, m_fadetex.get(), nullptr, nullptr));
 	}
 }
@@ -356,14 +353,14 @@ void DrawGame::tint() const
 DrawTransition::DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw)
 : m_pred_draw(pred_draw),
   m_succ_draw(succ_draw),
-  m_pred_texture(sdl.create_target_texture()),
-  m_succ_texture(sdl.create_target_texture())
+  m_pred_texture(the_context.sdl->create_target_texture()),
+  m_succ_texture(the_context.sdl->create_target_texture())
 {
 }
 
 void DrawTransition::draw_offscreen(float dt) const
 {
-	SDL_Renderer* renderer = &sdl.renderer();
+	SDL_Renderer* renderer = &the_context.sdl->renderer();
 
 	sdlok(SDL_SetRenderTarget(renderer, m_pred_texture.get()));
 	m_pred_draw.draw_offscreen(dt);

@@ -1,7 +1,8 @@
 #include "sdl_helper.hpp"
 #include "error.hpp"
+#include <cassert>
 #include <cstring>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 namespace
 {
@@ -46,7 +47,7 @@ Sound& Sound::operator=(Sound&& rhs) noexcept
 }
 
 
-SdlAudio::SdlAudio()
+SdlSoundPlayer::SdlSoundPlayer()
 {
 	SDL_AudioSpec want;
 	want.freq = 48000;
@@ -63,20 +64,20 @@ SdlAudio::SdlAudio()
 	SDL_PauseAudioDevice(devid, 0);
 }
 
-SdlAudio::~SdlAudio()
+SdlSoundPlayer::~SdlSoundPlayer()
 {
 	SDL_CloseAudioDevice(devid);
 }
 
-void SdlAudio::play(const Sound& sound)
+void SdlSoundPlayer::play(const Sound& sound)
 {
 	pos = sound.buffer();
 	remaining = sound.length();
 }
 
-void SdlAudio::callback(void* userdata, Uint8* stream, int length)
+void SdlSoundPlayer::callback(void* userdata, Uint8* stream, int length)
 {
-	SdlAudio* audio = reinterpret_cast<SdlAudio*>(userdata);
+	SdlSoundPlayer* audio = reinterpret_cast<SdlSoundPlayer*>(userdata);
 	int fill = (length > audio->remaining) ? audio->remaining : length;
 	std::memcpy(stream, audio->pos, fill);
 	// SDL_MixAudioFormat(stream, pos, AUDIO_S16, length, SDL_MIX_MAXVOLUME);
@@ -88,10 +89,73 @@ void SdlAudio::callback(void* userdata, Uint8* stream, int length)
 }
 
 
-Sdl& Sdl::instance()
+Sdl::Sdl(Uint32 flags)
 {
-	static Sdl sdl;
-	return sdl;
+	assert(!SDL_WasInit(0));
+
+	// basic library setup
+	sdlok(SDL_Init(flags));
+
+	const int img_flags = IMG_INIT_PNG;
+	const int img_result = IMG_Init(img_flags);
+	if((img_result & img_flags) != img_flags) {
+		SDL_Quit();
+		throw SdlException(IMG_GetError());
+	}
+
+	// graphics: window & renderer
+	if(flags & SDL_INIT_VIDEO) {
+		m_window.reset(SDL_CreateWindow(APP_NAME, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, CANVAS_W, CANVAS_H, 0));
+		sdlok(m_window.get());
+
+		m_renderer.reset(SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_TARGETTEXTURE));
+		sdlok(m_renderer.get());
+
+		// The renderer must declare the capabilities to render stuff offscreen onto target textures.
+		SDL_RendererInfo info;
+		sdlok(SDL_GetRendererInfo(m_renderer.get(), &info));
+		if((info.flags & SDL_RENDERER_TARGETTEXTURE) != SDL_RENDERER_TARGETTEXTURE)
+			throw SdlException("Render driver does not support target textures.");
+	}
+
+	// audio device
+	if(flags & SDL_INIT_AUDIO) {
+		m_audio.reset(new SdlSoundPlayer);
+	}
+
+	// Enable joysticks in event handling
+	if(flags & SDL_INIT_JOYSTICK) {
+		if(1 != SDL_JoystickEventState(SDL_ENABLE))
+			throw SdlException();
+	}
+}
+
+Sdl::~Sdl()
+{
+	// be careful to destroy SDL objects before library shutdown
+	m_audio.reset();
+	m_renderer.reset();
+	m_window.reset();
+	IMG_Quit();
+	SDL_Quit();
+}
+
+SDL_Window& Sdl::window() const
+{
+	assert(m_window);
+	return *m_window;
+}
+
+SDL_Renderer& Sdl::renderer() const
+{
+	assert(m_renderer);
+	return *m_renderer;
+}
+
+SdlSoundPlayer& Sdl::audio() const
+{
+	assert(m_audio);
+	return *m_audio;
 }
 
 TexturePtr Sdl::create_texture(const char* file) const
@@ -148,48 +212,6 @@ std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* fil
 	return textures;
 }
 
-Sdl::Sdl()
-{
-	// basic library setup
-	sdlok(SDL_Init(SDL_INIT_EVERYTHING));
-
-	int flags = IMG_INIT_PNG;
-	int img_result = IMG_Init(flags);
-	if((img_result & flags) != flags) {
-		SDL_Quit();
-		throw SdlException(IMG_GetError());
-	}
-
-	// graphics: window & renderer
-	m_window.reset(SDL_CreateWindow(APP_NAME, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, CANVAS_W, CANVAS_H, 0));
-	sdlok(m_window.get());
-
-	m_renderer.reset(SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_TARGETTEXTURE));
-	sdlok(m_renderer.get());
-
-	// The renderer must declare the capabilities to render stuff offscreen onto target textures.
-	SDL_RendererInfo info;
-	sdlok(SDL_GetRendererInfo(m_renderer.get(), &info));
-	if((info.flags & SDL_RENDERER_TARGETTEXTURE) != SDL_RENDERER_TARGETTEXTURE)
-		throw SdlException("Render driver does not support target textures.");
-
-	// audio device
-	m_audio.reset(new SdlAudio);
-
-	// Enable joysticks in event handling
-	if(1 != SDL_JoystickEventState(SDL_ENABLE))
-		throw SdlException();
-}
-
-Sdl::~Sdl()
-{
-	// be careful to destroy SDL objects before library shutdown
-	m_audio.reset();
-	m_renderer.reset();
-	m_window.reset();
-	IMG_Quit();
-	SDL_Quit();
-}
 
 namespace
 {

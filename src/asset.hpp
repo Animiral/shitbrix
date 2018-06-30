@@ -5,71 +5,52 @@
 #pragma once
 
 #include "globals.hpp"
-#include "error.hpp"
 #include "sdl_helper.hpp"
-#include <memory>
 #include <vector>
 
 /**
- * Storage class which owns all the assets.
+ * Interface for stored assets.
  */
 class Assets
 {
 
 public:
 
-	Assets()
-	{
-		const Sdl& sdl = Sdl::instance();
-
-		Log::info("Load assets: graphics");
-		std::vector<TexturePtr> bgframe;
-		bgframe.emplace_back(sdl.create_texture("gfx/bg.png"));
-		textures.emplace_back(move(bgframe));                                        // Gfx::BACKGROUND
-
-		auto blocks = sdl.create_texture_sheet("gfx/blocks.png", BLOCK_W, BLOCK_H);
-		for(auto& v : blocks)
-			textures.emplace_back(move(v));                                          // Gfx::BLOCK_*, Gfx::PITVIEW
-
-		textures.emplace_back(sdl.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
-		textures.emplace_back(sdl.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
-
-		auto garbage = sdl.create_texture_sheet("gfx/garbage.png", GARBAGE_W, GARBAGE_H);
-		for(auto& v : garbage)
-			textures.emplace_back(move(v));                                          // Gfx::GARBAGE_*
-
-		textures.emplace_back(sdl.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
-
-		std::vector<TexturePtr> menuframe;
-		menuframe.emplace_back(sdl.create_texture("gfx/menubg.png"));
-		textures.emplace_back(move(menuframe)); // Gfx::MENUBG
-
-		Log::info("Load assets: sounds");
-		sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
-		sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
-		sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
-		sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
-	}
-
 	/**
-	 * Returns a Texture according to the gfx enum id.
+	 * Return a Texture according to the gfx enum id.
 	 */
-	SDL_Texture& texture(Gfx gfx, size_t frame = 0) const
-	{
-		size_t gfx_index = static_cast<size_t>(gfx);
-		enforce(gfx_index < textures.size());
-		enforce(frame < textures[gfx_index].size());
+	virtual SDL_Texture& texture(Gfx gfx, size_t frame = 0) const = 0;
 
-		return *textures[gfx_index][frame];
-	}
+	virtual const Sound& sound(Snd snd) const = 0;
 
-	const Sound& sound(Snd snd) const
-	{
-		size_t snd_index = static_cast<size_t>(snd);
-		enforce(snd_index < sounds.size());
+};
 
-		return sounds[snd_index];
-	}
+/**
+ * Provides no assets.
+ * Calling any member function is an error.
+ */
+class NoAssets : public Assets
+{
+
+public:
+
+	virtual SDL_Texture& texture(Gfx gfx, size_t frame = 0) const override;
+	virtual const Sound& sound(Snd snd) const override;
+
+};
+
+/**
+ * Loads assets from installed files and stores them in structures.
+ */
+class FileAssets : public Assets
+{
+
+public:
+
+	FileAssets();
+
+	SDL_Texture& texture(Gfx gfx, size_t frame = 0) const;
+	const Sound& sound(Snd snd) const;
 
 private:
 

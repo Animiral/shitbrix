@@ -218,7 +218,7 @@ struct GameInput
 // ================================================
 
 constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
-constexpr long CHECKPOINT_INTERVAL = 5 * TPS; //!< time between checkpoints for journal
+constexpr long CHECKPOINT_INTERVAL = 1 * TPS; //!< time between checkpoints for journal
 constexpr size_t MAX_CLIENTS = 8; //!< maximum number of networked players
 constexpr uint16_t DEFAULT_PORT = 2414; //!< network port for connections
 constexpr uint32_t CONNECT_TIMEOUT = 5000; //!< peer to server connection time limit
@@ -229,7 +229,7 @@ constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each
 constexpr int PIT_ROWS = 10; //!< number of blocks that fit in a pit on top of each other
 constexpr int ROW_HEIGHT = 200; //!< gameplay height of a row; determines scroll speed etc.
 constexpr int FALL_SPEED = 35; //!< points per update that a falling block moves down
-constexpr int SCROLL_SPEED = 5; //!< points per update that the pit moves up
+constexpr int SCROLL_SPEED = 1; //!< points per update that the pit moves up
 constexpr int RAISE_SPEED = 15; //!< pit speed when raising the stack (max speed)
 constexpr int INTRO_TIME = 20; // number of ticks for intro to game round
 constexpr int SWAP_TIME = 6; //!< number of ticks to swap two blocks

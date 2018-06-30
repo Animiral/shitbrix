@@ -4,7 +4,7 @@
 
 #include "stage.hpp"
 #include "director.hpp"
-#include "gameevent.hpp"
+#include "event.hpp"
 #include "replay.hpp"
 #include "tests_common.hpp"
 #include "gtest/gtest.h"

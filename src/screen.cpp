@@ -15,22 +15,15 @@ namespace
  * be stored. This default name is built from the current date and time.
  */
 std::string make_journal_file();
-int opponent(int player);
 void debug_print_pit(const Pit& pit);
 
 }
 
 IScreen::~IScreen() = default;
 
-ScreenFactory::ScreenFactory(const Options& options,const Assets& assets, const Audio& audio)
-: m_options(options), m_assets(assets), m_audio(audio), m_client(nullptr)
-{
-}
-
 std::unique_ptr<IScreen> ScreenFactory::create_menu()
 {
-	DrawMenu draw_menu(m_assets);
-	return std::make_unique<MenuScreen>(std::move(draw_menu), m_audio, *m_client);
+	return std::make_unique<MenuScreen>(DrawMenu{}, *m_client);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_game()
@@ -38,8 +31,8 @@ std::unique_ptr<IScreen> ScreenFactory::create_game()
 	enforce(m_client);
 	GameState& state = m_client->gamedata().state;
 	auto stage = std::make_unique<Stage>(state);
-	auto draw = std::make_unique<DrawGame>(*stage, m_assets);
-	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), m_audio, *m_client);
+	auto draw = std::make_unique<DrawGame>(*stage);
+	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), *m_client);
 	return std::move(screen);
 }
 
@@ -58,7 +51,7 @@ std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, 
 }
 
 
-MenuScreen::MenuScreen(DrawMenu&& draw, const Audio& audio, BasicClient& client)
+MenuScreen::MenuScreen(DrawMenu&& draw, BasicClient& client)
 : m_game_time(0),
   m_done(false),
   m_draw(std::move(draw)),
@@ -159,7 +152,6 @@ void GameResult::update()
 GameScreen::GameScreen(
 	std::unique_ptr<Stage> stage,
 	std::unique_ptr<DrawGame> draw,
-	const Audio& audio,
 	BasicClient& client,
 	ServerThread* server)
 : m_game_time(0),
@@ -169,7 +161,7 @@ GameScreen::GameScreen(
   m_client(&client),
   m_server(server),
   m_bonus_relay(*m_stage),
-  m_sound_relay(audio),
+  m_sound_relay(),
   m_shake_relay(*m_draw)
 {
 	assert(m_stage);
@@ -350,7 +342,7 @@ void GameScreen::change_phase_impl()
 
 
 ServerScreen::ServerScreen(ServerThread& server)
-	: m_server(&server), m_draw(20, 235, 0), m_done(false)
+	: m_server(&server), m_done(false)
 {
 }
 
@@ -369,11 +361,6 @@ ServerScreen::~ServerScreen() noexcept
 
 void ServerScreen::update()
 {
-}
-
-void ServerScreen::draw(float dt)
-{
-	m_draw.draw(dt);
 }
 
 void ServerScreen::input(ControllerInput cinput)

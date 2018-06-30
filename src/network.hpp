@@ -19,6 +19,7 @@
 #include <atomic>
 #include "globals.hpp"
 #include "stage.hpp"
+#include "error.hpp"
 
 // ==================== high-level interfaces ====================
 

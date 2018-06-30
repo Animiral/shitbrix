@@ -6,6 +6,7 @@
 #include "error.hpp"
 #include <vector>
 #include <sstream>
+#include <algorithm>
 #include <cctype>
 
 ReplayRecord ReplayRecord::make_start() noexcept
