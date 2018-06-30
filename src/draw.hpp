@@ -208,7 +208,7 @@ private:
 /**
  * A handler for game events that cause whole-screen effects like shaking.
  */
-class ShakeRelay : public evt::IGameEvent
+class ShakeRelay : public evt::IEventObserver
 {
 
 public:

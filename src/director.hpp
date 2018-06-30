@@ -23,7 +23,7 @@ public:
 	/**
 	 * Set the handler for game events from this director.
 	 */
-	void set_handler(evt::IGameEvent& handler) { m_handler = &handler; }
+	void set_handler(evt::IEventObserver& handler) { m_handler = &handler; }
 
 	int winner() const noexcept { return m_winner; }
 	bool over() const noexcept { return NOONE != m_winner; }
@@ -63,7 +63,7 @@ private:
 	int opponent(int player) const noexcept;
 
 	GameState* m_state;
-	evt::IGameEvent* m_handler;
+	evt::IEventObserver* m_handler;
 	int m_winner = NOONE; //!< number of the player who wins the game
 
 };

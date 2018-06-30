@@ -88,7 +88,7 @@ bool BlockDirector::swap(int player)
 	pit.swap(*left, *right);
 
 	if(m_handler)
-		m_handler->fire(evt::Swap());
+		m_handler->fire(evt::Swap{{m_state->game_time(), player}});
 
 	return true;
 }
@@ -118,6 +118,8 @@ void BlockDirector::update_single(int player)
 	// Implementation object for low-level pit examination
 	Logic logic{pit};
 
+	const long game_time = m_state->game_time();
+
 	bool dead_physical = false; // true if some physical has entered terminal state
 	bool dead_block = false;    // true if pit needs to clean up
 	bool dead_sound = false;    // true if there was at least one non-fake dead
@@ -140,19 +142,19 @@ void BlockDirector::update_single(int player)
 	logic.convert_garbage();
 
 	if(have_dissolvers && m_handler)
-		m_handler->fire(evt::GarbageDissolves());
+		m_handler->fire(evt::GarbageDissolves{{game_time, player}});
 
 	if(dead_block)
 		pit.remove_dead();
 
 	if(dead_sound && m_handler)
-		m_handler->fire(evt::BlockDies());
+		m_handler->fire(evt::BlockDies{{game_time, player}});
 
 	logic.handle_fallers();
 
 	if(m_handler) {
-		pit.for_all(Physical::TAG_LAND, [this](const Physical& p) {
-			m_handler->fire(evt::PhysicalLands{p}); });
+		pit.for_all(Physical::TAG_LAND, [this, game_time, player](const Physical& p) {
+			m_handler->fire(evt::PhysicalLands{{game_time, player}, p}); });
 	}
 
 	bool have_match = false;
@@ -166,7 +168,7 @@ void BlockDirector::update_single(int player)
 
 		// trigger effects outside game state (these will not roll back)
 		if(m_handler)
-			m_handler->fire(evt::Match{player, combo, chaining});
+			m_handler->fire(evt::Match{{game_time, player}, combo, chaining});
 	}
 
 	if(chaining)
@@ -195,7 +197,7 @@ void BlockDirector::update_single(int player)
 
 		// trigger effects outside game state (these will not roll back)
 		if(m_handler)
-			m_handler->fire(evt::Chain{player, chain});
+			m_handler->fire(evt::Chain{{game_time, player}, chain});
 	}
 
 	// panic time and game over check
@@ -289,7 +291,7 @@ void apply_input(GameState& state, Rules& rules, GameInput ginput)
 			{
 				Dir dir = static_cast<Dir>(ginput.button);
 				state.pit().at(ginput.player)->cursor_move(dir);
-				rules.event_hub.fire(evt::CursorMoves());
+				rules.event_hub.fire(evt::CursorMoves{{ginput.game_time, ginput.player}});
 			}
 
 			break;

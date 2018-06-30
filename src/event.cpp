@@ -5,12 +5,12 @@
 namespace evt
 {
 
-void GameEventHub::subscribe(IGameEvent& handler)
+void GameEventHub::subscribe(IEventObserver& handler)
 {
 	m_handlers.push_back(&handler);
 }
 
-void GameEventHub::unsubscribe(IGameEvent& handler)
+void GameEventHub::unsubscribe(IEventObserver& handler)
 {
 	auto it = std::remove(m_handlers.begin(), m_handlers.end(), &handler);
 	m_handlers.erase(it, m_handlers.end());
@@ -24,13 +24,13 @@ BonusRelay::BonusRelay(Stage& stage)
 void BonusRelay::fire(evt::Match event)
 {
 	if(event.combo > 3)
-		m_stage->sobs().at(event.player).bonus.display_combo(event.combo);
+		m_stage->sobs().at(event.trivia.player).bonus.display_combo(event.combo);
 }
 
 void BonusRelay::fire(evt::Chain event)
 {
 	if(event.counter > 0)
-		m_stage->sobs().at(event.player).bonus.display_combo(event.counter + 1);
+		m_stage->sobs().at(event.trivia.player).bonus.display_combo(event.counter + 1);
 }
 
 

@@ -9,7 +9,7 @@
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
 
-class GameEventCounter : public evt::IGameEvent
+class GameEventCounter : public evt::IEventObserver
 {
 
 public:

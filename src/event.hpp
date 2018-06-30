@@ -1,6 +1,6 @@
 /**
  * gameevent.hpp
- * Defines the IGameEvent interface and events through which director objects
+ * Defines the IEventObserver interface and events through which director objects
  * communicate in-game occurrences to other modules.
  */
 #pragma once
@@ -12,21 +12,36 @@ namespace evt
 {
 
 /**
+ * Holds the data fields common to all types of events.
+ */
+struct Trivia
+{
+	long game_time; //!< time of the game state in which the event happened
+	int player; //!< index of the player associated with the event
+};
+
+/**
  * Event that occurs when the cursor has been moved.
  */
-struct CursorMoves {};
+struct CursorMoves
+{
+	Trivia trivia; //!< common information
+};
 
 /**
  * Event that occurs when two blocks are beginning to swap places.
  */
-struct Swap {};
+struct Swap
+{
+	Trivia trivia; //!< common information
+};
 
 /**
  * Event that occurs when a match, consisting of >=3 blocks, has occurred.
  */
 struct Match
 {
-	int player; //!< index of the player who performed the match
+	Trivia trivia; //!< common information
 	int combo; //!< combo counter, >= 3
 	bool chaining; //!< chain indicator: whether a chaining block was involved
 };
@@ -38,7 +53,7 @@ struct Match
  */
 struct Chain
 {
-	int player; //!< index of the player who performed the chain
+	Trivia trivia; //!< common information
 	int counter; //!< chain counter: how many chaining matches there were
 };
 
@@ -47,41 +62,49 @@ struct Chain
  */
 struct PhysicalLands
 {
+	Trivia trivia; //!< common information
 	const Physical& physical;
 };
 
 /**
  * Event that occurs when a block has finished breaking and will be removed.
  */
-struct BlockDies {};
+struct BlockDies
+{
+	Trivia trivia; //!< common information
+};
 
 /**
  * Event that occurs when a block of garbage has finished breaking and is going to
  * shrink or disappear.
  */
-struct GarbageDissolves {};
+struct GarbageDissolves
+{
+	Trivia trivia; //!< common information
+	long game_time;
+};
 
 /**
  * Event that occurs when a game round ends.
  */
 struct GameOver
 {
-	int winner;
+	Trivia trivia; //!< common information
 };
 
 /**
  * Interface for transmission of game event information.
- * Game logic routines in director.cpp sample/notice the event and fire it by
+ * Game logic routines in director.cpp produce the event and notify this by
  * calling one of the overloads of fire() with the type of event that occurred.
  * Different modules implement event handlers by inheritance from this interface.
  * The default implementation is not to do anything with the event.
  */
-class IGameEvent
+class IEventObserver
 {
 
 public:
 
-	virtual ~IGameEvent() =0;
+	virtual ~IEventObserver() =0;
 
 	/**
 	 * Signal that the cursor has been moved.
@@ -126,18 +149,18 @@ public:
 
 };
 
-inline IGameEvent::~IGameEvent() {}
+inline IEventObserver::~IEventObserver() {}
 
 /**
  * A pseudo-handler for GameEvents that forwards them to other handlers.
  */
-class GameEventHub : public IGameEvent
+class GameEventHub : public IEventObserver
 {
 
 public:
 
-	void subscribe(IGameEvent& handler);
-	void unsubscribe(IGameEvent& handler);
+	void subscribe(IEventObserver& handler);
+	void unsubscribe(IEventObserver& handler);
 
 	virtual void fire(CursorMoves event) override { fire_all(event); }
 	virtual void fire(Swap event) override { fire_all(event); }
@@ -156,7 +179,7 @@ private:
 			handler->fire(event);
 	}
 
-	std::vector<IGameEvent*> m_handlers;
+	std::vector<IEventObserver*> m_handlers;
 
 };
 
@@ -164,7 +187,7 @@ private:
  * This glue class connects combo and chain events reported by the director (logic)
  * with the BonusIndicator display class.
  */
-class BonusRelay : public IGameEvent
+class BonusRelay : public IEventObserver
 {
 
 public:
@@ -183,7 +206,7 @@ private:
 /**
  * A handler for game events that cause sound outputs.
  */
-class SoundRelay : public IGameEvent
+class SoundRelay : public IEventObserver
 {
 
 public:
