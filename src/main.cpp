@@ -3,6 +3,7 @@
 #include "error.hpp"
 #include "context.hpp"
 #include "audio.hpp"
+#include <cstring>
 
 namespace
 {

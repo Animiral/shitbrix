@@ -4,6 +4,7 @@
 #include "sdl_helper.hpp"
 #include <fstream>
 #include <ctime>
+#include <cstdarg>
 #include <cassert>
 #include <mutex>
 #include <SDL.h>
@@ -207,7 +208,9 @@ void Log::error(const char *format, ...) noexcept
 void Log::write(const char* level, const char *format, va_list vlist) noexcept
 {
 	const size_t level_size = strlen(level);
-	const int format_size = vsnprintf(NULL, 0, format, vlist);
+	va_list vlist2;
+	va_copy(vlist2, vlist);
+	const int format_size = vsnprintf(NULL, 0, format, vlist2);
 
 	if(format_size < 0)
 		return;
