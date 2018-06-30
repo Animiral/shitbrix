@@ -120,7 +120,8 @@ void GameLoop::next_screen()
 			m_screen = m_server_screen.get();
 		}
 		else {
-			auto net_client = std::make_unique<ENetClient>("localhost", *the_context.options->port()); // network implementation
+			auto net_client = std::make_unique<ENetClient>(the_context.options->server_url(),
+			                                               *the_context.options->port()); // network implementation
 			m_client = std::make_unique<BasicClient>(std::move(net_client));
 			m_screen_factory.set_client(m_client.get());
 			m_menu_screen = m_screen_factory.create_menu();

@@ -154,17 +154,23 @@ public:
 
 	virtual void write(const std::string& message) noexcept override
 	{
-		// Thread safety: from here on, only one thread at a time can write.
-		static std::mutex write_mutex;
-		std::lock_guard<std::mutex> lock(write_mutex);
+		try {
+			// Thread safety: from here on, only one thread at a time can write.
+			std::lock_guard<std::mutex> lock{m_mutex};
 
-		// we don't care to check errors as the log is best-effort
-		m_stream << message << "\n";
-		m_stream.flush();
+			// we don't care to check errors as the log is best-effort
+			m_stream << message << "\n";
+			m_stream.flush();
+		}
+		catch(const std::exception& ) {
+			// We never propagate exceptions out of the Logger as it is already
+			// our last-ditch reporting facility.
+		}
 	}
 
 private:
 
+	std::mutex m_mutex; //!< Only one thread at a time can write
 	std::ofstream m_stream;
 
 };
