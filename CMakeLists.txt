@@ -87,47 +87,12 @@ endif(NOT MSVC)
 
 include_directories(${SRC_DIR})
 
-set(INCLUDE_FILES
-    ${SRC_DIR}/asset.hpp
-    ${SRC_DIR}/audio.hpp
-    ${SRC_DIR}/context.hpp
-    ${SRC_DIR}/director.hpp
-    ${SRC_DIR}/draw.hpp
-    ${SRC_DIR}/enet_helper.hpp
-    ${SRC_DIR}/error.hpp
-    ${SRC_DIR}/event.hpp
-    ${SRC_DIR}/game_loop.hpp
-    ${SRC_DIR}/globals.hpp
-    ${SRC_DIR}/input.hpp
-    ${SRC_DIR}/logic.hpp
-    ${SRC_DIR}/network.hpp
-    ${SRC_DIR}/options.hpp
-    ${SRC_DIR}/replay.hpp
-    ${SRC_DIR}/screen.hpp
-    ${SRC_DIR}/sdl_helper.hpp
-    ${SRC_DIR}/stage.hpp
+file(GLOB INCLUDE_FILES
+    ${SRC_DIR}/*.hpp
 )
 
-set(SOURCE_FILES
-    ${SRC_DIR}/asset.cpp
-    ${SRC_DIR}/audio.cpp
-    ${SRC_DIR}/context.cpp
-    ${SRC_DIR}/director.cpp
-    ${SRC_DIR}/draw.cpp
-    ${SRC_DIR}/enet_helper.cpp
-    ${SRC_DIR}/error.cpp
-    ${SRC_DIR}/event.cpp
-    ${SRC_DIR}/game_loop.cpp
-    ${SRC_DIR}/globals.cpp
-    ${SRC_DIR}/input.cpp
-    ${SRC_DIR}/logic.cpp
-    ${SRC_DIR}/main.cpp
-    ${SRC_DIR}/network.cpp
-    ${SRC_DIR}/options.cpp
-    ${SRC_DIR}/replay.cpp
-    ${SRC_DIR}/screen.cpp
-    ${SRC_DIR}/sdl_helper.cpp
-    ${SRC_DIR}/stage.cpp
+file(GLOB SOURCE_FILES
+    ${SRC_DIR}/*.cpp
 )
 
 source_group(include FILES ${INCLUDE_FILES})
@@ -148,6 +113,6 @@ add_executable(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 # Link with other dependencies.
-target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${ENet_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${ENet_LIBRARIES} stdc++fs)
 
 # set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
