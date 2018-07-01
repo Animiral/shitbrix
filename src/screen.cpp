@@ -11,10 +11,11 @@ namespace
 {
 
 /**
- * Returns the default name of the file where the replay of this session will
- * be stored. This default name is built from the current date and time.
+ * Write the journal to an automatically generated file name in the replay directory.
+ * If the replay directory does not exist, do nothing.
+ * This name is built from the current date and time.
  */
-std::string make_journal_file();
+void autorecord_replay(const Journal& journal);
 void debug_print_pit(const Pit& pit);
 
 }
@@ -113,7 +114,8 @@ void GameIntro::update()
 void GamePlay::update()
 {
 	// detect game over
-	const int winner = m_screen->m_client->gamedata().journal.meta().winner;
+	Journal& journal = m_screen->m_client->gamedata().journal;
+	const int winner = journal.meta().winner;
 	if(NOONE != winner) {
 		// display winner
 		auto& stage_objects = m_screen->m_stage->sobs();
@@ -124,6 +126,9 @@ void GamePlay::update()
 
 		auto phase = std::make_unique<GameResult>(m_screen, winner);
 		m_screen->change_phase(std::move(phase));
+
+		if(the_context.configuration->autorecord)
+			autorecord_replay(journal);
 
 		return; // skip the usual; we don't need more game logic
 	}
@@ -389,7 +394,7 @@ void TransitionScreen::draw(float dt)
 namespace
 {
 
-std::string make_journal_file()
+void autorecord_replay(const Journal& journal)
 {
 	using clock = std::chrono::system_clock;
 	auto now = clock::now();
@@ -399,9 +404,13 @@ std::string make_journal_file()
 	if(0 != errno)
 		throw GameException("Failed to get localtime for journal file name.");
 
-	std::ostringstream stream;
-	stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
-	return stream.str();
+	if(!std::filesystem::is_directory("replay"))
+		return; // creating the replay directory is the user's opt-in
+
+	std::ostringstream time_stream;
+	time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
+	std::ofstream stream(time_stream.str());
+	replay_write(stream, journal);
 }
 
 [[ maybe_unused ]]

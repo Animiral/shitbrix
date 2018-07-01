@@ -38,6 +38,7 @@ Configuration::Configuration()
 : network_mode{NetworkMode::WITH_SERVER},
   player_number{},
   joystick_number{},
+  autorecord{false},
   replay_path{},
   log_path{"logfile.txt"},
   server_url{},
@@ -76,8 +77,16 @@ void Configuration::read_from_args(int argc, const char* argv[])
 			parse(key, value);
 		}
 		else if(i+1 < argc) {
-			if("--" == std::string(argv[i]).substr(0, 2))
+			if("--" == std::string(argv[i]).substr(0, 2)) {
 				parse(argv[i] + 2, argv[i + 1]);
+				i++;
+			}
+			else {
+				throw ConfigException(std::string("Unrecognized argument: ") + argv[i]);
+			}
+		}
+		else {
+			throw ConfigException(std::string("Missing parameter for ") + argv[i]);
 		}
 	}
 
@@ -86,8 +95,12 @@ void Configuration::read_from_args(int argc, const char* argv[])
 
 void Configuration::parse(std::string key, std::string value)
 {
-	ConfigSetter setter = config_setter.at(key);
-	setter(*this, value);
+	auto found = config_setter.find(key);
+
+	if(config_setter.end() == found)
+		throw ConfigException("Unknown configuration key: " + key);
+
+	found->second(*this, value);
 }
 
 void Configuration::normalize()
@@ -128,6 +141,7 @@ const std::map<std::string, ConfigSetter> config_setter
 	{"network_mode",    [](Configuration& c, std::string value) { c.network_mode    = parse_network_mode(value); }},
 	{"player_number",   [](Configuration& c, std::string value) { c.player_number   = to_opt_int(value); }},
 	{"joystick_number", [](Configuration& c, std::string value) { c.joystick_number = to_opt_int(value); }},
+	{"autorecord",      [](Configuration& c, std::string value) { c.autorecord      = "true" == value; }},
 	{"replay_path",     [](Configuration& c, std::string value) { c.replay_path     = std::filesystem::path{value}; }},
 	{"log_path",        [](Configuration& c, std::string value) { c.log_path        = std::filesystem::path{value}; }},
 	{"server_url",      [](Configuration& c, std::string value) { c.server_url      = value; }},

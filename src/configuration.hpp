@@ -65,6 +65,13 @@ public:
 	std::optional<int> joystick_number;
 
 	/**
+	 * Automatically write a replay file after every game.
+	 * Even if the option is set to true, the replay/ directory must exist.
+	 * By default, autorecording is disabled.
+	 */
+	bool autorecord;
+
+	/**
 	 * The path location of the replay file to be played back.
 	 * By default, if unspecified, we run the game interactively.
 	 */
