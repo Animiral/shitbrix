@@ -44,11 +44,6 @@ EnforceException::EnforceException(const char* condition, const char* func, cons
 	  m_condition(condition), m_func(func), m_file(file), m_line(line)
 {}
 
-EnforceException::EnforceException(const EnforceException& rhs)
-	: GameException(rhs),
-	  m_condition(rhs.m_condition), m_func(rhs.m_func), m_file(rhs.m_file), m_line(rhs.m_line)
-{}
-
 
 void enforce_impl(bool condition, const char* condition_str, const char* func, const char* file, int line)
 {
@@ -146,7 +141,7 @@ class FileLogger : public Logger
 
 public:
 
-	explicit FileLogger(const char* path)
+	explicit FileLogger(std::filesystem::path path)
 	{
 		m_stream.rdbuf()->pubsetbuf(nullptr, 0); // make unbuffered
 		m_stream.open(path, std::ios_base::out | std::ios_base::app);
@@ -176,7 +171,7 @@ private:
 
 };
 
-std::unique_ptr<Logger> create_file_log(const char* path)
+std::unique_ptr<Logger> create_file_log(std::filesystem::path path)
 {
 	return std::make_unique<FileLogger>(path);
 }

@@ -65,6 +65,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\asset.hpp" />
+    <ClInclude Include="..\..\src\audio.hpp" />
+    <ClInclude Include="..\..\src\configuration.hpp" />
     <ClInclude Include="..\..\src\context.hpp" />
     <ClInclude Include="..\..\src\director.hpp" />
     <ClInclude Include="..\..\src\draw.hpp" />
@@ -76,15 +78,15 @@
     <ClInclude Include="..\..\src\input.hpp" />
     <ClInclude Include="..\..\src\logic.hpp" />
     <ClInclude Include="..\..\src\network.hpp" />
-    <ClInclude Include="..\..\src\options.hpp" />
     <ClInclude Include="..\..\src\replay.hpp" />
     <ClInclude Include="..\..\src\screen.hpp" />
     <ClInclude Include="..\..\src\sdl_helper.hpp" />
-    <ClInclude Include="..\..\src\audio.hpp" />
     <ClInclude Include="..\..\src\stage.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\asset.cpp" />
+    <ClCompile Include="..\..\src\audio.cpp" />
+    <ClCompile Include="..\..\src\configuration.cpp" />
     <ClCompile Include="..\..\src\context.cpp" />
     <ClCompile Include="..\..\src\director.cpp" />
     <ClCompile Include="..\..\src\draw.cpp" />
@@ -96,11 +98,9 @@
     <ClCompile Include="..\..\src\input.cpp" />
     <ClCompile Include="..\..\src\logic.cpp" />
     <ClCompile Include="..\..\src\network.cpp" />
-    <ClCompile Include="..\..\src\options.cpp" />
     <ClCompile Include="..\..\src\replay.cpp" />
     <ClCompile Include="..\..\src\screen.cpp" />
     <ClCompile Include="..\..\src\sdl_helper.cpp" />
-    <ClCompile Include="..\..\src\audio.cpp" />
     <ClCompile Include="..\..\src\stage.cpp" />
   </ItemGroup>
   <ItemGroup>

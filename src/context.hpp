@@ -7,7 +7,7 @@
 
 #include <memory>
 
-class Options;
+class Configuration;
 class Sdl;
 class Logger;
 class Assets;
@@ -20,7 +20,7 @@ struct GlobalContext
 {
 	~GlobalContext();
 
-	std::unique_ptr<Options> options; //!< application-wide configuration
+	std::unique_ptr<Configuration> configuration; //!< application-wide configuration
 	std::unique_ptr<Sdl> sdl; //!< SDL library interface
 	std::unique_ptr<Logger> log; //!< logger
 	std::unique_ptr<Assets> assets; //!< game asset loader

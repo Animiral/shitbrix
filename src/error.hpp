@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <optional>
+#include <filesystem>
 
 // NOTE: we use the standard assert macro for never-happens conditions.
 
@@ -31,13 +32,27 @@ struct GameException : public std::exception
 };
 
 /**
+ * Invalid syntax or values encountered while reading configuration.
+ */
+struct ConfigException : public GameException
+{
+	explicit ConfigException(std::string what = "") : GameException(std::move(what)) {}
+	ConfigException(const ConfigException& rhs) = default;
+	ConfigException(ConfigException&& rhs) = default;
+
+	virtual const char* class_name() const noexcept override { return "ConfigException"; }
+	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<ConfigException>(*this); }
+};
+
+
+/**
  * Invalid game states encountered while evaluating game logic.
  * This can point to invalid setup of pit contents.
  */
 struct LogicException : public GameException
 {
 	explicit LogicException(std::string what = "") : GameException(std::move(what)) {}
-	LogicException(const LogicException& rhs) : GameException(rhs) {}
+	LogicException(const LogicException& rhs) = default;
 	LogicException(LogicException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "LogicException"; }
@@ -50,7 +65,7 @@ struct LogicException : public GameException
 struct ReplayException : public GameException
 {
 	explicit ReplayException(std::string what = "", std::unique_ptr<GameException> cause = {});
-	ReplayException(const ReplayException& rhs) : GameException(rhs) {}
+	ReplayException(const ReplayException& rhs) = default;
 	ReplayException(ReplayException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "ReplayException"; }
@@ -73,7 +88,7 @@ struct SdlException : public GameException
 	 * Constructor with custom error message.
 	 */
 	explicit SdlException(const char* what) : GameException(what) {}
-	SdlException(const SdlException& rhs) : GameException(rhs) {}
+	SdlException(const SdlException& rhs) = default;
 	SdlException(SdlException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "SdlException"; }
@@ -90,7 +105,7 @@ struct ENetException : public GameException
 	 * Constructor with custom error message.
 	 */
 	explicit ENetException(const char* what) : GameException(what) {}
-	ENetException(const ENetException& rhs) : GameException(rhs) {}
+	ENetException(const ENetException& rhs) = default;
 	ENetException(ENetException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "ENetException"; }
@@ -103,7 +118,7 @@ struct ENetException : public GameException
 struct EnforceException : public GameException
 {
 	explicit EnforceException(const char* condition, const char* func, const char* file, int line);
-	EnforceException(const EnforceException& rhs);
+	EnforceException(const EnforceException& rhs) = default;
 	EnforceException(EnforceException&& rhs) = default;
 
 	virtual const char* class_name() const noexcept override { return "EnforceException"; }
@@ -198,7 +213,7 @@ public:
 /**
  * Create a logging implementation that writes to the specified file.
  */
-std::unique_ptr<Logger> create_file_log(const char* path);
+std::unique_ptr<Logger> create_file_log(std::filesystem::path path);
 
 /**
  * Logging convenience functions.

@@ -1,5 +1,5 @@
 #include "context.hpp"
-#include "options.hpp"
+#include "configuration.hpp"
 #include "sdl_helper.hpp"
 #include "error.hpp"
 #include "asset.hpp"

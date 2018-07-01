@@ -1,9 +1,8 @@
 #include "game_loop.hpp"
-#include "options.hpp"
+#include "configuration.hpp"
 #include "error.hpp"
 #include "context.hpp"
 #include "audio.hpp"
-#include <cstring>
 
 namespace
 {
@@ -16,7 +15,7 @@ void game_main(int argc, const char* argv[]) noexcept;
 /**
  * Instantiate the members of the global context based on the configuration.
  */
-void configure_context(Options options);
+void configure_context(Configuration configuration);
 
 }
 
@@ -66,8 +65,14 @@ namespace
 void game_main(int argc, const char* argv[]) noexcept
 {
 	try {
-		Options options(argc, argv);
-		configure_context(std::move(options));
+		Configuration configuration;
+		const std::filesystem::path CONFIG_PATH{std::string(APP_NAME) + ".conf"};
+		if(std::filesystem::is_regular_file(CONFIG_PATH)) {
+			configuration.read_from_file(CONFIG_PATH);
+		}
+		configuration.read_from_args(argc, argv);
+
+		configure_context(std::move(configuration));
 
 		GameLoop loop;
 		loop.game_loop();
@@ -86,16 +91,16 @@ void game_main(int argc, const char* argv[]) noexcept
 	}
 }
 
-void configure_context(Options options)
+void configure_context(Configuration configuration)
 {
-	the_context.options.reset(new Options(std::move(options)));
+	the_context.configuration.reset(new Configuration(std::move(configuration)));
 
-	const bool is_server_only = 0 == std::strcmp(the_context.options->run_mode(), "server");
+	const bool is_server_only = NetworkMode::SERVER == the_context.configuration->network_mode;
 	Uint32 sdl_flags = is_server_only ? SDL_INIT_TIMER | SDL_INIT_EVENTS
 	                                  : SDL_INIT_EVERYTHING;
 
 	the_context.sdl.reset(new Sdl(sdl_flags));
-	the_context.log = create_file_log(the_context.options->log_path());
+	the_context.log = create_file_log(the_context.configuration->log_path);
 
 	if(is_server_only) {
 		the_context.assets.reset(new NoAssets);

@@ -1,5 +1,5 @@
 #include "screen.hpp"
-#include "options.hpp"
+#include "configuration.hpp"
 #include "error.hpp"
 #include <sstream>
 #include <chrono>

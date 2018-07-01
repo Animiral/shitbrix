@@ -1,40 +1,37 @@
 #include "game_loop.hpp"
 #include "error.hpp"
 #include "context.hpp"
-#include "options.hpp"
-#include <cstring>
+#include "configuration.hpp"
 
 GameLoop::GameLoop()
 : m_input_devices(),
   m_screen_factory(),
   m_screen(nullptr)
 {
-	const Options& options = *the_context.options;
+	const Configuration& configuration = *the_context.configuration;
 
-	// at the moment, network is mandatory, and so is the config.
-	assert(options.port().has_value());
-
-	if(nullptr != std::strstr(options.run_mode(), "server")) {
-		auto server_backend = std::make_unique<ENetServer>(*options.port());
+	if(NetworkMode::SERVER == configuration.network_mode ||
+	   NetworkMode::WITH_SERVER == configuration.network_mode) {
+		auto server_backend = std::make_unique<ENetServer>(configuration.port);
 		auto server_impl = std::make_unique<BasicServer>(std::move(server_backend));
 		m_server.reset(new ServerThread(std::move(server_impl)));
 		m_screen_factory.set_server(m_server.get());
 	}
 
 	// configure player control
-	if(options.player_number().has_value()) {
-		const int player_number = *options.player_number();
+	if(configuration.player_number.has_value()) {
+		const int player_number = *configuration.player_number;
 		if(2 <= player_number) {
 			throw GameException("Cannot control player "
 				+ std::to_string(player_number)
 				+ ". More than two players are currently not yet supported.");
 		}
-		m_input_devices.set_player_number(*options.player_number());
+		m_input_devices.set_player_number(player_number);
 	}
 
 	// attach joystick input
-	if(options.joystick_number().has_value()) {
-		const int joystick_number = *options.joystick_number();
+	if(configuration.joystick_number.has_value()) {
+		const int joystick_number = *configuration.joystick_number;
 		const int joysticks_count = SDL_NumJoysticks();
 		if(joystick_number < 0 || joystick_number >= joysticks_count) {
 			throw GameException("Joystick "
@@ -115,13 +112,16 @@ void GameLoop::game_loop()
 void GameLoop::next_screen()
 {
 	if(nullptr == m_screen) {
-		if(0 == std::strcmp("server", the_context.options->run_mode())) {
+		if(NetworkMode::SERVER == the_context.configuration->network_mode) {
 			m_server_screen = m_screen_factory.create_server();
 			m_screen = m_server_screen.get();
 		}
 		else {
-			auto net_client = std::make_unique<ENetClient>(the_context.options->server_url(),
-			                                               *the_context.options->port()); // network implementation
+			if(!the_context.configuration->server_url.has_value())
+				throw GameException("Client mode requires server_url configuration.");
+
+			auto net_client = std::make_unique<ENetClient>(the_context.configuration->server_url->c_str(),
+			                                               the_context.configuration->port); // network implementation
 			m_client = std::make_unique<BasicClient>(std::move(net_client));
 			m_screen_factory.set_client(m_client.get());
 			m_menu_screen = m_screen_factory.create_menu();
