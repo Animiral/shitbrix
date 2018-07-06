@@ -373,3 +373,23 @@ TEST_F(PitTest, KillAndErase)
 
 	EXPECT_EQ(1, pit->contents().size());
 }
+
+/**
+ * Tests that starting raise interrupts recovery.
+ */
+TEST_F(PitTest, RaiseInterruptsRecovery)
+{
+	pit->replenish_recovery();
+	pit->set_raise(true);
+	EXPECT_EQ(0., pit->recovery());
+}
+
+/**
+ * Tests that active raising suppresses recovery.
+ */
+TEST_F(PitTest, RaiseSuppressesRecovery)
+{
+	pit->set_raise(true);
+	pit->replenish_recovery();
+	EXPECT_EQ(0., pit->recovery());
+}

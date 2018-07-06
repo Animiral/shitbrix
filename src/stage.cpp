@@ -413,8 +413,10 @@ void Pit::set_raise(bool raise)
 {
 	m_want_raise = raise;
 
-	if(m_want_raise)
+	if(m_want_raise) {
 		m_raise = true;
+		m_recovery = 0; // raise interrupts recovery
+	}
 }
 
 void Pit::stop_raise()
@@ -436,6 +438,12 @@ int Pit::bottom() const noexcept
 int Pit::peak() const noexcept
 {
 	return m_peak;
+}
+
+void Pit::replenish_recovery() noexcept
+{
+	if(!m_raise)
+		m_recovery = BREAK_TIME + RECOVERY_TIME;
 }
 
 void Pit::highlight(int row) noexcept

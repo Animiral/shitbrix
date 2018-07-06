@@ -526,7 +526,7 @@ public:
 	/**
 	 * Set recovery time to the maximum value.
 	 */
-	void replenish_recovery() noexcept { m_recovery = BREAK_TIME + RECOVERY_TIME; }
+	void replenish_recovery() noexcept;
 
 	/**
 	 * Return the fraction of panic time left.
