@@ -124,3 +124,9 @@ private:
 	void normalize();
 
 };
+
+
+/**
+ * Instantiate the members of the global context based on the configuration.
+ */
+void configure_context(const Configuration& configuration);

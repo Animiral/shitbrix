@@ -211,6 +211,11 @@ public:
 };
 
 /**
+ * Create a logging implementation that swallows all messages.
+ */
+std::unique_ptr<Logger> create_no_log();
+
+/**
  * Create a logging implementation that writes to the specified file.
  */
 std::unique_ptr<Logger> create_file_log(std::filesystem::path path);

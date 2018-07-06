@@ -51,6 +51,8 @@ protected:
 
 	virtual void SetUp()
 	{
+		configure_context_for_testing();
+
 		const GameMeta meta{1, 0};
 		GameState state{meta};
 		pit = new Pit(Point{0,0},

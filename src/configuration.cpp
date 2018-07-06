@@ -1,5 +1,9 @@
 #include "configuration.hpp"
+#include "context.hpp"
 #include "globals.hpp"
+#include "sdl_helper.hpp"
+#include "asset.hpp"
+#include "audio.hpp"
 #include "error.hpp"
 #include <fstream>
 #include <regex>
@@ -107,6 +111,28 @@ void Configuration::normalize()
 {
 	if(NetworkMode::WITH_SERVER == network_mode) {
 		server_url = "localhost";
+	}
+}
+
+
+void configure_context(const Configuration& configuration)
+{
+	the_context.configuration.reset(new Configuration(std::move(configuration)));
+
+	const bool is_server_only = NetworkMode::SERVER == the_context.configuration->network_mode;
+	Uint32 sdl_flags = is_server_only ? SDL_INIT_TIMER | SDL_INIT_EVENTS
+	                                  : SDL_INIT_EVERYTHING;
+
+	the_context.sdl.reset(new Sdl(sdl_flags));
+	the_context.log = create_file_log(the_context.configuration->log_path);
+
+	if(is_server_only) {
+		the_context.assets.reset(new NoAssets);
+		the_context.audio.reset(new NoAudio);
+	}
+	else {
+		the_context.assets.reset(new FileAssets);
+		the_context.audio.reset(new SdlAudio(the_context.sdl->audio()));
 	}
 }
 

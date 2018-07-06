@@ -8,6 +8,11 @@
 #include "director.hpp"
 
 /**
+ * Set the global context to use stub implementations for our test environment.
+ */
+void configure_context_for_testing();
+
+/**
  * A block-spawning queue for testing that simply rotates through colors.
  */
 class RainbowBlocksQueue : public IBlocksQueue

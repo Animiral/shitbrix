@@ -134,6 +134,16 @@ void show_error(const std::exception& exception) noexcept
 
 
 /**
+ * Stub logger implementation.
+ */
+class NoLogger : public Logger
+{
+public:
+	virtual void write(const std::string& message) noexcept override {}
+};
+
+
+/**
  * Log to file implementation.
  */
 class FileLogger : public Logger
@@ -170,6 +180,11 @@ private:
 	std::ofstream m_stream;
 
 };
+
+std::unique_ptr<Logger> create_no_log()
+{
+	return std::make_unique<NoLogger>();
+}
 
 std::unique_ptr<Logger> create_file_log(std::filesystem::path path)
 {

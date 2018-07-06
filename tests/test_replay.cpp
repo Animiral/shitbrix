@@ -2,6 +2,7 @@
  * Tests for replay facilities
  */
 
+#include "tests_common.hpp"
 #include "replay.hpp"
 #include "error.hpp"
 #include "gtest/gtest.h"
@@ -15,6 +16,8 @@ protected:
 
 	virtual void SetUp()
 	{
+		configure_context_for_testing();
+
 		meta = GameMeta{2 /* players */, 4711 /* seed */};
 		state = std::make_unique<GameState>(meta);
 		journal = std::make_unique<Journal>(meta, GameState(*state));

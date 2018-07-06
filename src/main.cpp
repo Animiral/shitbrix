@@ -2,7 +2,6 @@
 #include "configuration.hpp"
 #include "error.hpp"
 #include "context.hpp"
-#include "audio.hpp"
 
 namespace
 {
@@ -11,11 +10,6 @@ namespace
  * Cross-platform main function.
  */
 void game_main(int argc, const char* argv[]) noexcept;
-
-/**
- * Instantiate the members of the global context based on the configuration.
- */
-void configure_context(Configuration configuration);
 
 }
 
@@ -72,7 +66,7 @@ void game_main(int argc, const char* argv[]) noexcept
 		}
 		configuration.read_from_args(argc, argv);
 
-		configure_context(std::move(configuration));
+		configure_context(configuration);
 
 		GameLoop loop;
 		loop.game_loop();
@@ -88,27 +82,6 @@ void game_main(int argc, const char* argv[]) noexcept
 			Log::error("Unknown exception occurred.");
 		else
 			std::exit(1);
-	}
-}
-
-void configure_context(Configuration configuration)
-{
-	the_context.configuration.reset(new Configuration(std::move(configuration)));
-
-	const bool is_server_only = NetworkMode::SERVER == the_context.configuration->network_mode;
-	Uint32 sdl_flags = is_server_only ? SDL_INIT_TIMER | SDL_INIT_EVENTS
-	                                  : SDL_INIT_EVERYTHING;
-
-	the_context.sdl.reset(new Sdl(sdl_flags));
-	the_context.log = create_file_log(the_context.configuration->log_path);
-
-	if(is_server_only) {
-		the_context.assets.reset(new NoAssets);
-		the_context.audio.reset(new NoAudio);
-	}
-	else {
-		the_context.assets.reset(new FileAssets);
-		the_context.audio.reset(new SdlAudio(the_context.sdl->audio()));
 	}
 }
 
