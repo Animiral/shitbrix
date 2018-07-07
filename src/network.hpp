@@ -476,7 +476,7 @@ public:
 	 * Signal to the server that we want to start a fresh game.
 	 * TODO: This should only work from a privileged client.
 	 */
-	virtual void send_reset() = 0;
+	virtual void send_reset(GameMeta meta) = 0;
 
 	/**
 	 * Signal to the server that we want to change the speed of the game.
@@ -513,7 +513,7 @@ public:
 	virtual bool is_ingame() const noexcept override;
 	virtual void game_start() override;
 	virtual void send_input(GameInput input) override;
-	virtual void send_reset() override;
+	virtual void send_reset(GameMeta meta) override;
 	virtual void send_speed(int speed) override;
 	virtual void poll() override;
 
@@ -556,7 +556,7 @@ public:
 	virtual bool is_ingame() const noexcept override;
 	virtual void game_start() override;
 	virtual void send_input(GameInput input) override;
-	virtual void send_reset() override;
+	virtual void send_reset(GameMeta meta) override;
 	virtual void send_speed(int speed) override;
 	virtual void poll() override;
 

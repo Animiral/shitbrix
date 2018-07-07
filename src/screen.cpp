@@ -16,6 +16,20 @@ namespace
  * This name is built from the current date and time.
  */
 void autorecord_replay(const Journal& journal);
+
+/**
+ * Send a message through the client, requesting to restart the game with
+ * the given parameters.
+ */
+void client_send_reset(IClient& client)
+{
+	// TODO: this should only work from privileged client.
+	// TODO: maybe the randomization should be done on the server.
+	static std::random_device rdev;
+	const GameMeta meta{2, rdev()};
+	client.send_reset(meta);
+}
+
 void debug_print_pit(const Pit& pit);
 
 }
@@ -81,7 +95,7 @@ void MenuScreen::input(ControllerInput cinput)
 {
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
-			m_client->send_reset(); // TODO: this should only work from privileged client
+			client_send_reset(*m_client);
 		} else
 		if(Button::QUIT == cinput.button) {
 			m_result = Result::QUIT;
@@ -268,8 +282,7 @@ void GameScreen::input(ControllerInput cinput)
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			// TODO: this is supposed to work only in client-with-server mode
-			m_client->send_reset();
+			client_send_reset(*m_client);
 		}
 			break;
 

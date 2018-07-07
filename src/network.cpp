@@ -604,11 +604,8 @@ void BasicClient::send_input(GameInput input)
 	m_client->send_message(MsgType::INPUT, input.to_string());
 }
 
-void BasicClient::send_reset()
+void BasicClient::send_reset(GameMeta meta)
 {
-	// TODO: maybe the randomization should be done on the server.
-	static std::random_device rdev;
-	const GameMeta meta{2, rdev()};
 	m_client->send_message(MsgType::META, meta.to_string());
 	m_client->send_message(MsgType::START, {});
 }
@@ -724,10 +721,9 @@ void LocalClient::send_input(GameInput input)
 	m_gamedata->journal.add_input(input);
 }
 
-void LocalClient::send_reset()
+void LocalClient::send_reset(GameMeta meta)
 {
-	static std::random_device rdev;
-	m_meta = GameMeta{2, rdev()};
+	m_meta = meta;
 	m_gamedata.reset(); // new meta info invalidates game state and history
 	m_ready = 1;
 	m_gamedata = make_gamedata(*m_meta);

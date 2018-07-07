@@ -131,8 +131,33 @@ void GameLoop::next_screen()
 			}
 
 			m_screen_factory.set_client(m_client.get());
-			m_menu_screen = m_screen_factory.create_menu();
-			m_screen = m_menu_screen.get();
+
+			// If we want to play back a replay, feed it all to the client
+			// and let the normal timing in the game loop take care of it.
+			auto replay_path = the_context.configuration->replay_path;
+			if(replay_path.has_value() &&
+			   !std::filesystem::is_regular_file(replay_path.value())) {
+				Log::error("Replay not found: %s", replay_path->u8string().c_str());
+				replay_path.reset();
+			}
+
+			if(replay_path.has_value()) {
+				std::ifstream stream{replay_path.value()};
+				Journal journal = replay_read(stream);
+				GameMeta meta = journal.meta();
+				meta.winner = NOONE; // this is currently necessary to prevent early exit
+				m_client->send_reset(meta);
+				m_client->game_start();
+				for(InputDiscovered id : journal.inputs()) {
+					m_client->send_input(id.input);
+				}
+				m_game_screen = m_screen_factory.create_game();
+				m_screen = m_game_screen.get();
+			}
+			else {
+				m_menu_screen = m_screen_factory.create_menu();
+				m_screen = m_menu_screen.get();
+			}
 		}
 
 		// debug
