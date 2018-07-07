@@ -417,14 +417,22 @@ TEST_F(StageTest, RaiseSuppressesRecovery)
 	EXPECT_EQ(0., pit->recovery());
 }
 
-// Upcoming new test case
 /**
  * Tests that the bonus indicator displays the values set.
  */
-//TEST_F(StageTest, IndicatorValues)
-//{
-//
-//	//pit->set_raise(true);
-//	//pit->replenish_recovery();
-//	//EXPECT_EQ(0., pit->recovery());
-//}
+TEST_F(StageTest, IndicatorValues)
+{
+	indicator->display_combo(5);
+	indicator->display_chain(3);
+
+	int combo;
+	uint8_t combo_fade;
+	int chain;
+	uint8_t chain_fade;
+	indicator->get_indication(combo, combo_fade, chain, chain_fade);
+
+	EXPECT_EQ(5, combo);
+	EXPECT_EQ(255, combo_fade);
+	EXPECT_EQ(3, chain);
+	EXPECT_EQ(255, chain_fade);
+}

@@ -358,6 +358,7 @@ struct GameData
 	explicit GameData(GameState state, Journal journal);
 	GameData(const GameData& rhs) = delete;
 	GameData(GameData&& rhs);
+	GameData& operator=(GameData& ) = delete;
 	GameData& operator=(GameData&& rhs);
 
 	Dials dials; //!< Extra-journal control settings for the current game session

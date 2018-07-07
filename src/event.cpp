@@ -30,7 +30,7 @@ void BonusRelay::fire(evt::Match event)
 void BonusRelay::fire(evt::Chain event)
 {
 	if(event.counter > 0)
-		m_stage->sobs().at(event.trivia.player).bonus.display_combo(event.counter + 1);
+		m_stage->sobs().at(event.trivia.player).bonus.display_chain(event.counter + 1);
 }
 
 
