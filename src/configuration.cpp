@@ -39,7 +39,7 @@ extern const std::map<std::string, ConfigSetter> config_setter;
 
 
 Configuration::Configuration()
-: network_mode{NetworkMode::WITH_SERVER},
+: network_mode{NetworkMode::LOCAL},
   player_number{},
   joystick_number{},
   autorecord{false},
@@ -141,7 +141,7 @@ namespace
 {
 
 const char* network_mode_string[] =
-{ /* "local", */ "client", "server", "with-server"};
+{ "local", "client", "server", "with-server"};
 
 NetworkMode parse_network_mode(std::string value)
 {

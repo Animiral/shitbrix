@@ -586,13 +586,11 @@ BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
 bool BasicClient::is_game_ready() const noexcept
 {
 	return 1 == m_ready;
-	//return m_meta.has_value() && !m_gamedata.has_value();
 }
 
 bool BasicClient::is_ingame() const noexcept
 {
 	return 2 == m_ready;
-	//return m_gamedata.has_value();
 }
 
 void BasicClient::game_start()
@@ -696,17 +694,58 @@ void BasicClient::game_start_impl()
 }
 
 
-ClientStub::ClientStub()
-	: m_gamedata(make_gamedata(GameMeta{2, std::random_device{}()}))
+bool LocalClient::is_game_ready() const noexcept
 {
-	//m_server = the_reception->check_in("placeholder");
-	//m_lobby = m_server->offer({});
+	return 1 == m_ready;
 }
 
-void ClientStub::send_input(GameInput input)
+bool LocalClient::is_ingame() const noexcept
 {
-	// TODO: set input.game_time to server's time
-	m_gamedata.journal.add_input(input);
+	return 2 == m_ready;
+}
+
+void LocalClient::game_start()
+{
+	enforce(is_game_ready() || is_ingame());
+
+	m_ready = 2;
+
+	if(m_gamedata.has_value())
+		return; // do not prepare twice
+
+	m_gamedata = make_gamedata(*m_meta);
+}
+
+void LocalClient::send_input(GameInput input)
+{
+	if(!m_gamedata.has_value())
+		throw GameException("Got input before the game is running.");
+
+	m_gamedata->journal.add_input(input);
+}
+
+void LocalClient::send_reset()
+{
+	static std::random_device rdev;
+	m_meta = GameMeta{2, rdev()};
+	m_gamedata.reset(); // new meta info invalidates game state and history
+	m_ready = 1;
+	m_gamedata = make_gamedata(*m_meta);
+}
+
+void LocalClient::send_speed(int speed)
+{
+	m_gamedata->dials.speed = speed;
+}
+
+void LocalClient::poll()
+{
+	// game over check
+	if(is_ingame() && m_gamedata->rules.block_director.over()) {
+		const int winner = m_gamedata->rules.block_director.winner();
+		m_gamedata->journal.set_winner(winner);
+		m_ready = 0;
+	}
 }
 
 

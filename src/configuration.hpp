@@ -9,7 +9,7 @@
  */
 enum class NetworkMode
 {
-	/* LOCAL, */ //!< Run only on this machine
+	LOCAL,       //!< Run only on this machine
 	CLIENT,      //!< Connect as a client
 	SERVER,      //!< Host the game as a server
 	WITH_SERVER  //!< Host the game locally and also act as a client

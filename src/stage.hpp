@@ -278,11 +278,6 @@ public:
 	virtual Block::Color next_emerge() noexcept = 0;
 
 	/**
-	 * Start reading block colors from the specified @c index forward.
-	 */
-	//virtual void backtrack(size_t index) noexcept = 0;
-
-	/**
 	 * Suppliers can copy themselves.
 	 */
 	virtual std::unique_ptr<IColorSupplier> clone() const = 0;

@@ -52,7 +52,7 @@ std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, 
 }
 
 
-MenuScreen::MenuScreen(DrawMenu&& draw, BasicClient& client)
+MenuScreen::MenuScreen(DrawMenu&& draw, IClient& client)
 : m_game_time(0),
   m_done(false),
   m_draw(std::move(draw)),
@@ -157,7 +157,7 @@ void GameResult::update()
 GameScreen::GameScreen(
 	std::unique_ptr<Stage> stage,
 	std::unique_ptr<DrawGame> draw,
-	BasicClient& client,
+	IClient& client,
 	ServerThread* server)
 : m_game_time(0),
   m_done(false),

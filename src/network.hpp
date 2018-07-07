@@ -430,10 +430,74 @@ private:
 };
 
 /**
- * Client logic implementation.
+ * Interface for classes that implement client logic.
  * Connects network messages with the game state and function calls.
  */
-class BasicClient
+class IClient
+{
+
+public:
+
+	virtual ~IClient() = default;
+
+	/**
+	 * Return the game-round data, if the game is currently ongoing.
+	 * The game must be in progress on this client when calling.
+	 */
+	virtual GameData& gamedata() = 0;
+
+	/**
+	 * Return true if the server expects us to start the game now, but the game
+	 * state is not yet constructed.
+	 */
+	virtual bool is_game_ready() const noexcept = 0;
+
+	/**
+	 * Return true if the gamedata is valid at the moment.
+	 * If this is not the case, accessing `gamedata()` will throw.
+	 */
+	virtual bool is_ingame() const noexcept = 0;
+
+	/**
+	 * Initialize the game state from the meta information.
+	 * Note: After this call, all game event handlers in
+	 *       `gamedata().rules.event_hub` need to be freshly set up
+	 *       as they are not preserved in-between game restarts.
+	 */
+	virtual void game_start() = 0;
+
+	/**
+	 * Apply the given input to the game by sending it to the server.
+	 * In the future, we will pre-emptively trust our self-made inputs.
+	 */
+	virtual void send_input(GameInput input) = 0;
+
+	/**
+	 * Signal to the server that we want to start a fresh game.
+	 * TODO: This should only work from a privileged client.
+	 */
+	virtual void send_reset() = 0;
+
+	/**
+	 * Signal to the server that we want to change the speed of the game.
+	 * To pause the game, set the speed to 0.
+	 * To run at regular speed, set the speed to 1.
+	 * TODO: This should only work from a privileged client.
+	 */
+	virtual void send_speed(int speed) = 0;
+
+	/**
+	 * Receive and handle incoming messages from the server.
+	 */
+	virtual void poll() = 0;
+
+};
+
+/**
+ * Client logic implementation.
+ * This implementation uses communication over a real network.
+ */
+class BasicClient : public IClient
 {
 
 public:
@@ -444,56 +508,14 @@ public:
 	 */
 	explicit BasicClient(std::unique_ptr<ENetClient> client);
 
-	/**
-	 * Return the game-round data, if the game is currently ongoing.
-	 * The game must be in progress on this client when calling.
-	 */
-	GameData& gamedata() { enforce(m_gamedata.has_value()); return *m_gamedata; }
-
-	/**
-	 * Return true if the server expects us to start the game now, but the game
-	 * state is not yet constructed.
-	 */
-	bool is_game_ready() const noexcept;
-
-	/**
-	 * Return true if the gamedata is valid at the moment.
-	 * If this is not the case, accessing `gamedata()` will throw.
-	 */
-	bool is_ingame() const noexcept;
-
-	/**
-	 * Initialize the game state from the meta information.
-	 * Note: After this call, all game event handlers in
-	 *       `gamedata().rules.event_hub` need to be freshly set up
-	 *       as they are not preserved in-between game restarts.
-	 */
-	void game_start();
-
-	/**
-	 * Apply the given input to the game by sending it to the server.
-	 * In the future, we will pre-emptively trust our self-made inputs.
-	 */
-	void send_input(GameInput input);
-
-	/**
-	 * Signal to the server that we want to start a fresh game.
-	 * TODO: This should only work from a privileged client.
-	 */
-	void send_reset();
-
-	/**
-	 * Signal to the server that we want to change the speed of the game.
-	 * To pause the game, set the speed to 0.
-	 * To run at regular speed, set the speed to 1.
-	 * TODO: This should only work from a privileged client.
-	 */
-	void send_speed(int speed);
-
-	/**
-	 * Receive and handle incoming messages from the server.
-	 */
-	void poll();
+	virtual GameData& gamedata() override { enforce(m_gamedata.has_value()); return *m_gamedata; }
+	virtual bool is_game_ready() const noexcept override;
+	virtual bool is_ingame() const noexcept override;
+	virtual void game_start() override;
+	virtual void send_input(GameInput input) override;
+	virtual void send_reset() override;
+	virtual void send_speed(int speed) override;
+	virtual void poll() override;
 
 private:
 
@@ -519,29 +541,30 @@ private:
 
 };
 
-
-class ClientStub
+/**
+ * Local-only client logic implementation.
+ * This implementation offers an interface as if the
+ * server was always immediately responsive.
+ */
+class LocalClient : public IClient
 {
 
 public:
 
-	ClientStub();
-
-	/**
-	 * Return the authoritative Journal kept by the Client.
-	 */
-	Journal& journal() noexcept { return m_gamedata.journal; }
-
-	/**
-	 * Apply the given input to the game by inserting it into the journal.
-	 */
-	void send_input(GameInput input);
-
-	void poll() {}
+	virtual GameData& gamedata() override { enforce(m_gamedata.has_value()); return *m_gamedata; }
+	virtual bool is_game_ready() const noexcept override;
+	virtual bool is_ingame() const noexcept override;
+	virtual void game_start() override;
+	virtual void send_input(GameInput input) override;
+	virtual void send_reset() override;
+	virtual void send_speed(int speed) override;
+	virtual void poll() override;
 
 private:
 
-	GameData m_gamedata; //!< Game events and checkpoints record
+	std::optional<GameMeta> m_meta; //!< Information from which to initialize the state
+	std::optional<GameData> m_gamedata; //!< information during the game round
+	int m_ready = 0; //!< quick-and-dirty state machine. 0=menu, 1=ready, 2=ingame
 
 };
 

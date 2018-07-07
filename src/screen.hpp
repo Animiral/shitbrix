@@ -54,7 +54,7 @@ public:
 	 * Configure the client dependency.
 	 * In the future, this will hopefully be taken from a central repository.
 	 */
-	void set_client(BasicClient* client) noexcept { m_client = client; }
+	void set_client(IClient* client) noexcept { m_client = client; }
 
 	/**
 	 * Configure the server dependency.
@@ -70,7 +70,7 @@ public:
 private:
 
 	// resources to create the Screens
-	BasicClient* m_client;
+	IClient* m_client;
 	ServerThread* m_server;
 
 };
@@ -106,7 +106,7 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	MenuScreen(DrawMenu&& draw, BasicClient& client);
+	MenuScreen(DrawMenu&& draw, IClient& client);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
@@ -127,7 +127,7 @@ private:
 	Result m_result; //!< valid only when m_done
 
 	DrawMenu m_draw; //!< Interface for drawing the screen
-	BasicClient* const m_client; //!< Network communication endpoint
+	IClient* const m_client; //!< Network communication endpoint
 
 };
 
@@ -202,7 +202,7 @@ public:
 	explicit GameScreen(
 		std::unique_ptr<Stage> stage,
 		std::unique_ptr<DrawGame> draw,
-		BasicClient& client,
+		IClient& client,
 		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
@@ -222,7 +222,7 @@ private:
 
 	std::unique_ptr<Stage> m_stage;
 	std::unique_ptr<DrawGame> m_draw;
-	BasicClient* const m_client;
+	IClient* const m_client;
 	ServerThread* const m_server;
 	evt::BonusRelay m_bonus_relay;
 	evt::DupeFiltered<evt::SoundRelay> m_sound_relay;

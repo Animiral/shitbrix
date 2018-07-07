@@ -112,7 +112,8 @@ void GameLoop::game_loop()
 void GameLoop::next_screen()
 {
 	if(nullptr == m_screen) {
-		if(NetworkMode::SERVER == the_context.configuration->network_mode) {
+		NetworkMode mode = the_context.configuration->network_mode;
+		if(NetworkMode::SERVER == mode) {
 			m_server_screen = m_screen_factory.create_server();
 			m_screen = m_server_screen.get();
 		}
@@ -120,9 +121,15 @@ void GameLoop::next_screen()
 			if(!the_context.configuration->server_url.has_value())
 				throw GameException("Client mode requires server_url configuration.");
 
-			auto net_client = std::make_unique<ENetClient>(the_context.configuration->server_url->c_str(),
-			                                               the_context.configuration->port); // network implementation
-			m_client = std::make_unique<BasicClient>(std::move(net_client));
+			if(NetworkMode::LOCAL == mode) {
+				m_client.reset(new LocalClient());
+			}
+			else {
+				auto net_client = std::make_unique<ENetClient>(the_context.configuration->server_url->c_str(),
+															   the_context.configuration->port); // network implementation
+				m_client.reset(new BasicClient(std::move(net_client)));
+			}
+
 			m_screen_factory.set_client(m_client.get());
 			m_menu_screen = m_screen_factory.create_menu();
 			m_screen = m_menu_screen.get();
