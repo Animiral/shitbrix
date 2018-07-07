@@ -6,6 +6,7 @@
 
 #include "stage.hpp"
 #include "director.hpp"
+#include "network.hpp"
 
 /**
  * Set the global context to use stub implementations for our test environment.
@@ -13,24 +14,21 @@
 void configure_context_for_testing();
 
 /**
- * A block-spawning queue for testing that simply rotates through colors.
+ * Create a game context for testing game scenarios.
  */
-class RainbowBlocksQueue : public IBlocksQueue
+GameData make_gamedata_for_testing();
+
+/**
+ * A block color supplier testing that simply rotates through colors.
+ */
+class RainbowColorSupplier : public IColorSupplier
 {
 
 public:
 
-	/**
-	 * Return the next color of a block coming out on the stack from below.
-	 */
-	virtual Block::Color next() noexcept override;
-
-	/**
-	 * Start reading block colors from the specified @c index forward.
-	 */
-	virtual void backtrack(size_t index) noexcept override;
-
-	virtual std::unique_ptr<IBlocksQueue> clone() const override { return std::make_unique<RainbowBlocksQueue>(*this); }
+	virtual Block::Color next_spawn() noexcept override;
+	virtual Block::Color next_emerge() noexcept override { return next_spawn(); }
+	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RainbowColorSupplier>(*this); }
 
 private:
 

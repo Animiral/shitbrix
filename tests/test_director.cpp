@@ -32,14 +32,13 @@ protected:
 
 	virtual void SetUp()
 	{
-		state = std::make_unique<GameState>(GameMeta{1, 0});
-		pit = new Pit(Point{0,0},
-			std::make_unique<RainbowBlocksQueue>(),
-			std::make_unique<RainbowBlocksQueue>());
+		configure_context_for_testing();
+		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		// inject our own Pit into the state
-		const_cast<std::unique_ptr<Pit>&>(state->pit().at(0)).reset(pit);
-		logic = std::make_unique<Logic>(*pit);
+		state = &gamedata->state;
+		pit = state->pit().at(0).get();
+		director = &gamedata->rules.block_director;
+		logic.reset(new Logic(*pit));
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
 		pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
@@ -66,9 +65,6 @@ protected:
 		pit->spawn_block(Block::Color::RED, RowCol{-3, 2}, Block::State::REST);
 		pit->spawn_block(Block::Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
 		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
-
-		const int SEED = 0;
-		director = std::make_unique<BlockDirector>(*state);
 	}
 
 	// virtual void TearDown() {}
@@ -81,10 +77,11 @@ protected:
 		}
 	}
 
+	std::unique_ptr<GameData> gamedata;
+	GameState* state;
 	Pit* pit = nullptr;
-	std::unique_ptr<GameState> state;
+	BlockDirector* director;
 	std::unique_ptr<Logic> logic;
-	std::unique_ptr<BlockDirector> director;
 
 };
 

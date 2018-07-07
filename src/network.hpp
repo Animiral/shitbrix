@@ -355,6 +355,11 @@ private:
  */
 struct GameData
 {
+	explicit GameData(GameState state, Journal journal);
+	GameData(const GameData& rhs) = delete;
+	GameData(GameData&& rhs);
+	GameData& operator=(GameData&& rhs);
+
 	Dials dials; //!< Extra-journal control settings for the current game session
 	GameState state; //!< Active and always current game state container
 	Rules rules; //!< Game state manipulation routines
@@ -524,7 +529,7 @@ public:
 	/**
 	 * Return the authoritative Journal kept by the Client.
 	 */
-	Journal& journal() noexcept { return m_journal; }
+	Journal& journal() noexcept { return m_gamedata.journal; }
 
 	/**
 	 * Apply the given input to the game by inserting it into the journal.
@@ -535,7 +540,7 @@ public:
 
 private:
 
-	Journal m_journal; //!< Game events and checkpoints record
+	GameData m_gamedata; //!< Game events and checkpoints record
 
 };
 

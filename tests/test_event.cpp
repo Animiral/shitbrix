@@ -30,20 +30,6 @@ public:
 
 };
 
-// all important objects of our test environment
-struct Environment
-{
-	explicit Environment(GameState s, Journal j)
-		: state(std::move(s)),
-		  journal(std::move(j)),
-		  rules{BlockDirector(state), evt::GameEventHub()}
-	{}
-
-	GameState state;
-	Journal journal;
-	Rules rules;
-};
-
 class GameEventTest : public ::testing::Test
 {
 
@@ -52,22 +38,11 @@ protected:
 	virtual void SetUp()
 	{
 		configure_context_for_testing();
+		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		const GameMeta meta{1, 0};
-		GameState state{meta};
-		pit = new Pit(Point{0,0},
-			std::make_unique<RainbowBlocksQueue>(),
-			std::make_unique<RainbowBlocksQueue>());
-
-		// inject our own Pit into the state
-		const_cast<std::unique_ptr<Pit>&>(state.pit().at(0)).reset(pit);
-		Journal journal{meta, state};
-
-		environment = std::make_unique<Environment>(std::move(state), std::move(journal));
-		environment->rules.block_director.set_handler(environment->rules.event_hub);
-		environment->rules.event_hub.subscribe(counter);
-
-		block_director = &environment->rules.block_director;
+		pit = gamedata->state.pit().at(0).get();
+		block_director = &gamedata->rules.block_director;
+		gamedata->rules.event_hub.subscribe(counter);
 	}
 
 	// virtual void TearDown() {}
@@ -75,13 +50,13 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		assert(0 < ticks);
-		ticks += environment->state.game_time();
-		synchronurse(environment->state, ticks, environment->journal, environment->rules);
+		ticks += gamedata->state.game_time();
+		synchronurse(gamedata->state, ticks, gamedata->journal, gamedata->rules);
 	}
 
+	std::unique_ptr<GameData> gamedata;
 	Pit* pit = nullptr; // special Pit with non-random spawn queue
 	BlockDirector* block_director = nullptr; // shortcut to the environment's director
-	std::unique_ptr<Environment> environment;
 	GameEventCounter counter;
 
 };
@@ -91,8 +66,8 @@ protected:
  */
 TEST_F(GameEventTest, CursorMoves)
 {
-	environment->journal.add_input(GameInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN});
-	environment->journal.add_input(GameInput{2, 0, GameButton::LEFT, ButtonAction::DOWN});
+	gamedata->journal.add_input(GameInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN});
+	gamedata->journal.add_input(GameInput{2, 0, GameButton::LEFT, ButtonAction::DOWN});
 
 	run_game_ticks(1);
 	EXPECT_EQ(1, counter.countCursorMoves);

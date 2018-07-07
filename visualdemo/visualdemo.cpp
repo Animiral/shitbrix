@@ -133,13 +133,16 @@ struct DemoFactory
 	VisualDemo construct()
 	{
 		assert(!m_stage);
-		m_meta = GameMeta{2, 0, NOONE};
-		m_state = std::make_unique<GameState>(m_meta);
+		GameMeta meta{2, 0, NOONE};
+		m_meta = meta;
+		ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
+		m_state = std::make_unique<GameState>(m_meta, color_factory);
 		m_stage = std::make_unique<Stage>(*m_state);
 		Pit& pit = *m_stage->state().pit().at(0);
 		m_draw = std::make_unique<DrawGame>(*m_stage);
 		m_logic = std::make_unique<Logic>(pit);
-		m_director = std::make_unique<BlockDirector>(*m_state);
+		m_director = std::make_unique<BlockDirector>();
+		m_director->set_state(*m_state);
 		return VisualDemo(pit, *m_draw, *m_director);
 	}
 };

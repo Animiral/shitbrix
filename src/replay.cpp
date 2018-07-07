@@ -227,7 +227,12 @@ Journal replay_read(std::istream& stream)
 		throw ReplayException("Something went wrong in reading from replay.");
 
 	// separate meta-data from input data
-	Journal journal{meta, GameState{meta}};
+	// TODO: The replay should not depend on our run-time random implementation.
+	//       Record random events like block spawns in the replay and play them back.
+	// In the mean time, use the same random queue and seed as used by the network impl.
+	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
+	GameState state0{meta, color_factory};
+	Journal journal{meta, std::move(state0)};
 
 	for(GameInput gi : input)
 		journal.add_input(gi);

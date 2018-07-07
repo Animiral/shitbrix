@@ -159,35 +159,33 @@ int Garbage::shrink() noexcept
 }
 
 
-IBlocksQueue::~IBlocksQueue() = default;
+IColorSupplier::~IColorSupplier() = default;
 
 
-RandomBlocksQueue::RandomBlocksQueue(unsigned seed)
-	: m_record(), m_generator(seed), m_index(0)
+RandomColorSupplier::RandomColorSupplier(unsigned seed, int player)
+	: /* m_record(), */ m_generator(seed * (player + 1))
 {
 }
 
-Block::Color RandomBlocksQueue::next() noexcept
+Block::Color RandomColorSupplier::next_spawn() noexcept
 {
-	if(m_record.size() <= m_index) {
-		std::uniform_int_distribution<int> color_distribution { 1, 6 };
-		Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
-		m_record.push_back(color);
-		m_index++;
-		return color;
-	}
-	else {
-		return m_record[m_index++];
-	}
+	// For the moment, this implementation simply generates random colors without
+	// any interference. In the future, it must be built not to generate blocks
+	// such that they already form a match when they arrive in the pit.
+
+	static const std::uniform_int_distribution<int> color_distribution { 1, 6 };
+	Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
+	//m_record.push_back(color); // required later
+	return color;
 }
 
-void RandomBlocksQueue::backtrack(size_t index) noexcept
+Block::Color RandomColorSupplier::next_emerge() noexcept
 {
-	m_index = index;
+	return next_spawn();
 }
 
 
-Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IBlocksQueue> emerge_queue) noexcept
+Pit::Pit(Point loc, std::unique_ptr<IColorSupplier> color_supplier) noexcept
 : m_loc(loc),
   m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, 0},
   m_want_raise(false),
@@ -199,15 +197,13 @@ Pit::Pit(Point loc, std::unique_ptr<IBlocksQueue> grow_queue, std::unique_ptr<IB
   m_chain(0),
   m_recovery(0),
   m_panic(PANIC_TIME),
-  m_grow_queue(move(grow_queue)),
-  m_emerge_queue(move(emerge_queue)),
+  m_color_supplier(std::move(color_supplier)),
   m_highlight_row(0)
 {
 }
 
 Pit::Pit(const Pit& rhs)
-: m_grow_queue(rhs.m_grow_queue->clone()),
-  m_emerge_queue(rhs.m_emerge_queue->clone()),
+: m_color_supplier(rhs.m_color_supplier->clone()),
   m_contents(rhs.copy_contents())
 {
 	assign_basic(rhs);
@@ -217,8 +213,7 @@ Pit::Pit(const Pit& rhs)
 Pit& Pit::operator=(const Pit& rhs)
 {
 	assign_basic(rhs);
-	m_grow_queue = rhs.m_grow_queue->clone();
-	m_emerge_queue = rhs.m_emerge_queue->clone();
+	m_color_supplier = rhs.m_color_supplier->clone();
 	m_contents = rhs.copy_contents();
 	make_content_map();
 	return *this;
@@ -270,6 +265,11 @@ Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 	return *raw_block;
 }
 
+Block& Pit::spawn_random_block(RowCol rc, Block::State state)
+{
+	return spawn_block(m_color_supplier->next_spawn(), rc, state);
+}
+
 Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 {
 	// make sure the Garbage fits in the Pit
@@ -278,7 +278,7 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
 
 	Loot loot(width * height);
 	for(Block::Color& c : loot)
-		c = m_emerge_queue->next();
+		c = m_color_supplier->next_emerge();
 
 	auto garbage = std::make_unique<Garbage>(rc, width, height, move(loot));
 	Garbage* raw_garbage = garbage.get();
@@ -596,7 +596,7 @@ Point layout_pit(int players, int index)
 
 }
 
-GameState::GameState(GameMeta meta)
+GameState::GameState(GameMeta meta, ColorSupplierFactory& color_factory)
 : m_game_time(0)
 {
 	static const RowCol CURSOR_DEFAULT{-PIT_ROWS / 2, PIT_COLS / 2 - 1};
@@ -604,9 +604,8 @@ GameState::GameState(GameMeta meta)
 	for(int i = 0; i < meta.players; i++)
 	{
 		Point loc = layout_pit(meta.players, i);
-		std::unique_ptr<RandomBlocksQueue> spawn_queue = std::make_unique<RandomBlocksQueue>(meta.seed * (i + 1));
-		std::unique_ptr<RandomBlocksQueue> emerge_queue = std::make_unique<RandomBlocksQueue>(meta.seed * (i+1) * 3 + 5);
-		m_pit.push_back(std::make_unique<Pit>(loc, move(spawn_queue), move(emerge_queue)));
+		auto color_supplier = color_factory(i);
+		m_pit.push_back(std::make_unique<Pit>(loc, std::move(color_supplier)));
 	}
 }
 

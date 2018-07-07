@@ -28,17 +28,24 @@ void configure_context_for_testing()
 	the_context.audio.reset(new NoAudio);
 }
 
-Block::Color RainbowBlocksQueue::next() noexcept
+GameData make_gamedata_for_testing()
+{
+	// we uniformly use a 2-player deterministic play field
+	GameMeta meta{2, 0};
+	ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };
+	GameState state{meta, color_factory};
+	Journal journal{meta, state};
+
+	return GameData{std::move(state), std::move(journal)};
+}
+
+Block::Color RainbowColorSupplier::next_spawn() noexcept
 {
 	Block::Color previous = m_color;
 	m_color = static_cast<Block::Color>((static_cast<int>(m_color) + 1 - 1) % 6 + 1);
 	return previous;
 }
 
-void RainbowBlocksQueue::backtrack(size_t index) noexcept
-{
-	m_color = static_cast<Block::Color>(index % 6 + 1);
-}
 
 bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)
 {

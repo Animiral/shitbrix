@@ -18,7 +18,12 @@ class BlockDirector
 
 public:
 
-	explicit BlockDirector(GameState& state);
+	explicit BlockDirector();
+
+	/**
+	 * Set the game state handled by this director.
+	 */
+	void set_state(GameState& state) { m_state = &state; }
 
 	/**
 	 * Set the handler for game events from this director.

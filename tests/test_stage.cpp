@@ -1,11 +1,5 @@
 /**
- * Tests for the Pit interface and how it handles game objects.
- *
- * The Pit prefers to deal with Physicals instead of concrete
- * game objects where possible, and so do these tests.
- * The tests only explicitly cover the mutating Pit interface,
- * while the const interface is only implicitly tested by using
- * it to observe the actual state of the Pit.
+ * Tests for behavior of game objects.
  */
 
 #include "stage.hpp"
@@ -13,19 +7,29 @@
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
 
-class PitTest : public ::testing::Test
+class StageTest : public ::testing::Test
 {
 
 protected:
 
 	virtual void SetUp()
 	{
-		pit = std::make_unique<Pit>(Point{0,0}, std::make_unique<RainbowBlocksQueue>(), std::make_unique<RainbowBlocksQueue>());
+		configure_context_for_testing();
+		gamedata.reset(new GameData{make_gamedata_for_testing()});
+
+		state = &gamedata->state;
+		pit = state->pit().at(0).get();
+		stage.reset(new Stage(*state));
+		indicator = &stage->sobs().at(0).bonus;
 	}
 
 	// virtual void TearDown() {}
 
-	std::unique_ptr<Pit> pit;
+	std::unique_ptr<GameData> gamedata;
+	GameState* state;
+	Pit* pit;
+	std::unique_ptr<Stage> stage;
+	BonusIndicator* indicator;
 
 };
 
@@ -75,9 +79,28 @@ int contents_mismatch(const Pit& pit, const char* content_str)
 }
 
 /**
+ * Tests whether a falling block correctly updates.
+ */
+TEST(BlockTest, Fall)
+{
+	// setup
+	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::REST);
+	block.set_state(Block::State::FALL, ROW_HEIGHT, FALL_SPEED);
+
+	const int TICKS = 3; // block updates in this test
+
+	for(int i = 0; i < TICKS; i++)
+	{
+		block.update();
+	}
+
+	EXPECT_FLOAT_EQ(float(ROW_HEIGHT) / FALL_SPEED - TICKS, block.eta());
+}
+
+/**
  * Tests whether a Block correctly appears in the Pit on spawn.
  */
-TEST_F(PitTest, SpawnBlock)
+TEST_F(StageTest, SpawnBlock)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{3, 2};
@@ -102,7 +125,7 @@ TEST_F(PitTest, SpawnBlock)
 /**
  * Tests whether an illegal Block gets rejected in spawning.
  */
-TEST_F(PitTest, SpawnBlockOutOfBounds)
+TEST_F(StageTest, SpawnBlockOutOfBounds)
 {
 	RowCol red_rc{1, -1};
 	RowCol green_rc{3, 6};
@@ -113,7 +136,7 @@ TEST_F(PitTest, SpawnBlockOutOfBounds)
 /**
  * Tests whether a Garbage correctly appears in the Pit on spawn.
  */
-TEST_F(PitTest, SpawnGarbage)
+TEST_F(StageTest, SpawnGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
@@ -138,7 +161,7 @@ TEST_F(PitTest, SpawnGarbage)
 /**
  * Tests whether an illegal Garbage gets rejected in spawning.
  */
-TEST_F(PitTest, SpawnGarbageOutOfBounds)
+TEST_F(StageTest, SpawnGarbageOutOfBounds)
 {
 	RowCol combo_rc{1, -1};
 	RowCol chain_rc{3, 1};
@@ -149,7 +172,7 @@ TEST_F(PitTest, SpawnGarbageOutOfBounds)
 /**
  * Tests whether can_fall() correctly indicates true when space is free.
  */
-TEST_F(PitTest, CanFallBlockYes)
+TEST_F(StageTest, CanFallBlockYes)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{2, 2};
@@ -162,7 +185,7 @@ TEST_F(PitTest, CanFallBlockYes)
 /**
  * Tests whether can_fall() correctly indicates false when space is blocked.
  */
-TEST_F(PitTest, CanFallBlockNo)
+TEST_F(StageTest, CanFallBlockNo)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{2, 2};
@@ -175,7 +198,7 @@ TEST_F(PitTest, CanFallBlockNo)
 /**
  * Tests whether can_fall() correctly indicates true when space is free.
  */
-TEST_F(PitTest, CanFallGarbageYes)
+TEST_F(StageTest, CanFallGarbageYes)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
@@ -188,7 +211,7 @@ TEST_F(PitTest, CanFallGarbageYes)
 /**
  * Tests whether can_fall() correctly indicates false when space is blocked.
  */
-TEST_F(PitTest, CanFallGarbageNo)
+TEST_F(StageTest, CanFallGarbageNo)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
@@ -201,7 +224,7 @@ TEST_F(PitTest, CanFallGarbageNo)
 /**
  * Tests whether a Block correctly falls.
  */
-TEST_F(PitTest, FallBlock)
+TEST_F(StageTest, FallBlock)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{3, 2};
@@ -228,7 +251,7 @@ TEST_F(PitTest, FallBlock)
 /**
  * Tests error when a Block cannot fall because the space below is blocked.
  */
-TEST_F(PitTest, FallBlockFail)
+TEST_F(StageTest, FallBlockFail)
 {
 	RowCol red_rc{2, 2};
 	RowCol green_rc{3, 2};
@@ -241,7 +264,7 @@ TEST_F(PitTest, FallBlockFail)
 /**
  * Tests whether a Garbage correctly falls.
  */
-TEST_F(PitTest, FallGarbage)
+TEST_F(StageTest, FallGarbage)
 {
 	RowCol combo_rc{4, 2};
 	RowCol chain_rc{1, 0};
@@ -268,7 +291,7 @@ TEST_F(PitTest, FallGarbage)
 /**
  * Tests error when a Garbage cannot fall because one space below is blocked.
  */
-TEST_F(PitTest, FallGarbageFail)
+TEST_F(StageTest, FallGarbageFail)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
@@ -281,7 +304,7 @@ TEST_F(PitTest, FallGarbageFail)
 /**
  * Tests whether a Block can be removed.
  */
-TEST_F(PitTest, KillBlock)
+TEST_F(StageTest, KillBlock)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{3, 2};
@@ -310,7 +333,7 @@ TEST_F(PitTest, KillBlock)
 /**
  * Tests whether a Garbage can be shrunk and still exist.
  */
-TEST_F(PitTest, ShrinkGarbage)
+TEST_F(StageTest, ShrinkGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
@@ -335,7 +358,7 @@ TEST_F(PitTest, ShrinkGarbage)
 /**
  * Tests whether a Garbage disappears when it shrinks to 0 rows.
  */
-TEST_F(PitTest, KillGarbage)
+TEST_F(StageTest, KillGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
@@ -359,7 +382,7 @@ TEST_F(PitTest, KillGarbage)
 /**
  * Tests whether a Garbage block is really gone when shrunk.
  */
-TEST_F(PitTest, KillAndErase)
+TEST_F(StageTest, KillAndErase)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
@@ -377,7 +400,7 @@ TEST_F(PitTest, KillAndErase)
 /**
  * Tests that starting raise interrupts recovery.
  */
-TEST_F(PitTest, RaiseInterruptsRecovery)
+TEST_F(StageTest, RaiseInterruptsRecovery)
 {
 	pit->replenish_recovery();
 	pit->set_raise(true);
@@ -387,9 +410,21 @@ TEST_F(PitTest, RaiseInterruptsRecovery)
 /**
  * Tests that active raising suppresses recovery.
  */
-TEST_F(PitTest, RaiseSuppressesRecovery)
+TEST_F(StageTest, RaiseSuppressesRecovery)
 {
 	pit->set_raise(true);
 	pit->replenish_recovery();
 	EXPECT_EQ(0., pit->recovery());
 }
+
+// Upcoming new test case
+/**
+ * Tests that the bonus indicator displays the values set.
+ */
+//TEST_F(StageTest, IndicatorValues)
+//{
+//
+//	//pit->set_raise(true);
+//	//pit->replenish_recovery();
+//	//EXPECT_EQ(0., pit->recovery());
+//}

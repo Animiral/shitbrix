@@ -39,8 +39,8 @@ void spawn_garbage_from_combo(Pit& pit, int combo);
 
 }
 
-BlockDirector::BlockDirector(GameState& state)
-: m_state(&state),
+BlockDirector::BlockDirector()
+: m_state(nullptr),
   m_handler(nullptr)
 {}
 
@@ -111,6 +111,8 @@ void BlockDirector::update_single(int player)
 	//
 	// Measure to check:
 	// 1. Rename handle_* -> mark_* if blocks are to be marked, or examine_* if state is to be determined.
+
+	assert(m_state);
 
 	// Target player's pit object
 	Pit& pit = *m_state->pit().at(player);
@@ -221,6 +223,19 @@ void BlockDirector::update_single(int player)
 	pit.highlight(pit.peak());
 }
 
+int BlockDirector::opponent(int player) const noexcept
+{
+	assert(m_state);
+	assert(0 == player || 1 == player || "more than two players not implemented yet");
+
+	// In some test scenarios, we are playing with just one pit.
+	// In those cases, we are our own opponent.
+	if(1 == m_state->pit().size())
+		return 0;
+	else
+		return 0 == player ? 1 : 0;
+}
+
 
 /**
  * Bring the game state to the @c target_time by calculation from the game
@@ -257,18 +272,6 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 		Log::trace("%s(%d): save checkpoint at time=%d.", __FUNCTION__, target_time, state.game_time());
 		journal.add_checkpoint(GameState(state));
 	}
-}
-
-int BlockDirector::opponent(int player) const noexcept
-{
-	assert(0 == player || 1 == player || "more than two players not implemented yet");
-
-	// In some test scenarios, we are playing with just one pit.
-	// In those cases, we are our own opponent.
-	if(1 == m_state->pit().size())
-		return 0;
-	else
-		return 0 == player ? 1 : 0;
 }
 
 

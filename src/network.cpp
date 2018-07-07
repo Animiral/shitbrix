@@ -396,6 +396,35 @@ std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
 }
 
 
+GameData::GameData(GameState state, Journal journal) :
+	dials(), state(state), rules(), journal(journal)
+{
+	rules.block_director.set_state(this->state);
+	rules.block_director.set_handler(rules.event_hub);
+}
+
+GameData::GameData(GameData&& rhs) :
+	dials(rhs.dials),
+	state(std::move(rhs.state)),
+	rules(),
+	journal(std::move(rhs.journal))
+{
+	rules.block_director.set_state(this->state);
+	rules.block_director.set_handler(rules.event_hub);
+}
+
+GameData& GameData::operator=(GameData&& rhs)
+{
+	dials = rhs.dials;
+	state = std::move(rhs.state);
+	rules = Rules();
+	rules.block_director.set_state(this->state);
+	rules.block_director.set_handler(rules.event_hub);
+	journal = std::move(rhs.journal);
+	return *this;
+}
+
+
 ENetServer::ENetServer(enet_uint16 port)
 	: m_host(ENet::instance().create_server(port))
 {
@@ -531,6 +560,25 @@ std::vector<Message> ENetClient::poll()
 }
 
 
+namespace
+{
+
+/**
+ * Construct and wire all the objects that we need to run
+ * the game session from the meta-information.
+ */
+GameData make_gamedata(GameMeta meta)
+{
+	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
+	GameState state{meta, color_factory};
+	Journal journal{meta, state};
+
+	return GameData(std::move(state), std::move(journal));
+}
+
+}
+
+
 BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
 : m_client(std::move(client))
 {}
@@ -644,36 +692,12 @@ void BasicClient::game_start_impl()
 	if(m_gamedata.has_value())
 		return; // do not prepare twice
 
-	GameState state{*m_meta};
-	Journal journal{*m_meta, state};
-	Rules rules{BlockDirector(m_gamedata->state), evt::GameEventHub()};
-
-	m_gamedata = GameData{
-		Dials(),
-		std::move(state),
-		std::move(rules),
-		std::move(journal)
-	};
-
-	m_gamedata->rules.block_director.set_handler(m_gamedata->rules.event_hub);
-}
-
-
-namespace
-{
-
-Journal make_journal()
-{
-	// TODO: to randomize the seed is the server's job
-	const GameMeta meta{2, std::random_device{}()};
-	return Journal(meta, GameState{meta});
-}
-
+	m_gamedata = make_gamedata(*m_meta);
 }
 
 
 ClientStub::ClientStub()
-	: m_journal(make_journal())
+	: m_gamedata(make_gamedata(GameMeta{2, std::random_device{}()}))
 {
 	//m_server = the_reception->check_in("placeholder");
 	//m_lobby = m_server->offer({});
@@ -682,7 +706,7 @@ ClientStub::ClientStub()
 void ClientStub::send_input(GameInput input)
 {
 	// TODO: set input.game_time to server's time
-	m_journal.add_input(input);
+	m_gamedata.journal.add_input(input);
 }
 
 
@@ -704,9 +728,7 @@ void BasicServer::game_start()
 {
 	enforce(is_game_ready());
 
-	GameState state{*m_meta};
-	Journal journal{*m_meta, state};
-	m_gamedata = GameData{Dials(), std::move(state), Rules{BlockDirector(m_gamedata->state)}, std::move(journal)};
+	m_gamedata = make_gamedata(*m_meta);
 }
 
 void BasicServer::send_gameend(int winner)
