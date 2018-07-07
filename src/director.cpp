@@ -188,6 +188,9 @@ void BlockDirector::update_single(int player)
 
 	logic.examine_pit(pit_chaining, breaking, pit_full);
 
+	if(debug_no_gameover)
+		pit_full = false; // debug function: in no-gameover mode, pit is never full
+
 	// close current chain
 	if(chainstop && !pit_chaining) {
 		const int chain = pit.finish_chain();

@@ -305,20 +305,26 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG3:
-			// TODO: this does not work with Network
-			//for(int i = 0; i < 8; i++) update_impl();
+			// this does not work with Network
+			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
+				//for(int i = 0; i < 8; i++) update_impl();
+			}
 			break;
 
 		case Button::DEBUG4:
-			// TODO: this does not work with Network
-			//m_rules.block_director.debug_no_gameover ^= true;
-			// debug_print_pit(stage->pits()[0]->pit);
+			// this does not work with Network
+			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
+				m_client->gamedata().rules.block_director.debug_no_gameover ^= true;
+				// debug_print_pit(stage->pits()[0]->pit);
+			}
 			break;
 
 		case Button::DEBUG5:
-			// TODO: this does not work with Network
-			//m_rules.block_director.debug_spawn_garbage(6, 2);
-			// debug_print_pit(stage->pits()[1]->pit);
+			// this does not work with Network
+			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
+				m_client->gamedata().rules.block_director.debug_spawn_garbage(6, 2);
+				// debug_print_pit(stage->pits()[1]->pit);
+			}
 			break;
 
 		case Button::NONE:
