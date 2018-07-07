@@ -173,7 +173,7 @@ Block::Color RandomColorSupplier::next_spawn() noexcept
 	// any interference. In the future, it must be built not to generate blocks
 	// such that they already form a match when they arrive in the pit.
 
-	static const std::uniform_int_distribution<int> color_distribution { 1, 6 };
+	static std::uniform_int_distribution<int> color_distribution { 1, 6 };
 	Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
 	//m_record.push_back(color); // required later
 	return color;
