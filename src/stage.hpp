@@ -215,7 +215,7 @@ public:
 	/**
 	 * Construct a Garbage block of the given dimensions.
 	 * When dissolved row-by-row, new blocks emerge.
-	 * @param rc bottom-left corner coordinate of the garbage
+	 * @param rc top-left corner coordinate of the garbage
 	 * @param columns number of columns occupied by garbage
 	 * @param rows number of rows occupied by garbage
 	 * @param loot vector of blocks hidden in the garbage, size == columns*rows.

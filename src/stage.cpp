@@ -31,7 +31,7 @@ bool Physical::is_arriving() const noexcept
 
 bool Physical::is_fallible() const noexcept
 {
-	return State::REST == m_state || State::LAND == m_state; // && !has_tag(TAG_FALL);
+	return (State::REST == m_state || State::LAND == m_state) && !has_tag(TAG_FALL);
 }
 
 void Physical::update()
