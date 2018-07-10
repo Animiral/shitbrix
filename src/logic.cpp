@@ -14,9 +14,9 @@ void MatchBuilder::ignite(Block& block)
 	int bottom = row;
 
 	for(left = col-1; left >= 0 && match_at({row,left}, color); left--);
-	for(right = col+1; left < PIT_COLS && match_at({row,right}, color); right++);
+	for(right = col+1; right < PIT_COLS && match_at({row,right}, color); right++);
 	for(top = row-1; top >= pit.top() && match_at({top,col}, color); top--);
-	for(bottom = row+1; top <= pit.bottom() && match_at({bottom,col}, color); bottom++);
+	for(bottom = row+1; bottom <= pit.bottom() && match_at({bottom,col}, color); bottom++);
 
 	// horizontal match >= 3 blocks
 	if(right-left-1 >= 3) {
@@ -35,6 +35,9 @@ void MatchBuilder::find_touch_garbage()
 {
 	auto insert_if_garbage_at = [this] (RowCol rc)
 	{
+		if(0 > rc.c || PIT_COLS <= rc.c)
+			return;
+
 		Garbage* garbage = pit.garbage_at(rc);
 		if(garbage)
 			m_touched_garbage.insert(*garbage);
