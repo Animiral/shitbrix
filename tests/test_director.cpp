@@ -160,7 +160,7 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
  */
 TEST_F(BlockDirectorTest, DissolveGarbage)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, PIT_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -181,6 +181,23 @@ TEST_F(BlockDirectorTest, DissolveGarbage)
 	EXPECT_TRUE(pit->block_at(RowCol{-4, 2})); // block remains
 	EXPECT_FALSE(pit->block_at(RowCol{-4, 0})); // this block should be falling
 	EXPECT_TRUE(pit->block_at(RowCol{-3, 0})); // down to here
+}
+
+/**
+ * Tests whether dissolving a garbage also dissolves further adjacent garbage.
+ */
+TEST_F(BlockDirectorTest, GarbageDissolveRecursive)
+{
+	auto& garbage1 = pit->spawn_garbage(RowCol{-5, 0}, PIT_COLS, 2); // immediately adjacent
+	auto& garbage2 = pit->spawn_garbage(RowCol{-6, 0}, 2, 1); // dissolved through garbage1
+
+	const_cast<Cursor&>(pit->cursor()).rc = RowCol{-2, 2};
+	EXPECT_TRUE(director->swap(0));
+
+	run_game_ticks(SWAP_TIME);
+
+	EXPECT_EQ(Physical::State::BREAK, garbage1.physical_state());
+	EXPECT_EQ(Physical::State::BREAK, garbage2.physical_state());
 }
 
 /**

@@ -1,6 +1,19 @@
 #include "logic.hpp"
 #include "error.hpp"
 
+namespace
+{
+
+/**
+ * Run the given function on every neighbor of type P to the Physical in the Pit.
+ * The function will be called multiple times per neighbor if there are multiple
+ * points of contact of the Physical with the neighbor.
+ */
+template<typename P = Physical, typename Func>
+void for_neighbors(Pit& pit, const Physical& phys, Func func);
+
+}
+
 void MatchBuilder::ignite(Block& block)
 {
 	Block::Color color = block.col;
@@ -28,27 +41,6 @@ void MatchBuilder::ignite(Block& block)
 	if(bottom-top-1 >= 3) {
 		for(int r = top+1; r < bottom; r++)
 			insert({r,col});
-	}
-}
-
-void MatchBuilder::find_touch_garbage()
-{
-	auto insert_if_garbage_at = [this] (RowCol rc)
-	{
-		if(0 > rc.c || PIT_COLS <= rc.c)
-			return;
-
-		Garbage* garbage = pit.garbage_at(rc);
-		if(garbage)
-			m_touched_garbage.insert(*garbage);
-	};
-
-	for(Block& block : m_result) {
-		RowCol rc = block.rc();
-		insert_if_garbage_at(RowCol{rc.r-1, rc.c});
-		insert_if_garbage_at(RowCol{rc.r+1, rc.c});
-		insert_if_garbage_at(RowCol{rc.r, rc.c-1});
-		insert_if_garbage_at(RowCol{rc.r, rc.c+1});
 	}
 }
 
@@ -284,9 +276,14 @@ void Logic::handle_hots(bool& have_match, int& combo, bool& chaining, bool& chai
 	if(!breaks.empty()) {
 		have_match = true;
 		m_pit.stop();
+	}
 
-		for(Block& breaking : breaks)
-			breaking.set_state(Physical::State::BREAK, BREAK_TIME);
+	for(Block& breaking : breaks) {
+		breaking.set_state(Physical::State::BREAK, BREAK_TIME);
+
+		// If this block touches on garbage, it will also break.
+		// Garbage is first recursively identified and later broken.
+		for_neighbors<Garbage>(m_pit, breaking, [this](Garbage& g) { touch_garbage(g); });
 	}
 
 	// There is only 1 chance per block to make a chain
@@ -299,9 +296,46 @@ void Logic::handle_hots(bool& have_match, int& combo, bool& chaining, bool& chai
 		}
 	});
 
-	builder.find_touch_garbage();
+	// execute on the breaking of touched garbages
+	m_pit.for_all<Garbage>(Physical::TAG_TOUCH, [](Garbage& garbage) {
+		garbage.set_state(Physical::State::BREAK, DISSOLVE_TIME);
+	});
+}
 
-	for(auto& garbage : builder.touched_garbage()) {
-		garbage.get().set_state(Physical::State::BREAK, DISSOLVE_TIME);
+void Logic::touch_garbage(Garbage& garbage) const
+{
+	if(!garbage.has_tag(Physical::TAG_TOUCH)) {
+		garbage.set_tag(Physical::TAG_TOUCH);
+		for_neighbors<Garbage>(m_pit, garbage, [this](Garbage& g) { touch_garbage(g); });
 	}
+};
+
+
+namespace
+{
+
+template<typename P, typename Func>
+void for_neighbors(Pit& pit, const Physical& phys, Func func)
+{
+	const auto invoke_at = [&pit, func](RowCol rc) {
+		if(0 <= rc.c && PIT_COLS > rc.c) {
+			P* p = dynamic_cast<P*>(pit.at(rc));
+			if(p)
+				func(*p);
+		}
+	};
+
+	const RowCol phys_rc{phys.rc()};
+
+	for(int r = 0; r < phys.rows(); r++) {
+		invoke_at({phys_rc.r + r, phys_rc.c - 1});
+		invoke_at({phys_rc.r + r, phys_rc.c + phys.columns()});
+	}
+
+	for(int c = 0; c < phys.columns(); c++) {
+		invoke_at({phys_rc.r - 1, phys_rc.c + c});
+		invoke_at({phys_rc.r + phys.rows(), phys_rc.c + c});
+	}
+}
+
 }

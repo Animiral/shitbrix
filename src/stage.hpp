@@ -33,7 +33,7 @@ public:
 	/**
 	 * Flags for tagging the Physical during logic update.
 	 */
-	enum Tag { TAG_NONE = 0, TAG_FALL = 1, TAG_HOT = 2, TAG_DISSOLVE = 4, TAG_LAND = 8, TAG_ANY = 15 };
+	enum Tag { TAG_NONE = 0, TAG_FALL = 1, TAG_HOT = 2, TAG_TOUCH = 4, TAG_DISSOLVE = 8, TAG_LAND = 16, TAG_ANY = 31 };
 
 	Physical(RowCol rc, State state);
 	Physical(const Physical& ) =default;

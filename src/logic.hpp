@@ -44,15 +44,6 @@ public:
 	void ignite(Block& block);
 	const BlockSet& result() { return m_result; }
 
-	/**
-	 * For each block in the result set of the MatchBuilder,
-	 * examine the adjacent locations for Garbage blocks.
-	 * The set of garbage bricks found in this manner is marked
-	 * and available via @ref touched_garbage.
-	 */
-	void find_touch_garbage();
-	const GarbageSet& touched_garbage() const noexcept { return m_touched_garbage; }
-
 	int combo() { return static_cast<int>(m_result.size()); }
 	bool chaining() { return m_chaining; }
 
@@ -61,7 +52,6 @@ private:
 	const Pit& pit;
 	BlockSet m_result;
 	bool m_chaining;
-	GarbageSet m_touched_garbage;
 
 	bool match_at(RowCol rc, Block::Color color);
 	void insert(RowCol rc);
@@ -133,5 +123,10 @@ public:
 private:
 
 	Pit& m_pit;
+
+	/**
+	 * Mark the garbage and any other garbage it touches with the TAG_TOUCH tag.
+	 */
+	void touch_garbage(Garbage& garbage) const;
 
 };
