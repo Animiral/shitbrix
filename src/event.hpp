@@ -6,7 +6,9 @@
 #pragma once
 
 #include <algorithm>
-#include "stage.hpp"
+#include "state.hpp"
+
+class Stage;
 
 namespace evt
 {
@@ -257,6 +259,24 @@ public:
 	virtual void fire(PhysicalLands event);
 	virtual void fire(BlockDies event);
 	virtual void fire(GarbageDissolves event);
+
+};
+
+/**
+ * A handler for game events that cause whole-screen effects like shaking.
+ */
+class ShakeRelay : public evt::IEventObserver
+{
+
+public:
+
+	ShakeRelay(Stage& stage) : m_stage(&stage) {}
+
+	virtual void fire(evt::PhysicalLands lands) override;
+
+private:
+
+	Stage* m_stage;
 
 };
 

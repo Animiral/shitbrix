@@ -5,6 +5,7 @@
 #include "globals.hpp"
 #include "error.hpp"
 #include <cmath>
+#include <cassert>
 #include <SDL.h>
 
 namespace
@@ -56,11 +57,6 @@ void DrawGame::fade(float fraction)
 	m_fade = fraction;
 }
 
-void DrawGame::shake(float strength) noexcept
-{
-	m_shake = m_shake.offset(0.f, strength);
-}
-
 void DrawGame::draw_offscreen(float dt) const
 {
 	enforce(dt >= 0.f);
@@ -102,16 +98,6 @@ void DrawGame::draw_offscreen(float dt) const
 	}
 
 	tint();
-
-	// update shake for next frame
-	// shake consists of:
-	// * invert the shake translation offset (rotate 180°)
-	// * downscale the effect
-	// * flavor it with a slight rotation, given by the rotation matrix R(theta)
-	constexpr float theta = float(M_PI) / 2.f + .1f; // constant rotation per fame
-	const Point prev = m_shake;
-	m_shake.x = SHAKE_DECREASE * (prev.x * std::cos(theta) - prev.y * std::sin(theta));
-	m_shake.y = SHAKE_DECREASE * (prev.x * std::sin(theta) + prev.y * std::cos(theta));
 }
 
 void DrawGame::show_cursor(bool show)
@@ -136,7 +122,8 @@ void DrawGame::toggle_pit_debug_highlight()
 
 Point DrawGame::translate(Point p) const noexcept
 {
-	return p.offset(m_pitloc.x, m_pitloc.y).offset(m_shake.x, m_shake.y);
+	const Point shake = m_stage.m_shake;
+	return p.offset(m_pitloc.x, m_pitloc.y).offset(shake.x, shake.y);
 }
 
 void DrawGame::draw_background() const

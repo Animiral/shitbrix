@@ -105,11 +105,6 @@ public:
 	void fade(float fraction);
 
 	/**
-	 * Nudge the game screen to make everything shake. Cumulative effect.
-	 */
-	void shake(float strength) noexcept;
-
-	/**
 	 * Render all that we know to the screen.
 	 * This includes background, pits and cursors.
 	 */
@@ -150,7 +145,6 @@ private:
 	bool m_show_pit_debug_highlight = false;
 
 	float m_fade = 1.f;
-	mutable Point m_shake{0,0}; //!< shake effect offset
 	mutable Point m_pitloc{0,0}; //!< point location of the current pit, translate sprites
 	mutable uint8_t m_alpha = 255;
 	TexturePtr m_fadetex; // solid pixel used for fading
@@ -202,28 +196,5 @@ private:
 	std::unique_ptr<SDL_Texture, SdlDeleter> m_pred_texture; //!< for compositing the predecessor screen
 	std::unique_ptr<SDL_Texture, SdlDeleter> m_succ_texture; //!< for compositing the successor screen
 	int m_time;
-
-};
-
-/**
- * A handler for game events that cause whole-screen effects like shaking.
- */
-class ShakeRelay : public evt::IEventObserver
-{
-
-public:
-
-	ShakeRelay(DrawGame& draw) : m_draw(&draw) {}
-
-	virtual void fire(evt::PhysicalLands lands) override
-	{
-		if(const Garbage* garbage = dynamic_cast<const Garbage*> (&lands.physical)) {
-			m_draw->shake(garbage->rows() * SHAKE_SCALE);
-		}
-	}
-
-private:
-
-	DrawGame* m_draw;
 
 };

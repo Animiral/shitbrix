@@ -11,11 +11,9 @@
 #include "draw.hpp"
 #include "logic.hpp"
 #include "director.hpp"
-#include "replay.hpp"
 #include "network.hpp"
-#include "sdl_helper.hpp"
-#include <fstream>
-#include <typeinfo>
+#include <memory>
+#include <cassert>
 
 class IScreen
 {
@@ -137,72 +135,17 @@ private:
 };
 
 /**
- * Determines some of the variable behavior of the GameScreen (strategy pattern).
- * The GameScreen starts with an intro (fade-in or transition), continues with the
- * actual gameplay and ends with a result banner. All of these are implemented as
- * strategies derived from GamePhase.
- * GamePhases control their own life and transition via GameScreen::set_phase(),
- * enabled through the friend relation to GameScreen.
+ * The display class for the game board.
+ *
+ * The GameScreen starts with an intro (ready-prompt), continues with the
+ * actual gameplay and ends with a result banner.
  */
-class IGamePhase
-{
-
-public:
-
-	IGamePhase(GameScreen* screen) : m_screen(screen) {}
-	virtual ~IGamePhase() =0;
-
-	void set_screen(GameScreen* screen) { m_screen = screen; }
-
-	virtual void update() =0;
-
-protected:
-
-	GameScreen* m_screen;
-
-};
-
-class GameIntro : public IGamePhase
-{
-
-public:
-
-	GameIntro(GameScreen* screen);
-
-	virtual void update() override;
-
-private:
-
-	int countdown;
-
-};
-
-class GamePlay : public IGamePhase
-{
-
-public:
-
-	GamePlay(GameScreen* screen) : IGamePhase(screen) {}
-
-	virtual void update() override;
-
-};
-
-class GameResult : public IGamePhase
-{
-
-public:
-
-	GameResult(GameScreen* screen, int winner);
-
-	virtual void update() override;
-
-};
-
 class GameScreen : public IScreen
 {
 
 public:
+
+	enum class Phase { INTRO, PLAY, RESULT };
 
 	explicit GameScreen(
 		std::unique_ptr<Stage> stage,
@@ -220,29 +163,31 @@ public:
 
 private:
 
-	long m_game_time; // starts at 0 with each game round
-	bool m_done; // true if this screen has reached its end
+	Phase m_phase; //!< game round state machine
+	long m_time; //!< starts at 0 with the intro and each game round
+	bool m_done; //!< true if this screen has reached its end
 
-	std::unique_ptr<IGamePhase> m_game_phase;
-	std::unique_ptr<IGamePhase> m_next_phase;
-
-	std::unique_ptr<Stage> m_stage;
 	std::unique_ptr<DrawGame> m_draw;
+	std::unique_ptr<Stage> m_stage;
 	IClient* const m_client;
 	ServerThread* const m_server;
-	evt::BonusRelay m_bonus_relay;
-	evt::DupeFiltered<evt::SoundRelay> m_sound_relay;
-	evt::DupeFiltered<ShakeRelay> m_shake_relay;
 
-	void change_phase(std::unique_ptr<IGamePhase> phase);
-	void change_phase_impl();
+	/**
+	 * Calculate one update tick in the currently active phase.
+	 */
+	void advance_tick();
+
+	/**
+	 * Tick implementation for the intro phase.
+	 */
+	void update_intro();
+
+	/**
+	 * Tick implementation for the intro phase.
+	 */
+	void update_play();
 
 	void start();
-
-	friend class IGamePhase;
-	friend class GameIntro;
-	friend class GamePlay;
-	friend class GameResult;
 
 };
 

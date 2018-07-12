@@ -2,6 +2,7 @@
 #include "error.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
+#include <fstream>
 
 GameLoop::GameLoop()
 : m_input_devices(),

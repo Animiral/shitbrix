@@ -1,5 +1,6 @@
 #include "event.hpp"
 #include "context.hpp"
+#include "stage.hpp"
 #include "audio.hpp"
 
 namespace evt
@@ -61,6 +62,13 @@ void SoundRelay::fire(BlockDies event)
 void SoundRelay::fire(GarbageDissolves event)
 {
 	the_context.audio->play(Snd::BREAK);
+}
+
+void ShakeRelay::fire(evt::PhysicalLands lands)
+{
+	if(const Garbage* garbage = dynamic_cast<const Garbage*> (&lands.physical)) {
+		m_stage->shake(garbage->rows() * SHAKE_SCALE);
+	}
 }
 
 }

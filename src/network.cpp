@@ -1,5 +1,6 @@
 #include "network.hpp"
 #include <sstream>
+#include <cassert>
 #include "error.hpp"
 
 // These two libraries are dependencies of ENet.

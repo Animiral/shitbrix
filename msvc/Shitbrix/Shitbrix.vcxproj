@@ -82,6 +82,7 @@
     <ClInclude Include="..\..\src\screen.hpp" />
     <ClInclude Include="..\..\src\sdl_helper.hpp" />
     <ClInclude Include="..\..\src\stage.hpp" />
+    <ClInclude Include="..\..\src\state.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\asset.cpp" />
@@ -102,6 +103,7 @@
     <ClCompile Include="..\..\src\screen.cpp" />
     <ClCompile Include="..\..\src\sdl_helper.cpp" />
     <ClCompile Include="..\..\src\stage.cpp" />
+    <ClCompile Include="..\..\src\state.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\enet\enet.vcxproj">

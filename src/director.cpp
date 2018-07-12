@@ -5,6 +5,7 @@
 #include "director.hpp"
 #include "replay.hpp"
 #include "error.hpp"
+#include <cassert>
 
 // elemental game logic functions and helpers
 namespace

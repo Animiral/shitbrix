@@ -8,6 +8,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cassert>
 
 ReplayRecord ReplayRecord::make_start() noexcept
 {

@@ -1,11 +1,15 @@
 #include "screen.hpp"
 #include "configuration.hpp"
+#include "state.hpp"
 #include "error.hpp"
+#include <string>
+#include <fstream>
 #include <sstream>
-#include <chrono>
-#include <ctime>
+#include <random>
+#include <cassert>
+
+// only for debug functions
 #include <iostream>
-#include <iomanip>
 
 namespace
 {
@@ -104,83 +108,16 @@ void MenuScreen::input(ControllerInput cinput)
 	}
 }
 
-IGamePhase::~IGamePhase() =default;
 
-GameIntro::GameIntro(GameScreen* screen)
-: IGamePhase(screen), countdown(INTRO_TIME)
-{
-	m_screen->m_draw->show_cursor(true);
-	m_screen->m_draw->show_banner(false);
-}
-
-void GameIntro::update()
-{
-	float fadeness = ((INTRO_TIME - countdown + 1.f) / INTRO_TIME);
-	m_screen->m_draw->fade(fadeness);
-
-	if(0 == --countdown) {
-		auto phase = std::make_unique<GamePlay>(m_screen);
-		m_screen->change_phase(std::move(phase));
-	}
-}
-
-
-void GamePlay::update()
-{
-	// detect game over
-	Journal& journal = m_screen->m_client->gamedata().journal;
-	const int winner = journal.meta().winner;
-	if(NOONE != winner) {
-		// display winner
-		auto& stage_objects = m_screen->m_stage->sobs();
-		for(size_t i = 0; i < stage_objects.size(); i++) {
-			BannerFrame frame = (i == winner) ? BannerFrame::WIN : BannerFrame::LOSE;
-			stage_objects[i].banner.frame = frame;
-		}
-
-		auto phase = std::make_unique<GameResult>(m_screen, winner);
-		m_screen->change_phase(std::move(phase));
-
-		autorecord_replay(journal);
-
-		return; // skip the usual; we don't need more game logic
-	}
-
-	// reach the target time, considering even retcon inputs
-	long& game_time = m_screen->m_game_time;
-	game_time++;
-
-	GameData& gamedata = m_screen->m_client->gamedata();
-	synchronurse(gamedata.state, game_time, gamedata.journal, gamedata.rules);
-}
-
-GameResult::GameResult(GameScreen* screen, int winner) : IGamePhase(screen)
-{
-	m_screen->m_draw->show_cursor(false);
-	m_screen->m_draw->show_banner(true);
-}
-
-void GameResult::update()
-{
-	// this is only needed to display the replay correctly
-	m_screen->m_game_time++;
-}
-
-
-GameScreen::GameScreen(
-	std::unique_ptr<Stage> stage,
-	std::unique_ptr<DrawGame> draw,
-	IClient& client,
-	ServerThread* server)
-: m_game_time(0),
-  m_done(false),
-  m_stage(std::move(stage)),
-  m_draw(std::move(draw)),
-  m_client(&client),
-  m_server(server),
-  m_bonus_relay(*m_stage),
-  m_sound_relay(),
-  m_shake_relay(*m_draw)
+GameScreen::GameScreen(std::unique_ptr<Stage> stage, std::unique_ptr<DrawGame> draw,
+                       IClient& client, ServerThread* server) :
+	m_phase(Phase::INTRO),
+	m_time(0),
+	m_done(false),
+	m_draw(std::move(draw)),
+	m_stage(std::move(stage)),
+	m_client(&client),
+	m_server(server)
 {
 	assert(m_stage);
 	assert(m_draw);
@@ -192,19 +129,10 @@ GameScreen::GameScreen(
 
 GameScreen::~GameScreen() noexcept
 {
-	// The phase object holds a reference to this. To guarantee safe access
-	// from the destructor of the phase, we must destroy it before this
-	// GameScreen becomes invalid.
-	m_next_phase.reset();
-	m_game_phase.reset();
-
-	// The client, which can outlive this screen, must not be left with a
+	// The network, which can outlive this screen, must not be left with a
 	// dangling pointer to our member relay.
 	if(m_client->is_ingame()) {
-		evt::GameEventHub& hub = m_client->gamedata().rules.event_hub;
-		hub.unsubscribe(m_bonus_relay);
-		hub.unsubscribe(m_sound_relay);
-		hub.unsubscribe(m_shake_relay);
+		m_stage->unsubscribe_from(m_client->gamedata().rules.event_hub);
 	}
 }
 
@@ -220,20 +148,17 @@ void GameScreen::update()
 	if(0 == m_client->gamedata().dials.speed)
 		return;
 
-	// logic-independent stage effects
-	m_stage->update();
-
-	// run game logic
-	assert(m_game_phase);
-	m_game_phase->update();
-
-	if(m_next_phase)
-		change_phase_impl();
+	advance_tick();
 }
 
 void GameScreen::draw(float dt)
 {
 	m_draw->draw(dt);
+}
+
+void GameScreen::stop()
+{
+	autorecord_replay(m_client->gamedata().journal);
 }
 
 void GameScreen::input(ControllerInput cinput)
@@ -258,7 +183,7 @@ void GameScreen::input(ControllerInput cinput)
 			std::optional<GameInput> oinput = controller_to_game(cinput);
 			if(oinput.has_value()) {
 				// TODO: network should assign the actual input time
-				oinput->game_time = m_game_time + 1; // input applies to next frame
+				oinput->game_time = m_time + 1; // input applies to next frame
 				m_client->send_input(oinput.value());
 			}
 		}
@@ -308,13 +233,13 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::DEBUG2:
 			// this does not work with Network
 			if(NetworkMode::LOCAL == the_context.configuration->network_mode)
-				m_game_phase->update();
+				advance_tick();
 			break;
 
 		case Button::DEBUG3:
 			// this does not work with Network
 			if(NetworkMode::LOCAL == the_context.configuration->network_mode)
-				for(int i = 0; i < 8; i++) m_game_phase->update();
+				for(int i = 0; i < 8; i++) advance_tick();
 			break;
 
 		case Button::DEBUG4:
@@ -340,44 +265,76 @@ void GameScreen::input(ControllerInput cinput)
 	}
 }
 
+void GameScreen::advance_tick()
+{
+	// logic-independent stage effects
+	m_stage->update();
+
+	m_time++;
+
+	switch(m_phase) {
+
+	case Phase::INTRO:
+		update_intro();
+		break;
+
+	case Phase::PLAY:
+		update_play();
+		break;
+
+	}
+}
+
+void GameScreen::update_intro()
+{
+	float fadeness = (static_cast<float>(m_time) / INTRO_TIME);
+	m_draw->fade(fadeness);
+
+	if(INTRO_TIME <= m_time) {
+		m_phase = Phase::PLAY;
+		m_time = m_client->gamedata().state.game_time();
+	}
+}
+
+void GameScreen::update_play()
+{
+	// detect game over
+	Journal& journal = m_client->gamedata().journal;
+	const int winner = journal.meta().winner;
+	if(NOONE != winner) {
+		// display winner
+		auto& stage_objects = m_stage->sobs();
+		for(size_t i = 0; i < stage_objects.size(); i++) {
+			BannerFrame frame = (i == winner) ? BannerFrame::WIN : BannerFrame::LOSE;
+			stage_objects[i].banner.frame = frame;
+		}
+
+		m_phase = Phase::RESULT;
+		m_draw->show_cursor(false);
+		m_draw->show_banner(true);
+		autorecord_replay(journal);
+		return; // skip the usual; we don't need more game logic
+	}
+
+	// run game logic until the target time, considering even retcon inputs
+	GameData& gamedata = m_client->gamedata();
+	synchronurse(gamedata.state, m_time, gamedata.journal, gamedata.rules);
+}
+
 void GameScreen::start()
 {
 	GameData& gamedata = m_client->gamedata();
 	const GameMeta meta = gamedata.journal.meta();
 	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
-	change_phase(std::make_unique<GameIntro>(this));
-	change_phase_impl();
-	m_game_time = gamedata.state.game_time();
+	m_phase = Phase::INTRO;
+	m_time = 0;
 	m_done = false;
+	m_draw->show_cursor(true);
+	m_draw->show_banner(false);
 
-	m_sound_relay = evt::DupeFiltered<evt::SoundRelay>();
-	m_shake_relay = evt::DupeFiltered<ShakeRelay>(*m_draw);
-
-	// BUG! Due to lack of RAII wrapping, these relays will not be properly
-	// unsubscribed from the hub if this is being called from the GameScreen
-	// constructor and one of the subscriptions throws an exception.
-	evt::GameEventHub& hub = m_client->gamedata().rules.event_hub;
-	hub.subscribe(m_bonus_relay);
-	hub.subscribe(m_sound_relay);
-	hub.subscribe(m_shake_relay);
+	m_stage->subscribe_to(m_client->gamedata().rules.event_hub);
 }
-
-void GameScreen::stop()
-{
-	autorecord_replay(m_client->gamedata().journal);
-}
-
-void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
-{
-	m_next_phase = std::move(phase);
-}
-
-void GameScreen::change_phase_impl()
-{
-	m_game_phase = std::move(m_next_phase);
-}
-
 
 ServerScreen::ServerScreen(ServerThread& server)
 	: m_server(&server), m_done(false)

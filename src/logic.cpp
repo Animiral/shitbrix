@@ -1,5 +1,6 @@
 #include "logic.hpp"
 #include "error.hpp"
+#include <cassert>
 
 namespace
 {
