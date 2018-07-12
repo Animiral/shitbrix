@@ -8,6 +8,7 @@
 #include "globals.hpp"
 #include <vector>
 #include <random>
+#include <memory>
 #include <functional>
 
 /**
