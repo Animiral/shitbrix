@@ -300,15 +300,15 @@ void GameScreen::input(ControllerInput cinput)
 			break;
 
 		case Button::DEBUG2:
-			// TODO: this does not work with Network
-			//update_impl();
+			// this does not work with Network
+			if(NetworkMode::LOCAL == the_context.configuration->network_mode)
+				m_game_phase->update();
 			break;
 
 		case Button::DEBUG3:
 			// this does not work with Network
-			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
-				//for(int i = 0; i < 8; i++) update_impl();
-			}
+			if(NetworkMode::LOCAL == the_context.configuration->network_mode)
+				for(int i = 0; i < 8; i++) m_game_phase->update();
 			break;
 
 		case Button::DEBUG4:
@@ -355,6 +355,12 @@ void GameScreen::start()
 	hub.subscribe(m_bonus_relay);
 	hub.subscribe(m_sound_relay);
 	hub.subscribe(m_shake_relay);
+}
+
+void GameScreen::stop()
+{
+	if(the_context.configuration->autorecord)
+		autorecord_replay(m_client->gamedata().journal);
 }
 
 void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)

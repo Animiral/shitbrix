@@ -35,6 +35,11 @@ public:
 	virtual bool done() const =0; // whether the screen has ended
 
 	/**
+	 * The game loop calls this function when the screen is being exited.
+	 */
+	virtual void stop() {}
+
+	/**
 	 * Access the object which can draw this screen.
 	 */
 	virtual const IDraw& get_draw() const =0;
@@ -209,6 +214,7 @@ public:
 	virtual void update() override;
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
+	virtual void stop() override;
 	virtual const IDraw& get_draw() const override { assert(m_draw); return *m_draw; }
 	virtual void input(ControllerInput cinput) override;
 

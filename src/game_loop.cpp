@@ -111,6 +111,9 @@ void GameLoop::game_loop()
 
 void GameLoop::next_screen()
 {
+	if(nullptr != m_screen)
+		m_screen->stop();
+
 	if(nullptr == m_screen) {
 		NetworkMode mode = the_context.configuration->network_mode;
 		if(NetworkMode::SERVER == mode) {
