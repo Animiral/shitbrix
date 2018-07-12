@@ -141,8 +141,7 @@ void GamePlay::update()
 		auto phase = std::make_unique<GameResult>(m_screen, winner);
 		m_screen->change_phase(std::move(phase));
 
-		if(the_context.configuration->autorecord)
-			autorecord_replay(journal);
+		autorecord_replay(journal);
 
 		return; // skip the usual; we don't need more game logic
 	}
@@ -278,11 +277,18 @@ void GameScreen::input(ControllerInput cinput)
 
 		case Button::RESET:
 		{
+			// In replay playback mode, there is no reset (only quit).
+			if(the_context.configuration->replay_path.has_value())
+				break;
+
 			// Only reset once
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
 			client_send_reset(*m_client);
+
+			// preserve the state and replay before it is gone
+			autorecord_replay(m_client->gamedata().journal);
 		}
 			break;
 
@@ -359,8 +365,7 @@ void GameScreen::start()
 
 void GameScreen::stop()
 {
-	if(the_context.configuration->autorecord)
-		autorecord_replay(m_client->gamedata().journal);
+	autorecord_replay(m_client->gamedata().journal);
 }
 
 void GameScreen::change_phase(std::unique_ptr<IGamePhase> phase)
@@ -421,6 +426,9 @@ namespace
 
 void autorecord_replay(const Journal& journal)
 {
+	if(!the_context.configuration->autorecord)
+		return; // this functionality is disabled
+
 	using clock = std::chrono::system_clock;
 	auto now = clock::now();
 	std::time_t time_now = clock::to_time_t(now);
@@ -434,8 +442,23 @@ void autorecord_replay(const Journal& journal)
 
 	std::ostringstream time_stream;
 	time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
-	std::ofstream stream(time_stream.str());
-	replay_write(stream, journal);
+	std::filesystem::path path{time_stream.str()};
+
+	// We never overwrite autorecords.
+	if(std::filesystem::exists(path)) {
+		// Backup plan: include seconds.
+		time_stream.str("");
+		time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M-%S.txt");
+		path = time_stream.str();
+	}
+
+	if(!std::filesystem::exists(path)) {
+		std::ofstream stream(path);
+		replay_write(stream, journal);
+	}
+
+	// If the seconds-precision path already exists, we prefer the earlier
+	// file as it is more likely to contain a full game.
 }
 
 [[ maybe_unused ]]

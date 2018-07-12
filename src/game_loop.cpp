@@ -156,6 +156,9 @@ void GameLoop::next_screen()
 				}
 				m_game_screen = m_screen_factory.create_game();
 				m_screen = m_game_screen.get();
+
+				// We do not copy-save the same game again in replay mode.
+				the_context.configuration->autorecord = false;
 			}
 			else {
 				m_menu_screen = m_screen_factory.create_menu();
@@ -185,9 +188,18 @@ void GameLoop::next_screen()
 		}
 	} else
 	if(GameScreen* game = dynamic_cast<GameScreen*>(m_screen)) {
-		m_menu_screen = m_screen_factory.create_menu();
-		m_transition_screen = m_screen_factory.create_transition(*game, *m_menu_screen);
-		m_screen = m_transition_screen.get();
+		if(the_context.configuration->replay_path.has_value()) {
+			// After a replay, just exit.
+			// NOTE: if we did not, we would have to restore the autorecord config flag.
+			m_game_screen.release();
+			m_screen = nullptr;
+		}
+		else {
+			// Go back to menu
+			m_menu_screen = m_screen_factory.create_menu();
+			m_transition_screen = m_screen_factory.create_transition(*game, *m_menu_screen);
+			m_screen = m_transition_screen.get();
+		}
 	} else
 	if(TransitionScreen* transition = dynamic_cast<TransitionScreen*>(m_screen)) {
 		m_screen = &transition->successor();
