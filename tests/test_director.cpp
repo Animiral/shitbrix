@@ -374,6 +374,22 @@ TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 }
 
 /**
+ * Asserts that a potentially falling block that ends up not falling
+ * is not left with the chaining flag (Bug #79).
+ */
+TEST_F(BlockDirectorTest, RestingBlockNotChaining)
+{
+	// blocks resting on this garbage might fall
+	auto& garbage = pit->spawn_garbage(RowCol{-4, 2}, 3, 1);
+	// this block will be examined for falling, but end in rest
+	auto& block = pit->spawn_block(Block::Color::BLUE, RowCol{-5, 2}, Block::State::REST);
+	garbage.set_state(Physical::State::BREAK, 1);
+
+	run_game_ticks(2);
+	EXPECT_FALSE(block.chaining);
+}
+
+/**
  * Tests whether block swapping correctly swaps the chaining markers
  * of the blocks, even if it happens mid-fall.
  */

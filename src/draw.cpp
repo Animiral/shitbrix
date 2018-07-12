@@ -202,6 +202,7 @@ void DrawGame::draw_block(const Block& block, float dt) const
 	putsprite(draw_loc, gfx, static_cast<size_t>(frame));
 
 	if(block.chaining) {
+		assert(time >= 0.f); // resting blocks should not be chaining
 		uint8_t colv = 255 * int(time) % 2;
 		draw_highlight(draw_loc, BLOCK_W, BLOCK_H, colv, colv, colv, 150);
 	}

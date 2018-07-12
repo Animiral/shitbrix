@@ -71,6 +71,9 @@ void Logic::trigger_falls(RowCol rc, bool chaining) const
 	   Physical::State::DEAD == physical->physical_state())
 		return;
 
+	// If this is part of a chaining move, we have to set the chaining flag on
+	// the block *now* before we forget what the reason for the falling was.
+	// If the block does not end up really falling after all, re-evaluate.
 	if(Block* block = dynamic_cast<Block*>(physical))
 		block->chaining |= chaining;
 
@@ -248,6 +251,11 @@ void Logic::handle_fallers() const
 		}
 		else {
 			physical.set_state(Physical::State::REST);
+
+			// If we have a block that was only ever *potentially* falling
+			// in the first place, it can not be chaining. (Bug #79)
+			if(Block* block = dynamic_cast<Block*>(&physical))
+				block->chaining = false;
 		}
 	});
 
