@@ -13,6 +13,7 @@
 #pragma once
 
 #include <vector>
+#include <set>
 #include <string>
 #include <memory>
 #include <future>
@@ -517,6 +518,20 @@ public:
 	virtual void send_speed(int speed) override;
 	virtual void poll() override;
 
+	/**
+	 * Set the set of local players.
+	 * Local players are players who are known to provide inputs only through
+	 * the local game instance.
+	 * The client sends inputs from players in this set not only to the server,
+	 * but also adds them directly to the game record.
+	 * It ignores inputs from these players coming from the server, because we
+	 * assume that they match with our local inputs.
+	 * This reduces input lag effects.
+	 * The locals must be configured before any inputs are sent and when the
+	 * game is ready (when the number of players is known).
+	 */
+	void set_locals(std::set<int> locals);
+
 private:
 
 	const std::unique_ptr<ENetClient> m_client; //!< low-level communicator object
@@ -524,6 +539,7 @@ private:
 	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
 	std::optional<GameData> m_gamedata; //!< information during the game round
 	int m_ready = 0; //!< quick-and-dirty state machine. 0=menu, 1=ready, 2=ingame
+	std::set<int> m_locals; //!< List of local players
 
 	/**
 	 * Process a single message.

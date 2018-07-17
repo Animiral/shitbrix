@@ -603,6 +603,11 @@ void BasicClient::game_start()
 void BasicClient::send_input(GameInput input)
 {
 	m_client->send_message(MsgType::INPUT, input.to_string());
+
+	if(m_locals.end() != m_locals.find(input.player)) { // if player is local
+		// put input in journal without delay
+		m_gamedata->journal.add_input(input);
+	}
 }
 
 void BasicClient::send_reset(GameMeta meta)
@@ -624,6 +629,22 @@ void BasicClient::poll()
 		handle_message(m);
 }
 
+void BasicClient::set_locals(std::set<int> locals)
+{
+	// NOTE: These checks are currently disabled because the locals are a
+	//       setting independent of the game round. If we are not yet in a
+	//       game, remember the locals for the later time when we are.
+	//enforce(m_meta.has_value());
+
+	//const int players = m_meta->players;
+	//for(int l : locals) {
+	//	if(l < 0 || l > players)
+	//		throw new GameException("Cannot configure local player.");
+	//}
+
+	m_locals = locals;
+}
+
 void BasicClient::handle_message(const Message& message)
 {
 	switch(message.type) {
@@ -634,7 +655,8 @@ void BasicClient::handle_message(const Message& message)
 			throw GameException("Got input from server before the game is running.");
 
 		const GameInput input = GameInput::from_string(message.data);
-		m_gamedata->journal.add_input(input);
+		if(m_locals.end() == m_locals.find(input.player)) // if player is not local
+			m_gamedata->journal.add_input(input);
 	}
 		break;
 
@@ -652,6 +674,7 @@ void BasicClient::handle_message(const Message& message)
 	{
 		m_meta = GameMeta::from_string(message.data);
 		m_gamedata.reset(); // new meta info invalidates game state and history
+		//m_locals.clear(); // set this repeatedly because we don't know how many players?
 		m_ready = 1;
 	}
 		break;

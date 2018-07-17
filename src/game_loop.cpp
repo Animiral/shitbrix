@@ -131,7 +131,13 @@ void GameLoop::next_screen()
 			else {
 				auto net_client = std::make_unique<ENetClient>(the_context.configuration->server_url->c_str(),
 															   the_context.configuration->port); // network implementation
-				m_client.reset(new BasicClient(std::move(net_client)));
+				auto basic_client = std::make_unique<BasicClient>(std::move(net_client));
+
+				auto player_number = the_context.configuration->player_number;
+				if(player_number.has_value())
+					basic_client->set_locals({player_number.value()});
+
+				m_client = std::move(basic_client);
 			}
 
 			m_screen_factory.set_client(m_client.get());
