@@ -118,3 +118,10 @@ void replay_write(std::ostream& stream, const Journal& journal);
  * Reads a replay file and sends event by event to the sink.
  */
 Journal replay_read(std::istream& stream);
+
+/**
+ * Write the journal to an automatically generated file name in the replay directory.
+ * If the replay directory does not exist, do nothing.
+ * This name is built from the current date and time.
+ */
+void autorecord_replay(const Journal& journal);

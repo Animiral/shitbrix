@@ -16,13 +16,6 @@ namespace
 {
 
 /**
- * Write the journal to an automatically generated file name in the replay directory.
- * If the replay directory does not exist, do nothing.
- * This name is built from the current date and time.
- */
-void autorecord_replay(const Journal& journal);
-
-/**
  * Send a message through the client, requesting to restart the game with
  * the given parameters.
  */
@@ -381,43 +374,6 @@ void TransitionScreen::draw(float dt)
 
 namespace
 {
-
-void autorecord_replay(const Journal& journal)
-{
-	if(!the_context.configuration->autorecord)
-		return; // this functionality is disabled
-
-	using clock = std::chrono::system_clock;
-	auto now = clock::now();
-	std::time_t time_now = clock::to_time_t(now);
-	struct tm ltime = *std::localtime(&time_now);
-
-	if(0 != errno)
-		throw GameException("Failed to get localtime for journal file name.");
-
-	if(!std::filesystem::is_directory("replay"))
-		return; // creating the replay directory is the user's opt-in
-
-	std::ostringstream time_stream;
-	time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
-	std::filesystem::path path{time_stream.str()};
-
-	// We never overwrite autorecords.
-	if(std::filesystem::exists(path)) {
-		// Backup plan: include seconds.
-		time_stream.str("");
-		time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M-%S.txt");
-		path = time_stream.str();
-	}
-
-	if(!std::filesystem::exists(path)) {
-		std::ofstream stream(path);
-		replay_write(stream, journal);
-	}
-
-	// If the seconds-precision path already exists, we prefer the earlier
-	// file as it is more likely to contain a full game.
-}
 
 [[ maybe_unused ]]
 void debug_print_pit(const Pit& pit)

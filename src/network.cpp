@@ -849,6 +849,10 @@ void BasicServer::handle_message(const Message& message)
 	case MsgType::META:
 	{
 		// TODO: validate sender
+
+		if(is_ingame())
+			autorecord_replay(m_gamedata->journal);
+
 		m_meta = GameMeta::from_string(message.data);
 		m_gamedata.reset(); // new meta info invalidates game state and history
 
@@ -957,6 +961,7 @@ void ServerThread::main_loop()
 				const int winner = gamedata.rules.block_director.winner();
 				gamedata.journal.set_winner(winner);
 				m_server->send_gameend(winner);
+				autorecord_replay(gamedata.journal);
 				in_game = false;
 			}
 		}
