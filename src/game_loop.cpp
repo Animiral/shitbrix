@@ -122,13 +122,13 @@ void GameLoop::next_screen()
 			m_screen = m_server_screen.get();
 		}
 		else {
-			if(!the_context.configuration->server_url.has_value())
-				throw GameException("Client mode requires server_url configuration.");
-
 			if(NetworkMode::LOCAL == mode) {
 				m_client.reset(new LocalClient());
 			}
 			else {
+				if(!the_context.configuration->server_url.has_value())
+					throw GameException("Client mode requires server_url configuration.");
+
 				auto net_client = std::make_unique<ENetClient>(the_context.configuration->server_url->c_str(),
 															   the_context.configuration->port); // network implementation
 				m_client.reset(new BasicClient(std::move(net_client)));
