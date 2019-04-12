@@ -86,7 +86,7 @@ struct Rules
 };
 
 /**
- * Bring the game state to the given @c target_time using the
- * @c journal for history and @director for logic.
+ * Bring the game state to the @c target_time by calculation from the game
+ * journal and the game rules.
  */
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules);

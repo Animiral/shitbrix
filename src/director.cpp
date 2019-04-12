@@ -241,13 +241,9 @@ int BlockDirector::opponent(int player) const noexcept
 }
 
 
-/**
- * Bring the game state to the @c target_time by calculation from the game
- * journal and the game rules.
- */
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
 {
-	// get events from journal, from which inputs will be relayed to the phase
+	// get events from journal, from which inputs will be applied to the state
 	const long time0 = journal.earliest_undiscovered();
 
 	if(time0 < target_time) {

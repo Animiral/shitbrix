@@ -538,7 +538,7 @@ public:
 
 	/**
 	 * Decrease panic time towards 0 and return the new value.
-	 * Panic time is used to stop scrolling briefly when the pit is full.and after blocks break.
+	 * Panic time is used to stop scrolling briefly when the pit is full.
 	 */
 	int do_panic() noexcept { return (m_panic > 0) ? --m_panic : 0; }
 

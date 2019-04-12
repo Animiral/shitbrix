@@ -892,6 +892,10 @@ void ServerThread::main_loop()
 {
 	set_thread_name("Server Thread");
 
+	// TODO: this code duplicates code from the GameLoop::game_loop function.
+	//       It should be refactored so that the timed loop is owned/run
+	//       by the active screen and based on a common ILoop.
+
 	Uint64 t0 = SDL_GetPerformanceCounter(); // start of game time
 	Uint64 freq = SDL_GetPerformanceFrequency();
 	long tick = 0; // current logic tick counter
