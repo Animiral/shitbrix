@@ -7,6 +7,8 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
 #include <cctype>
 #include <cassert>
 
@@ -129,7 +131,7 @@ const char* replay_record_type_string(ReplayRecord::Type type) noexcept
 
 }
 
-void replay_write(std::ostream& stream, const Journal& journal)
+void replay_stream(std::ostream& stream, const Journal& journal)
 {
 	stream << replay_record_type_string(ReplayRecord::Type::START) << "\n";
 
@@ -143,6 +145,40 @@ void replay_write(std::ostream& stream, const Journal& journal)
 		stream << replay_record_type_string(ReplayRecord::Type::INPUT)
 		       << " " << id.input.to_string() << "\n";
 	}
+}
+
+void replay_write(const Journal& journal)
+{
+	using clock = std::chrono::system_clock;
+	auto now = clock::now();
+	std::time_t time_now = clock::to_time_t(now);
+	struct tm ltime = *std::localtime(&time_now);
+
+	if(0 != errno)
+		throw GameException("Failed to get localtime for journal file name.");
+
+	if(!std::filesystem::is_directory("replay"))
+		return; // creating the replay directory is the user's opt-in
+
+	std::ostringstream time_stream;
+	time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M.txt");
+	std::filesystem::path path{time_stream.str()};
+
+	// We never overwrite autorecords.
+	if(std::filesystem::exists(path)) {
+		// Backup plan: include seconds.
+		time_stream.str("");
+		time_stream << std::put_time(&ltime, "replay/%Y-%m-%d_%H-%M-%S.txt");
+		path = time_stream.str();
+	}
+
+	if(!std::filesystem::exists(path)) {
+		std::ofstream stream(path);
+		replay_stream(stream, journal);
+	}
+
+	// If the seconds-precision path already exists, we prefer the earlier
+	// file as it is more likely to contain a full game.
 }
 
 namespace

@@ -110,9 +110,16 @@ private:
 };
 
 /**
- * Write a replay file from a Journal.
+ * Write a text representation of the journal to the stream.
  */
-void replay_write(std::ostream& stream, const Journal& journal);
+void replay_stream(std::ostream& stream, const Journal& journal);
+
+/**
+ * Write the journal to an automatically generated file name in the replay directory.
+ * If the replay directory does not exist, do nothing.
+ * This name is built from the current date and time.
+ */
+void replay_write(const Journal& journal);
 
 /**
  * Reads a replay file and sends event by event to the sink.

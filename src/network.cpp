@@ -1,4 +1,5 @@
 #include "network.hpp"
+#include "replay.hpp"
 #include <sstream>
 #include <cassert>
 #include "error.hpp"
@@ -938,6 +939,7 @@ void ServerThread::main_loop()
 				const int winner = gamedata.rules.block_director.winner();
 				gamedata.journal.set_winner(winner);
 				m_server->send_gameend(winner);
+				replay_write(gamedata.journal);
 				in_game = false;
 			}
 		}

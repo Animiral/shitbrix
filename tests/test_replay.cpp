@@ -48,7 +48,7 @@ TEST_F(ReplayTest, WriteJournal)
 	journal->add_input(GameInput{10, 0, GameButton::LEFT, ButtonAction::DOWN});
 	journal->add_input(GameInput{10, 1, GameButton::SWAP, ButtonAction::DOWN});
 
-	replay_write(stream, *journal);
+	replay_stream(stream, *journal);
 
 	std::string expected =
 R"(start
