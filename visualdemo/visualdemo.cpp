@@ -11,6 +11,7 @@
 #include "draw.hpp"
 #include "stage.hpp"
 #include "director.hpp"
+#include "configuration.hpp"
 #include "error.hpp"
 #include <cassert>
 #include <sstream>
@@ -364,8 +365,15 @@ private:
 int main(int argc, char* argv[])
 {
 	Options options(argc, const_cast<const char**>(argv));
-	// BUG: need to set up global context
-	// (this is breaking for visual demo)
+
+	// need to set up global context
+	Configuration configuration;
+	configuration.network_mode = NetworkMode::LOCAL;
+	configuration.joystick_number = 0;
+	configuration.autorecord = false;
+	configuration.log_path = "visualdemo.log";
+
+	configure_context(configuration);
 	DemoFactory mkvd;
 	VisualDemo demo(mkvd.construct());
 
