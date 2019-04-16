@@ -24,9 +24,15 @@ class VisualDemo
 
 public:
 
-	VisualDemo(Pit& pit, IDraw& draw, BlockDirector& director)
-		: m_pit(pit), m_draw(draw), m_director(director)
-	{}
+	VisualDemo(GameState state) :
+		m_state(std::move(state)),
+		m_pit(*m_state.pit().at(0)),
+		m_stage(m_state),
+		m_draw(m_stage),
+		m_director()
+	{
+		m_director.set_state(m_state);
+	}
 
 	void put_block(RowCol rc, Block::Color color = Block::Color::BLUE, Block::State state = Block::State::REST)
 	{
@@ -49,9 +55,11 @@ private:
 		bool pause, step, abort;
 	};
 
+	GameState m_state;
 	Pit& m_pit;
-	IDraw& m_draw;
-	BlockDirector& m_director;
+	Stage m_stage;
+	DrawGame m_draw;
+	BlockDirector m_director;
 	SDL_Color m_indicator = {0, 0, 0, 0};
 	InputFlags m_input{true, true, false};
 
@@ -119,32 +127,6 @@ private:
 
 			SDL_Delay(SLEEP_MS);
 		}
-	}
-};
-
-struct DemoFactory
-{
-	GameMeta m_meta;
-	std::unique_ptr<GameState> m_state;
-	std::unique_ptr<Stage> m_stage;
-	std::unique_ptr<Logic> m_logic;
-	std::unique_ptr<BlockDirector> m_director;
-	std::unique_ptr<DrawGame> m_draw;
-
-	VisualDemo construct()
-	{
-		assert(!m_stage);
-		GameMeta meta{2, 0, NOONE};
-		m_meta = meta;
-		ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
-		m_state = std::make_unique<GameState>(m_meta, color_factory);
-		m_stage = std::make_unique<Stage>(*m_state);
-		Pit& pit = *m_stage->state().pit().at(0);
-		m_draw = std::make_unique<DrawGame>(*m_stage);
-		m_logic = std::make_unique<Logic>(pit);
-		m_director = std::make_unique<BlockDirector>();
-		m_director->set_state(*m_state);
-		return VisualDemo(pit, *m_draw, *m_director);
 	}
 };
 
@@ -314,6 +296,13 @@ void VisualDemo::scenario_panic()
 	run_game_ticks(DEMO_T);
 }
 
+std::unique_ptr<VisualDemo> construct_demo()
+{
+	GameMeta meta{2, 0, NOONE};
+	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
+	return std::make_unique<VisualDemo>(GameState{meta, color_factory});
+}
+
 class Options
 {
 
@@ -374,29 +363,28 @@ int main(int argc, char* argv[])
 	configuration.log_path = "visualdemo.log";
 
 	configure_context(configuration);
-	DemoFactory mkvd;
-	VisualDemo demo(mkvd.construct());
+	auto demo = construct_demo();
 
 	switch(options.scenario_nr()) {
 		default:
 		case 0:
-			demo.scenario_dissolve_garbage();
+			demo->scenario_dissolve_garbage();
 			break;
 
 		case 1:
-			demo.scenario_match_horizontal();
+			demo->scenario_match_horizontal();
 			break;
 
 		case 2:
-			demo.scenario_fall_after_shrink();
+			demo->scenario_fall_after_shrink();
 			break;
 
 		case 3:
-			demo.scenario_chaining_garbage();
+			demo->scenario_chaining_garbage();
 			break;
 
 		case 4:
-			demo.scenario_panic();
+			demo->scenario_panic();
 			break;
 	}
 
