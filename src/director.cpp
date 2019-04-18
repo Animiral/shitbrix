@@ -12,16 +12,6 @@ namespace
 {
 
 /**
- * Change the given game state according to the rules and the given current
- * game input.
- * For example, we move the cursor or change some blocks to the swapping state.
- * This function is used by our recalculation logic @c synchronurse to
- * advance the game state to the current game time continuously as well as
- * from a past checkpoint on-demand.
- */
-void apply_input(GameState& state, Rules& rules, GameInput ginput);
-
-/**
  * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
  * At the same time, the previous previews become normal blocks at rest.
  * In this instant, they are tagged as *hot*.
@@ -241,6 +231,44 @@ int BlockDirector::opponent(int player) const noexcept
 }
 
 
+void apply_input(GameState& state, Rules& rules, GameInput ginput)
+{
+	assert(GameButton::NONE != ginput.button);
+	Log::trace("%s %s", __FUNCTION__, ginput.to_string().c_str());
+
+	switch(ginput.button) {
+		case GameButton::LEFT:
+		case GameButton::RIGHT:
+		case GameButton::UP:
+		case GameButton::DOWN:
+			if(ButtonAction::DOWN == ginput.action)
+			{
+				Dir dir = static_cast<Dir>(ginput.button);
+				state.pit().at(ginput.player)->cursor_move(dir);
+				rules.event_hub.fire(evt::CursorMoves{{ginput.game_time, ginput.player}});
+			}
+
+			break;
+
+		case GameButton::SWAP:
+			if(ButtonAction::DOWN == ginput.action)
+			{
+				rules.block_director.swap(ginput.player);
+			}
+
+			break;
+
+		case GameButton::RAISE:
+			state.pit().at(ginput.player)->set_raise(ButtonAction::DOWN == ginput.action);
+			break;
+
+		case GameButton::NONE:
+		default:
+			assert(false);
+
+	}
+}
+
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
 {
 	// get events from journal, from which inputs will be applied to the state
@@ -279,44 +307,6 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 
 namespace
 {
-
-void apply_input(GameState& state, Rules& rules, GameInput ginput)
-{
-	assert(GameButton::NONE != ginput.button);
-	Log::trace("%s %s", __FUNCTION__, ginput.to_string().c_str());
-
-	switch(ginput.button) {
-		case GameButton::LEFT:
-		case GameButton::RIGHT:
-		case GameButton::UP:
-		case GameButton::DOWN:
-			if(ButtonAction::DOWN == ginput.action)
-			{
-				Dir dir = static_cast<Dir>(ginput.button);
-				state.pit().at(ginput.player)->cursor_move(dir);
-				rules.event_hub.fire(evt::CursorMoves{{ginput.game_time, ginput.player}});
-			}
-
-			break;
-
-		case GameButton::SWAP:
-			if(ButtonAction::DOWN == ginput.action)
-			{
-				rules.block_director.swap(ginput.player);
-			}
-
-			break;
-
-		case GameButton::RAISE:
-			state.pit().at(ginput.player)->set_raise(ButtonAction::DOWN == ginput.action);
-			break;
-
-		case GameButton::NONE:
-		default:
-			assert(false);
-
-	}
-}
 
 bool spawn_previews(Pit& pit)
 {

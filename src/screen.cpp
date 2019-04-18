@@ -8,9 +8,6 @@
 #include <random>
 #include <cassert>
 
-// only for debug functions
-#include <iostream>
-
 namespace
 {
 
@@ -31,8 +28,6 @@ void client_send_reset(IClient& client)
 	const GameMeta meta{2, rdev()};
 	client.send_reset(meta);
 }
-
-void debug_print_pit(const Pit& pit);
 
 }
 
@@ -383,50 +378,6 @@ void autorecord_replay(const Journal& journal)
 {
 	if(the_context.configuration->autorecord)
 		replay_write(journal);
-}
-
-[[ maybe_unused ]]
-void debug_print_pit(const Pit& pit)
-{
-	std::cerr << "--- Pit blocks:\n\n";
-
-	for(int r = pit.top(); r <= pit.bottom()+1; r++)
-	for(int c = 0; c <= PIT_COLS; c++) {
-		Block* block = pit.block_at(RowCol{r,c});
-		if(!block) continue;
-
-		Block::State state = block->block_state();
-		Block::Color color = block->col;
-		std::string state_str;
-		std::string color_str;
-
-		switch(state) {
-			case Block::State::DEAD: state_str = "DEAD"; break;
-			case Block::State::PREVIEW: state_str = "PREVIEW"; break;
-			case Block::State::REST: state_str = "REST"; break;
-			case Block::State::SWAP_LEFT: state_str = "SWAP_LEFT"; break;
-			case Block::State::SWAP_RIGHT: state_str = "SWAP_RIGHT"; break;
-			case Block::State::FALL: state_str = "FALL"; break;
-			case Block::State::LAND: state_str = "LAND"; break;
-			case Block::State::BREAK: state_str = "BREAK"; break;
-			default: ;
-		}
-
-		switch(color) {
-			case Block::Color::FAKE: color_str = "fake"; break;
-			case Block::Color::BLUE: color_str = "blue"; break;
-			case Block::Color::RED: color_str = "red"; break;
-			case Block::Color::YELLOW: color_str = "yellow"; break;
-			case Block::Color::GREEN: color_str = "green"; break;
-			case Block::Color::PURPLE: color_str = "purple"; break;
-			case Block::Color::ORANGE: color_str = "orange"; break;
-			default: ;
-		}
-
-		std::cerr << "r" << r << "c" << c << " " << state_str << " " << color_str << " block\n";
-	}
-
-	std::cerr << "\n";
 }
 
 }

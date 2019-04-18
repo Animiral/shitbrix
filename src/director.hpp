@@ -86,6 +86,16 @@ struct Rules
 };
 
 /**
+ * Change the given game state according to the rules and the given current
+ * game input.
+ * For example, we move the cursor or change some blocks to the swapping state.
+ * This function is used by our recalculation logic @c synchronurse to
+ * advance the game state to the current game time continuously as well as
+ * from a past checkpoint on-demand.
+ */
+void apply_input(GameState& state, Rules& rules, GameInput ginput);
+
+/**
  * Bring the game state to the @c target_time by calculation from the game
  * journal and the game rules.
  */

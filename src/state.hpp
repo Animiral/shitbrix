@@ -10,6 +10,7 @@
 #include <random>
 #include <memory>
 #include <functional>
+#include <ostream>
 
 /**
  * Base class for game objects that can be placed in the Pit.
@@ -627,3 +628,20 @@ private:
 	long m_game_time; //!< tick counter
 
 };
+
+/**
+ * Write a list of the complete pit contents to the stream.
+ */
+void debug_print_pit(std::ostream& stream, const Pit& pit);
+
+/**
+ * Write an ASCII-art depiction of the Pit to the stream.
+ * This visualization does not depict Physical states or countdowns.
+ */
+void debug_asciiart_pit(std::ostream& stream, const Pit& pit);
+
+/**
+ * Write an ASCII-art depiction of all Pits to the stream.
+ * This visualization does not depict Physical states or countdowns.
+ */
+void debug_asciiart_state(std::ostream& stream, const GameState& state);

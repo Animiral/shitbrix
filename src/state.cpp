@@ -2,6 +2,10 @@
 #include "error.hpp"
 #include <cassert>
 
+// only for debug functions
+#include <iostream>
+#include <iomanip>
+
 Physical::Physical(RowCol rc, State state)
 : m_rc(rc),
   m_state(state),
@@ -629,4 +633,87 @@ void GameState::update()
 		pit->update();
 
 	m_game_time++;
+}
+
+[[ maybe_unused ]]
+void debug_print_pit(std::ostream& stream, const Pit& pit)
+{
+	stream << "--- Pit blocks:\n\n";
+
+	for(int r = pit.top(); r <= pit.bottom()+1; r++)
+	for(int c = 0; c <= PIT_COLS; c++) {
+		Block* block = pit.block_at(RowCol{r,c});
+		if(!block) continue;
+
+		Block::State state = block->block_state();
+		Block::Color color = block->col;
+		std::string state_str;
+		std::string color_str;
+
+		switch(state) {
+			case Block::State::DEAD: state_str = "DEAD"; break;
+			case Block::State::PREVIEW: state_str = "PREVIEW"; break;
+			case Block::State::REST: state_str = "REST"; break;
+			case Block::State::SWAP_LEFT: state_str = "SWAP_LEFT"; break;
+			case Block::State::SWAP_RIGHT: state_str = "SWAP_RIGHT"; break;
+			case Block::State::FALL: state_str = "FALL"; break;
+			case Block::State::LAND: state_str = "LAND"; break;
+			case Block::State::BREAK: state_str = "BREAK"; break;
+			default: ;
+		}
+
+		switch(color) {
+			case Block::Color::FAKE: color_str = "fake"; break;
+			case Block::Color::BLUE: color_str = "blue"; break;
+			case Block::Color::RED: color_str = "red"; break;
+			case Block::Color::YELLOW: color_str = "yellow"; break;
+			case Block::Color::GREEN: color_str = "green"; break;
+			case Block::Color::PURPLE: color_str = "purple"; break;
+			case Block::Color::ORANGE: color_str = "orange"; break;
+			default: ;
+		}
+
+		stream << "r" << r << "c" << c << " " << state_str << " " << color_str << " block\n";
+	}
+
+	stream << "\n";
+}
+
+[[ maybe_unused ]]
+void debug_asciiart_pit(std::ostream& stream, const Pit& pit)
+{
+	for(int r = pit.top(); r <= pit.bottom() + 1; r++) {
+		stream << std::setw(3) << r << " | ";
+
+		for(int c = 0; c <= PIT_COLS; c++) {
+			const RowCol rc{r,c};
+
+			if(Block* block = pit.block_at(rc)) {
+				stream << "*BRYGPO"[(int)block->col];
+			} else
+			if(Garbage* garbage = pit.garbage_at(rc)) {
+				stream << 'X';
+			}
+			else {
+				stream << " ";
+			}
+		}
+
+		stream << " | \n";
+	}
+}
+
+[[ maybe_unused ]]
+void debug_asciiart_state(std::ostream& stream, const GameState& state)
+{
+	stream << "t=" << state.game_time() << "\n";
+
+	int i = 0;
+
+	for(const auto& pit : state.pit()) {
+		stream << "\nPit " << i++ << ":\n";
+		debug_asciiart_pit(stream, *pit);
+	}
+
+	stream << "\n";
 }
