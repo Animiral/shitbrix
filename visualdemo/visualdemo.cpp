@@ -1,134 +1,24 @@
-/**
- * A quick&dirty visualizer for game scenarios.
- * It works on specific predetermined situations which are
- * hardcoded into the program and selected with the --scenario N
- * option.
- * The implementation uses only the bare basics of infrastructure
- * required to run the game scenario and display it.
- * Supports ESC for quitting, SPACE for pause/unpause, CTRL for framestep.
- */
-#include <SDL.h>
-#include "draw.hpp"
+#include "visualdemo.hpp"
 #include "stage.hpp"
-#include "director.hpp"
 #include "configuration.hpp"
 #include "error.hpp"
 #include <cassert>
 #include <sstream>
 
-// don't use SDL main macro
-#undef main
-
-class VisualDemo
+VisualDemo::VisualDemo(GameState state) :
+	m_state(std::move(state)),
+	m_pit(*m_state.pit().at(0)),
+	m_stage(m_state),
+	m_draw(m_stage),
+	m_rules()
 {
+	m_rules.block_director.set_state(m_state);
+}
 
-public:
-
-	VisualDemo(GameState state) :
-		m_state(std::move(state)),
-		m_pit(*m_state.pit().at(0)),
-		m_stage(m_state),
-		m_draw(m_stage),
-		m_director()
-	{
-		m_director.set_state(m_state);
-	}
-
-	void put_block(RowCol rc, Block::Color color = Block::Color::BLUE, Block::State state = Block::State::REST)
-	{
-		m_pit.spawn_block(color, rc, state);
-	}
-
-	//! Create some blocks to work with
-	void common_setup();
-
-	void scenario_panic();
-	void scenario_dissolve_garbage();
-	void scenario_match_horizontal();
-	void scenario_fall_after_shrink();
-	void scenario_chaining_garbage();
-
-private:
-
-	struct InputFlags
-	{
-		bool pause, step, abort;
-	};
-
-	GameState m_state;
-	Pit& m_pit;
-	Stage m_stage;
-	DrawGame m_draw;
-	BlockDirector m_director;
-	SDL_Color m_indicator = {0, 0, 0, 0};
-	InputFlags m_input{true, true, false};
-
-	const Uint32 SLEEP_MS = 50; // 20 FPS
-
-	static void input(InputFlags& flags)
-	{
-		SDL_Event event;
-
-		flags.step = false;
-
-		while(SDL_PollEvent(&event)) {
-			switch(event.type) {
-
-			case SDL_QUIT: flags.abort = true; break;
-
-			case SDL_KEYDOWN:
-				if(!event.key.repeat) {
-					switch(event.key.keysym.sym) {
-						case SDLK_ESCAPE: flags.abort = !flags.abort; break;
-						case SDLK_SPACE: flags.pause = !flags.pause; break;
-						case SDLK_LCTRL: flags.step = true; break;
-					}
-				}
-				break;
-			}
-		}
-	}
-
-	//! Signal to the user that some important point
-	//! has been reached in the current scenario
-	void checkpoint() noexcept
-	{
-		if(!m_indicator.r) { m_indicator.r = 255; return; }
-		if(!m_indicator.g) { m_indicator.g = 255; return; }
-		if(!m_indicator.b) { m_indicator.b = 255; return; }
-		if(!m_indicator.a) { m_indicator.a = 255; return; }
-	}
-
-	void run_game_ticks(int ticks)
-	{
-		SDL_Renderer& renderer = the_context.sdl->renderer();
-		SDL_Rect indicator_rect{400, 20, 40, 40};
-
-		for(int t = 0; t < ticks; t++) {
-			if(m_input.pause && !m_input.step) {
-				t--;
-			} else {
-				m_pit.update();
-				m_director.update();
-
-				// clear for next frame
-				sdlok(SDL_RenderClear(&renderer));
-				m_draw.draw_offscreen(0); // leave finale open for us to draw our indicator
-				sdlok(SDL_SetRenderDrawColor(&renderer, m_indicator.r, m_indicator.g, m_indicator.b, SDL_ALPHA_OPAQUE));
-				sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_NONE));
-				sdlok(SDL_RenderFillRect(&renderer, &indicator_rect)); // draw indicator
-				sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_ADD));
-				SDL_RenderPresent(&renderer); // finish rendering
-			}
-
-			input(m_input);
-			if(m_input.abort)
-				return;
-
-			SDL_Delay(SLEEP_MS);
-		}
-	}
-};
+void VisualDemo::put_block(RowCol rc, Block::Color color, Block::State state)
+{
+	m_pit.spawn_block(color, rc, state);
+}
 
 void VisualDemo::common_setup()
 {
@@ -168,7 +58,7 @@ void VisualDemo::scenario_dissolve_garbage()
 
 	// 3 in a row
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-2,2};
-	m_director.swap(0);
+	m_rules.block_director.swap(0);
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -188,7 +78,7 @@ void VisualDemo::scenario_match_horizontal()
 	m_pit.spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
 	m_pit.spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-4,1};
-	m_director.swap(0);
+	m_rules.block_director.swap(0);
 
 	// wait until block has swapped above the gap
 	const int SWAP_T = SWAP_TIME;
@@ -226,7 +116,7 @@ void VisualDemo::scenario_fall_after_shrink()
 
 	// 3 in a row
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-3,2};
-	m_director.swap(0);
+	m_rules.block_director.swap(0);
 
 	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -247,7 +137,7 @@ void VisualDemo::scenario_chaining_garbage()
 	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-2, 2};
-	m_director.swap(0); // match yellow blocks vertically
+	m_rules.block_director.swap(0); // match yellow blocks vertically
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME;
@@ -296,6 +186,104 @@ void VisualDemo::scenario_panic()
 	run_game_ticks(DEMO_T);
 }
 
+void VisualDemo::scenario_desync()
+{
+	// this scenario is based on a desynchronization between client and server
+
+	common_setup();
+}
+
+void VisualDemo::input(InputFlags& flags)
+{
+	SDL_Event event;
+
+	flags.step = false;
+
+	while(SDL_PollEvent(&event)) {
+		switch(event.type) {
+
+		case SDL_QUIT: flags.abort = true; break;
+
+		case SDL_KEYDOWN:
+			if(!event.key.repeat) {
+				switch(event.key.keysym.sym) {
+					case SDLK_ESCAPE: flags.abort = !flags.abort; break;
+					case SDLK_SPACE: flags.pause = !flags.pause; break;
+					case SDLK_LCTRL: flags.step = true; break;
+				}
+			}
+			break;
+		}
+	}
+}
+
+void VisualDemo::checkpoint() noexcept
+{
+	if(!m_indicator.r) { m_indicator.r = 255; return; }
+	if(!m_indicator.g) { m_indicator.g = 255; return; }
+	if(!m_indicator.b) { m_indicator.b = 255; return; }
+	if(!m_indicator.a) { m_indicator.a = 255; return; }
+}
+
+void VisualDemo::run_game_ticks(int ticks)
+{
+	SDL_Renderer& renderer = the_context.sdl->renderer();
+	SDL_Rect indicator_rect{400, 20, 40, 40};
+
+	for(int t = 0; t < ticks; t++) {
+		if(m_input.pause && !m_input.step) {
+			t--;
+		} else {
+			m_state.update();
+			m_rules.block_director.update();
+
+			// clear for next frame
+			sdlok(SDL_RenderClear(&renderer));
+			m_draw.draw_offscreen(0); // leave finale open for us to draw our indicator
+			sdlok(SDL_SetRenderDrawColor(&renderer, m_indicator.r, m_indicator.g, m_indicator.b, SDL_ALPHA_OPAQUE));
+			sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_NONE));
+			sdlok(SDL_RenderFillRect(&renderer, &indicator_rect)); // draw indicator
+			sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_ADD));
+			SDL_RenderPresent(&renderer); // finish rendering
+		}
+
+		input(m_input);
+		if(m_input.abort)
+			return;
+
+		SDL_Delay(SLEEP_MS);
+	}
+}
+
+/**
+	* Continue with the game until the time when the input should be applied.
+	* Then apply the input.
+	*/
+void VisualDemo::run_and_input(GameInput input)
+{
+	// can only apply inputs in the future
+	assert(input.game_time > m_state.game_time());
+
+	// caution! Inputs for time N+1 are applied when the state time is N.
+	run_game_ticks(input.game_time - m_state.game_time() - 1);
+	apply_input(m_state, m_rules, input);
+	run_game_ticks(1);
+}
+
+/**
+	* Continue with the game until the time when the checkpoint should be
+	* taken. Then return a copy of the game state.
+	*/
+GameState VisualDemo::run_and_checkpoint(long target_time)
+{
+	// can only continue towards the future
+	assert(target_time >= m_state.game_time());
+
+	run_game_ticks(target_time - m_state.game_time());
+	return m_state;
+}
+
+
 std::unique_ptr<VisualDemo> construct_demo()
 {
 	GameMeta meta{2, 0, NOONE};
@@ -303,53 +291,44 @@ std::unique_ptr<VisualDemo> construct_demo()
 	return std::make_unique<VisualDemo>(GameState{meta, color_factory});
 }
 
-class Options
+
+Options::Options(int argc, const char* argv[])
+	: m_scenario_nr(int_option(argc, argv, "--scenario"))
 {
+}
 
-public:
-	Options(int argc, const char* argv[])
-		: m_scenario_nr(int_option(argc, argv, "--scenario"))
+// Minimalistic opts parsing from http://stackoverflow.com/questions/865668/how-to-parse-command-line-arguments-in-c
+const char* Options::str_option(int argc, const char* argv[], const std::string& option)
+{
+	auto end = argv + argc;
+	const char** itr = std::find(argv, end, option);
+	if (itr != end && ++itr != end)
 	{
+	    return *itr;
 	}
+	return nullptr;
+}
 
-	const int scenario_nr() const { return m_scenario_nr; }
+bool Options::bool_option(int argc, const char* argv[], const std::string& option)
+{
+	auto end = argv + argc;
+	return std::find(argv, end, option) != end;
+}
 
-private:
-	const int m_scenario_nr;
-
-	// Minimalistic opts parsing from http://stackoverflow.com/questions/865668/how-to-parse-command-line-arguments-in-c
-	const char* str_option(int argc, const char* argv[], const std::string& option)
+int Options::int_option(int argc, const char* argv[], const std::string& option)
+{
+	auto end = argv + argc;
+	const char** itr = std::find(argv, end, option);
+	if (itr != end && ++itr != end)
 	{
-		auto end = argv + argc;
-	    const char** itr = std::find(argv, end, option);
-	    if (itr != end && ++itr != end)
-	    {
-	        return *itr;
-	    }
-	    return nullptr;
+	    std::istringstream sstr(*itr);
+	    int value = 0;
+	    sstr >> value;
+	    return value;
 	}
+	return 0;
+}
 
-	bool bool_option(int argc, const char* argv[], const std::string& option)
-	{
-		auto end = argv + argc;
-	    return std::find(argv, end, option) != end;
-	}
-
-	int int_option(int argc, const char* argv[], const std::string& option)
-	{
-		auto end = argv + argc;
-	    const char** itr = std::find(argv, end, option);
-	    if (itr != end && ++itr != end)
-	    {
-	    	std::istringstream sstr(*itr);
-	    	int value = 0;
-	    	sstr >> value;
-	        return value;
-	    }
-	    return 0;
-	}
-
-};
 
 int main(int argc, char* argv[])
 {
@@ -385,6 +364,10 @@ int main(int argc, char* argv[])
 
 		case 4:
 			demo->scenario_panic();
+			break;
+
+		case 5:
+			demo->scenario_desync();
 			break;
 	}
 
