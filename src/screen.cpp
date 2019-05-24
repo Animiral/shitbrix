@@ -318,7 +318,6 @@ void GameScreen::start()
 {
 	GameData& gamedata = m_client->gamedata();
 	const GameMeta meta = gamedata.journal.meta();
-	Log::info("Game reset: players=%d, seed=%d.", meta.players, meta.seed);
 
 	m_phase = Phase::INTRO;
 	m_time = 0;

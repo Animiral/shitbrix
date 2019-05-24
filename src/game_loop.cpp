@@ -3,6 +3,7 @@
 #include "context.hpp"
 #include "configuration.hpp"
 #include <fstream>
+#include <random> // DEBUG
 
 GameLoop::GameLoop()
 : m_input_devices(),
@@ -10,6 +11,16 @@ GameLoop::GameLoop()
   m_screen(nullptr)
 {
 	const Configuration& configuration = *the_context.configuration;
+
+	// DEBUG: is the RNG cross-platform?
+	static std::random_device rdev;
+	//std::minstd_rand generator(rdev());
+	std::minstd_rand generator(3249010915);
+	std::uniform_int_distribution<int> color_distribution { 1, 6 };
+	for(int i = 0; i < 5; i++) {
+		int randnr = color_distribution(generator);
+		Log::info("Rand test %d: %d.", i, randnr);
+	}
 
 	if(NetworkMode::SERVER == configuration.network_mode ||
 	   NetworkMode::WITH_SERVER == configuration.network_mode) {

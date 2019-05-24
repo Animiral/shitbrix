@@ -7,6 +7,11 @@
 #include "error.hpp"
 #include <cassert>
 
+// for debug functions
+#include <chrono>
+#include <ctime>
+#include <fstream>
+
 // elemental game logic functions and helpers
 namespace
 {
@@ -27,6 +32,15 @@ void spawn_garbage(Pit& pit, int columns, int rows, bool right_side);
  * Place new garbage blocks, ready to fall, based on a given combo achievement.
  */
 void spawn_garbage_from_combo(Pit& pit, int combo);
+
+/**
+ * Write a dump file about the given game state.
+ * The file path is built out of the optional dump/ directory, the time at which
+ * the dump was written and the game_time of the state.
+ * If any step does not work, do nothing.
+ */
+[[ maybe_unused ]]
+void debug_dump_state(const GameState& state);
 
 }
 
@@ -277,6 +291,7 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 	if(time0 < target_time) {
 		state = journal.checkpoint_before(time0);
 		Log::trace("%s(%d): revert to checkpoint before time=%d -> at time=%d.", __FUNCTION__, target_time, time0, state.game_time());
+		debug_dump_state(state);
 	}
 
 	GameInputSpan inputs = journal.discover_inputs(state.game_time() + 1, target_time);
@@ -284,6 +299,7 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 
 	while(state.game_time() < target_time && !rules.block_director.over()) {
 		for(; input_it != inputs.second && input_it->input.game_time == state.game_time() + 1; ++input_it) {
+			Log::trace("%s(%d): apply input %s.", __FUNCTION__, target_time, input_it->input.to_string().c_str());
 			apply_input(state, rules, input_it->input);
 		}
 
@@ -299,6 +315,7 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 	if(target_time >= journal.checkpoint_before(target_time).game_time() + CHECKPOINT_INTERVAL) {
 		Log::trace("%s(%d): save checkpoint at time=%d.", __FUNCTION__, target_time, state.game_time());
 		journal.add_checkpoint(GameState(state));
+		debug_dump_state(state);
 	}
 }
 
@@ -361,6 +378,45 @@ void spawn_garbage_from_combo(Pit& pit, int combo)
 		counter -= 3;
 		right_side = !right_side;
 	}
+}
+
+[[ maybe_unused ]]
+void debug_dump_state(const GameState& state)
+{
+	if(!std::filesystem::is_directory("dump"))
+		return; // creating the replay directory is the user's opt-in
+
+	// get dump file name with hundreths precision
+	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+	std::time_t now_sec = std::chrono::system_clock::to_time_t(now);
+	std::chrono::milliseconds now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+	const struct tm* local_now = std::localtime(&now_sec);
+
+	if(nullptr == local_now)
+		return;
+
+	const size_t NOW_BUFSIZE = 20;
+	std::string now_buffer(NOW_BUFSIZE, '\0');
+	const size_t strftime_size = strftime(&now_buffer[0], NOW_BUFSIZE, "%H-%M-%S", local_now);
+
+	if(0 >= strftime_size)
+		return;
+
+	const size_t PATH_BUFSIZE = 40;
+	std::string path(PATH_BUFSIZE, '\0');
+	const int sprintf_result = sprintf(&path[0], "dump/state_%s.%03d_%d.txt", now_buffer.c_str(), (int)(now_ms.count() % 1000), state.game_time());
+
+	if(sprintf_result < 0)
+		return;
+
+	path.resize(sprintf_result); // drop trailing '\0's from sprintf
+
+	// We never overwrite dumps.
+	if(std::filesystem::exists(path))
+		return;
+
+	std::ofstream stream(path);
+	debug_asciiart_state(stream, state);
 }
 
 }

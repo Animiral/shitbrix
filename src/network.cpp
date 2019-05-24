@@ -571,6 +571,8 @@ namespace
  */
 GameData make_gamedata(GameMeta meta)
 {
+	Log::info("Initialize new game for %d players, seed=%u.", meta.players, meta.seed);
+
 	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
 	GameState state{meta, color_factory};
 	Journal journal{meta, state};
