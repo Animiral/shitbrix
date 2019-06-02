@@ -30,7 +30,7 @@ class BlockDirectorTest : public ::testing::Test
 
 protected:
 
-	virtual void SetUp()
+	virtual void SetUp() override
 	{
 		configure_context_for_testing();
 		gamedata.reset(new GameData{make_gamedata_for_testing()});

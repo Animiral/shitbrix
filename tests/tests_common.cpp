@@ -12,6 +12,13 @@
 
 void configure_context_for_testing()
 {
+	// Destroy any leftover context from previous test runs.
+	// This is especially important for objects that own an only-once resource (e.g. SDL)
+	the_context.sdl.reset();
+	the_context.log.reset();
+	the_context.assets.reset();
+	the_context.audio.reset();
+
 	Configuration configuration;
 	configuration.network_mode = /* NetworkMode::LOCAL */ NetworkMode::CLIENT; // TODO: use least-harm setting
 	configuration.player_number = {};

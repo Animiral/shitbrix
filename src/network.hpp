@@ -155,6 +155,9 @@ enum class MsgType
 	META,    //!< game meta-information
 	PLAYER,  //!< set player number of client
 	INPUT,   //!< player input in the game
+	SPAWN_BLOCK, //!< add a new block from the server
+	SPAWN_GARBAGE, //!< add a new garbage block from the server
+	RETRACT, //!< go back on server-induced block/garbage spawns
 	SPEED,   //!< game playback speed
 	SYNC,    //!< whole game state
 	CLIENTS, //!< request for or sync info about connected clients
