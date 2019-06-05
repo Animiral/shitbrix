@@ -2,6 +2,9 @@
  * Definitions for input classes.
  */
 
+#include <sstream>
+#include <string>
+#include <cassert>
 #include "input.hpp"
 #include "error.hpp"
 #include <SDL.h>
@@ -9,7 +12,7 @@
 namespace
 {
 
-ControllerInput key_to_controller(SDL_Keycode key, Uint8 state, std::optional<int> default_player)
+ControllerAction key_to_controller(SDL_Keycode key, Uint8 state, std::optional<int> default_player)
 {
 	// default assignments for the left- and right-hand key sets
 	const int player0 = default_player.has_value() ? *default_player : 0;
@@ -50,30 +53,202 @@ ControllerInput key_to_controller(SDL_Keycode key, Uint8 state, std::optional<in
 
 	ButtonAction action = state == SDL_RELEASED ? ButtonAction::UP : ButtonAction::DOWN;
 
-	return ControllerInput { player, button, action };
+	return ControllerAction { player, button, action };
 }
 
 }
 
 
-std::vector<ControllerInput> InputDevices::poll()
+std::string PlayerInput::to_string() const
+{
+	std::ostringstream ss;
+	ss << game_time << " " << player << " "
+	   << game_button_to_string(button) << " "
+	   << button_action_to_string(action);
+	return ss.str();
+}
+
+PlayerInput PlayerInput::from_string(std::string input_string)
+{
+	std::istringstream tokenizer(input_string);
+	long game_time;
+	int player;
+	std::string button_str;
+	std::string action_str;
+
+	tokenizer >> game_time >> player >> button_str >> action_str;
+	if(!tokenizer)
+		throw GameException("Invalid PlayerInput string: \"" + input_string + "\"");
+
+	GameButton button = string_to_game_button(button_str);
+	ButtonAction action = string_to_button_action(action_str);
+
+	return PlayerInput{game_time, player, button, action};
+}
+
+std::string SpawnBlockInput::to_string() const
+{
+	std::ostringstream ss;
+	ss << game_time << " " << player << " " << row;
+
+	for(int i = 0; i < PIT_COLS; i++)
+		ss << " " << color_to_string(colors[i]);
+
+	return ss.str();
+}
+
+SpawnBlockInput SpawnBlockInput::from_string(std::string input_string)
+{
+	std::istringstream tokenizer(input_string);
+	SpawnBlockInput result;
+	std::string color_source;
+
+	tokenizer >> result.game_time >> result.player >> result.row;
+
+	for(auto it = result.colors.begin(); result.colors.end() != it; ++it) {
+		tokenizer >> color_source;
+		*it = string_to_color(color_source);
+	}
+
+	if(!tokenizer)
+		throw GameException("Invalid SpawnBlockInput string: \"" + input_string + "\"");
+
+	return result;
+}
+
+std::string SpawnGarbageInput::to_string() const
+{
+	std::ostringstream ss;
+	ss << game_time << " " << player << " " << rows
+		<< " " << columns << " " << rc.r << " " << rc.c;
+
+	for(int i = 0; i < loot.size(); i++)
+		ss << " " << color_to_string(loot[i]);
+
+	return ss.str();
+}
+
+SpawnGarbageInput SpawnGarbageInput::from_string(std::string input_string)
+{
+	std::istringstream tokenizer(input_string);
+	SpawnGarbageInput result;
+	std::string color_source;
+
+	tokenizer >> result.game_time >> result.player
+		>> result.rows >> result.columns >> result.rc.r >> result.rc.c;
+
+	if(result.columns <= 0 || result.columns > PIT_COLS || result.rows <= 0)
+		throw GameException("Invalid SpawnGarbageInput size: \"" +
+		                    std::to_string(result.rows) + "r * " +
+		                    std::to_string(result.columns) + "c\"");
+
+	result.loot.resize(result.rows * result.columns);
+	for(int i = 0; i < result.rows * result.columns; i++) {
+		tokenizer >> color_source;
+		result.loot[i] = string_to_color(color_source);
+	}
+
+	if(!tokenizer)
+		throw GameException("Invalid SpawnGarbageInput string: \"" + input_string + "\"");
+
+	return result;
+}
+
+
+Input::Input(PlayerInput input) noexcept : m_impl(std::move(input)) {}
+Input::Input(SpawnBlockInput input) noexcept : m_impl(std::move(input)) {}
+Input::Input(SpawnGarbageInput input) noexcept : m_impl(std::move(input)) {}
+
+Input::Input(std::string source)
+{
+	// The source string starts with a prefix describing the type of input.
+	std::istringstream tokenizer(source);
+	std::string type_name;
+	tokenizer >> type_name >> std::ws;
+
+	// What remains is the type-specific data of the particular input.
+	std::string input_string;
+	std::getline(tokenizer, input_string);
+
+	if("PlayerInput" == type_name)
+		m_impl = PlayerInput::from_string(input_string);
+	else if("SpawnBlockInput" == type_name)
+		m_impl = SpawnBlockInput::from_string(input_string);
+	else if("SpawnGarbageInput" == type_name)
+		m_impl = SpawnGarbageInput::from_string(input_string);
+	else
+		throw GameException("Invalid Input string: \"" + source + "\"");
+}
+
+bool Input::operator==(const Input& rhs) const noexcept
+{
+	if(rhs.m_impl.index() != m_impl.index())
+		return false;
+
+	if(const PlayerInput* pi = std::get_if<PlayerInput>(&m_impl)) {
+		const PlayerInput& rpi = std::get<PlayerInput>(rhs.m_impl);
+		return rpi.player == pi->player &&
+			rpi.game_time == pi->game_time &&
+			rpi.button == pi->button &&
+			rpi.action == pi->action;
+	}
+	else if(const SpawnBlockInput* bi = std::get_if<SpawnBlockInput>(&m_impl)) {
+		const SpawnBlockInput& rbi = std::get<SpawnBlockInput>(rhs.m_impl);
+		return rbi.player == bi->player &&
+			rbi.game_time == bi->game_time &&
+			rbi.row == bi->row &&
+			rbi.colors == bi->colors;
+	}
+	else if(const SpawnGarbageInput* gi = std::get_if<SpawnGarbageInput>(&m_impl)) {
+		const SpawnGarbageInput& rgi = std::get<SpawnGarbageInput>(rhs.m_impl);
+		return rgi.player == gi->player &&
+			rgi.game_time == gi->game_time &&
+			rgi.rc == gi->rc &&
+			rgi.rows == gi->rows &&
+			rgi.columns == gi->columns &&
+			rgi.loot == gi->loot;
+	}
+	else
+		return assert(false), false;
+}
+
+Input::operator std::string() const
+{
+	if(const PlayerInput* pi = std::get_if<PlayerInput>(&m_impl))
+		return "PlayerInput " + pi->to_string();
+	else if(const SpawnBlockInput* bi = std::get_if<SpawnBlockInput>(&m_impl))
+		return "SpawnBlockInput " + bi->to_string();
+	else if(const SpawnGarbageInput* gi = std::get_if<SpawnGarbageInput>(&m_impl))
+		return "SpawnGarbageInput " + gi->to_string();
+	else
+		return assert(false), "";
+}
+
+long Input::game_time() const
+{
+	const auto get_time = [](auto&& i) -> long { return i.game_time; };
+	return std::visit(get_time, m_impl);
+}
+
+
+std::vector<ControllerAction> InputDevices::poll()
 {
 	// default player for input if we do not have anyone assigned
 	const int player1 = m_player_number.has_value() ? *m_player_number : 1;
 
-	std::vector<ControllerInput> buffer;
+	std::vector<ControllerAction> buffer;
 	SDL_Event event;
 
 	while(SDL_PollEvent(&event)) {
 		switch(event.type) {
 
 		case SDL_QUIT: // overrides all other inputs
-			return {ControllerInput{NOONE, Button::QUIT, ButtonAction::DOWN}};
+			return {ControllerAction{NOONE, Button::QUIT, ButtonAction::DOWN}};
 
 		case SDL_KEYUP:
 		case SDL_KEYDOWN:
 			if(!event.key.repeat) {
-				ControllerInput input = key_to_controller(event.key.keysym.sym, event.key.state, m_player_number);
+				ControllerAction input = key_to_controller(event.key.keysym.sym, event.key.state, m_player_number);
 
 				// with function keys, we only care about press, not release
 				if(NOONE == input.player && ButtonAction::UP == input.action)
@@ -120,7 +295,7 @@ std::vector<ControllerInput> InputDevices::poll()
 }
 
 
-std::optional<GameInput> controller_to_game(ControllerInput input) noexcept
+std::optional<PlayerInput> controller_to_input(ControllerAction input) noexcept
 {
 	switch(input.button) {
 		case Button::LEFT:
@@ -129,8 +304,8 @@ std::optional<GameInput> controller_to_game(ControllerInput input) noexcept
 		case Button::DOWN:
 		case Button::A:
 		case Button::B:
-			GameInput ginput;
-			ginput.game_time = GameInput::TIME_ASAP;
+			PlayerInput ginput;
+			ginput.game_time = PlayerInput::TIME_ASAP;
 			ginput.player = input.player; // TODO: properly map dev to player
 			ginput.button = static_cast<GameButton>(input.button);
 			ginput.action = input.action;

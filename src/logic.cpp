@@ -17,7 +17,7 @@ void for_neighbors(Pit& pit, const Physical& phys, Func func);
 
 void MatchBuilder::ignite(Block& block)
 {
-	Block::Color color = block.col;
+	Color color = block.col;
 	int row = block.rc().r;
 	int col = block.rc().c;
 
@@ -45,7 +45,7 @@ void MatchBuilder::ignite(Block& block)
 	}
 }
 
-bool MatchBuilder::match_at(RowCol rc, Block::Color color)
+bool MatchBuilder::match_at(RowCol rc, Color color)
 {
 	Block* next = pit.block_at(rc);
 	return next && next->col == color && next->is_matchable();
@@ -86,7 +86,7 @@ void Logic::trigger_falls(RowCol rc, bool chaining) const
 	}
 }
 
-void Logic::examine_pit(bool& chaining, bool& breaking, bool& full) const noexcept
+void Logic::examine_pit(bool& chaining, bool& breaking, bool& full, bool& starving) const noexcept
 {
 	for(const auto& ptr : m_pit.contents()) {
 		if(Block* b = dynamic_cast<Block*>(ptr.get())) {
@@ -97,9 +97,11 @@ void Logic::examine_pit(bool& chaining, bool& breaking, bool& full) const noexce
 	}
 
 	full = m_pit.is_full();
+	starving = !m_pit.at({m_pit.bottom() + 1, 0}); // check one slot is enough
 }
 
-void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sound, bool& chainstop) const
+void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sound,
+                           bool& chainstop, bool& new_row) const
 {
 	for(auto& physical : m_pit.contents())
 	{
@@ -133,11 +135,18 @@ void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sou
 			bool above_fall = false; // whether objects above this one might fall
 			bool chaining = false; // whether objects above chain when they fall
 
+			// new blocks become active
+			if(Block::State::PREVIEW == state && m_pit.bottom() == block->rc().r) {
+				block->set_state(Block::State::REST);
+				block->set_tag(Physical::Tag::TAG_HOT);
+				new_row = true;
+			}
+
 			// blocks finished swapping
 			if((Block::State::SWAP_LEFT == state || Block::State::SWAP_RIGHT == state) &&
 				is_arriving) {
 				// fake blocks are only for swapping and disappear right afterwards
-				if(Block::Color::FAKE == block->col) {
+				if(Color::FAKE == block->col) {
 					block->set_state(Physical::State::DEAD);
 					state = block->block_state(); // NOTE: remember changed state!
 				}
@@ -154,7 +163,7 @@ void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sou
 				dead_physical = true;
 				dead_block = true;
 
-				if(Block::Color::FAKE != block->col) {
+				if(Color::FAKE != block->col) {
 					dead_sound = true;
 					chaining = true; // blocks to fall from above should get the chaining flag
 

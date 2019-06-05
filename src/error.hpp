@@ -1,5 +1,23 @@
 /**
  * Error handling and logging facilities.
+ *
+ * Our error-handling strategy consists of three approaches.
+ *
+ * 1. We use the standard assert macro for never-happens conditions.
+ *    In cases such as the default branch of an enum switch-statement or 
+ *    for safety checks within a module, we use this shortest standard check.
+ *
+ * 2. We use our own enforce macro for validating values that ostensibly
+ *    originate within the program, such as input parameters from other
+ *    modules or even network messages. It throws a generic EnforceException.
+ *
+ * 3. We use our custom exception hierarchy for errors that might conceivably
+ *    reach the user. This includes bad inputs, bad files, failed network
+ *    connections and communication between incompatible versions of the
+ *    program.
+ *
+ * The custom exceptions come with a short error message that
+ * describes the problem.
  */
 #pragma once
 
@@ -8,8 +26,6 @@
 #include <string>
 #include <optional>
 #include <filesystem>
-
-// NOTE: we use the standard assert macro for never-happens conditions.
 
 /**
  * General exception for all types of errors that occur in the game.
@@ -229,26 +245,26 @@ namespace Log
 {
 
 /**
-	* Write a trace-level log message.
-	* If the logger is not intialized, do nothing.
-	*/
+ * Write a trace-level log message.
+ * If the logger is not intialized, do nothing.
+ */
 void trace(const char *format, ...) noexcept;
 
 /**
-	* Write an info-level log message.
-	* If the logger is not intialized, do nothing.
-	*/
+ * Write an info-level log message.
+ * If the logger is not intialized, do nothing.
+ */
 void info(const char *format, ...) noexcept;
 
 /**
-	* Write an error-level log message.
-	* If the logger is not intialized, do nothing.
-	*/
+ * Write an error-level log message.
+ * If the logger is not intialized, do nothing.
+ */
 void error(const char *format, ...) noexcept;
 
 /**
-	* Format the given message and write it using the implementation.
-	*/
+ * Format the given message and write it using the implementation.
+ */
 void write(const char* level, const char *format, va_list vlist) noexcept;
 
 }

@@ -87,6 +87,14 @@ struct GarbageDissolves
 };
 
 /**
+ * Event that occurs when a Pit is scrolling and needs a new bottom row to spawn.
+ */
+struct Starve
+{
+	Trivia trivia; //!< common information
+};
+
+/**
  * Event that occurs when a game round ends.
  */
 struct GameOver
@@ -145,6 +153,11 @@ public:
 	virtual void fire(GarbageDissolves dissolved) {}
 
 	/**
+	 * Signal that a Pit is scrolling and needs a new bottom row to spawn.
+	 */
+	virtual void fire(Starve starve) {}
+
+	/**
 	 * Signal that the game is ending.
 	 */
 	virtual void fire(GameOver ended) {}
@@ -170,6 +183,7 @@ public:
 	virtual void fire(Chain event) override { fire_all(event); }
 	virtual void fire(PhysicalLands event) override { fire_all(event); }
 	virtual void fire(BlockDies event) override { fire_all(event); }
+	virtual void fire(Starve event) override { fire_all(event); }
 	virtual void fire(GarbageDissolves event) override { fire_all(event); }
 
 private:
@@ -206,6 +220,7 @@ public:
 	virtual void fire(Chain event) override { fire_next(event); }
 	virtual void fire(PhysicalLands event) override { fire_next(event); }
 	virtual void fire(BlockDies event) override { fire_next(event); }
+	virtual void fire(Starve event) override { fire_next(event); }
 	virtual void fire(GarbageDissolves event) override { fire_next(event); }
 
 private:

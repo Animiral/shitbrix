@@ -72,6 +72,9 @@
     <ClInclude Include="..\..\src\state.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\arbiter.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\audio.cpp">
@@ -129,6 +132,9 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\state.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\arbiter.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

@@ -18,7 +18,7 @@ class NetworkTest : public ::testing::Test
 
 public:
 
-	NetworkTest()
+	explicit NetworkTest()
 	{
 		configure_context_for_testing();
 		m_server = ENet::instance().create_server(FREE_PORT);

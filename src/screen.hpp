@@ -42,7 +42,7 @@ public:
 	 */
 	virtual const IDraw& get_draw() const =0;
 
-	virtual void input(ControllerInput cinput) =0;
+	virtual void input(ControllerAction cinput) =0;
 };
 
 /**
@@ -93,7 +93,7 @@ public:
 	virtual void draw(float dt) override { m_draw.draw(dt); }
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
+	virtual void input(ControllerAction cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
 
 private:
 
@@ -115,7 +115,7 @@ public:
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override;
+	virtual void input(ControllerAction cinput) override;
 
 	/**
 	 * Return the result of the MenuScreen.
@@ -159,7 +159,7 @@ public:
 	virtual bool done() const override { return m_done; }
 	virtual void stop() override;
 	virtual const IDraw& get_draw() const override { assert(m_draw); return *m_draw; }
-	virtual void input(ControllerInput cinput) override;
+	virtual void input(ControllerAction cinput) override;
 
 private:
 
@@ -206,7 +206,7 @@ public:
 	virtual void draw(float dt) override {}
 	virtual bool done() const override { return m_done; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override;
+	virtual void input(ControllerAction cinput) override;
 
 private:
 
@@ -229,7 +229,7 @@ public:
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
 	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override { m_successor.input(cinput); }
+	virtual void input(ControllerAction cinput) override { m_successor.input(cinput); }
 
 	IScreen& successor() const { return m_successor; }
 

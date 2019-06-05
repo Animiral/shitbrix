@@ -26,15 +26,22 @@ class RainbowColorSupplier : public IColorSupplier
 
 public:
 
-	virtual Block::Color next_spawn() noexcept override;
-	virtual Block::Color next_emerge() noexcept override { return next_spawn(); }
+	virtual Color next_spawn() noexcept override;
+	virtual Color next_emerge() noexcept override { return next_spawn(); }
 	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RainbowColorSupplier>(*this); }
 
 private:
 
-	Block::Color m_color;
+	Color m_color;
 
 };
+
+// helper function for generating non-random loot for garbage bricks
+std::vector<Color> rainbow_loot(size_t count);
+
+
+// helper function for spawning garbage with generic rainbow loot
+Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows);
 
 /**
  * Swap the blocks at the specified location, regardless of the current cursor position.

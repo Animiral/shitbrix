@@ -64,6 +64,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\arbiter.hpp" />
     <ClInclude Include="..\..\src\asset.hpp" />
     <ClInclude Include="..\..\src\audio.hpp" />
     <ClInclude Include="..\..\src\configuration.hpp" />
@@ -85,6 +86,7 @@
     <ClInclude Include="..\..\src\state.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\arbiter.cpp" />
     <ClCompile Include="..\..\src\asset.cpp" />
     <ClCompile Include="..\..\src\audio.cpp" />
     <ClCompile Include="..\..\src\configuration.cpp" />

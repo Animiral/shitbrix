@@ -12,18 +12,27 @@
 #pragma once
 
 #include <string>
+#include <vector>
+#include <optional>
 #include <ostream>
 #include "globals.hpp"
-#include "stage.hpp"
+#include "state.hpp"
 #include "input.hpp"
 
+struct InputDiscovered { Input input; bool discovered; };
+using Inputs = std::vector<InputDiscovered>;
+using InputSpan = std::pair<Inputs::const_iterator, Inputs::const_iterator>;
+
+/**
+ * Represents one piece of information in the replay file.
+ */
 struct ReplayRecord
 {
 	enum class Type { START, META, INPUT };
 
 	Type type;
-	GameMeta meta;   //!< Meta information
-	GameInput input; //!< Input player and key
+	GameMeta meta; //!< Meta information
+	std::optional<Input> input; //!< Input information
 
 	/**
 	 * Meta information specification.
@@ -37,14 +46,10 @@ struct ReplayRecord
 	static ReplayRecord make_start() noexcept;
 
 	/**
-	 * Player input.
+	 * All kinds of input.
 	 */
-	static ReplayRecord make_input(GameInput input) noexcept;
+	static ReplayRecord make_input(Input input) noexcept;
 };
-
-struct InputDiscovered { GameInput input; bool discovered; };
-using GameInputs = std::vector<InputDiscovered>;
-using GameInputSpan = std::pair<GameInputs::const_iterator, GameInputs::const_iterator>;
 
 /**
  * Keeps the game record.
@@ -72,18 +77,18 @@ public:
 	 * Return all inputs with time >= start_time and <= end_time.
 	 * The inputs will be marked as discovered.
 	 */
-	GameInputSpan discover_inputs(long start_time, long end_time) noexcept;
+	InputSpan discover_inputs(long start_time, long end_time) noexcept;
 
 	/**
 	 * Simply return the list of inputs and do not discover anything.
 	 */
-	const GameInputs& inputs() const noexcept { return m_inputs; }
+	const Inputs& inputs() const noexcept { return m_inputs; }
 
 	/**
 	 * Add an input into the queue and mark it as undiscovered.
 	 * All checkpoints made at or after the time of the input become obsolete.
 	 */
-	void add_input(GameInput input);
+	void add_input(Input input);
 
 	/**
 	 * Update the winner in the meta information.
@@ -103,7 +108,7 @@ public:
 private:
 
 	GameMeta m_meta;
-	GameInputs m_inputs; //!< player inputs ordered by time
+	Inputs m_inputs; //!< all inputs ordered by time
 	long m_earliest_undiscovered;
 	std::vector<GameState> m_checkpoint; //!< checkpoints ordered by time
 

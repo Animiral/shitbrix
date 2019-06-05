@@ -66,7 +66,7 @@ void Mailbox::poll(Host& recipient)
 	case MsgType::INPUT:
 		{
 			// TODO: parse message.data
-			GameInput input{GameInput::TIME_ASAP, 0, GameButton::SWAP, ButtonAction::DOWN};
+			Input input{PlayerInput{PlayerInput::TIME_ASAP, 0, GameButton::SWAP, ButtonAction::DOWN}};
 			recipient.input(input);
 		}
 		break;
@@ -256,7 +256,7 @@ void FakeClient::set_player(int player)
 	// TODO: implement
 }
 
-void FakeClient::input(const GameInput& input)
+void FakeClient::input(const Input& input)
 {
 	// TODO: implement
 }
@@ -329,7 +329,7 @@ void FakeHost::set_clients(const std::vector<std::unique_ptr<Client>>& clients)
 	// TODO: implement
 }
 
-void FakeHost::input(const GameInput& input)
+void FakeHost::input(const Input& input)
 {
 	// TODO: implement
 }
@@ -604,9 +604,9 @@ void BasicClient::game_start()
 	m_ready = 2;
 }
 
-void BasicClient::send_input(GameInput input)
+void BasicClient::send_input(Input input)
 {
-	m_client->send_message(MsgType::INPUT, input.to_string());
+	m_client->send_message(MsgType::INPUT, std::string(input));
 }
 
 void BasicClient::send_reset(GameMeta meta)
@@ -637,8 +637,7 @@ void BasicClient::handle_message(const Message& message)
 		if(!m_gamedata.has_value())
 			throw GameException("Got input from server before the game is running.");
 
-		const GameInput input = GameInput::from_string(message.data);
-		m_gamedata->journal.add_input(input);
+		m_gamedata->journal.add_input(Input(message.data));
 	}
 		break;
 
@@ -718,12 +717,12 @@ void LocalClient::game_start()
 	m_gamedata = make_gamedata(*m_meta);
 }
 
-void LocalClient::send_input(GameInput input)
+void LocalClient::send_input(Input input)
 {
 	if(!m_gamedata.has_value())
 		throw GameException("Got input before the game is running.");
 
-	m_gamedata->journal.add_input(input);
+	m_gamedata->journal.add_input(std::move(input));
 }
 
 void LocalClient::send_reset(GameMeta meta)
@@ -793,7 +792,7 @@ void BasicServer::handle_message(const Message& message)
 
 	case MsgType::INPUT:
 	{
-		const GameInput input = GameInput::from_string(message.data);
+		const Input input(message.data);
 		// TODO: validate input
 
 		if(!is_ingame())
@@ -804,7 +803,7 @@ void BasicServer::handle_message(const Message& message)
 			message.sender,
 			message.recipient,
 			MsgType::INPUT,
-			input.to_string()};
+			std::string(input)};
 		m_server->broadcast_message(std::move(out_msg));
 	}
 		break;

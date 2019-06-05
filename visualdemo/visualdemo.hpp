@@ -26,7 +26,7 @@ public:
 	
 	VisualDemo(GameState state);
 
-	void put_block(RowCol rc, Block::Color color = Block::Color::BLUE, Block::State state = Block::State::REST);
+	void put_block(RowCol rc, Color color = Color::BLUE, Block::State state = Block::State::REST);
 
 	//! Create some blocks to work with
 	void common_setup();
@@ -67,7 +67,7 @@ private:
 	 * Continue with the game until the time when the input should be applied.
 	 * Then apply the input.
 	 */
-	void run_and_input(GameInput input);
+	void run_and_input(PlayerInput input);
 
 	/**
 	 * Continue with the game until the time when the checkpoint should be

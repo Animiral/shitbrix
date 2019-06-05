@@ -24,9 +24,6 @@
     <ClCompile Include="..\..\tests\test_network.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\tests\test_globals.cpp">
-      <Filter>Quelldateien</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\tests\test_director.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
@@ -34,6 +31,9 @@
       <Filter>Quelldateien</Filter>
     </ClCompile>
     <ClCompile Include="..\..\tests\test_stage.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\tests\test_input.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

@@ -12,9 +12,9 @@
 class ReplayTest : public ::testing::Test
 {
 
-protected:
+public:
 
-	virtual void SetUp()
+	explicit ReplayTest()
 	{
 		configure_context_for_testing();
 
@@ -25,7 +25,7 @@ protected:
 		journal = std::make_unique<Journal>(meta, GameState(*state));
 	}
 
-	// virtual void TearDown() {}
+protected:
 
 	GameMeta meta;
 	std::unique_ptr<GameState> state;
@@ -42,22 +42,22 @@ TEST_F(ReplayTest, WriteJournal)
 	journal->set_winner(1);
 
 	//ReplayRecord events[] =
-	journal->add_input(GameInput{3, 0, GameButton::LEFT, ButtonAction::DOWN});
-	journal->add_input(GameInput{5, 1, GameButton::UP, ButtonAction::DOWN});
-	journal->add_input(GameInput{8, 0, GameButton::RAISE, ButtonAction::DOWN});
-	journal->add_input(GameInput{10, 0, GameButton::LEFT, ButtonAction::DOWN});
-	journal->add_input(GameInput{10, 1, GameButton::SWAP, ButtonAction::DOWN});
+	journal->add_input(Input{PlayerInput{3, 0, GameButton::LEFT, ButtonAction::DOWN}});
+	journal->add_input(Input{PlayerInput{5, 1, GameButton::UP, ButtonAction::DOWN}});
+	journal->add_input(Input{PlayerInput{8, 0, GameButton::RAISE, ButtonAction::DOWN}});
+	journal->add_input(Input{PlayerInput{10, 0, GameButton::LEFT, ButtonAction::DOWN}});
+	journal->add_input(Input{PlayerInput{10, 1, GameButton::SWAP, ButtonAction::DOWN}});
 
 	replay_stream(stream, *journal);
 
 	std::string expected =
 R"(start
 meta 2 4711 1
-input 3 0 left press
-input 5 1 up press
-input 8 0 raise press
-input 10 0 left press
-input 10 1 swap press
+input PlayerInput 3 0 left press
+input PlayerInput 5 1 up press
+input PlayerInput 8 0 raise press
+input PlayerInput 10 0 left press
+input PlayerInput 10 1 swap press
 )";
 
 	EXPECT_EQ(expected, stream.str());
@@ -71,7 +71,7 @@ TEST_F(ReplayTest, ReadBasic)
 	std::string replay_str =
 R"(start
 meta 2 4711 1
-input 10 1 swap press
+input PlayerInput 10 1 swap press
 )";
 	std::istringstream stream(replay_str);
 	journal.reset(new Journal(replay_read(stream)));
@@ -81,12 +81,13 @@ input 10 1 swap press
 	EXPECT_EQ(4711, meta.seed);
 	EXPECT_EQ(1, meta.winner);
 
-	GameInputs inputs = journal->inputs();
+	Inputs inputs = journal->inputs();
 	ASSERT_EQ(1, inputs.size());
-	EXPECT_EQ(10, inputs[0].input.game_time);
-	EXPECT_EQ(1, inputs[0].input.player);
-	EXPECT_EQ(GameButton::SWAP, inputs[0].input.button);
-	EXPECT_EQ(ButtonAction::DOWN, inputs[0].input.action);
+	const PlayerInput input = inputs[0].input.get<PlayerInput>();
+	EXPECT_EQ(10, input.game_time);
+	EXPECT_EQ(1, input.player);
+	EXPECT_EQ(GameButton::SWAP, input.button);
+	EXPECT_EQ(ButtonAction::DOWN, input.action);
 }
 
 /**
@@ -94,7 +95,7 @@ input 10 1 swap press
  */
 TEST_F(ReplayTest, ReadErrorInput)
 {
-	std::string replay_str = "input 10 1\nend\n";
+	std::string replay_str = "game_input 10 1\nend\n";
 	std::istringstream stream(replay_str);
 
 	EXPECT_THROW(replay_read(stream), ReplayException);
@@ -119,10 +120,10 @@ TEST_F(ReplayTest, Checkpoint)
  */
 TEST_F(ReplayTest, DiscoverInputs)
 {
-	const GameInput input1 = GameInput{1, 0, GameButton::SWAP, ButtonAction::DOWN};
-	const GameInput input2 = GameInput{2, 0, GameButton::SWAP, ButtonAction::DOWN};
-	const GameInput input3 = GameInput{3, 0, GameButton::SWAP, ButtonAction::DOWN};
-	const GameInput input4 = GameInput{4, 0, GameButton::SWAP, ButtonAction::DOWN};
+	const Input input1{PlayerInput{1, 0, GameButton::SWAP, ButtonAction::DOWN}};
+	const Input input2{PlayerInput{2, 0, GameButton::SWAP, ButtonAction::DOWN}};
+	const Input input3{PlayerInput{3, 0, GameButton::SWAP, ButtonAction::DOWN}};
+	const Input input4{PlayerInput{4, 0, GameButton::SWAP, ButtonAction::DOWN}};
 
 	// Test 1: Journal must order new inputs
 	journal->add_input(input1);
@@ -131,10 +132,10 @@ TEST_F(ReplayTest, DiscoverInputs)
 	EXPECT_EQ(1, earliest);
 
 	// Test 2: Journal must properly discover inputs
-	GameInputSpan span = journal->discover_inputs(earliest, 4);
+	InputSpan span = journal->discover_inputs(earliest, 4);
 	ASSERT_EQ(2, std::distance(span.first, span.second));
-	EXPECT_EQ(1, span.first->input.game_time);
-	EXPECT_EQ(3, (span.first+1)->input.game_time);
+	EXPECT_EQ(1, span.first->input.get<PlayerInput>().game_time);
+	EXPECT_EQ(3, (span.first+1)->input.get<PlayerInput>().game_time);
 
 	// Test 3: insert inputs in the past
 	journal->add_input(input2);
@@ -145,9 +146,9 @@ TEST_F(ReplayTest, DiscoverInputs)
 	// Test 4: Journal must discover only recent inputs
 	span = journal->discover_inputs(earliest, 4);
 	ASSERT_EQ(3, std::distance(span.first, span.second));
-	EXPECT_EQ(2, span.first->input.game_time);
-	EXPECT_EQ(3, (span.first+1)->input.game_time);
-	EXPECT_EQ(4, (span.first+2)->input.game_time);
+	EXPECT_EQ(2, span.first->input.get<PlayerInput>().game_time);
+	EXPECT_EQ(3, (span.first+1)->input.get<PlayerInput>().game_time);
+	EXPECT_EQ(4, (span.first+2)->input.get<PlayerInput>().game_time);
 }
 
 /**
@@ -155,7 +156,7 @@ TEST_F(ReplayTest, DiscoverInputs)
  */
 TEST_F(ReplayTest, EarliestUndiscovered)
 {
-	const GameInput input = GameInput{5, 0, GameButton::SWAP, ButtonAction::DOWN};
+	const Input input{PlayerInput{5, 0, GameButton::SWAP, ButtonAction::DOWN}};
 
 	// Test 1: Initially, there are no inputs to discover.
 	long earliest = journal->earliest_undiscovered();

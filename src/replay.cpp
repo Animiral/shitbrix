@@ -27,7 +27,7 @@ ReplayRecord ReplayRecord::make_meta(GameMeta meta) noexcept
 	return record;
 }
 
-ReplayRecord ReplayRecord::make_input(GameInput input) noexcept
+ReplayRecord ReplayRecord::make_input(Input input) noexcept
 {
 	ReplayRecord record;
 	record.type = Type::INPUT;
@@ -46,12 +46,12 @@ namespace
 
 auto greater_time(long cutoff) noexcept
 {
-	return [cutoff](const InputDiscovered& id) { return id.input.game_time > cutoff; };
+	return [cutoff](const InputDiscovered& id) { return id.input.game_time() > cutoff; };
 }
 
 }
 
-GameInputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
+InputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
 {
 	enforce(start_time <= end_time);
 
@@ -67,11 +67,11 @@ GameInputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
 	return {begin, end};
 }
 
-void Journal::add_input(GameInput input)
+void Journal::add_input(Input input)
 {
-	Log::trace("Journal add_input: %s.", input.to_string().c_str());
+	Log::trace("Journal add_input: %s.", std::string(input).c_str());
 
-	const long itime = input.game_time;
+	const long itime = input.game_time();
 	enforce(itime > 0);
 
 	if(m_earliest_undiscovered > itime)
@@ -143,7 +143,7 @@ void replay_stream(std::ostream& stream, const Journal& journal)
 
 	for(const auto& id : journal.inputs()) {
 		stream << replay_record_type_string(ReplayRecord::Type::INPUT)
-		       << " " << id.input.to_string() << "\n";
+		       << " " << std::string(id.input) << "\n";
 	}
 }
 
@@ -189,7 +189,7 @@ ReplayRecord::Type string_to_replay_record_type(const std::string& type_string)
 	if("start" == type_string) return ReplayRecord::Type::START;
 	else if("meta" == type_string) return ReplayRecord::Type::META;
 	else if("input" == type_string) return ReplayRecord::Type::INPUT;
-	else throw ReplayException("Invalid event type string: \"" + type_string + "\"");
+	else throw ReplayException("Invalid record type string: \"" + type_string + "\"");
 }
 
 }
@@ -198,7 +198,7 @@ Journal replay_read(std::istream& stream)
 {
 	// Replay contents
 	GameMeta meta{0, 0};
-	std::vector<GameInput> input;
+	std::vector<Input> inputs;
 
 	// We read only the first game replay. Therefore, we must read
 	// everything following the first start-record.
@@ -236,20 +236,21 @@ Journal replay_read(std::istream& stream)
 				std::string input_string;
 				std::getline(tokenizer, input_string);
 
-				GameInput gi;
+				Input input;
+
 				try {
-					gi = GameInput::from_string(input_string);
+					input = Input(input_string);
 				}
 				catch(GameException ex) {
 					throw ReplayException("Failed to parse input.",
 					                      std::make_unique<GameException>(std::move(ex)));
 				}
 
-				if(gi.game_time < prev_time)
+				if(input.game_time() < prev_time)
 					throw ReplayException("Inputs out of order.");
 
-				input.push_back(gi);
-				prev_time = gi.game_time;
+				inputs.push_back(input);
+				prev_time = input.game_time();
 			}
 			break;
 
@@ -264,14 +265,14 @@ Journal replay_read(std::istream& stream)
 		throw ReplayException("Something went wrong in reading from replay.");
 
 	// separate meta-data from input data
-	// TODO: The replay should not depend on our run-time random implementation.
-	//       Record random events like block spawns in the replay and play them back.
-	// In the mean time, use the same random queue and seed as used by the network impl.
+	// TODO: The replay does not depend on our run-time random implementation.
+	//       Random events like block spawns are recorded in the replay and played back.
+	// For compatibility, use the same random queue and seed as used by the network impl.
 	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
 	GameState state0{meta, color_factory};
 	Journal journal{meta, std::move(state0)};
 
-	for(GameInput gi : input)
+	for(Input gi : inputs)
 		journal.add_input(gi);
 
 	return journal;

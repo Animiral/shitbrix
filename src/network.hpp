@@ -21,6 +21,8 @@
 #include "stage.hpp"
 #include "error.hpp"
 
+class Input;
+
 // ==================== high-level interfaces ====================
 
 /**
@@ -61,7 +63,7 @@ public:
 
 	virtual void set_meta(const GameMeta& meta) = 0;
 	virtual void set_player(int player) = 0;
-	virtual void input(const GameInput& input) = 0;
+	virtual void input(const Input& input) = 0;
 	virtual void sync_state(const GameState& state) = 0;
 
 	virtual void accept(Host& receiver) const = 0;
@@ -124,7 +126,7 @@ public:
 
 	// --- messages from Client
 
-	virtual void input(const GameInput& input) = 0;
+	virtual void input(const Input& input) = 0;
 
 	virtual void accept(Lobby& receiver) = 0;
 	virtual void accept(Client& receiver) = 0;
@@ -263,7 +265,7 @@ public:
 
 	virtual void set_meta(const GameMeta& meta) override;
 	virtual void set_player(int player) override;
-	virtual void input(const GameInput& input) override;
+	virtual void input(const Input& input) override;
 	virtual void sync_state(const GameState& state) override;
 
 	virtual void accept(Host& receiver) const override;
@@ -314,7 +316,7 @@ public:
 
 	// --- messages from Client
 
-	virtual void input(const GameInput& input) override;
+	virtual void input(const Input& input) override;
 
 	virtual void accept(Lobby& receiver) override;
 	virtual void accept(Client& receiver) override;
@@ -473,7 +475,7 @@ public:
 	 * Apply the given input to the game by sending it to the server.
 	 * In the future, we will pre-emptively trust our self-made inputs.
 	 */
-	virtual void send_input(GameInput input) = 0;
+	virtual void send_input(Input input) = 0;
 
 	/**
 	 * Signal to the server that we want to start a fresh game.
@@ -515,7 +517,7 @@ public:
 	virtual bool is_game_ready() const noexcept override;
 	virtual bool is_ingame() const noexcept override;
 	virtual void game_start() override;
-	virtual void send_input(GameInput input) override;
+	virtual void send_input(Input input) override;
 	virtual void send_reset(GameMeta meta) override;
 	virtual void send_speed(int speed) override;
 	virtual void poll() override;
@@ -558,7 +560,7 @@ public:
 	virtual bool is_game_ready() const noexcept override;
 	virtual bool is_ingame() const noexcept override;
 	virtual void game_start() override;
-	virtual void send_input(GameInput input) override;
+	virtual void send_input(Input input) override;
 	virtual void send_reset(GameMeta meta) override;
 	virtual void send_speed(int speed) override;
 	virtual void poll() override;

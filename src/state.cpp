@@ -120,7 +120,7 @@ void Block::set_state_impl(Physical::State state, int, int) noexcept
 }
 
 
-int operator-(Block::Color lhs, Block::Color rhs) noexcept
+int operator-(Color lhs, Color rhs) noexcept
 {
 	return static_cast<int>(lhs) - static_cast<int>(rhs);
 }
@@ -166,25 +166,25 @@ RandomColorSupplier::RandomColorSupplier(unsigned seed, int player)
 {
 }
 
-Block::Color RandomColorSupplier::next_spawn() noexcept
+Color RandomColorSupplier::next_spawn() noexcept
 {
 	// For the moment, this implementation simply generates random colors without
 	// any interference. In the future, it must be built not to generate blocks
 	// such that they already form a match when they arrive in the pit.
 
 	static std::uniform_int_distribution<int> color_distribution { 1, 6 };
-	Block::Color color = static_cast<Block::Color>(color_distribution(m_generator));
+	Color color = static_cast<Color>(color_distribution(m_generator));
 	//m_record.push_back(color); // required later
 	return color;
 }
 
-Block::Color RandomColorSupplier::next_emerge() noexcept
+Color RandomColorSupplier::next_emerge() noexcept
 {
 	return next_spawn();
 }
 
 
-Pit::Pit(Point loc, std::unique_ptr<IColorSupplier> color_supplier) noexcept
+Pit::Pit(Point loc) noexcept
 : m_loc(loc),
   m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, 0},
   m_want_raise(false),
@@ -196,14 +196,12 @@ Pit::Pit(Point loc, std::unique_ptr<IColorSupplier> color_supplier) noexcept
   m_chain(0),
   m_recovery(0),
   m_panic(PANIC_TIME),
-  m_color_supplier(std::move(color_supplier)),
   m_highlight_row(0)
 {
 }
 
 Pit::Pit(const Pit& rhs)
-: m_color_supplier(rhs.m_color_supplier->clone()),
-  m_contents(rhs.copy_contents())
+: m_contents(rhs.copy_contents())
 {
 	assign_basic(rhs);
 	make_content_map();
@@ -212,7 +210,6 @@ Pit::Pit(const Pit& rhs)
 Pit& Pit::operator=(const Pit& rhs)
 {
 	assign_basic(rhs);
-	m_color_supplier = rhs.m_color_supplier->clone();
 	m_contents = rhs.copy_contents();
 	make_content_map();
 	return *this;
@@ -247,7 +244,7 @@ bool Pit::is_full() const noexcept
 	return m_contents.end() != std::find_if(m_contents.begin(), m_contents.end(), is_above);
 }
 
-Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
+Block& Pit::spawn_block(Color color, RowCol rc, Block::State state)
 {
 	enforce(rc.c >= 0);
 	enforce(rc.c < PIT_COLS);
@@ -264,20 +261,12 @@ Block& Pit::spawn_block(Block::Color color, RowCol rc, Block::State state)
 	return *raw_block;
 }
 
-Block& Pit::spawn_random_block(RowCol rc, Block::State state)
-{
-	return spawn_block(m_color_supplier->next_spawn(), rc, state);
-}
-
-Garbage& Pit::spawn_garbage(RowCol rc, int width, int height)
+Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
 {
 	// make sure the Garbage fits in the Pit
 	enforce(rc.c >= 0);
 	enforce(rc.c + width <= PIT_COLS);
-
-	Loot loot(width * height);
-	for(Block::Color& c : loot)
-		c = m_color_supplier->next_emerge();
+	enforce(width * height == loot.size());
 
 	auto garbage = std::make_unique<Garbage>(rc, width, height, move(loot));
 	Garbage* raw_garbage = garbage.get();
@@ -603,8 +592,7 @@ GameState::GameState(GameMeta meta, ColorSupplierFactory& color_factory)
 	for(int i = 0; i < meta.players; i++)
 	{
 		Point loc = layout_pit(meta.players, i);
-		auto color_supplier = color_factory(i);
-		m_pit.push_back(std::make_unique<Pit>(loc, std::move(color_supplier)));
+		m_pit.push_back(std::make_unique<Pit>(loc));
 	}
 }
 
@@ -635,6 +623,18 @@ void GameState::update()
 	m_game_time++;
 }
 
+int GameState::opponent(int player) noexcept
+{
+	assert(0 == player || 1 == player || "more than two players not implemented yet");
+
+	// In some test scenarios, we are playing with just one pit.
+	// In those cases, we are our own opponent.
+	if(1 == m_pit.size())
+		return 0;
+	else
+		return 0 == player ? 1 : 0;
+}
+
 [[ maybe_unused ]]
 void debug_print_pit(std::ostream& stream, const Pit& pit)
 {
@@ -646,7 +646,7 @@ void debug_print_pit(std::ostream& stream, const Pit& pit)
 		if(!block) continue;
 
 		Block::State state = block->block_state();
-		Block::Color color = block->col;
+		Color color = block->col;
 		std::string state_str;
 		std::string color_str;
 
@@ -663,13 +663,13 @@ void debug_print_pit(std::ostream& stream, const Pit& pit)
 		}
 
 		switch(color) {
-			case Block::Color::FAKE: color_str = "fake"; break;
-			case Block::Color::BLUE: color_str = "blue"; break;
-			case Block::Color::RED: color_str = "red"; break;
-			case Block::Color::YELLOW: color_str = "yellow"; break;
-			case Block::Color::GREEN: color_str = "green"; break;
-			case Block::Color::PURPLE: color_str = "purple"; break;
-			case Block::Color::ORANGE: color_str = "orange"; break;
+			case Color::FAKE: color_str = "fake"; break;
+			case Color::BLUE: color_str = "blue"; break;
+			case Color::RED: color_str = "red"; break;
+			case Color::YELLOW: color_str = "yellow"; break;
+			case Color::GREEN: color_str = "green"; break;
+			case Color::PURPLE: color_str = "purple"; break;
+			case Color::ORANGE: color_str = "orange"; break;
 			default: ;
 		}
 

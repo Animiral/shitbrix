@@ -132,8 +132,6 @@ class Block : public Physical
 
 public:
 
-	enum class Color { FAKE, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
-
 	/*
 	 * Block states.
 	 *  * DEAD: should be removed from the pit asap as it is an error to logic update() a dead block
@@ -185,9 +183,9 @@ private:
 };
 
 /*
- * Allow operator- on Block::Color
+ * Allow operator- on Color
  */
-int operator-(Block::Color lhs, Block::Color rhs) noexcept;
+int operator-(Color lhs, Color rhs) noexcept;
 
 /**
  * Comparison predicate for ordering blocks bottom-to-top.
@@ -197,7 +195,7 @@ bool y_greater(const Block& lhs, const Block& rhs) noexcept;
 /**
  * Type of the blocks hidden in a Garbage brick for the player to break and discover.
  */
-using Loot = std::vector<Block::Color>;
+using Loot = std::vector<Color>;
 
 /**
  * Garbage block.
@@ -267,13 +265,13 @@ public:
 	 * Return the next color of a block coming out on the stack from below.
 	 * TODO: this function must generate blocks not to auto-match instantly.
 	 */
-	virtual Block::Color next_spawn() noexcept = 0;
+	virtual Color next_spawn() noexcept = 0;
 
 	/**
 	 * Return the next color of a block emerging as a result of dissolving garbage.
 	 * TODO: this function must not generate three same-colored blocks in a row.
 	 */
-	virtual Block::Color next_emerge() noexcept = 0;
+	virtual Color next_emerge() noexcept = 0;
 
 	/**
 	 * Suppliers can copy themselves.
@@ -300,13 +298,13 @@ public:
 	 */
 	explicit RandomColorSupplier(unsigned seed, int player);
 
-	virtual Block::Color next_spawn() noexcept override;
-	virtual Block::Color next_emerge() noexcept override;
+	virtual Color next_spawn() noexcept override;
+	virtual Color next_emerge() noexcept override;
 	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RandomColorSupplier>(*this); }
 
 private:
 
-	//std::vector<Block::Color> m_record; // required later for rules refinement
+	//std::vector<Color> m_record; // required later for rules refinement
 	std::minstd_rand m_generator;
 
 };
@@ -339,7 +337,7 @@ class Pit
 
 public:
 
-	explicit Pit(Point loc, std::unique_ptr<IColorSupplier> color_supplier) noexcept;
+	explicit Pit(Point loc) noexcept;
 	Pit(const Pit& rhs);
 	Pit& operator=(const Pit& rhs);
 
@@ -408,25 +406,15 @@ public:
 	 *
 	 * @return a reference to the created Block
 	 */
-	Block& spawn_block(Block::Color color, RowCol rc, Block::State state);
+	Block& spawn_block(Color color, RowCol rc, Block::State state);
 
 	/**
-	 * Create a new Block with the specified properties in the Pit.
-	 * The color of the block is determined by the next output of the color supplier.
-	 * Caution! This may invalidate all existing references to Blocks in the Pit.
-	 *
-	 * @return a reference to the created Block
-	 */
-	Block& spawn_random_block(RowCol rc, Block::State state);
-
-	/**
-	 * Create a new Garbage with the specified dimensions.
-	 * The color of the Loot Blocks inside is determined by the next output of the color supplier.
+	 * Create a new Garbage with the specified dimensions and loot inside.
 	 * Caution! This may invalidate all existing references to Garbage in the Pit.
 	 *
 	 * @return a reference to the created Garbage
 	 */
-	Garbage& spawn_garbage(RowCol rc, int columns, int rows);
+	Garbage& spawn_garbage(RowCol rc, int columns, int rows, Loot loot);
 
 	/**
 	 * Return true if it is acceptable to move the object
@@ -583,7 +571,6 @@ private:
 	int m_chain;     //!< chain counter
 	int m_recovery;  //!< recover time pool; scrolling stops after a quality match
 	int m_panic;     //!< panic time pool; the player has this many ticks left until game over
-	std::unique_ptr<IColorSupplier> m_color_supplier; //< generator for blocks spawning
 
 	PhysVec m_contents; // list of all blocks in the pit
 	PhysMap m_content_map; // sparse matrix of blocked spaces
@@ -621,6 +608,13 @@ public:
 	long game_time() const noexcept { return m_game_time; }
 
 	void update();
+
+	/**
+	 * Given the number of one player in the game, returns the target opponent.
+	 * If the given player loses, the opponent wins.
+	 * If the given player produces a combo or chain, the opponent receives garbage.
+	 */
+	int opponent(int player) noexcept;
 
 private:
 

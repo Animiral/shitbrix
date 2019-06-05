@@ -4,7 +4,7 @@
  */
 #pragma once
 
-#include "stage.hpp"
+#include "state.hpp"
 #include <unordered_set>
 
 /**
@@ -53,7 +53,7 @@ private:
 	BlockSet m_result;
 	bool m_chaining;
 
-	bool match_at(RowCol rc, Block::Color color);
+	bool match_at(RowCol rc, Color color);
 	void insert(RowCol rc);
 
 };
@@ -62,6 +62,19 @@ using PhysicalRefVec = std::vector<std::reference_wrapper<Physical>>;
 using BlockRefVec = std::vector<std::reference_wrapper<Block>>;
 using GarbageRefVec = std::vector<std::reference_wrapper<Garbage>>;
 
+/**
+ * This class implements building-block routines to examine and manipulate
+ * objects in the given game state.
+ *
+ * While the game elements implement their own behavior to a degree (e.g. a
+ * block will continuously fall down on its own), the Logic can look at the
+ * object's surroundings and identify key features, such as landing blocks.
+ *
+ * It helps in the transition of the game state by manipulating object tags
+ * and behavioral states.
+ *
+ * The Director then puts these building-block routines to use every update.
+ */
 class Logic
 {
 
@@ -81,20 +94,28 @@ public:
 	 * @param[out] chaining whether any block is currently marked as chaining
 	 * @param[out] breaking whether any block is currently being dissolved
 	 * @param[out] full whether any resting physical is up against the pit top
+	 * @param[out] starving whether the bottom+1 row is empty based on scrolling
 	 */
-	void examine_pit(bool& chaining, bool& breaking, bool& full) const noexcept;
+	void examine_pit(bool& chaining, bool& breaking, bool& full, bool& starving) const noexcept;
 
 	/**
 	 * Classify Physicals whose states are “running out”.
 	 * For example, an object’s internal timer can run out while they are falling,
 	 * indicating that they have reached their target location.
 	 *
-	 * @param[out] dead_physical Flag which indicates true if there are new dead physicals
-	 * @param[out] dead_block Flag which indicates true if there are new dead blocks
-	 * @param[out] dead_sound Flag which indicates true if there are non-fake dead blocks
-	 * @param[out] chainstop Flag which indicates true if a chain might be finished
+	 * New blocks in *preview* state appear at the bottom of the pit as it scrolls.
+	 * As they arrive in the cursor-accessible area of the pit,
+	 * the previous previews become normal blocks at rest.
+	 * In this instant, they are tagged as *hot*.
+	 *
+	 * @param[out] dead_physical whether there are new dead physicals
+	 * @param[out] dead_block whether there are new dead blocks
+	 * @param[out] dead_sound whether there are non-fake dead blocks
+	 * @param[out] chainstop whether a chain might be finished
+	 * @param[out] new_row whether the bottom of blocks becomes active
 	 */
-	void examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sound, bool& chainstop) const;
+	void examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sound,
+	                    bool& chainstop, bool& new_row) const;
 
 	/**
 	 * Shrink or remove expired garbage blocks.

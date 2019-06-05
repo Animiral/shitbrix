@@ -15,7 +15,7 @@ VisualDemo::VisualDemo(GameState state) :
 	m_rules.block_director.set_state(m_state);
 }
 
-void VisualDemo::put_block(RowCol rc, Block::Color color, Block::State state)
+void VisualDemo::put_block(RowCol rc, Color color, Block::State state)
 {
 	m_pit.spawn_block(color, rc, state);
 }
@@ -23,42 +23,58 @@ void VisualDemo::put_block(RowCol rc, Block::Color color, Block::State state)
 void VisualDemo::common_setup()
 {
 	// 1 preview row, 2 normal rows, 1 half row, match-ready
-	put_block({0, 0}, Block::Color::BLUE);
-	put_block({0, 1}, Block::Color::RED);
-	put_block({0, 2}, Block::Color::YELLOW);
-	put_block({0, 3}, Block::Color::GREEN);
-	put_block({0, 4}, Block::Color::PURPLE);
-	put_block({0, 5}, Block::Color::ORANGE);
+	put_block({0, 0}, Color::BLUE);
+	put_block({0, 1}, Color::RED);
+	put_block({0, 2}, Color::YELLOW);
+	put_block({0, 3}, Color::GREEN);
+	put_block({0, 4}, Color::PURPLE);
+	put_block({0, 5}, Color::ORANGE);
 
-	put_block({-1, 0}, Block::Color::ORANGE);
-	put_block({-1, 1}, Block::Color::BLUE);
-	put_block({-1, 2}, Block::Color::RED);
-	put_block({-1, 3}, Block::Color::YELLOW);
-	put_block({-1, 4}, Block::Color::GREEN);
-	put_block({-1, 5}, Block::Color::PURPLE);
+	put_block({-1, 0}, Color::ORANGE);
+	put_block({-1, 1}, Color::BLUE);
+	put_block({-1, 2}, Color::RED);
+	put_block({-1, 3}, Color::YELLOW);
+	put_block({-1, 4}, Color::GREEN);
+	put_block({-1, 5}, Color::PURPLE);
 
-	put_block({-2, 0}, Block::Color::BLUE);
-	put_block({-2, 1}, Block::Color::RED);
-	put_block({-2, 2}, Block::Color::YELLOW);
-	put_block({-2, 3}, Block::Color::GREEN);
-	put_block({-2, 4}, Block::Color::PURPLE);
-	put_block({-2, 5}, Block::Color::ORANGE);
+	put_block({-2, 0}, Color::BLUE);
+	put_block({-2, 1}, Color::RED);
+	put_block({-2, 2}, Color::YELLOW);
+	put_block({-2, 3}, Color::GREEN);
+	put_block({-2, 4}, Color::PURPLE);
+	put_block({-2, 5}, Color::ORANGE);
 
-	put_block({-3, 2}, Block::Color::RED);
-	put_block({-3, 3}, Block::Color::YELLOW);
-	put_block({-3, 4}, Block::Color::GREEN);
+	put_block({-3, 2}, Color::RED);
+	put_block({-3, 3}, Color::YELLOW);
+	put_block({-3, 4}, Color::GREEN);
+}
+
+namespace
+{
+
+// helper function for generating non-random loot for garbage bricks
+std::vector<Color> rainbow(size_t count)
+{
+	std::vector<Color> result;
+
+	for(int i = 0; i < count; i++)
+		result.push_back(static_cast<Color>((i % 6) + 1));
+
+	return result;
+}
+
 }
 
 void VisualDemo::scenario_dissolve_garbage()
 {
 	common_setup();
 
-	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, 6, 2, rainbow(12)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// 3 in a row
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-2,2};
-	m_rules.block_director.swap(0);
+	m_rules.block_director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -75,10 +91,10 @@ void VisualDemo::scenario_match_horizontal()
 {
 	common_setup();
 
-	m_pit.spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
-	m_pit.spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
+	m_pit.spawn_block(Color::RED, RowCol{-3, 0}, Block::State::REST);
+	m_pit.spawn_block(Color::RED, RowCol{-4, 2}, Block::State::REST);
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-4,1};
-	m_rules.block_director.swap(0);
+	m_rules.block_director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// wait until block has swapped above the gap
 	const int SWAP_T = SWAP_TIME;
@@ -108,15 +124,15 @@ void VisualDemo::scenario_fall_after_shrink()
 {
 	common_setup();
 
-	auto& garbage = m_pit.spawn_garbage({-6,0}, 6, 2); // chain garbage
+	auto& garbage = m_pit.spawn_garbage({-6,0}, 6, 2, rainbow(12)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// vertical match just under the garbage
-	m_pit.spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
+	m_pit.spawn_block(Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
 
 	// 3 in a row
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-3,2};
-	m_rules.block_director.swap(0);
+	m_rules.block_director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -134,10 +150,11 @@ void VisualDemo::scenario_chaining_garbage()
 	common_setup();
 
 	const int GARBAGE_COLS = 6;
-	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
+	auto& garbage = m_pit.spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2, rainbow(GARBAGE_COLS * 2)); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-2, 2};
-	m_rules.block_director.swap(0); // match yellow blocks vertically
+	// match yellow blocks vertically
+	m_rules.block_director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME;
@@ -155,18 +172,18 @@ void VisualDemo::scenario_panic()
 	common_setup();
 
 	// complete the test scenario with a block pillar almost to the top
-	put_block(RowCol{-4, 3}, Block::Color::RED);
-	put_block(RowCol{-5, 3}, Block::Color::YELLOW);
-	put_block(RowCol{-6, 3}, Block::Color::GREEN);
-	put_block(RowCol{-7, 3}, Block::Color::PURPLE);
-	put_block(RowCol{-8, 3}, Block::Color::ORANGE);
+	put_block(RowCol{-4, 3}, Color::RED);
+	put_block(RowCol{-5, 3}, Color::YELLOW);
+	put_block(RowCol{-6, 3}, Color::GREEN);
+	put_block(RowCol{-7, 3}, Color::PURPLE);
+	put_block(RowCol{-8, 3}, Color::ORANGE);
 
 	// time it takes for the orange block to reach the top of the pit
 	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
 
 	// discover more blocks and fix them not to match instantly
 	run_game_ticks(1);
-	m_pit.block_at({1, 2})->col = Block::Color::GREEN;
+	m_pit.block_at({1, 2})->col = Color::GREEN;
 
 	// moment before panic
 	run_game_ticks(TIME_TO_FULL-1);
@@ -259,14 +276,14 @@ void VisualDemo::run_game_ticks(int ticks)
 	* Continue with the game until the time when the input should be applied.
 	* Then apply the input.
 	*/
-void VisualDemo::run_and_input(GameInput input)
+void VisualDemo::run_and_input(PlayerInput input)
 {
 	// can only apply inputs in the future
 	assert(input.game_time > m_state.game_time());
 
 	// caution! Inputs for time N+1 are applied when the state time is N.
 	run_game_ticks(input.game_time - m_state.game_time() - 1);
-	apply_input(m_state, m_rules, input);
+	m_rules.block_director.apply_input(Input{input});
 	run_game_ticks(1);
 }
 

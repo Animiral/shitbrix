@@ -66,8 +66,8 @@ protected:
  */
 TEST_F(GameEventTest, CursorMoves)
 {
-	gamedata->journal.add_input(GameInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN});
-	gamedata->journal.add_input(GameInput{2, 0, GameButton::LEFT, ButtonAction::DOWN});
+	gamedata->journal.add_input(Input{PlayerInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN}});
+	gamedata->journal.add_input(Input{PlayerInput{2, 0, GameButton::LEFT, ButtonAction::DOWN}});
 
 	run_game_ticks(1);
 	EXPECT_EQ(1, counter.countCursorMoves);
@@ -81,8 +81,8 @@ TEST_F(GameEventTest, CursorMoves)
  */
 TEST_F(GameEventTest, Swap)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 1}, Block::State::REST);
 
 	swap_at(*pit, *block_director, RowCol{0, 0});
 	EXPECT_EQ(1, counter.countSwap);
@@ -99,12 +99,12 @@ TEST_F(GameEventTest, Swap)
  */
 TEST_F(GameEventTest, Match)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 4}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-1, 2}, Block::State::REST);
 
 	swap_at(*pit, *block_director, RowCol{0, 2});
 
@@ -123,12 +123,12 @@ TEST_F(GameEventTest, Match)
  */
 TEST_F(GameEventTest, Chain)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 4}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-1, 2}, Block::State::REST);
 
 	swap_at(*pit, *block_director, RowCol{0, 2});
 
@@ -142,12 +142,12 @@ TEST_F(GameEventTest, Chain)
  */
 TEST_F(GameEventTest, BlockDies)
 {
-	Block& blue_block = pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	Block& blue_block = pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
 	blue_block.set_state(Physical::State::BREAK, BREAK_TIME);
 	run_game_ticks(BREAK_TIME);
 	EXPECT_EQ(1, counter.countBlockDies);
 
-	Block& fake_block = pit->spawn_block(Block::Color::FAKE, RowCol{0, 0}, Block::State::REST);
+	Block& fake_block = pit->spawn_block(Color::FAKE, RowCol{0, 0}, Block::State::REST);
 	fake_block.set_state(Physical::State::BREAK, BREAK_TIME);
 	run_game_ticks(BREAK_TIME);
 	EXPECT_EQ(1, counter.countBlockDies);
@@ -158,10 +158,10 @@ TEST_F(GameEventTest, BlockDies)
  */
 TEST_F(GameEventTest, GarbageDissolves)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_garbage(RowCol{-1, 2}, 3, 1);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_garbage(RowCol{-1, 2}, 3, 1, rainbow_loot(3));
 
 	swap_at(*pit, *block_director, RowCol{0, 2});
 	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);

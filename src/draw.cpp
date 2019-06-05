@@ -151,7 +151,7 @@ void DrawGame::draw_pit_debug_overlay(const Pit& pit) const
 			size_t frame = 0;
 			if(Block::State::FALL == state) frame = 1;
 			if(Block::State::BREAK == state) frame = 2;
-			if(Block::Color::FAKE == block->col) frame = 3;
+			if(Color::FAKE == block->col) frame = 3;
 			putsprite(block_loc(*block), Gfx::PITVIEW, frame);
 		}
 		else if(Garbage* garbage = dynamic_cast<Garbage*>(&*physical)) {
@@ -165,11 +165,11 @@ void DrawGame::draw_pit_debug_overlay(const Pit& pit) const
 
 void DrawGame::draw_block(const Block& block, float dt) const
 {
-	if(Block::Color::FAKE == block.col) return;
+	if(Color::FAKE == block.col) return;
 
 	float time = block.eta();
 	Block::State state = block.block_state();
-	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Block::Color::BLUE);
+	Gfx gfx = Gfx::BLOCK_BLUE + (block.col - Color::BLUE);
 	BlockFrame frame = BlockFrame::REST;
 
 	if(Block::State::PREVIEW == state) {
@@ -246,7 +246,7 @@ void DrawGame::draw_garbage(const Garbage& garbage, float dt) const
 
 		for(int x = 0; x < garbage.columns() - garbage.eta() / 10; x++) {
 			draw_loc = from_rc(RowCol{rc.r, rc.c + x});
-			Gfx gfx = Gfx::BLOCK_BLUE + (*loot_it++ - Block::Color::BLUE);
+			Gfx gfx = Gfx::BLOCK_BLUE + (*loot_it++ - Color::BLUE);
 			putsprite(draw_loc, gfx, static_cast<size_t>(BlockFrame::REST));
 		}
 	}

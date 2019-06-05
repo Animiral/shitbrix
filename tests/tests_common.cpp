@@ -46,16 +46,36 @@ GameData make_gamedata_for_testing()
 	return GameData{std::move(state), std::move(journal)};
 }
 
-Block::Color RainbowColorSupplier::next_spawn() noexcept
+Color RainbowColorSupplier::next_spawn() noexcept
 {
-	Block::Color previous = m_color;
-	m_color = static_cast<Block::Color>((static_cast<int>(m_color) + 1 - 1) % 6 + 1);
+	Color previous = m_color;
+	m_color = static_cast<Color>((static_cast<int>(m_color) + 1 - 1) % 6 + 1);
 	return previous;
 }
 
+std::vector<Color> rainbow_loot(size_t count)
+{
+	std::vector<Color> result;
+
+	for(int i = 0; i < count; i++)
+		result.push_back(static_cast<Color>((i % 6) + 1));
+
+	return result;
+}
+
+
+Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows)
+{
+	return pit.spawn_garbage(rc, columns, rows, rainbow_loot(columns * rows));
+}
 
 bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)
 {
 	const_cast<Cursor&>(pit.cursor()).rc = rc;
-	return director.swap(0);
+	director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
+
+	if(Block* block = pit.block_at(rc))
+		return Block::State::SWAP_RIGHT == block->block_state();
+	else
+		return false;
 }

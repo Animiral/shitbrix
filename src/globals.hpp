@@ -6,10 +6,41 @@
 
 #pragma once
 
+#include <vector>
+#include <array>
+#include <string>
 #include <ostream> // debug stuff
 
 // ================================================
-// Enumeration types and constants
+// Application constants
+// ================================================
+
+constexpr const char* APP_NAME = "shitbrix";
+constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
+constexpr long CHECKPOINT_INTERVAL = 1 * TPS; //!< time between checkpoints for journal
+constexpr size_t MAX_CLIENTS = 8; //!< maximum number of networked players
+constexpr uint16_t DEFAULT_PORT = 2414; //!< network port for connections
+constexpr uint32_t CONNECT_TIMEOUT = 5000; //!< peer to server connection time limit
+constexpr uint8_t MESSAGE_CHANNEL = 1; //!< network communication channel for gameplay messages
+
+// Gameplay constants
+constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each other
+constexpr int PIT_ROWS = 10; //!< number of blocks that fit in a pit on top of each other
+constexpr int ROW_HEIGHT = 200; //!< gameplay height of a row; determines scroll speed etc.
+constexpr int FALL_SPEED = 35; //!< points per update that a falling block moves down
+constexpr int SCROLL_SPEED = 1; //!< points per update that the pit moves up
+constexpr int RAISE_SPEED = 15; //!< pit speed when raising the stack (max speed)
+constexpr int INTRO_TIME = 20; // number of ticks for intro to game round
+constexpr int SWAP_TIME = 6; //!< number of ticks to swap two blocks
+constexpr int BREAK_TIME = 30; //!< number of ticks for a block to break
+constexpr int DISSOLVE_TIME = 30; //!< number of ticks for a garbage brick to dissolve
+constexpr int LAND_TIME = 20; //!< number of ticks in an object’s landing state
+constexpr int RECOVERY_TIME = 50; //!< number of ticks in which scrolling stops after quality match
+constexpr int PANIC_TIME = 90; //!< number of ticks until game over when the pit is full
+constexpr int NOONE = -1; //!< not-a player id
+
+// ================================================
+// Enumeration types and conversions
 // ================================================
 
 /**
@@ -138,6 +169,23 @@ const char* button_action_to_string(ButtonAction action) noexcept;
  */
 ButtonAction string_to_button_action(const std::string& action_string);
 
+/**
+ * The color palette of blocks.
+ * FAKE blocks exist only as placeholders for swapping with spaces.
+ */
+enum class Color { FAKE, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
+
+/**
+ * Return the string representation of the @c Color.
+ */
+std::string color_to_string(Color color) noexcept;
+
+/**
+ * Return the corresponding @c Color for the string representation.
+ * @throw GameException if the string is not recognized.
+ */
+Color string_to_color(const std::string& source);
+
 // ================================================
 // Elemental utility structures
 // ================================================
@@ -181,67 +229,16 @@ std::ostream& operator<<(std::ostream& stream, RowCol rc);
 /**
  * Holds one button input and the number of the player who pressed it.
  */
-struct ControllerInput
+struct ControllerAction
 {
 	int player; // 0-based player index
 	Button button;
 	ButtonAction action;
 };
 
-/**
- * Holds one in-game action and the number of the player who pressed it.
- */
-struct GameInput
-{
-	static const long TIME_ASAP = -1; //!< this input should be part of the next update
-
-	long game_time;      //!< time when this input takes effect
-	int player;          //!< 0-based player index
-	GameButton button;
-	ButtonAction action;
-
-	/**
-	 * Since @c GameInputs frequently need to be sent over the network or stored
-	 * in a replay file, they have a canonical string representation.
-	 */
-	std::string to_string() const;
-
-	/**
-	 * Return the @c GameInput from the string representation.
-	 * @throw GameException if the string is not recognized.
-	 */
-	static GameInput from_string(std::string input_string);
-};
-
 // ================================================
-// Application constants
-// ================================================
-
-constexpr int TPS = 30; // fixed number of logic ticks per second (game speed)
-constexpr long CHECKPOINT_INTERVAL = 1 * TPS; //!< time between checkpoints for journal
-constexpr size_t MAX_CLIENTS = 8; //!< maximum number of networked players
-constexpr uint16_t DEFAULT_PORT = 2414; //!< network port for connections
-constexpr uint32_t CONNECT_TIMEOUT = 5000; //!< peer to server connection time limit
-constexpr uint8_t MESSAGE_CHANNEL = 1; //!< network communication channel for gameplay messages
-
-// Gameplay constants
-constexpr int PIT_COLS = 6; //!< number of blocks that fit in a pit next to each other
-constexpr int PIT_ROWS = 10; //!< number of blocks that fit in a pit on top of each other
-constexpr int ROW_HEIGHT = 200; //!< gameplay height of a row; determines scroll speed etc.
-constexpr int FALL_SPEED = 35; //!< points per update that a falling block moves down
-constexpr int SCROLL_SPEED = 1; //!< points per update that the pit moves up
-constexpr int RAISE_SPEED = 15; //!< pit speed when raising the stack (max speed)
-constexpr int INTRO_TIME = 20; // number of ticks for intro to game round
-constexpr int SWAP_TIME = 6; //!< number of ticks to swap two blocks
-constexpr int BREAK_TIME = 30; //!< number of ticks for a block to break
-constexpr int DISSOLVE_TIME = 30; //!< number of ticks for a garbage brick to dissolve
-constexpr int LAND_TIME = 20; //!< number of ticks in an object’s landing state
-constexpr int RECOVERY_TIME = 50; //!< number of ticks in which scrolling stops after quality match
-constexpr int PANIC_TIME = 90; //!< number of ticks until game over when the pit is full
-constexpr int NOONE = -1; //!< not-a player id
-
 // Presentation constants (graphics, animation, sounds)
-constexpr const char* APP_NAME = "shitbrix";
+// ================================================
 constexpr int FPS = 60; //!< aspired-to number of drawn and displayed frames per second
 constexpr int AUDIO_SAMPLES = 4096;
 

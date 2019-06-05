@@ -88,7 +88,7 @@ void MenuScreen::draw(float dt)
 	m_draw.draw(dt);
 }
 
-void MenuScreen::input(ControllerInput cinput)
+void MenuScreen::input(ControllerAction cinput)
 {
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
@@ -154,7 +154,7 @@ void GameScreen::stop()
 	autorecord_replay(m_client->gamedata().journal);
 }
 
-void GameScreen::input(ControllerInput cinput)
+void GameScreen::input(ControllerAction cinput)
 {
 	// Generally, inputs to the game screen are sent to the network through
 	// the client object.
@@ -171,13 +171,13 @@ void GameScreen::input(ControllerInput cinput)
 		case Button::B:
 		{
 			// Forward game input to the network (or other input handler).
-			// GameInput arrives in the m_phase only after a round trip through
+			// PlayerInput arrives in the m_phase only after a round trip through
 			// the Journal, which consists of server-approved inputs.
-			std::optional<GameInput> oinput = controller_to_game(cinput);
+			std::optional<PlayerInput> oinput = controller_to_input(cinput);
 			if(oinput.has_value()) {
 				// TODO: network should assign the actual input time
 				oinput->game_time = m_time + 1; // input applies to next frame
-				m_client->send_input(oinput.value());
+				m_client->send_input(Input{oinput.value()});
 			}
 		}
 			break;
@@ -350,7 +350,7 @@ void ServerScreen::update()
 {
 }
 
-void ServerScreen::input(ControllerInput cinput)
+void ServerScreen::input(ControllerAction cinput)
 {
 	if(Button::QUIT == cinput.button)
 		m_done = true;

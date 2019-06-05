@@ -84,7 +84,7 @@ int contents_mismatch(const Pit& pit, const char* content_str)
 TEST(BlockTest, Fall)
 {
 	// setup
-	Block block(Block::Color::BLUE, RowCol{3,3}, Block::State::REST);
+	Block block(Color::BLUE, RowCol{3,3}, Block::State::REST);
 	block.set_state(Block::State::FALL, ROW_HEIGHT, FALL_SPEED);
 
 	const int TICKS = 3; // block updates in this test
@@ -104,8 +104,8 @@ TEST_F(StageTest, SpawnBlock)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{3, 2};
-	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
-	auto& green_block = pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
+	auto& red_block = pit->spawn_block(Color::RED, red_rc, Block::State::REST);
+	auto& green_block = pit->spawn_block(Color::GREEN, green_rc, Block::State::REST);
 
 	EXPECT_TRUE(pit->at(red_rc));
 	EXPECT_TRUE(pit->at(green_rc));
@@ -129,8 +129,8 @@ TEST_F(StageTest, SpawnBlockOutOfBounds)
 {
 	RowCol red_rc{1, -1};
 	RowCol green_rc{3, 6};
-	EXPECT_THROW(pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST), EnforceException);
-	EXPECT_THROW(pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST), EnforceException);
+	EXPECT_THROW(pit->spawn_block(Color::RED, red_rc, Block::State::REST), EnforceException);
+	EXPECT_THROW(pit->spawn_block(Color::GREEN, green_rc, Block::State::REST), EnforceException);
 }
 
 /**
@@ -140,8 +140,8 @@ TEST_F(StageTest, SpawnGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = spawn_garbage(*pit, combo_rc, 3, 1);
+	auto& chain_gb = spawn_garbage(*pit, chain_rc, 6, 2);
 
 	EXPECT_TRUE(pit->at(combo_rc));
 	EXPECT_TRUE(pit->at(chain_rc));
@@ -165,8 +165,8 @@ TEST_F(StageTest, SpawnGarbageOutOfBounds)
 {
 	RowCol combo_rc{1, -1};
 	RowCol chain_rc{3, 1};
-	EXPECT_THROW(pit->spawn_garbage(combo_rc, 3, 1), EnforceException);
-	EXPECT_THROW(pit->spawn_garbage(chain_rc, 6, 2), EnforceException);
+	EXPECT_THROW(spawn_garbage(*pit, combo_rc, 3, 1), EnforceException);
+	EXPECT_THROW(spawn_garbage(*pit, chain_rc, 6, 2), EnforceException);
 }
 
 /**
@@ -176,8 +176,8 @@ TEST_F(StageTest, CanFallBlockYes)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{2, 2};
-	pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
-	auto& green_block = pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
+	pit->spawn_block(Color::RED, red_rc, Block::State::REST);
+	auto& green_block = pit->spawn_block(Color::GREEN, green_rc, Block::State::REST);
 
 	EXPECT_TRUE(pit->can_fall(green_block));
 }
@@ -189,8 +189,8 @@ TEST_F(StageTest, CanFallBlockNo)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{2, 2};
-	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
+	auto& red_block = pit->spawn_block(Color::RED, red_rc, Block::State::REST);
+	pit->spawn_block(Color::GREEN, green_rc, Block::State::REST);
 
 	EXPECT_FALSE(pit->can_fall(red_block));
 }
@@ -202,8 +202,8 @@ TEST_F(StageTest, CanFallGarbageYes)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = spawn_garbage(*pit, combo_rc, 3, 1);
+	spawn_garbage(*pit, chain_rc, 6, 2);
 
 	EXPECT_TRUE(pit->can_fall(combo_gb));
 }
@@ -215,8 +215,8 @@ TEST_F(StageTest, CanFallGarbageNo)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	spawn_garbage(*pit, combo_rc, 3, 1);
+	auto& chain_gb = spawn_garbage(*pit, chain_rc, 6, 2);
 
 	EXPECT_FALSE(pit->can_fall(chain_gb));
 }
@@ -228,8 +228,8 @@ TEST_F(StageTest, FallBlock)
 {
 	RowCol red_rc{1, 2};
 	RowCol green_rc{3, 2};
-	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
+	auto& red_block = pit->spawn_block(Color::RED, red_rc, Block::State::REST);
+	pit->spawn_block(Color::GREEN, green_rc, Block::State::REST);
 
 	pit->fall(red_block);
 
@@ -255,8 +255,8 @@ TEST_F(StageTest, FallBlockFail)
 {
 	RowCol red_rc{2, 2};
 	RowCol green_rc{3, 2};
-	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
+	auto& red_block = pit->spawn_block(Color::RED, red_rc, Block::State::REST);
+	pit->spawn_block(Color::GREEN, green_rc, Block::State::REST);
 
 	EXPECT_THROW(pit->fall(red_block), LogicException);
 }
@@ -268,8 +268,8 @@ TEST_F(StageTest, FallGarbage)
 {
 	RowCol combo_rc{4, 2};
 	RowCol chain_rc{1, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	spawn_garbage(*pit, combo_rc, 3, 1);
+	auto& chain_gb = spawn_garbage(*pit, chain_rc, 6, 2);
 
 	pit->fall(chain_gb);
 
@@ -295,8 +295,8 @@ TEST_F(StageTest, FallGarbageFail)
 {
 	RowCol combo_rc{3, 2};
 	RowCol chain_rc{1, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	spawn_garbage(*pit, combo_rc, 3, 1);
+	auto& chain_gb = spawn_garbage(*pit, chain_rc, 6, 2);
 
 	EXPECT_THROW(pit->fall(chain_gb), LogicException);
 }
@@ -309,9 +309,9 @@ TEST_F(StageTest, KillBlock)
 	RowCol red_rc{1, 2};
 	RowCol green_rc{3, 2};
 	RowCol yellow_rc{2, 4};
-	auto& red_block = pit->spawn_block(Block::Color::RED, red_rc, Block::State::REST);
-	auto& green_block = pit->spawn_block(Block::Color::GREEN, green_rc, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, yellow_rc, Block::State::REST);
+	auto& red_block = pit->spawn_block(Color::RED, red_rc, Block::State::REST);
+	auto& green_block = pit->spawn_block(Color::GREEN, green_rc, Block::State::REST);
+	pit->spawn_block(Color::YELLOW, yellow_rc, Block::State::REST);
 
 	red_block.set_state(Physical::State::DEAD);
 	green_block.set_state(Physical::State::DEAD);
@@ -337,8 +337,8 @@ TEST_F(StageTest, ShrinkGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	pit->spawn_garbage(combo_rc, 3, 1);
-	auto& chain_gb = pit->spawn_garbage(chain_rc, 6, 2);
+	spawn_garbage(*pit, combo_rc, 3, 1);
+	auto& chain_gb = spawn_garbage(*pit, chain_rc, 6, 2);
 
 	pit->shrink(chain_gb);
 
@@ -362,8 +362,8 @@ TEST_F(StageTest, KillGarbage)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = spawn_garbage(*pit, combo_rc, 3, 1);
+	spawn_garbage(*pit, chain_rc, 6, 2);
 
 	pit->shrink(combo_gb);
 
@@ -386,8 +386,8 @@ TEST_F(StageTest, KillAndErase)
 {
 	RowCol combo_rc{1, 2};
 	RowCol chain_rc{3, 0};
-	auto& combo_gb = pit->spawn_garbage(combo_rc, 3, 1);
-	pit->spawn_garbage(chain_rc, 6, 2);
+	auto& combo_gb = spawn_garbage(*pit, combo_rc, 3, 1);
+	spawn_garbage(*pit, chain_rc, 6, 2);
 
 	pit->shrink(combo_gb);
 
