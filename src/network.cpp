@@ -1,5 +1,6 @@
 #include "network.hpp"
 #include "replay.hpp"
+#include "arbiter.hpp"
 #include <sstream>
 #include <cassert>
 #include "error.hpp"
@@ -399,32 +400,11 @@ std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
 }
 
 
-GameData::GameData(GameState state, Journal journal) :
-	dials(), state(state), rules(), journal(journal)
+GameData::GameData(std::unique_ptr<GameState> state, std::unique_ptr<Journal> journal,
+	               std::unique_ptr<IArbiter> arbiter) :
+	dials(), state(move(state)), journal(move(journal)), rules(move(arbiter))
 {
-	rules.block_director.set_state(this->state);
-	rules.block_director.set_handler(rules.event_hub);
-}
-
-GameData::GameData(GameData&& rhs) :
-	dials(rhs.dials),
-	state(std::move(rhs.state)),
-	rules(),
-	journal(std::move(rhs.journal))
-{
-	rules.block_director.set_state(this->state);
-	rules.block_director.set_handler(rules.event_hub);
-}
-
-GameData& GameData::operator=(GameData&& rhs)
-{
-	dials = rhs.dials;
-	state = std::move(rhs.state);
-	rules = Rules();
-	rules.block_director.set_state(this->state);
-	rules.block_director.set_handler(rules.event_hub);
-	journal = std::move(rhs.journal);
-	return *this;
+	rules.block_director.set_state(*this->state);
 }
 
 
@@ -574,11 +554,30 @@ GameData make_gamedata(GameMeta meta)
 {
 	Log::info("Initialize new game for %d players, seed=%u.", meta.players, meta.seed);
 
-	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
-	GameState state{meta, color_factory};
-	Journal journal{meta, state};
+	// [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
+	// IArbiter arbiter = // some arbiter instead of RandomColorSupplier
+	auto state = std::make_unique<GameState>(meta);
+	auto journal = std::make_unique<Journal>(meta, *state);
 
-	return GameData(std::move(state), std::move(journal));
+	return GameData(move(state), move(journal));
+}
+
+/**
+ * Construct and wire all the objects that we need to run
+ * a local game session from the meta-information.
+ */
+GameData make_local_gamedata(GameMeta meta)
+{
+	Log::info("Initialize new local game for %d players, seed=%u.", meta.players, meta.seed);
+
+	// [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
+	// IArbiter arbiter = // some arbiter instead of RandomColorSupplier
+	auto state = std::make_unique<GameState>(meta);
+	auto journal = std::make_unique<Journal>(meta, *state);
+	auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
+	auto arbiter = std::make_unique<LocalArbiter>(*state, *journal, move(color_supplier));
+
+	return GameData(move(state), move(journal), move(arbiter));
 }
 
 }
@@ -637,7 +636,7 @@ void BasicClient::handle_message(const Message& message)
 		if(!m_gamedata.has_value())
 			throw GameException("Got input from server before the game is running.");
 
-		m_gamedata->journal.add_input(Input(message.data));
+		m_gamedata->journal->add_input(Input(message.data));
 	}
 		break;
 
@@ -674,7 +673,7 @@ void BasicClient::handle_message(const Message& message)
 			throw GameException("Got gameend from server before the game is running.");
 
 		const int winner = std::stoi(message.data);
-		m_gamedata->journal.set_winner(winner);
+		m_gamedata->journal->set_winner(winner);
 	}
 		break;
 
@@ -714,7 +713,7 @@ void LocalClient::game_start()
 	if(m_gamedata.has_value())
 		return; // do not prepare twice
 
-	m_gamedata = make_gamedata(*m_meta);
+	m_gamedata = make_local_gamedata(*m_meta);
 }
 
 void LocalClient::send_input(Input input)
@@ -722,7 +721,7 @@ void LocalClient::send_input(Input input)
 	if(!m_gamedata.has_value())
 		throw GameException("Got input before the game is running.");
 
-	m_gamedata->journal.add_input(std::move(input));
+	m_gamedata->journal->add_input(std::move(input));
 }
 
 void LocalClient::send_reset(GameMeta meta)
@@ -730,7 +729,7 @@ void LocalClient::send_reset(GameMeta meta)
 	m_meta = meta;
 	m_gamedata.reset(); // new meta info invalidates game state and history
 	m_ready = 1;
-	m_gamedata = make_gamedata(*m_meta);
+	m_gamedata = make_local_gamedata(*m_meta);
 }
 
 void LocalClient::send_speed(int speed)
@@ -743,7 +742,7 @@ void LocalClient::poll()
 	// game over check
 	if(is_ingame() && m_gamedata->rules.block_director.over()) {
 		const int winner = m_gamedata->rules.block_director.winner();
-		m_gamedata->journal.set_winner(winner);
+		m_gamedata->journal->set_winner(winner);
 		m_ready = 0;
 	}
 }
@@ -797,7 +796,7 @@ void BasicServer::handle_message(const Message& message)
 
 		if(!is_ingame())
 			throw GameException("Got input from client before the game is running.");
-		m_gamedata->journal.add_input(input);
+		m_gamedata->journal->add_input(input);
 
 		const Message out_msg{
 			message.sender,
@@ -934,14 +933,14 @@ void ServerThread::main_loop()
 		if(in_game && tick > INTRO_TIME) {
 			const long game_time = tick - INTRO_TIME;
 			GameData& gamedata = m_server->gamedata();
-			synchronurse(gamedata.state, game_time, gamedata.journal, gamedata.rules);
+			synchronurse(*gamedata.state, game_time, *gamedata.journal, gamedata.rules);
 
 			// game over check
 			if(gamedata.rules.block_director.over()) {
 				const int winner = gamedata.rules.block_director.winner();
-				gamedata.journal.set_winner(winner);
+				gamedata.journal->set_winner(winner);
 				m_server->send_gameend(winner);
-				replay_write(gamedata.journal);
+				replay_write(*gamedata.journal);
 				in_game = false;
 			}
 		}

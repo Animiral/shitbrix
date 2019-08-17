@@ -18,23 +18,6 @@ void configure_context_for_testing();
  */
 GameData make_gamedata_for_testing();
 
-/**
- * A block color supplier testing that simply rotates through colors.
- */
-class RainbowColorSupplier : public IColorSupplier
-{
-
-public:
-
-	virtual Color next_spawn() noexcept override;
-	virtual Color next_emerge() noexcept override { return next_spawn(); }
-	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RainbowColorSupplier>(*this); }
-
-private:
-
-	Color m_color;
-
-};
 
 // helper function for generating non-random loot for garbage bricks
 std::vector<Color> rainbow_loot(size_t count);

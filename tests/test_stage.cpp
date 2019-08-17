@@ -17,7 +17,7 @@ protected:
 		configure_context_for_testing();
 		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		state = &gamedata->state;
+		state = &*gamedata->state;
 		pit = state->pit().at(0).get();
 		stage.reset(new Stage(*state));
 		indicator = &stage->sobs().at(0).bonus;

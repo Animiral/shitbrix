@@ -3,9 +3,37 @@
 #include "replay.hpp"
 #include <cassert>
 
-LocalArbiter::LocalArbiter(Journal& journal, GameState& state,
+
+IColorSupplier::~IColorSupplier() = default;
+
+
+RandomColorSupplier::RandomColorSupplier(unsigned seed, int player)
+	: /* m_record(), */ m_generator(seed * (player + 1))
+{
+}
+
+Color RandomColorSupplier::next_spawn() noexcept
+{
+	// For the moment, this implementation simply generates random colors without
+	// any interference. In the future, it must be built not to generate blocks
+	// such that they already form a match when they arrive in the pit.
+
+	static std::uniform_int_distribution<int> color_distribution { 1, 6 };
+	Color color = static_cast<Color>(color_distribution(m_generator));
+	//m_record.push_back(color); // required later
+	return color;
+}
+
+Color RandomColorSupplier::next_emerge() noexcept
+{
+	return next_spawn();
+}
+
+IArbiter::~IArbiter() noexcept = default;
+
+LocalArbiter::LocalArbiter(GameState& state, Journal& journal,
 	std::unique_ptr<IColorSupplier> color_supplier)
-	: m_journal(&journal), m_state(&state),
+	: m_state(&state), m_journal(&journal),
 	m_color_supplier(std::move(color_supplier))
 {}
 

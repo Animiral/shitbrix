@@ -19,9 +19,9 @@ public:
 		configure_context_for_testing();
 
 		meta = GameMeta{2 /* players */, 4711 /* seed */};
-		// TODO: Remove block generator component from Journal.
-		ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };
-		state = std::make_unique<GameState>(meta, color_factory);
+		// TODO: Add an Arbiter to the game data where the color supplier used to be
+		// ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };
+		state = std::make_unique<GameState>(meta);
 		journal = std::make_unique<Journal>(meta, GameState(*state));
 	}
 

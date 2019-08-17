@@ -41,7 +41,7 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu()
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
 	enforce(m_client);
-	GameState& state = m_client->gamedata().state;
+	GameState& state = *m_client->gamedata().state;
 	auto stage = std::make_unique<Stage>(state);
 	auto draw = std::make_unique<DrawGame>(*stage);
 	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), *m_client);
@@ -151,7 +151,7 @@ void GameScreen::draw(float dt)
 
 void GameScreen::stop()
 {
-	autorecord_replay(m_client->gamedata().journal);
+	autorecord_replay(*m_client->gamedata().journal);
 }
 
 void GameScreen::input(ControllerAction cinput)
@@ -206,7 +206,7 @@ void GameScreen::input(ControllerAction cinput)
 			client_send_reset(*m_client);
 
 			// preserve the state and replay before it is gone
-			autorecord_replay(m_client->gamedata().journal);
+			autorecord_replay(*m_client->gamedata().journal);
 		}
 			break;
 
@@ -285,14 +285,14 @@ void GameScreen::update_intro()
 
 	if(INTRO_TIME <= m_time) {
 		m_phase = Phase::PLAY;
-		m_time = m_client->gamedata().state.game_time();
+		m_time = m_client->gamedata().state->game_time();
 	}
 }
 
 void GameScreen::update_play()
 {
 	// detect game over
-	Journal& journal = m_client->gamedata().journal;
+	Journal& journal = *m_client->gamedata().journal;
 	const int winner = journal.meta().winner;
 	if(NOONE != winner) {
 		// display winner
@@ -311,13 +311,13 @@ void GameScreen::update_play()
 
 	// run game logic until the target time, considering even retcon inputs
 	GameData& gamedata = m_client->gamedata();
-	synchronurse(gamedata.state, m_time, gamedata.journal, gamedata.rules);
+	synchronurse(*gamedata.state, m_time, *gamedata.journal, gamedata.rules);
 }
 
 void GameScreen::start()
 {
 	GameData& gamedata = m_client->gamedata();
-	const GameMeta meta = gamedata.journal.meta();
+	const GameMeta meta = gamedata.journal->meta();
 
 	m_phase = Phase::INTRO;
 	m_time = 0;

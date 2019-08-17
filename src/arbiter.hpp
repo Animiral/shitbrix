@@ -4,7 +4,74 @@
 
 class Journal;
 class GameState;
-class IColorSupplier;
+
+/**
+ * Abstract representation of a generator of block colors.
+ * These colors (or, in the future, other properties) are used to spawn blocks
+ * into the game with desirable guarantees, such as not immediately matching
+ * from spawn.
+ * The live implementation should be based on random rolls. We keep it abstract
+ * to allow for non-random implementations for debugging and testing.
+ */
+class IColorSupplier
+{
+
+public:
+
+	virtual ~IColorSupplier() = 0;
+
+	/**
+	 * Return the next color of a block coming out on the stack from below.
+	 * TODO: this function must generate blocks not to auto-match instantly.
+	 */
+	virtual Color next_spawn() noexcept = 0;
+
+	/**
+	 * Return the next color of a block emerging as a result of dissolving garbage.
+	 * TODO: this function must not generate three same-colored blocks in a row.
+	 */
+	virtual Color next_emerge() noexcept = 0;
+
+	/**
+	 * Suppliers can copy themselves.
+	 */
+	virtual std::unique_ptr<IColorSupplier> clone() const = 0;
+
+};
+
+/**
+ * Maintains a sequence of block colors spawned deterministically out of an
+ * initial seed. This allows us to see what color blocks to introduce next,
+ * as well as reconstruct the whole history of spawned block colors for
+ * replay and netplay purposes.
+ */
+class RandomColorSupplier : public IColorSupplier
+{
+
+public:
+
+	/**
+	 * Construct the supplier with the given seed, which deterministically produces
+	 * the same block colors every time.
+	 * The blocks are mixed up by the given player number.
+	 */
+	explicit RandomColorSupplier(unsigned seed, int player);
+
+	virtual Color next_spawn() noexcept override;
+	virtual Color next_emerge() noexcept override;
+	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RandomColorSupplier>(*this); }
+
+private:
+
+	//std::vector<Color> m_record; // required later for rules refinement
+	std::minstd_rand m_generator;
+
+};
+
+/**
+ * This factory function creates a color supplier based on the given player number.
+ */
+using ColorSupplierFactory = std::function<std::unique_ptr<IColorSupplier>(int)>;
 
 /**
  * The Arbiter is a special rules component which depends on a random number
@@ -26,10 +93,12 @@ class IColorSupplier;
  * The Arbiter takes its decisions as a reaction to the demand of the game.
  * It is therefore implemented as an event observer.
  */
-class IArbiter : evt::IEventObserver
+class IArbiter : public evt::IEventObserver
 {
 
 public:
+
+	virtual ~IArbiter() noexcept =0;
 
 	virtual void fire(evt::Match match) override =0;
 	virtual void fire(evt::Chain chain) override =0;
@@ -43,12 +112,12 @@ public:
  * directly to the journal.
  * This implementation does not consider a server or client perspective.
  */
-class LocalArbiter : IArbiter
+class LocalArbiter : public IArbiter
 {
 
 public:
 
-	explicit LocalArbiter(Journal& journal, GameState& state,
+	explicit LocalArbiter(GameState& state, Journal& journal,
 		std::unique_ptr<IColorSupplier> color_supplier);
 
 	virtual void fire(evt::Match match) override;
@@ -57,8 +126,8 @@ public:
 
 private:
 
-	Journal* m_journal; //!< active game record
 	GameState* m_state; //!< active game state
+	Journal* m_journal; //!< active game record
 	std::unique_ptr<IColorSupplier> m_color_supplier; //!< rng component
 
 	/**

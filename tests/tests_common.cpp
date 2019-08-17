@@ -3,6 +3,7 @@
  */
 
 #include "tests_common.hpp"
+#include "arbiter.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
 #include "sdl_helper.hpp"
@@ -39,18 +40,11 @@ GameData make_gamedata_for_testing()
 {
 	// we uniformly use a 2-player deterministic play field
 	GameMeta meta{2, 0};
-	ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };
-	GameState state{meta, color_factory};
-	Journal journal{meta, state};
+	// TODO: add a LocalArbiter
+	auto state = std::make_unique<GameState>(meta);
+	auto journal = std::make_unique<Journal>(meta, *state);
 
-	return GameData{std::move(state), std::move(journal)};
-}
-
-Color RainbowColorSupplier::next_spawn() noexcept
-{
-	Color previous = m_color;
-	m_color = static_cast<Color>((static_cast<int>(m_color) + 1 - 1) % 6 + 1);
-	return previous;
+	return GameData{move(state), move(journal)};
 }
 
 std::vector<Color> rainbow_loot(size_t count)

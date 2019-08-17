@@ -40,7 +40,7 @@ protected:
 		configure_context_for_testing();
 		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		pit = gamedata->state.pit().at(0).get();
+		pit = gamedata->state->pit().at(0).get();
 		block_director = &gamedata->rules.block_director;
 		gamedata->rules.event_hub.subscribe(counter);
 	}
@@ -50,8 +50,8 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		assert(0 < ticks);
-		ticks += gamedata->state.game_time();
-		synchronurse(gamedata->state, ticks, gamedata->journal, gamedata->rules);
+		ticks += gamedata->state->game_time();
+		synchronurse(*gamedata->state, ticks, *gamedata->journal, gamedata->rules);
 	}
 
 	std::unique_ptr<GameData> gamedata;
@@ -66,8 +66,8 @@ protected:
  */
 TEST_F(GameEventTest, CursorMoves)
 {
-	gamedata->journal.add_input(Input{PlayerInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN}});
-	gamedata->journal.add_input(Input{PlayerInput{2, 0, GameButton::LEFT, ButtonAction::DOWN}});
+	gamedata->journal->add_input(Input{PlayerInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN}});
+	gamedata->journal->add_input(Input{PlayerInput{2, 0, GameButton::LEFT, ButtonAction::DOWN}});
 
 	run_game_ticks(1);
 	EXPECT_EQ(1, counter.countCursorMoves);

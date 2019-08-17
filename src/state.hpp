@@ -248,72 +248,6 @@ private:
 
 };
 
-/**
- * Abstract representation of a generator of block colors.
- * These colors (or, in the future, other properties) are used to spawn blocks
- * into the game with desirable guarantees, such as not immediately matching
- * from spawn.
- */
-class IColorSupplier
-{
-
-public:
-
-	virtual ~IColorSupplier() = 0;
-
-	/**
-	 * Return the next color of a block coming out on the stack from below.
-	 * TODO: this function must generate blocks not to auto-match instantly.
-	 */
-	virtual Color next_spawn() noexcept = 0;
-
-	/**
-	 * Return the next color of a block emerging as a result of dissolving garbage.
-	 * TODO: this function must not generate three same-colored blocks in a row.
-	 */
-	virtual Color next_emerge() noexcept = 0;
-
-	/**
-	 * Suppliers can copy themselves.
-	 */
-	virtual std::unique_ptr<IColorSupplier> clone() const = 0;
-
-};
-
-/**
- * Maintains a sequence of block colors spawned deterministically out of an
- * initial seed. This allows us to see what color blocks to introduce next,
- * as well as reconstruct the whole history of spawned block colors for
- * replay and netplay purposes.
- */
-class RandomColorSupplier : public IColorSupplier
-{
-
-public:
-
-	/**
-	 * Construct the supplier with the given seed, which deterministically produces
-	 * the same block colors every time.
-	 * The blocks are mixed up by the given player number.
-	 */
-	explicit RandomColorSupplier(unsigned seed, int player);
-
-	virtual Color next_spawn() noexcept override;
-	virtual Color next_emerge() noexcept override;
-	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RandomColorSupplier>(*this); }
-
-private:
-
-	//std::vector<Color> m_record; // required later for rules refinement
-	std::minstd_rand m_generator;
-
-};
-
-/**
- * This factory function creates a color supplier based on the given player number.
- */
-using ColorSupplierFactory = std::function<std::unique_ptr<IColorSupplier>(int)>;
-
 
 /**
  * As part of the game data in the Pit, the Cursor is the player's input location.
@@ -596,7 +530,7 @@ class GameState
 
 public:
 
-	explicit GameState(GameMeta meta, ColorSupplierFactory& color_factory);
+	explicit GameState(GameMeta meta);
 	GameState(const GameState& rhs);
 	GameState(GameState&& rhs);
 

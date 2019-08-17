@@ -158,32 +158,6 @@ int Garbage::shrink() noexcept
 }
 
 
-IColorSupplier::~IColorSupplier() = default;
-
-
-RandomColorSupplier::RandomColorSupplier(unsigned seed, int player)
-	: /* m_record(), */ m_generator(seed * (player + 1))
-{
-}
-
-Color RandomColorSupplier::next_spawn() noexcept
-{
-	// For the moment, this implementation simply generates random colors without
-	// any interference. In the future, it must be built not to generate blocks
-	// such that they already form a match when they arrive in the pit.
-
-	static std::uniform_int_distribution<int> color_distribution { 1, 6 };
-	Color color = static_cast<Color>(color_distribution(m_generator));
-	//m_record.push_back(color); // required later
-	return color;
-}
-
-Color RandomColorSupplier::next_emerge() noexcept
-{
-	return next_spawn();
-}
-
-
 Pit::Pit(Point loc) noexcept
 : m_loc(loc),
   m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, 0},
@@ -584,7 +558,7 @@ Point layout_pit(int players, int index)
 
 }
 
-GameState::GameState(GameMeta meta, ColorSupplierFactory& color_factory)
+GameState::GameState(GameMeta meta)
 : m_game_time(0)
 {
 	static const RowCol CURSOR_DEFAULT{-PIT_ROWS / 2, PIT_COLS / 2 - 1};

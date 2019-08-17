@@ -12,6 +12,7 @@ struct PlayerInput;
 struct SpawnBlockInput;
 struct SpawnGarbageInput;
 class Journal;
+class IArbiter;
 
 /**
  * The Director implements high-level game-logical interactions between
@@ -121,8 +122,14 @@ private:
  */
 struct Rules
 {
+	explicit Rules(std::unique_ptr<IArbiter> arbiter = {});
+	explicit Rules(Rules&& ) noexcept;
+	~Rules() noexcept; // cannot auto-generate because of incomplete arbiter ptr
+	Rules& operator=(Rules&& ) noexcept;
+
 	BlockDirector block_director; //!< game rules implementation
 	evt::GameEventHub event_hub; //!< subscription service for game events
+	std::unique_ptr<IArbiter> arbiter; //!< centralized decision component
 };
 
 /**

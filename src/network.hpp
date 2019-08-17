@@ -360,16 +360,17 @@ private:
  */
 struct GameData
 {
-	explicit GameData(GameState state, Journal journal);
+	explicit GameData(std::unique_ptr<GameState> state, std::unique_ptr<Journal> journal,
+	                  std::unique_ptr<IArbiter> arbiter = {});
 	GameData(const GameData& rhs) = delete;
-	GameData(GameData&& rhs);
+	GameData(GameData&& rhs) = default;
 	GameData& operator=(GameData& ) = delete;
-	GameData& operator=(GameData&& rhs);
+	GameData& operator=(GameData&& rhs) = default;
 
 	Dials dials; //!< Extra-journal control settings for the current game session
-	GameState state; //!< Active and always current game state container
+	std::unique_ptr<GameState> state; //!< Active and always current game state container
+	std::unique_ptr<Journal> journal; //!< Game events and checkpoints record
 	Rules rules; //!< Game state manipulation routines
-	Journal journal; //!< Game events and checkpoints record
 };
 
 /**

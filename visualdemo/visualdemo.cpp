@@ -1,6 +1,7 @@
 #include "visualdemo.hpp"
 #include "stage.hpp"
 #include "configuration.hpp"
+#include "arbiter.hpp"
 #include "error.hpp"
 #include <cassert>
 #include <sstream>
@@ -304,8 +305,8 @@ GameState VisualDemo::run_and_checkpoint(long target_time)
 std::unique_ptr<VisualDemo> construct_demo()
 {
 	GameMeta meta{2, 0, NOONE};
-	ColorSupplierFactory color_factory = [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
-	return std::make_unique<VisualDemo>(GameState{meta, color_factory});
+	// TODO: Introduce a LocalArbiter to the demo
+	return std::make_unique<VisualDemo>(GameState{meta});
 }
 
 

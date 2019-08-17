@@ -4,6 +4,7 @@
 
 #include "director.hpp"
 #include "logic.hpp"
+#include "arbiter.hpp"
 #include "replay.hpp"
 #include "error.hpp"
 #include <cassert>
@@ -273,6 +274,35 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 
 	pit.spawn_garbage(RowCol{spawn_row, 0}, columns, rows, move(rainbow));
 }
+
+
+Rules::Rules(std::unique_ptr<IArbiter> arb)
+	: arbiter(move(arb))
+{
+	block_director.set_handler(event_hub);
+
+	if(arbiter)
+		event_hub.subscribe(*arbiter);
+}
+
+Rules::Rules(Rules&& rhs) noexcept
+	: block_director(std::move(rhs.block_director)),
+	event_hub(std::move(rhs.event_hub)),
+	arbiter(move(rhs.arbiter))
+{
+	block_director.set_handler(event_hub);
+}
+
+Rules& Rules::operator=(Rules&& rhs) noexcept
+{
+	block_director = std::move(rhs.block_director);
+	event_hub = std::move(rhs.event_hub);
+	arbiter = move(rhs.arbiter);
+	block_director.set_handler(event_hub);
+	return *this;
+}
+
+Rules::~Rules() noexcept = default;
 
 
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
