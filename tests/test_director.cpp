@@ -37,6 +37,7 @@ protected:
 
 		state = &*gamedata->state;
 		pit = state->pit().at(0).get();
+		prefill_pit(*pit);
 		director = &gamedata->rules.block_director;
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready

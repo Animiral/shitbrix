@@ -69,7 +69,7 @@ bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)
 	director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	if(Block* block = pit.block_at(rc))
-		return Block::State::SWAP_RIGHT == block->block_state();
+		return Block::State::SWAP_LEFT == block->block_state();
 	else
 		return false;
 }
