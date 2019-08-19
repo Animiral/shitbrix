@@ -69,11 +69,6 @@ private:
 };
 
 /**
- * This factory function creates a color supplier based on the given player number.
- */
-using ColorSupplierFactory = std::function<std::unique_ptr<IColorSupplier>(int)>;
-
-/**
  * The Arbiter is a special rules component which depends on a random number
  * generator. In contrast to the regular rules, which any client running the
  * game can execute, the Arbiter decisions are subject to these features:
