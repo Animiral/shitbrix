@@ -73,3 +73,12 @@ bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)
 	else
 		return false;
 }
+
+void prefill_pit(Pit& pit)
+{
+	for(int c = 0; c < PIT_COLS; c++)
+		for(int r = 1; r <= 3; r++) {
+			Color color = (c + r) % 2 ? Color::PURPLE : Color::ORANGE;
+			pit.spawn_block(color, {r, c}, Block::State::PREVIEW);
+		}
+}

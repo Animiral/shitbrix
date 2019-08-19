@@ -41,6 +41,7 @@ protected:
 		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
 		pit = gamedata->state->pit().at(0).get();
+		prefill_pit(*pit);
 		block_director = &gamedata->rules.block_director;
 		gamedata->rules.event_hub.subscribe(counter);
 	}

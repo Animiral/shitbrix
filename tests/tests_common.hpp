@@ -32,3 +32,9 @@ Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows);
  * @return success of the swapping, just like @c BlockDirector::swap.
  */
 bool swap_at(Pit& pit, BlockDirector& director, RowCol rc);
+
+/**
+ * Place @c PURPLE and @c ORANGE blocks into rows 1-3 in the pit in a
+ * checkerboard pattern. This provides a default floor for tests.
+ */
+void prefill_pit(Pit& pit);
