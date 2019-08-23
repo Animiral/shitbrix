@@ -60,14 +60,6 @@ TEST_F(NetworkTest, MessageSerialization)
 	m.data = "50 1 LEFT DOWN";
 	EXPECT_EQ(m.to_string(), "1 2 INPUT 50 1 LEFT DOWN");
 
-	m.type = MsgType::SPAWN_BLOCK;
-	m.data = "2 5 BLUE";
-	EXPECT_EQ(m.to_string(), "1 2 SPAWN_BLOCK 2 5 BLUE");
-
-	m.type = MsgType::SPAWN_GARBAGE;
-	m.data = "1 -3 2 1 YELLOW RED";
-	EXPECT_EQ(m.to_string(), "1 2 SPAWN_GARBAGE 1 -3 2 1 YELLOW RED");
-
 	m.type = MsgType::RETRACT;
 	m.data = "50";
 	EXPECT_EQ(m.to_string(), "1 2 RETRACT 50");
@@ -103,18 +95,6 @@ TEST_F(NetworkTest, MessageSerialization)
 	EXPECT_EQ(m.recipient, 4);
 	EXPECT_EQ(m.type, MsgType::INPUT);
 	EXPECT_EQ(m.data, "50 1 LEFT DOWN");
-
-	m = Message::from_string("3 4 SPAWN_BLOCK 2 5 BLUE");
-	EXPECT_EQ(m.sender, 3);
-	EXPECT_EQ(m.recipient, 4);
-	EXPECT_EQ(m.type, MsgType::SPAWN_BLOCK);
-	EXPECT_EQ(m.data, "2 5 BLUE");
-
-	m = Message::from_string("3 4 SPAWN_GARBAGE 1 -3 2 1 YELLOW RED");
-	EXPECT_EQ(m.sender, 3);
-	EXPECT_EQ(m.recipient, 4);
-	EXPECT_EQ(m.type, MsgType::SPAWN_GARBAGE);
-	EXPECT_EQ(m.data, "1 -3 2 1 YELLOW RED");
 
 	m = Message::from_string("3 4 RETRACT 50");
 	EXPECT_EQ(m.sender, 3);

@@ -13,7 +13,7 @@ namespace
 {
 
 const char* msgtype_string[] =
-{"META", "PLAYER", "INPUT", "SPAWN_BLOCK", "SPAWN_GARBAGE", "RETRACT",
+{"META", "PLAYER", "INPUT", "RETRACT",
  "SPEED", "SYNC", "CLIENTS", "START", "GAMEEND",
  "BYE", "OFFER", "REMOVE", "JOIN", "LIST", "CHECKIN"};
 

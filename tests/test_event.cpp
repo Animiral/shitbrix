@@ -20,6 +20,7 @@ public:
 	virtual void fire(evt::Chain chained) override { last_chain = chained; }
 	virtual void fire(evt::BlockDies died) override { countBlockDies++; }
 	virtual void fire(evt::GarbageDissolves dissolved) override { countGarbageDissolves++; }
+	virtual void fire(evt::Starve starve) override { if(0 == starve.trivia.player) countStarves++; }
 
 	int countCursorMoves = 0;
 	int countSwap = 0;
@@ -27,6 +28,7 @@ public:
 	evt::Chain last_chain{0};
 	int countBlockDies = 0;
 	int countGarbageDissolves = 0;
+	int countStarves = 0;
 
 };
 
@@ -165,6 +167,22 @@ TEST_F(GameEventTest, GarbageDissolves)
 	pit->spawn_garbage(RowCol{-1, 2}, 3, 1, rainbow_loot(3));
 
 	swap_at(*pit, *block_director, RowCol{0, 2});
+
 	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);
 	EXPECT_EQ(1, counter.countGarbageDissolves);
+}
+
+/**
+ * When the Pit is empty below, the Director::update_single() must raise the Starve event.
+ */
+TEST_F(GameEventTest, PitStarves)
+{
+	// the pit is set up to contain blocks in rows 1-3.
+	EXPECT_TRUE(pit->block_at({3,0}));
+
+	run_game_ticks(ROW_HEIGHT * 3 / SCROLL_SPEED - 1);
+	EXPECT_EQ(0, counter.countStarves);
+
+	run_game_ticks(1);
+	EXPECT_EQ(1, counter.countStarves);
 }

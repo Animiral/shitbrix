@@ -4,6 +4,7 @@
 
 class Journal;
 class GameState;
+class ENetServer;
 
 /**
  * Abstract representation of a generator of block colors.
@@ -128,6 +129,37 @@ private:
 	/**
 	 * Insert a new input into the journal that triggers the appropriate
 	 * garbage throw.
+	 */
+	void input_garbage(long game_time, int victim, int columns, int rows, bool right_side);
+
+};
+
+/*
+ * This Arbiter observes combos, chains and scrolling from the server game
+ * and in response, produces the appropriate arbiter inputs, which it sends out
+ * as messages to all clients as well as directly to the journal.
+ */
+class ServerArbiter : public IArbiter
+{
+
+public:
+
+	explicit ServerArbiter(ENetServer& server, GameState& state, Journal& journal,
+		std::unique_ptr<IColorSupplier> color_supplier);
+
+	virtual void fire(evt::Match match) override;
+	virtual void fire(evt::Chain chain) override;
+	virtual void fire(evt::Starve starve) override;
+
+private:
+
+	ENetServer* m_server; //!< communication interface with clients
+	GameState* m_state; //!< active game state
+	Journal* m_journal; //!< active game record
+	std::unique_ptr<IColorSupplier> m_color_supplier; //!< rng component
+
+	/**
+	 * Generate a new input that triggers the appropriate garbage throw.
 	 */
 	void input_garbage(long game_time, int victim, int columns, int rows, bool right_side);
 
