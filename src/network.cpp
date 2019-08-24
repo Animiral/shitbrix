@@ -400,14 +400,6 @@ std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
 }
 
 
-GameData::GameData(std::unique_ptr<GameState> state, std::unique_ptr<Journal> journal,
-	               std::unique_ptr<IArbiter> arbiter) :
-	dials(), state(move(state)), journal(move(journal)), rules(move(arbiter))
-{
-	rules.block_director.set_state(*this->state);
-}
-
-
 ENetServer::ENetServer(enet_uint16 port)
 	: m_host(ENet::instance().create_server(port))
 {
@@ -587,6 +579,8 @@ BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
 : m_client(std::move(client))
 {}
 
+BasicClient::~BasicClient() noexcept = default;
+
 bool BasicClient::is_game_ready() const noexcept
 {
 	return 1 == m_ready;
@@ -694,6 +688,8 @@ void BasicClient::game_start_impl()
 }
 
 
+LocalClient::~LocalClient() noexcept = default;
+
 bool LocalClient::is_game_ready() const noexcept
 {
 	return 1 == m_ready;
@@ -740,8 +736,8 @@ void LocalClient::send_speed(int speed)
 void LocalClient::poll()
 {
 	// game over check
-	if(is_ingame() && m_gamedata->rules.block_director.over()) {
-		const int winner = m_gamedata->rules.block_director.winner();
+	if(is_ingame() && m_gamedata->rules.block_director->over()) {
+		const int winner = m_gamedata->rules.block_director->winner();
 		m_gamedata->journal->set_winner(winner);
 		m_ready = 0;
 	}
@@ -751,6 +747,8 @@ void LocalClient::poll()
 BasicServer::BasicServer(std::unique_ptr<ENetServer> server)
 : m_server(std::move(server))
 {}
+
+BasicServer::~BasicServer() noexcept = default;
 
 bool BasicServer::is_game_ready() const noexcept
 {
@@ -936,8 +934,8 @@ void ServerThread::main_loop()
 			synchronurse(*gamedata.state, game_time, *gamedata.journal, gamedata.rules);
 
 			// game over check
-			if(gamedata.rules.block_director.over()) {
-				const int winner = gamedata.rules.block_director.winner();
+			if(gamedata.rules.block_director->over()) {
+				const int winner = gamedata.rules.block_director->winner();
 				gamedata.journal->set_winner(winner);
 				m_server->send_gameend(winner);
 				replay_write(*gamedata.journal);

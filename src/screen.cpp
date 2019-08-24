@@ -125,7 +125,7 @@ GameScreen::~GameScreen() noexcept
 	// The network, which can outlive this screen, must not be left with a
 	// dangling pointer to our member relay.
 	if(m_client->is_ingame()) {
-		m_stage->unsubscribe_from(m_client->gamedata().rules.event_hub);
+		m_stage->unsubscribe_from(*m_client->gamedata().rules.event_hub);
 	}
 }
 
@@ -238,7 +238,7 @@ void GameScreen::input(ControllerAction cinput)
 		case Button::DEBUG4:
 			// this does not work with Network
 			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
-				m_client->gamedata().rules.block_director.debug_no_gameover ^= true;
+				m_client->gamedata().rules.block_director->debug_no_gameover ^= true;
 				// debug_print_pit(stage->pits()[0]->pit);
 			}
 			break;
@@ -246,7 +246,7 @@ void GameScreen::input(ControllerAction cinput)
 		case Button::DEBUG5:
 			// this does not work with Network
 			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
-				m_client->gamedata().rules.block_director.debug_spawn_garbage(6, 2);
+				m_client->gamedata().rules.block_director->debug_spawn_garbage(6, 2);
 				// debug_print_pit(stage->pits()[1]->pit);
 			}
 			break;
@@ -325,7 +325,7 @@ void GameScreen::start()
 	m_draw->show_cursor(true);
 	m_draw->show_banner(false);
 
-	m_stage->subscribe_to(m_client->gamedata().rules.event_hub);
+	m_stage->subscribe_to(*m_client->gamedata().rules.event_hub);
 }
 
 ServerScreen::ServerScreen(ServerThread& server)

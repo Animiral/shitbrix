@@ -12,6 +12,7 @@
 #include <memory>
 #include <SDL.h>
 #include "draw.hpp"
+#include "game.hpp"
 #include "state.hpp"
 #include "director.hpp"
 #include "input.hpp"

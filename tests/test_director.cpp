@@ -38,7 +38,7 @@ protected:
 		state = &*gamedata->state;
 		pit = state->pit().at(0).get();
 		prefill_pit(*pit);
-		director = &gamedata->rules.block_director;
+		director = gamedata->rules.block_director.get();
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
 		pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);

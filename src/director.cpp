@@ -3,6 +3,7 @@
  */
 
 #include "director.hpp"
+#include "game.hpp"
 #include "logic.hpp"
 #include "arbiter.hpp"
 #include "replay.hpp"
@@ -276,35 +277,6 @@ void BlockDirector::debug_spawn_garbage(int columns, int rows)
 }
 
 
-Rules::Rules(std::unique_ptr<IArbiter> arb)
-	: arbiter(move(arb))
-{
-	block_director.set_handler(event_hub);
-
-	if(arbiter)
-		event_hub.subscribe(*arbiter);
-}
-
-Rules::Rules(Rules&& rhs) noexcept
-	: block_director(std::move(rhs.block_director)),
-	event_hub(std::move(rhs.event_hub)),
-	arbiter(move(rhs.arbiter))
-{
-	block_director.set_handler(event_hub);
-}
-
-Rules& Rules::operator=(Rules&& rhs) noexcept
-{
-	block_director = std::move(rhs.block_director);
-	event_hub = std::move(rhs.event_hub);
-	arbiter = move(rhs.arbiter);
-	block_director.set_handler(event_hub);
-	return *this;
-}
-
-Rules::~Rules() noexcept = default;
-
-
 void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules)
 {
 	// get events from journal, from which inputs will be applied to the state
@@ -319,20 +291,20 @@ void synchronurse(GameState& state, long target_time, Journal& journal, Rules& r
 	InputSpan inputs = journal.discover_inputs(state.game_time() + 1, target_time);
 	auto input_it = inputs.first;
 
-	while(state.game_time() < target_time && !rules.block_director.over()) {
+	while(state.game_time() < target_time && !rules.block_director->over()) {
 		for(; input_it != inputs.second && input_it->input.game_time() == state.game_time() + 1; ++input_it) {
 			Log::trace("%s(%d): apply input %s.", __FUNCTION__, target_time, std::string(input_it->input).c_str());
-			rules.block_director.apply_input(input_it->input);
+			rules.block_director->apply_input(input_it->input);
 		}
 
 		// Run self-contained object behaviors. state.game_time() is incremented here.
 		state.update();
 
 		// Run updates based on game logic and interactions.
-		rules.block_director.update();
+		rules.block_director->update();
 	}
 
-	if(rules.block_director.over())
+	if(rules.block_director->over())
 		return; // stop feeding the journal now
 
 	// save new checkpoint?

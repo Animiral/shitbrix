@@ -19,6 +19,7 @@
 #include <atomic>
 #include "globals.hpp"
 #include "stage.hpp"
+#include "game.hpp"
 #include "error.hpp"
 
 class Input;
@@ -353,25 +354,6 @@ private:
 #include "enet_helper.hpp"
 
 /**
- * Contains the data that one side in a networked game needs to keep track of
- * the ongoing game round.
- */
-struct GameData
-{
-	explicit GameData(std::unique_ptr<GameState> state, std::unique_ptr<Journal> journal,
-	                  std::unique_ptr<IArbiter> arbiter = {});
-	GameData(const GameData& rhs) = delete;
-	GameData(GameData&& rhs) = default;
-	GameData& operator=(GameData& ) = delete;
-	GameData& operator=(GameData&& rhs) = default;
-
-	Dials dials; //!< Extra-journal control settings for the current game session
-	std::unique_ptr<GameState> state; //!< Active and always current game state container
-	std::unique_ptr<Journal> journal; //!< Game events and checkpoints record
-	Rules rules; //!< Game state manipulation routines
-};
-
-/**
  * Low-level server implementation.
  * Keeps track of client connections and communicates in @c Messages.
  */
@@ -511,6 +493,7 @@ public:
 	 * The @c BasicClient is the owner of the game state during the game round.
 	 */
 	explicit BasicClient(std::unique_ptr<ENetClient> client);
+	virtual ~BasicClient() noexcept;
 
 	virtual GameData& gamedata() override { enforce(m_gamedata.has_value()); return *m_gamedata; }
 	virtual bool is_game_ready() const noexcept override;
@@ -555,6 +538,8 @@ class LocalClient : public IClient
 
 public:
 
+	virtual ~LocalClient() noexcept;
+
 	virtual GameData& gamedata() override { enforce(m_gamedata.has_value()); return *m_gamedata; }
 	virtual bool is_game_ready() const noexcept override;
 	virtual bool is_ingame() const noexcept override;
@@ -586,6 +571,7 @@ public:
 	 * The @c BasicServer is the owner of the game state during the game round.
 	 */
 	explicit BasicServer(std::unique_ptr<ENetServer> server);
+	~BasicServer() noexcept;
 
 	/**
 	 * Return the game-round data, if the game is currently ongoing.
