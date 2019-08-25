@@ -1,4 +1,5 @@
 #include "screen.hpp"
+#include "replay.hpp"
 #include "configuration.hpp"
 #include "state.hpp"
 #include "error.hpp"

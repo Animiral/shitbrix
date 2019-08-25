@@ -1,9 +1,12 @@
 #include "network.hpp"
 #include "replay.hpp"
 #include "arbiter.hpp"
+#include "game.hpp"
+#include "director.hpp"
+#include "enet_helper.hpp"
+#include "error.hpp"
 #include <sstream>
 #include <cassert>
-#include "error.hpp"
 
 // These two libraries are dependencies of ENet.
 #pragma comment(lib, "winmm.lib")
@@ -217,12 +220,12 @@ private:
 
 }
 
-std::unique_ptr<IChannel> make_server_channel(enet_uint16 port)
+std::unique_ptr<IChannel> make_server_channel(uint16_t port)
 {
 	return std::make_unique<ServerChannel>(port);
 }
 
-std::unique_ptr<IChannel> make_client_channel(const char* server_name, enet_uint16 port)
+std::unique_ptr<IChannel> make_client_channel(const char* server_name, uint16_t port)
 {
 	return std::make_unique<ClientChannel>(server_name, port);
 }
@@ -380,488 +383,6 @@ void ClientProtocol::poll(IServerMessages& server_messages)
 }
 
 
-void Mailbox::enqueue(Message message)
-{
-	m_queue.push(message);
-}
-
-void Mailbox::poll(Host& recipient)
-{
-	const Message& message = m_queue.front();
-
-	switch(message.type) {
-
-	case MsgType::INPUT:
-		{
-			// TODO: parse message.data
-			Input input{PlayerInput{PlayerInput::TIME_ASAP, 0, GameButton::SWAP, ButtonAction::DOWN}};
-			recipient.input(input);
-		}
-		break;
-
-	case MsgType::BYE:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	default:
-		// drop message
-		break;
-
-	}
-}
-
-void Mailbox::poll(Lobby& recipient)
-{
-	const Message& message = m_queue.front();
-
-	switch(message.type) {
-
-	case MsgType::BYE:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	default:
-		// drop message
-		break;
-
-	}
-}
-
-void Mailbox::poll(Server& recipient)
-{
-	const Message& message = m_queue.front();
-
-	switch(message.type) {
-
-	case MsgType::BYE:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::CLIENTS:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::OFFER:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::REMOVE:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::JOIN:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	default:
-		// drop message
-		break;
-
-	}
-}
-
-void Mailbox::poll(Client& recipient)
-{
-	const Message& message = m_queue.front();
-
-	switch(message.type) {
-
-	case MsgType::BYE:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::META:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::INPUT:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::SYNC:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::CLIENTS:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::START:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	case MsgType::LIST:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	default:
-		// drop message
-		break;
-
-	}
-}
-
-void Mailbox::poll(Reception& recipient)
-{
-	const Message& message = m_queue.front();
-
-	switch(message.type) {
-
-	case MsgType::CHECKIN:
-		{
-			// TODO: implement this message
-		}
-		break;
-
-	default:
-		// drop message
-		break;
-
-	}
-}
-
-FakeReception::FakeReception(FakeStore& store)
-	: m_store(store)
-{}
-
-std::unique_ptr<Server> FakeReception::check_in(const std::string& name)
-{
-	// TODO: implement
-	m_store.clients[name] = std::make_unique<FakeClient>(m_store, name);
-	return std::make_unique<FakeServer>(*m_store.server);
-}
-
-FakeClient::FakeClient(FakeStore& store, std::string name)
-	: Client(name), m_store(store)
-{
-}
-
-void FakeClient::list(const std::vector<Offer>& offers)
-{
-	// TODO: implement
-}
-
-void FakeClient::start(std::unique_ptr<Host> host)
-{
-	// TODO: implement
-}
-
-void FakeClient::set_meta(const GameMeta& meta)
-{
-	// TODO: implement
-}
-
-void FakeClient::set_player(int player)
-{
-	// TODO: implement
-}
-
-void FakeClient::input(const Input& input)
-{
-	// TODO: implement
-}
-
-void FakeClient::sync_state(const GameState& state)
-{
-	// TODO: implement
-}
-
-void FakeClient::accept(Host& receiver) const
-{
-	// TODO: implement
-}
-
-void FakeClient::accept(Server& receiver) const
-{
-	// TODO: implement
-}
-
-void FakeClient::accept(Lobby& receiver) const
-{
-	// TODO: implement
-}
-
-std::unique_ptr<Lobby> FakeServer::offer(Offer offer)
-{
-	// TODO: implement
-	return std::make_unique<FakeLobby>();
-}
-
-void FakeServer::remove(const Offer& offer)
-{
-	// TODO: implement
-}
-
-std::unique_ptr<Lobby> FakeServer::join(const Offer& offer)
-{
-	// TODO: implement
-	return std::make_unique<FakeLobby>();
-}
-
-void FakeServer::accept(Client& receiver)
-{
-	// TODO: implement
-}
-
-std::vector<std::unique_ptr<Client>> FakeLobby::start()
-{
-	// TODO: implement
-	return {};
-}
-
-void FakeLobby::bye()
-{
-	// TODO: implement
-}
-
-void FakeLobby::accept(Client& receiver)
-{
-	// TODO: implement
-}
-
-void FakeLobby::accept(Host& receiver)
-{
-	// TODO: implement
-}
-
-void FakeHost::set_clients(const std::vector<std::unique_ptr<Client>>& clients)
-{
-	// TODO: implement
-}
-
-void FakeHost::input(const Input& input)
-{
-	// TODO: implement
-}
-
-void FakeHost::accept(Lobby& receiver)
-{
-	// TODO: implement
-}
-
-void FakeHost::accept(Client& receiver)
-{
-	// TODO: implement
-}
-
-std::unique_ptr<Reception> FakeNetworkFactory::create_reception()
-{
-	// TODO: implement
-	return std::make_unique<FakeReception>(m_store);
-}
-
-std::unique_ptr<Server> FakeNetworkFactory::create_server()
-{
-	// TODO: implement
-	return std::make_unique<FakeServer>();
-}
-
-std::unique_ptr<Lobby> FakeNetworkFactory::create_host_lobby()
-{
-	// TODO: implement
-	return std::make_unique<FakeLobby>();
-}
-
-std::unique_ptr<Lobby> FakeNetworkFactory::create_client_lobby()
-{
-	// TODO: implement
-	return std::make_unique<FakeLobby>();
-}
-
-std::unique_ptr<Host> FakeNetworkFactory::create_lobby_host()
-{
-	// TODO: implement
-	return std::make_unique<FakeHost>();
-}
-
-std::unique_ptr<Host> FakeNetworkFactory::create_client_host()
-{
-	// TODO: implement
-	return std::make_unique<FakeHost>();
-}
-
-std::unique_ptr<Client> FakeNetworkFactory::create_server_client(std::string name)
-{
-	// TODO: implement
-	return std::make_unique<FakeClient>(m_store, "placeholder");
-}
-
-std::unique_ptr<Client> FakeNetworkFactory::create_lobby_client(std::string name)
-{
-	// TODO: implement
-	return std::make_unique<FakeClient>(m_store, "placeholder");
-}
-
-std::unique_ptr<Client> FakeNetworkFactory::create_host_client(std::string name)
-{
-	// TODO: implement
-	return std::make_unique<FakeClient>(m_store, "placeholder");
-}
-
-
-ENetServer::ENetServer(enet_uint16 port)
-	: m_host(ENet::instance().create_server(port))
-{
-}
-
-void ENetServer::broadcast_message(Message message)
-{
-	Log::trace("Server send message: %s", message.to_string().c_str());
-	PacketPtr packet = ENet::instance().create_packet(message.to_string(), ENET_PACKET_FLAG_RELIABLE);
-
-	enet_host_broadcast(m_host.get(), MESSAGE_CHANNEL, packet.release());
-	enet_host_flush(m_host.get());
-}
-
-std::vector<Message> ENetServer::poll()
-{
-	ENetEvent event;
-	std::vector<Message> messages;
-
-	while (enet_host_service (m_host.get(), &event, 0) > 0)
-	{
-		switch (event.type)
-		{
-
-		case ENET_EVENT_TYPE_CONNECT:
-			Log::info("New client from %x:%u.", event.peer->address.host, event.peer->address.port);
-			/* Store any relevant client information here. */
-			//event.peer -> data = "Client information";
-			//m_peer.emplace_back(event.peer);
-			break;
-
-		case ENET_EVENT_TYPE_RECEIVE:
-		{
-			PacketPtr packet{event.packet};
-			// event.peer->data; // use this to identify the peer
-
-			switch(event.channelID) {
-
-			case MESSAGE_CHANNEL:
-			{
-				const std::string message_string{reinterpret_cast<char*>(packet->data)};
-				Log::trace("Server got message: %s", message_string.c_str());
-				messages.push_back(Message::from_string(message_string));
-			}
-				break;
-
-			default:
-				// drop packets from unknown channels
-				Log::trace("Server got unknown data: %s", std::string{reinterpret_cast<char*>(packet->data)}.c_str());
-				break;
-
-			}
-		}
-			break;
-
-		case ENET_EVENT_TYPE_DISCONNECT:
-			Log::info("Client %x:%u disconnected.", event.peer->address.host, event.peer->address.port);
-			/* Reset the peer's client information. */
-			event.peer -> data = NULL;
-			break;
-
-		default:
-			Log::error("ENet: unhandled event, type %d.", event.type);
-			break;
-
-		}
-	}
-
-	return messages;
-}
-
-
-ENetClient::ENetClient(const char* server_name, enet_uint16 port)
-{
-	std::tie(m_host, m_peer) = ENet::instance().create_client(server_name, port);
-
-	/* Wait up to 5 seconds for the connection attempt to succeed. */
-	ENetEvent event;
-	if (enet_host_service(m_host.get(), &event, CONNECT_TIMEOUT) <= 0 ||
-		event.type != ENET_EVENT_TYPE_CONNECT)
-	{
-		throw ENetException("Connection to server failed.");
-	}
-}
-
-void ENetClient::send_message(MsgType type, std::string data)
-{
-	const Message message{0, 0, type, data};
-	Log::trace("Client send message: %s", message.to_string().c_str());
-	PacketPtr packet = ENet::instance().create_packet(message.to_string(), ENET_PACKET_FLAG_RELIABLE);
-
-	/* enet_host_broadcast (host, 0, packet);         */
-	enetok(enet_peer_send(m_peer, MESSAGE_CHANNEL, packet.release()));
-	enet_host_flush(m_host.get());
-}
-
-std::vector<Message> ENetClient::poll()
-{
-	ENetEvent event;
-	std::vector<Message> messages;
-
-	while (enet_host_service (m_host.get(), &event, 0) > 0)
-	{
-		switch (event.type)
-		{
-
-		case ENET_EVENT_TYPE_RECEIVE:
-		{
-			const PacketPtr packet{event.packet};
-
-			enforce(MESSAGE_CHANNEL == event.channelID); // more channels in the future?
-
-			const std::string message_string{reinterpret_cast<char*>(packet->data)};
-			Log::trace("Client got message: %s", message_string.c_str());
-			messages.push_back(Message::from_string(message_string));
-		}
-			break;
-
-		case ENET_EVENT_TYPE_DISCONNECT:
-			Log::info("Disconnected from server.");
-			/* Reset the peer's client information. */
-			event.peer->data = NULL;
-			break;
-
-		default:
-			Log::error("ENet: unhandled event, type %d.", event.type);
-			break;
-
-		}
-	}
-
-	return messages;
-}
-
-
 namespace
 {
 
@@ -902,8 +423,8 @@ GameData make_local_gamedata(GameMeta meta)
 }
 
 
-BasicClient::BasicClient(std::unique_ptr<ENetClient> client)
-: m_client(std::move(client))
+BasicClient::BasicClient(ClientProtocol protocol)
+: m_protocol(std::move(protocol))
 {}
 
 BasicClient::~BasicClient() noexcept = default;
@@ -926,82 +447,61 @@ void BasicClient::game_start()
 
 void BasicClient::send_input(Input input)
 {
-	m_client->send_message(MsgType::INPUT, std::string(input));
+	m_protocol.input(input);
 }
 
 void BasicClient::send_reset(GameMeta meta)
 {
-	m_client->send_message(MsgType::META, meta.to_string());
-	m_client->send_message(MsgType::START, {});
+	m_protocol.meta(meta);
+	m_protocol.start();
 }
 
 void BasicClient::send_speed(int speed)
 {
-	m_client->send_message(MsgType::SPEED, std::to_string(speed));
+	m_protocol.speed(speed);
 }
 
 void BasicClient::poll()
 {
-	const auto messages = m_client->poll();
-
-	for(const auto& m : messages)
-		handle_message(m);
+	m_protocol.poll(*this);
 }
 
-void BasicClient::handle_message(const Message& message)
+void BasicClient::meta(GameMeta meta)
 {
-	switch(message.type) {
+	m_gamedata.reset(); // new meta info invalidates game state and history
+	m_ready = 1;
+}
 
-	case MsgType::INPUT:
-	{
-		if(!m_gamedata.has_value())
-			throw GameException("Got input from server before the game is running.");
+void BasicClient::input(Input input)
+{
+	if(!m_gamedata.has_value())
+		throw GameException("Got input from server before the game is running.");
 
-		m_gamedata->journal->add_input(Input(message.data));
-	}
-		break;
+	m_gamedata->journal->add_input(input);
+}
 
-	case MsgType::SPEED:
-	{
-		if(!m_gamedata.has_value())
-			throw GameException("Got speed from server before the game is running.");
+void BasicClient::speed(int speed)
+{
+	if(!m_gamedata.has_value())
+		throw GameException("Got speed from server before the game is running.");
 
-		const int speed = std::stoi(message.data);
-		m_gamedata->dials.speed = speed;
-	}
-		break;
+	m_gamedata->dials.speed = speed;
+}
 
-	case MsgType::META:
-	{
-		m_meta = GameMeta::from_string(message.data);
-		m_gamedata.reset(); // new meta info invalidates game state and history
-		m_ready = 1;
-	}
-		break;
+void BasicClient::start()
+{
+	// Towards the outside, we must pretend not to have constructed the
+	// game state yet. We are merely “ready”. However, the server might
+	// already send us input messages, which we must be able to handle.
+	game_start_impl();
+}
 
-	case MsgType::START:
-	{
-		// Towards the outside, we must pretend not to have constructed the
-		// game state yet. We are merely “ready”. However, the server might
-		// already send us input messages, which we must be able to handle.
-		game_start_impl();
-	}
-		break;
+void BasicClient::gameend(int winner)
+{
+	if(!m_gamedata.has_value())
+		throw GameException("Got gameend from server before the game is running.");
 
-	case MsgType::GAMEEND:
-	{
-		if(!m_gamedata.has_value())
-			throw GameException("Got gameend from server before the game is running.");
-
-		const int winner = std::stoi(message.data);
-		m_gamedata->journal->set_winner(winner);
-	}
-		break;
-
-	default:
-		assert(!"not implemented yet");
-
-	}
+	m_gamedata->journal->set_winner(winner);
 }
 
 void BasicClient::game_start_impl()
@@ -1071,8 +571,8 @@ void LocalClient::poll()
 }
 
 
-BasicServer::BasicServer(std::unique_ptr<ENetServer> server)
-: m_server(std::move(server))
+BasicServer::BasicServer(ServerProtocol protocol)
+: m_protocol(std::move(protocol))
 {}
 
 BasicServer::~BasicServer() noexcept = default;
@@ -1096,91 +596,42 @@ void BasicServer::game_start()
 
 void BasicServer::send_gameend(int winner)
 {
-	const Message out_msg{0, 0, MsgType::GAMEEND, std::to_string(winner)};
-	m_server->broadcast_message(std::move(out_msg));
+	m_protocol.gameend(winner);
 }
 
 void BasicServer::poll()
 {
-	const auto messages = m_server->poll();
-
-	for(const auto& m : messages)
-		handle_message(m);
+	// TODO: on error, properly discard the message and offending client
+	m_protocol.poll(*this);
 }
 
-void BasicServer::handle_message(const Message& message)
+void BasicServer::meta(GameMeta meta)
 {
-	// TODO: on error, properly discard the message and offending client
+	m_gamedata.reset(); // new meta info invalidates game state and history
+	m_protocol.meta(meta); // re-broadcast the message
+}
 
-	switch(message.type) {
+void BasicServer::input(Input input)
+{
+	if(!is_ingame())
+		throw GameException("Got input from client before the game is running.");
 
-	case MsgType::INPUT:
-	{
-		const Input input(message.data);
-		// TODO: validate input
+	m_gamedata->journal->add_input(input);
+	m_protocol.input(input); // re-broadcast the message
+}
 
-		if(!is_ingame())
-			throw GameException("Got input from client before the game is running.");
-		m_gamedata->journal->add_input(input);
+void BasicServer::speed(int speed)
+{
+	if(!is_ingame())
+		throw GameException("Got speed from client before the game is running.");
 
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::INPUT,
-			std::string(input)};
-		m_server->broadcast_message(std::move(out_msg));
-	}
-		break;
+	m_gamedata->dials.speed = speed;
+	m_protocol.speed(speed); // re-broadcast the message
+}
 
-	case MsgType::SPEED:
-	{
-		const int speed = std::stoi(message.data);
-		// TODO: validate sender and input
-
-		if(!is_ingame())
-			throw GameException("Got speed from client before the game is running.");
-		m_gamedata->dials.speed = speed;
-
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::SPEED,
-			std::to_string(speed)};
-		m_server->broadcast_message(std::move(out_msg));
-	}
-		break;
-
-	case MsgType::META:
-	{
-		// TODO: validate sender
-		m_meta = GameMeta::from_string(message.data);
-		m_gamedata.reset(); // new meta info invalidates game state and history
-
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::META,
-			m_meta->to_string()};
-		m_server->broadcast_message(std::move(out_msg));
-	}
-		break;
-
-	case MsgType::START:
-	{
-		// TODO: validate sender
-		const Message out_msg{
-			message.sender,
-			message.recipient,
-			MsgType::START,
-			{}};
-		m_server->broadcast_message(std::move(out_msg));
-	}
-		break;
-
-	default:
-		assert(!"not implemented yet");
-
-	}
+void BasicServer::start()
+{
+	m_protocol.start(); // re-broadcast the message
 }
 
 

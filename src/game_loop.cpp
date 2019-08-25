@@ -1,4 +1,5 @@
 #include "game_loop.hpp"
+#include "replay.hpp"
 #include "error.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
@@ -14,8 +15,9 @@ GameLoop::GameLoop()
 
 	if(NetworkMode::SERVER == configuration.network_mode ||
 	   NetworkMode::WITH_SERVER == configuration.network_mode) {
-		auto server_backend = std::make_unique<ENetServer>(configuration.port);
-		auto server_impl = std::make_unique<BasicServer>(std::move(server_backend));
+		auto server_channel = make_server_channel(configuration.port);
+		ServerProtocol server_protocol{std::move(server_channel)};
+		auto server_impl = std::make_unique<BasicServer>(std::move(server_protocol));
 		m_server.reset(new ServerThread(std::move(server_impl)));
 		m_screen_factory.set_server(m_server.get());
 	}
@@ -130,9 +132,11 @@ void GameLoop::next_screen()
 				m_client.reset(new LocalClient());
 			}
 			else {
-				auto net_client = std::make_unique<ENetClient>(the_context.configuration->server_url->c_str(),
-															   the_context.configuration->port); // network implementation
-				m_client.reset(new BasicClient(std::move(net_client)));
+				auto client_channel = make_client_channel(
+					the_context.configuration->server_url->c_str(),
+					the_context.configuration->port); // network implementation
+				ClientProtocol client_protocol{std::move(client_channel)};
+				m_client.reset(new BasicClient(std::move(client_protocol)));
 			}
 
 			m_screen_factory.set_client(m_client.get());
