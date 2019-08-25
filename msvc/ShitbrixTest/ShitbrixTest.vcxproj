@@ -51,7 +51,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\ext\googletest\googletest\include;..\..\src;..\..\ext\sdl\include;..\..\ext\sdl_image;..\..\ext\enet\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\ext\googletest\googletest\include;..\..\ext\googletest\googlemock\include;..\..\src;..\..\ext\sdl\include;..\..\ext\sdl_image;..\..\ext\enet\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -89,6 +89,9 @@
     <ClCompile Include="..\..\tests\test_replay.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\googletest\gmock.vcxproj">
+      <Project>{6e52e1da-03e6-4157-becc-be959d215ad6}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\googletest\gtest.vcxproj">
       <Project>{c8f6c172-56f2-4e76-b5fa-c3b423b31be7}</Project>
     </ProjectReference>

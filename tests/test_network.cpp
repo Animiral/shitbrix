@@ -3,13 +3,98 @@
  */
 
 #include "network.hpp"
+#include "input.hpp"
 #include "tests_common.hpp"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+using testing::Truly;
 
 namespace
 {
 
 const enet_uint16 FREE_PORT = 12270; // usually works
+
+/**
+ * A shortcut implementation of a network channel for testing purposes.
+ * It simply forwards all messages to one or more other @c TestChannels,
+ * where they can be picked up immediately.
+ */
+class TestChannel : public IChannel
+{
+
+public:
+
+	void add_recipient(TestChannel& channel)
+	{
+		m_recipients.push_back(&channel);
+	}
+
+	virtual void send(Message message) override
+	{
+		for(TestChannel* recipient : m_recipients)
+			recipient->m_buffer.push_back(message);
+	}
+
+	virtual std::vector<Message> poll() override
+	{
+		std::vector<Message> messages;
+		swap(m_buffer, messages);
+		return messages;
+	}
+
+private:
+
+	std::vector<Message> m_buffer; //!< list of my pending messages
+	std::vector<TestChannel*> m_recipients; //!< targets for my sent messages
+
+};
+
+/**
+ * Creates one server and one or more client channels for testing purposes.
+ * The server and client channels are connected as one would expect.
+ */
+std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> make_test_channels(int clients)
+{
+	enforce(clients >= 0);
+
+	auto server_channel = std::make_unique<TestChannel>();
+	std::vector<std::unique_ptr<IChannel>> client_channels;
+
+	for(int i = 0; i < clients; i++) {
+		auto client_channel = std::make_unique<TestChannel>();
+		server_channel->add_recipient(*client_channel);
+		client_channel->add_recipient(*server_channel);
+		client_channels.push_back(move(client_channel));
+	}
+
+	return {move(server_channel), move(client_channels)};
+}
+
+class MockServerMessages : public IServerMessages
+{
+
+public:
+
+	MOCK_METHOD(void, meta, (GameMeta meta), (override));
+	MOCK_METHOD(void, input, (Input input), (override));
+	MOCK_METHOD(void, speed, (int speed), (override));
+	MOCK_METHOD(void, start, (), (override));
+	MOCK_METHOD(void, gameend, (int winner), (override));
+
+};
+
+class MockClientMessages : public IClientMessages
+{
+
+public:
+
+	MOCK_METHOD(void, meta, (GameMeta meta), (override));
+	MOCK_METHOD(void, input, (Input input), (override));
+	MOCK_METHOD(void, speed, (int speed), (override));
+	MOCK_METHOD(void, start, (), (override));
+
+};
 
 }
 
@@ -21,12 +106,16 @@ public:
 	explicit NetworkTest()
 	{
 		configure_context_for_testing();
-		m_server = ENet::instance().create_server(FREE_PORT);
+		auto channels = make_test_channels(1);
+		m_server_protocol = std::make_unique<ServerProtocol>(move(channels.first));
+		m_client_protocol = std::make_unique<ClientProtocol>(move(channels.second[0]));
 	}
 
-private:
+protected:
 
-	HostPtr m_server;
+	std::unique_ptr<ServerProtocol> m_server_protocol;
+	std::unique_ptr<ClientProtocol> m_client_protocol;
+
 };
 
 /**
@@ -101,4 +190,129 @@ TEST_F(NetworkTest, MessageSerialization)
 	EXPECT_EQ(m.recipient, 4);
 	EXPECT_EQ(m.type, MsgType::RETRACT);
 	EXPECT_EQ(m.data, "50");
+}
+
+/**
+ * Tests whether the ServerProtocol correctly passes the meta message.
+ */
+TEST_F(NetworkTest, ServerProtocolMeta)
+{
+	GameMeta meta{3, 1234, 1};
+	m_server_protocol->meta(meta);
+
+	MockServerMessages recipient;
+	auto matches_input = [] (GameMeta m)  { return 3 == m.players && 1234 == m.seed && 1 == m.winner; };
+	EXPECT_CALL(recipient, meta(Truly(matches_input))).Times(1);
+
+	m_client_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ServerProtocol correctly passes the input message.
+ */
+TEST_F(NetworkTest, ServerProtocolInput)
+{
+	PlayerInput input{1, 2, GameButton::LEFT, ButtonAction::DOWN};
+	m_server_protocol->input(Input{input});
+
+	MockServerMessages recipient;
+	auto matches_input = [](Input i) { auto pi = i.get<PlayerInput>(); return 1 == pi.game_time && 2 == pi.player && GameButton::LEFT == pi.button && ButtonAction::DOWN == pi.action; };
+	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
+
+	m_client_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ServerProtocol correctly passes the speed message.
+ */
+TEST_F(NetworkTest, ServerProtocolSpeed)
+{
+	m_server_protocol->speed(1);
+
+	MockServerMessages recipient;
+	EXPECT_CALL(recipient, speed(1)).Times(1);
+
+	m_client_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ServerProtocol correctly passes the start message.
+ */
+TEST_F(NetworkTest, ServerProtocolStart)
+{
+	m_server_protocol->start();
+
+	MockServerMessages recipient;
+	EXPECT_CALL(recipient, start()).Times(1);
+
+	m_client_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ServerProtocol correctly passes the gameend message.
+ */
+TEST_F(NetworkTest, ServerProtocolGameend)
+{
+	m_server_protocol->gameend(2);
+
+	MockServerMessages recipient;
+	EXPECT_CALL(recipient, gameend(2)).Times(1);
+
+	m_client_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ClientProtocol correctly passes the meta message.
+ */
+TEST_F(NetworkTest, ClientProtocolMeta)
+{
+	GameMeta meta{3, 1234, 1};
+	m_client_protocol->meta(meta);
+
+	MockClientMessages recipient;
+	auto matches_input = [] (GameMeta m)  { return 3 == m.players && 1234 == m.seed && 1 == m.winner; };
+	EXPECT_CALL(recipient, meta(Truly(matches_input))).Times(1);
+
+	m_server_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ClientProtocol correctly passes the input message.
+ */
+TEST_F(NetworkTest, ClientProtocolInput)
+{
+	PlayerInput input{1, 2, GameButton::LEFT, ButtonAction::DOWN};
+	m_client_protocol->input(Input{input});
+
+	MockClientMessages recipient;
+	auto matches_input = [](Input i) { auto pi = i.get<PlayerInput>(); return 1 == pi.game_time && 2 == pi.player && GameButton::LEFT == pi.button && ButtonAction::DOWN == pi.action; };
+	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
+
+	m_server_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ClientProtocol correctly passes the speed message.
+ */
+TEST_F(NetworkTest, ClientProtocolSpeed)
+{
+	m_client_protocol->speed(1);
+
+	MockClientMessages recipient;
+	EXPECT_CALL(recipient, speed(1)).Times(1);
+
+	m_server_protocol->poll(recipient);
+}
+
+/**
+ * Tests whether the ClientProtocol correctly passes the start message.
+ */
+TEST_F(NetworkTest, ClientProtocolStart)
+{
+	m_client_protocol->start();
+
+	MockClientMessages recipient;
+	EXPECT_CALL(recipient, start()).Times(1);
+
+	m_server_protocol->poll(recipient);
 }
