@@ -548,7 +548,7 @@ public:
 	 * If the given player loses, the opponent wins.
 	 * If the given player produces a combo or chain, the opponent receives garbage.
 	 */
-	int opponent(int player) noexcept;
+	int opponent(int player) const noexcept;
 
 private:
 

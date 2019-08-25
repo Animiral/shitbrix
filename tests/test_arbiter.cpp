@@ -4,8 +4,12 @@
  */
 
 #include "arbiter.hpp"
+#include "replay.hpp"
+#include "input.hpp"
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
+
+using testing::Truly;
 
 class ArbiterTest : public ::testing::Test
 {
@@ -65,9 +69,9 @@ TEST_F(ArbiterTest, LocalArbiterSpawnGarbageOnChain)
  */
 TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
 {
-	ENetServer server{DEFAULT_PORT};
-	ENetClient client{"localhost", DEFAULT_PORT};
-	ServerArbiter arbiter{server, state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
+	auto channels = make_test_channels(1);
+	ServerProtocol server_protocol{move(channels.first)};
+	ServerArbiter arbiter{server_protocol, state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
 
 	arbiter.fire(evt::Starve{{1, 0}});
 
@@ -76,12 +80,12 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
 	EXPECT_EQ(1, inputs.size());
 
 	// The appropriate messages must have been sent to the clients
-	const std::vector<Message> messages = client.poll();
-	ASSERT_EQ(1, messages.size());
-	const Message message = messages[0];
-	ASSERT_EQ(MsgType::INPUT, message.type);
-	const Input input{message.data};
-	EXPECT_NO_THROW(input.get<SpawnBlockInput>());
+	MockServerMessages recipient;
+	ClientProtocol client_protocol{move(channels.second[0])};
+	auto matches_input = [](Input i) { auto pi = i.get<SpawnBlockInput>(); return 1 == pi.game_time && 0 == pi.player && 1 == pi.row; };
+	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
+
+	client_protocol.poll(recipient);
 }
 
 /**
@@ -91,9 +95,9 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
  */
 TEST_F(ArbiterTest, ServerArbiterSendSpawnGarbageOnChain)
 {
-	ENetServer server{DEFAULT_PORT};
-	ENetClient client{"localhost", DEFAULT_PORT};
-	ServerArbiter arbiter{server, state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
+	auto channels = make_test_channels(1);
+	ServerProtocol server_protocol{move(channels.first)};
+	ServerArbiter arbiter{server_protocol, state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
 
 	int chain_counter = 3;
 	arbiter.fire(evt::Chain{{1, 0}, chain_counter});
@@ -105,10 +109,10 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnGarbageOnChain)
 	EXPECT_EQ(sgi.loot.size(), PIT_COLS * chain_counter);
 
 	// The appropriate message must have been sent to the clients
-	const std::vector<Message> messages = client.poll();
-	ASSERT_EQ(1, messages.size());
-	const Message message = messages[0];
-	ASSERT_EQ(MsgType::INPUT, message.type);
-	const Input input{message.data};
-	EXPECT_NO_THROW(input.get<SpawnGarbageInput>());
+	MockServerMessages recipient;
+	ClientProtocol client_protocol{move(channels.second[0])};
+	auto matches_input = [chain_counter](Input i) { auto sgi = i.get<SpawnGarbageInput>(); return 2 == sgi.game_time && 1 == sgi.player && chain_counter == sgi.rows && PIT_COLS == sgi.columns; };
+	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
+
+	client_protocol.poll(recipient);
 }

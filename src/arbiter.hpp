@@ -4,7 +4,7 @@
 
 class Journal;
 class GameState;
-class ENetServer;
+class ServerProtocol;
 
 /**
  * Abstract representation of a generator of block colors.
@@ -126,12 +126,6 @@ private:
 	Journal* m_journal; //!< active game record
 	std::unique_ptr<IColorSupplier> m_color_supplier; //!< rng component
 
-	/**
-	 * Insert a new input into the journal that triggers the appropriate
-	 * garbage throw.
-	 */
-	void input_garbage(long game_time, int victim, int columns, int rows, bool right_side);
-
 };
 
 /*
@@ -144,7 +138,7 @@ class ServerArbiter : public IArbiter
 
 public:
 
-	explicit ServerArbiter(ENetServer& server, GameState& state, Journal& journal,
+	explicit ServerArbiter(ServerProtocol& server_protocol, GameState& state, Journal& journal,
 		std::unique_ptr<IColorSupplier> color_supplier);
 
 	virtual void fire(evt::Match match) override;
@@ -153,14 +147,9 @@ public:
 
 private:
 
-	ENetServer* m_server; //!< communication interface with clients
+	ServerProtocol* m_server_protocol; //!< communication interface with clients
 	GameState* m_state; //!< active game state
 	Journal* m_journal; //!< active game record
 	std::unique_ptr<IColorSupplier> m_color_supplier; //!< rng component
-
-	/**
-	 * Generate a new input that triggers the appropriate garbage throw.
-	 */
-	void input_garbage(long game_time, int victim, int columns, int rows, bool right_side);
 
 };

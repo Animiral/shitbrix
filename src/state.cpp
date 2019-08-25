@@ -597,7 +597,7 @@ void GameState::update()
 	m_game_time++;
 }
 
-int GameState::opponent(int player) noexcept
+int GameState::opponent(int player) const noexcept
 {
 	assert(0 == player || 1 == player || "more than two players not implemented yet");
 

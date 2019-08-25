@@ -4,6 +4,7 @@
 
 #include "tests_common.hpp"
 #include "arbiter.hpp"
+#include "replay.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
 #include "sdl_helper.hpp"
@@ -81,4 +82,40 @@ void prefill_pit(Pit& pit)
 			Color color = (c + r) % 2 ? Color::PURPLE : Color::ORANGE;
 			pit.spawn_block(color, {r, c}, Block::State::PREVIEW);
 		}
+}
+
+
+void TestChannel::add_recipient(TestChannel& channel)
+{
+	m_recipients.push_back(&channel);
+}
+
+void TestChannel::send(Message message)
+{
+	for(TestChannel* recipient : m_recipients)
+		recipient->m_buffer.push_back(message);
+}
+
+std::vector<Message> TestChannel::poll()
+{
+	std::vector<Message> messages;
+	swap(m_buffer, messages);
+	return messages;
+}
+
+std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> make_test_channels(int clients)
+{
+	enforce(clients >= 0);
+
+	auto server_channel = std::make_unique<TestChannel>();
+	std::vector<std::unique_ptr<IChannel>> client_channels;
+
+	for(int i = 0; i < clients; i++) {
+		auto client_channel = std::make_unique<TestChannel>();
+		server_channel->add_recipient(*client_channel);
+		client_channel->add_recipient(*server_channel);
+		client_channels.push_back(move(client_channel));
+	}
+
+	return {move(server_channel), move(client_channels)};
 }

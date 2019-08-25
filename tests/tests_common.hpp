@@ -7,6 +7,7 @@
 #include "stage.hpp"
 #include "director.hpp"
 #include "network.hpp"
+#include "gmock/gmock.h"
 
 /**
  * Set the global context to use stub implementations for our test environment.
@@ -38,3 +39,62 @@ bool swap_at(Pit& pit, BlockDirector& director, RowCol rc);
  * checkerboard pattern. This provides a default floor for tests.
  */
 void prefill_pit(Pit& pit);
+
+/**
+ * A shortcut implementation of a network channel for testing purposes.
+ * It simply forwards all messages to one or more other @c TestChannels,
+ * where they can be picked up immediately.
+ */
+class TestChannel : public IChannel
+{
+
+public:
+
+	void add_recipient(TestChannel& channel);
+
+	virtual void send(Message message) override;
+	virtual std::vector<Message> poll() override;
+
+private:
+
+	std::vector<Message> m_buffer; //!< list of my pending messages
+	std::vector<TestChannel*> m_recipients; //!< targets for my sent messages
+
+};
+
+/**
+ * Creates one server and one or more client channels for testing purposes.
+ * The server and client channels are connected as one would expect.
+ */
+std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> make_test_channels(int clients);
+
+/**
+ * Mock for examining interaction with messages from the server.
+ */
+class MockServerMessages : public IServerMessages
+{
+
+public:
+
+	MOCK_METHOD(void, meta, (GameMeta meta), (override));
+	MOCK_METHOD(void, input, (Input input), (override));
+	MOCK_METHOD(void, speed, (int speed), (override));
+	MOCK_METHOD(void, start, (), (override));
+	MOCK_METHOD(void, gameend, (int winner), (override));
+
+};
+
+/**
+ * Mock for examining interaction with messages from the client.
+ */
+class MockClientMessages : public IClientMessages
+{
+
+public:
+
+	MOCK_METHOD(void, meta, (GameMeta meta), (override));
+	MOCK_METHOD(void, input, (Input input), (override));
+	MOCK_METHOD(void, speed, (int speed), (override));
+	MOCK_METHOD(void, start, (), (override));
+
+};
