@@ -63,6 +63,21 @@ TEST_F(ArbiterTest, LocalArbiterSpawnGarbageOnChain)
 }
 
 /**
+ * When a Chain event reaches the LocalArbiter, the counter must be greater
+ * than 0 to warrant a gameplay reward.
+ */
+TEST_F(ArbiterTest, LocalArbiterIgnore0Chain)
+{
+	LocalArbiter arbiter{state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
+
+	int chain_counter = 0;
+	arbiter.fire(evt::Chain{{1, 0}, chain_counter});
+
+	const Inputs& inputs = journal.inputs();
+	ASSERT_EQ(0, inputs.size());
+}
+
+/**
  * When a Starve event reaches the ServerArbiter, it must send INPUT messages
  * with a @c SpawnBlockInput to all connected clients to fill the Pit with new
  * blocks according to its random generator.

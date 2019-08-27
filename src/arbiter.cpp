@@ -46,7 +46,7 @@ std::vector<Input> inputs_from_match(evt::Match match, const GameState& state, I
 /**
  * Return the appropriate @c SpawnGarbageInput that follows a successful chain match.
  */
-Input input_from_chain(evt::Chain chain, const GameState& state, IColorSupplier& color_supplier);
+std::vector<Input> input_from_chain(evt::Chain chain, const GameState& state, IColorSupplier& color_supplier);
 
 /**
  * Return the appropriate @c SpawnBlockInput for a pit in need of a refill.
@@ -78,8 +78,9 @@ void LocalArbiter::fire(evt::Match match)
 
 void LocalArbiter::fire(evt::Chain chain)
 {
-	Input input = input_from_chain(chain, *m_state, *m_color_supplier);
-	m_journal->add_input(std::move(input));
+	for(Input input : input_from_chain(chain, *m_state, *m_color_supplier)) {
+		m_journal->add_input(std::move(input));
+	}
 }
 
 void LocalArbiter::fire(evt::Starve starve)
@@ -104,9 +105,10 @@ void ServerArbiter::fire(evt::Match match)
 
 void ServerArbiter::fire(evt::Chain chain)
 {
-	Input input = input_from_chain(chain, *m_state, *m_color_supplier);
-	m_journal->add_input(input);
-	m_server_protocol->input(input);
+	for(Input input : input_from_chain(chain, *m_state, *m_color_supplier)) {
+		m_journal->add_input(input);
+		m_server_protocol->input(input);
+	}
 }
 
 void ServerArbiter::fire(evt::Starve starve)
@@ -147,12 +149,17 @@ std::vector<Input> inputs_from_match(evt::Match match, const GameState& state, I
 	return inputs;
 }
 
-Input input_from_chain(evt::Chain chain, const GameState& state, IColorSupplier& color_supplier)
+std::vector<Input> input_from_chain(evt::Chain chain, const GameState& state, IColorSupplier& color_supplier)
 {
+	if(chain.counter <= 0)
+		return {}; // no chain - no garbage
+
 	int victim = state.opponent(chain.trivia.player);
 	int input_time = chain.trivia.game_time + 1; // reaction to event
 
-	return input_garbage(input_time, victim, PIT_COLS, chain.counter, false, state, color_supplier);
+	// Even though the interface allows us to throw any number of garbage bricks,
+	// the current gameplay rules prescribe just one, no matter how big.
+	return {input_garbage(input_time, victim, PIT_COLS, chain.counter, false, state, color_supplier)};
 }
 
 Input input_from_starve(evt::Starve starve, const GameState& state, IColorSupplier& color_supplier)
