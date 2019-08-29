@@ -4,6 +4,7 @@
 
 #include "tests_common.hpp"
 #include "arbiter.hpp"
+#include "game.hpp"
 #include "replay.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
@@ -37,15 +38,9 @@ void configure_context_for_testing()
 	the_context.audio.reset(new NoAudio);
 }
 
-GameData make_gamedata_for_testing()
+std::unique_ptr<IGame> make_game_for_testing()
 {
-	// we uniformly use a 2-player deterministic play field
-	GameMeta meta{2, 0};
-	// TODO: add a LocalArbiter
-	auto state = std::make_unique<GameState>(meta);
-	auto journal = std::make_unique<Journal>(meta, *state);
-
-	return GameData{move(state), move(journal)};
+	return make_local_game();
 }
 
 std::vector<Color> rainbow_loot(size_t count)

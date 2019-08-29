@@ -7,6 +7,7 @@
 
 #include "globals.hpp"
 #include "input.hpp"
+#include "event.hpp"
 #include "stage.hpp"
 #include "draw.hpp"
 #include "logic.hpp"
@@ -54,10 +55,10 @@ class ScreenFactory
 public:
 
 	/**
-	 * Configure the client dependency.
+	 * Configure the game dependency.
 	 * In the future, this will hopefully be taken from a central repository.
 	 */
-	void set_client(IClient* client) noexcept { m_client = client; }
+	void set_game(IGame* game) noexcept { m_game = game; }
 
 	/**
 	 * Configure the server dependency.
@@ -73,7 +74,7 @@ public:
 private:
 
 	// resources to create the Screens
-	IClient* m_client;
+	IGame* m_game;
 	ServerThread* m_server;
 
 };
@@ -109,7 +110,7 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	MenuScreen(DrawMenu&& draw, IClient& client);
+	MenuScreen(DrawMenu&& draw, IGame& game);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
@@ -130,7 +131,7 @@ private:
 	Result m_result; //!< valid only when m_done
 
 	DrawMenu m_draw; //!< Interface for drawing the screen
-	IClient* const m_client; //!< Network communication endpoint
+	IGame* m_game; //!< Game object
 
 };
 
@@ -150,7 +151,7 @@ public:
 	explicit GameScreen(
 		std::unique_ptr<Stage> stage,
 		std::unique_ptr<DrawGame> draw,
-		IClient& client,
+		IGame& game,
 		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
@@ -169,7 +170,7 @@ private:
 
 	std::unique_ptr<DrawGame> m_draw;
 	std::unique_ptr<Stage> m_stage;
-	IClient* const m_client;
+	IGame* m_game;
 	ServerThread* const m_server;
 
 	/**
@@ -186,8 +187,6 @@ private:
 	 * Tick implementation for the intro phase.
 	 */
 	void update_play();
-
-	void start();
 
 };
 

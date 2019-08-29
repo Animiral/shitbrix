@@ -87,6 +87,7 @@
     <ClCompile Include="..\..\tests\test_network.cpp" />
     <ClCompile Include="..\..\tests\test_stage.cpp" />
     <ClCompile Include="..\..\tests\test_replay.cpp" />
+    <ClCompile Include="..\..\tests\test_state.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\googletest\gmock.vcxproj">

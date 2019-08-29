@@ -115,10 +115,3 @@ private:
 	int m_winner = NOONE; //!< number of the player who wins the game
 
 };
-
-
-/**
- * Bring the game state to the @c target_time by calculation from the game
- * journal and the game rules.
- */
-void synchronurse(GameState& state, long target_time, Journal& journal, Rules& rules);

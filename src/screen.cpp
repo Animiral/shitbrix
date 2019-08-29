@@ -1,6 +1,7 @@
 #include "screen.hpp"
 #include "replay.hpp"
 #include "configuration.hpp"
+#include "game.hpp"
 #include "state.hpp"
 #include "error.hpp"
 #include <string>
@@ -17,41 +18,32 @@ namespace
  */
 void autorecord_replay(const Journal& journal);
 
-/**
- * Send a message through the client, requesting to restart the game with
- * the given parameters.
- */
-void client_send_reset(IClient& client)
-{
-	// TODO: this should only work from privileged client.
-	// TODO: maybe the randomization should be done on the server.
-	static std::random_device rdev;
-	const GameMeta meta{2, rdev()};
-	client.send_reset(meta);
-}
-
 }
 
 IScreen::~IScreen() = default;
 
 std::unique_ptr<IScreen> ScreenFactory::create_menu()
 {
-	return std::make_unique<MenuScreen>(DrawMenu{}, *m_client);
+	enforce(m_game);
+
+	return std::make_unique<MenuScreen>(DrawMenu{}, *m_game);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
-	enforce(m_client);
-	GameState& state = *m_client->gamedata().state;
+	enforce(m_game);
+
+	const GameState& state = m_game->state();
 	auto stage = std::make_unique<Stage>(state);
 	auto draw = std::make_unique<DrawGame>(*stage);
-	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), *m_client);
+	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), *m_game);
 	return std::move(screen);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_server()
 {
-	assert(m_server);
+	enforce(m_server);
+
 	return std::make_unique<ServerScreen>(*m_server);
 }
 
@@ -64,11 +56,11 @@ std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, 
 }
 
 
-MenuScreen::MenuScreen(DrawMenu&& draw, IClient& client)
+MenuScreen::MenuScreen(DrawMenu&& draw, IGame& game)
 : m_game_time(0),
   m_done(false),
   m_draw(std::move(draw)),
-  m_client(&client)
+  m_game(&game)
 {
 	Log::info("MenuScreen turn on.");
 }
@@ -77,8 +69,8 @@ void MenuScreen::update()
 {
 	m_game_time++;
 
-	// If the client has a fresh new game state, we know that the game starts.
-	if(m_client->is_game_ready()) {
+	// If the game has a fresh new meta/init seed, we know that the game starts.
+	if(m_game->switches().ready) {
 		m_result = Result::PLAY;
 		m_done = true;
 	}
@@ -93,7 +85,7 @@ void MenuScreen::input(ControllerAction cinput)
 {
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
-			client_send_reset(*m_client);
+			m_game->game_reset(2);
 		} else
 		if(Button::QUIT == cinput.button) {
 			m_result = Result::QUIT;
@@ -104,42 +96,47 @@ void MenuScreen::input(ControllerAction cinput)
 
 
 GameScreen::GameScreen(std::unique_ptr<Stage> stage, std::unique_ptr<DrawGame> draw,
-                       IClient& client, ServerThread* server) :
+                       IGame& game, ServerThread* server) :
 	m_phase(Phase::INTRO),
 	m_time(0),
 	m_done(false),
 	m_draw(std::move(draw)),
 	m_stage(std::move(stage)),
-	m_client(&client),
+	m_game(&game),
 	m_server(server)
 {
 	assert(m_stage);
 	assert(m_draw);
+	enforce(game.switches().ingame);
 
 	Log::info("GameScreen turn on.");
 
-	start();
+	m_draw->show_cursor(true);
+	m_draw->show_banner(false);
+
+	m_stage->subscribe_to(m_game->hub());
 }
 
 GameScreen::~GameScreen() noexcept
 {
 	// The network, which can outlive this screen, must not be left with a
 	// dangling pointer to our member relay.
-	if(m_client->is_ingame()) {
-		m_stage->unsubscribe_from(*m_client->gamedata().rules.event_hub);
+	if(m_game->switches().ingame) {
+		m_stage->unsubscribe_from(m_game->hub());
 	}
 }
 
 void GameScreen::update()
 {
-	// detect restarts from server
-	if(m_client->is_game_ready()) {
-		m_client->game_start();
-		start();
+	// detect game end from server
+	// TODO: this is subject to a race condition if the server immediately starts another game.
+	//       It will be fixed when the server waits for all clients' ready before starting.
+	if(!m_game->switches().ingame) {
+		m_done = true;
 	}
 
 	// check pause
-	if(0 == m_client->gamedata().dials.speed)
+	if(0 == m_game->switches().speed)
 		return;
 
 	advance_tick();
@@ -152,14 +149,14 @@ void GameScreen::draw(float dt)
 
 void GameScreen::stop()
 {
-	autorecord_replay(*m_client->gamedata().journal);
+	autorecord_replay(m_game->journal());
 }
 
 void GameScreen::input(ControllerAction cinput)
 {
-	// Generally, inputs to the game screen are sent to the network through
-	// the client object.
-	// The network sends back all acknowledged inputs and sends them to the Journal,
+	// Generally, inputs to the game screen are given to the game object.
+	// From there, it might be sent over the network and acknowledged by the
+	// server. In any case, the input will finally arrive in the Journal,
 	// from which we get them back to display the game on the screen.
 	enforce(Button::NONE != cinput.button);
 
@@ -178,7 +175,7 @@ void GameScreen::input(ControllerAction cinput)
 			if(oinput.has_value()) {
 				// TODO: network should assign the actual input time
 				oinput->game_time = m_time + 1; // input applies to next frame
-				m_client->send_input(Input{oinput.value()});
+				m_game->game_input(Input{oinput.value()});
 			}
 		}
 			break;
@@ -188,10 +185,10 @@ void GameScreen::input(ControllerAction cinput)
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			if(0 == m_client->gamedata().dials.speed)
-				m_client->send_speed(1);
+			if(0 == m_game->switches().speed)
+				m_game->set_speed(1);
 			else
-				m_client->send_speed(0);
+				m_game->set_speed(0);
 			break;
 
 		case Button::RESET:
@@ -204,10 +201,10 @@ void GameScreen::input(ControllerAction cinput)
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			client_send_reset(*m_client);
-
 			// preserve the state and replay before it is gone
-			autorecord_replay(*m_client->gamedata().journal);
+			autorecord_replay(m_game->journal());
+
+			m_game->game_reset(2);
 		}
 			break;
 
@@ -239,7 +236,7 @@ void GameScreen::input(ControllerAction cinput)
 		case Button::DEBUG4:
 			// this does not work with Network
 			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
-				m_client->gamedata().rules.block_director->debug_no_gameover ^= true;
+				m_game->director().debug_no_gameover ^= true;
 				// debug_print_pit(stage->pits()[0]->pit);
 			}
 			break;
@@ -247,7 +244,7 @@ void GameScreen::input(ControllerAction cinput)
 		case Button::DEBUG5:
 			// this does not work with Network
 			if(NetworkMode::LOCAL == the_context.configuration->network_mode) {
-				m_client->gamedata().rules.block_director->debug_spawn_garbage(6, 2);
+				m_game->director().debug_spawn_garbage(6, 2);
 				// debug_print_pit(stage->pits()[1]->pit);
 			}
 			break;
@@ -286,14 +283,14 @@ void GameScreen::update_intro()
 
 	if(INTRO_TIME <= m_time) {
 		m_phase = Phase::PLAY;
-		m_time = m_client->gamedata().state->game_time();
+		m_time = m_game->state().game_time();
 	}
 }
 
 void GameScreen::update_play()
 {
 	// detect game over
-	Journal& journal = *m_client->gamedata().journal;
+	const Journal& journal = m_game->journal();
 	const int winner = journal.meta().winner;
 	if(NOONE != winner) {
 		// display winner
@@ -311,22 +308,7 @@ void GameScreen::update_play()
 	}
 
 	// run game logic until the target time, considering even retcon inputs
-	GameData& gamedata = m_client->gamedata();
-	synchronurse(*gamedata.state, m_time, *gamedata.journal, gamedata.rules);
-}
-
-void GameScreen::start()
-{
-	GameData& gamedata = m_client->gamedata();
-	const GameMeta meta = gamedata.journal->meta();
-
-	m_phase = Phase::INTRO;
-	m_time = 0;
-	m_done = false;
-	m_draw->show_cursor(true);
-	m_draw->show_banner(false);
-
-	m_stage->subscribe_to(*m_client->gamedata().rules.event_hub);
+	m_game->synchronurse(m_time);
 }
 
 ServerScreen::ServerScreen(ServerThread& server)

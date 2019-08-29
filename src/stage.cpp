@@ -35,7 +35,7 @@ void BonusIndicator::update() noexcept
 }
 
 
-Stage::Stage(GameState& state) :
+Stage::Stage(const GameState& state) :
 	m_bonus_relay(*this),
 	m_sound_relay(),
 	m_shake_relay(*this),

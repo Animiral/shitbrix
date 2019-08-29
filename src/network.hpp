@@ -28,8 +28,10 @@
 #include <atomic>
 #include "globals.hpp"
 #include "input.hpp"
-#include "game.hpp"
 #include "error.hpp"
+
+// forward declarations
+class IGame;
 
 // ==================== low-level communication ====================
 
@@ -217,214 +219,6 @@ private:
 // ==================== integration with game logic ====================
 
 /**
- * Interface for classes that implement client logic.
- * Connects network messages with the game state and function calls.
- */
-class IClient
-{
-
-public:
-
-	virtual ~IClient() = default;
-
-	/**
-	 * Return the game-round data, if the game is currently ongoing.
-	 * The game must be in progress on this client when calling.
-	 */
-	virtual GameData& gamedata() = 0;
-
-	/**
-	 * Return true if the server expects us to start the game now, but the game
-	 * state is not yet constructed.
-	 */
-	virtual bool is_game_ready() const noexcept = 0;
-
-	/**
-	 * Return true if the gamedata is valid at the moment.
-	 * If this is not the case, accessing `gamedata()` will throw.
-	 */
-	virtual bool is_ingame() const noexcept = 0;
-
-	/**
-	 * Initialize the game state from the meta information.
-	 * Note: After this call, all game event handlers in
-	 *       `gamedata().rules.event_hub` need to be freshly set up
-	 *       as they are not preserved in-between game restarts.
-	 */
-	virtual void game_start() = 0;
-
-	/**
-	 * Apply the given input to the game by sending it to the server.
-	 * In the future, we will pre-emptively trust our self-made inputs.
-	 */
-	virtual void send_input(Input input) = 0;
-
-	/**
-	 * Signal to the server that we want to start a fresh game.
-	 * TODO: This should only work from a privileged client.
-	 */
-	virtual void send_reset(GameMeta meta) = 0;
-
-	/**
-	 * Signal to the server that we want to change the speed of the game.
-	 * To pause the game, set the speed to 0.
-	 * To run at regular speed, set the speed to 1.
-	 * TODO: This should only work from a privileged client.
-	 */
-	virtual void send_speed(int speed) = 0;
-
-	/**
-	 * Receive and handle incoming messages from the server.
-	 */
-	virtual void poll() = 0;
-
-};
-
-/**
- * Client logic implementation.
- * This implementation handles the basic game flow while coordinating with a
- * server over a channel.
- */
-class BasicClient : public IClient, private IServerMessages
-{
-
-public:
-
-	/**
-	 * Construct the client to communicate via the given protocol.
-	 * The @c BasicClient is the owner of the game state during the game round.
-	 */
-	explicit BasicClient(ClientProtocol protocol);
-	virtual ~BasicClient() noexcept;
-
-	// IClient member functions - implementation of client-side game flow
-	virtual GameData& gamedata() override { enforce(m_gamedata.has_value()); return *m_gamedata; }
-	virtual bool is_game_ready() const noexcept override;
-	virtual bool is_ingame() const noexcept override;
-	virtual void game_start() override;
-	virtual void send_input(Input input) override;
-	virtual void send_reset(GameMeta meta) override;
-	virtual void send_speed(int speed) override;
-	virtual void poll() override;
-
-private:
-
-	ClientProtocol m_protocol; //!< communicator object
-
-	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
-	std::optional<GameData> m_gamedata; //!< information during the game round
-	int m_ready = 0; //!< quick-and-dirty state machine. 0=menu, 1=ready, 2=ingame
-
-	// IServerMessages member functions - handlers for incoming messages
-	virtual void meta(GameMeta meta) override;
-	virtual void input(Input input) override;
-	virtual void speed(int speed) override;
-	virtual void start() override;
-	virtual void gameend(int winner) override;
-
-	/**
-	 * Initialize the game state from the meta information.
-	 * Note: After this call, all game event handlers in
-	 *       `gamedata().rules.event_hub` need to be freshly set up
-	 *       as they are not preserved in-between game restarts.
-	 */
-	void game_start_impl();
-
-};
-
-/**
- * Local-only client logic implementation.
- * This implementation offers an interface as if the
- * server was always immediately responsive.
- */
-class LocalClient : public IClient
-{
-
-public:
-
-	virtual ~LocalClient() noexcept;
-
-	virtual GameData& gamedata() override { enforce(m_gamedata.has_value()); return *m_gamedata; }
-	virtual bool is_game_ready() const noexcept override;
-	virtual bool is_ingame() const noexcept override;
-	virtual void game_start() override;
-	virtual void send_input(Input input) override;
-	virtual void send_reset(GameMeta meta) override;
-	virtual void send_speed(int speed) override;
-	virtual void poll() override;
-
-private:
-
-	std::optional<GameMeta> m_meta; //!< Information from which to initialize the state
-	std::optional<GameData> m_gamedata; //!< information during the game round
-	int m_ready = 0; //!< quick-and-dirty state machine. 0=menu, 1=ready, 2=ingame
-
-};
-
-/**
- * Server logic implementation.
- * Connects network messages with the game state and function calls.
- */
-class BasicServer : private IClientMessages
-{
-
-public:
-
-	/**
-	 * Construct the server to communicate via the given protocol.
-	 * The @c BasicServer is the owner of the game state during the game round.
-	 */
-	explicit BasicServer(ServerProtocol protocol);
-	~BasicServer() noexcept;
-
-	/**
-	 * Return the game-round data, if the game is currently ongoing.
-	 */
-	GameData& gamedata() noexcept { enforce(m_gamedata.has_value()); return *m_gamedata; }
-
-	/**
-	 * Return true if the prerequisite data is available, but the game
-	 * state is not yet constructed.
-	 */
-	bool is_game_ready() const noexcept;
-
-	/**
-	 * Return true if the gamedata is valid at the moment.
-	 * If this is not the case, accessing `gamedata()` will throw.
-	 */
-	bool is_ingame() const noexcept;
-
-	/**
-	 * Initialize the game state from the meta information.
-	 */
-	void game_start();
-
-	/**
-	 * Notify the clients that the game has been decided in favor of the given player.
-	 */
-	void send_gameend(int winner);
-
-	/**
-	 * Receive and handle incoming messages from the clients.
-	 */
-	void poll();
-
-private:
-
-	ServerProtocol m_protocol; //!< communicator object
-
-	std::optional<GameMeta> m_meta; //!< Server information from which to initialize the state
-	std::optional<GameData> m_gamedata; //!< information during the game round
-
-	// IClientMessages member functions - handlers for incoming messages
-	virtual void meta(GameMeta meta) override;
-	virtual void input(Input input) override;
-	virtual void speed(int speed) override;
-	virtual void start() override;
-
-};
-
-/**
  * Runs a server in a thread until the object is destroyed.
  */
 class ServerThread
@@ -435,7 +229,7 @@ public:
 	/**
 	 * Start a game server in a separate thread.
 	 */
-	ServerThread(std::unique_ptr<BasicServer> server);
+	ServerThread(std::unique_ptr<IGame> server);
 
 	/**
 	 * Exit from the server thread, if necessary.
@@ -454,7 +248,7 @@ private:
 
 	std::atomic_flag m_exit;
 	std::future<void> m_future;
-	std::unique_ptr<BasicServer> m_server;
+	std::unique_ptr<IGame> m_server;
 
 	/**
 	 * Main entry point of the thread.

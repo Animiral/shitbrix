@@ -2,11 +2,14 @@
 
 #include <memory>
 #include "globals.hpp"
+#include "input.hpp"
 
+// forward declarations
 class BlockDirector;
-class IArbiter;
 class GameState;
 class Journal;
+class ClientProtocol;
+class ServerProtocol;
 
 namespace evt
 {
@@ -15,40 +18,162 @@ class GameEventHub;
 
 }
 
-
-/*
- * The rules contain all the implementation objects
- * for advancing a game state for all players.
+/**
+ * These switches contain general information about the state of the current
+ * game session outside the journal record of the game. They do not directly
+ * affect gameplay.
+ * In a networked game, these switches are coordinated between the server and
+ * clients.
  */
-struct Rules
+struct Switches
 {
-	explicit Rules(std::unique_ptr<IArbiter> arbiter = {});
-	explicit Rules(Rules&& ) noexcept;
-	Rules& operator=(Rules&& ) noexcept;
-	~Rules() noexcept;
-
-	std::unique_ptr<BlockDirector> block_director; //!< game rules implementation
-	std::unique_ptr<evt::GameEventHub> event_hub; //!< subscription service for game events
-	std::unique_ptr<IArbiter> arbiter; //!< centralized decision component
+	int speed = 1; //!< display speed of the game (currently just 0 for pause and 1 normally)
+	bool ready = false; //!< true if the game is ready to start
+	bool ingame = false; //!< true if game in progress - objects like state exist
+	int winner = NOONE; //!< if the game is over, contains the index of the winner
 };
 
 /**
- * Contains the objects which make up the internal game representation and
- * behavior while remaining agnostic towards the mode of the game
- * (client/server, live/replay, display etc.)
+ * Interface for classes that implement a game session.
+ *
+ * Includes all game state, logic and communication facilities.
+ * The implementation may coordinate over the network with a server.
+ *
+ * Does not handle presentation, input devices, screen transitions etc.
  */
-struct GameData
+class IGame
 {
-	explicit GameData(std::unique_ptr<GameState> state, std::unique_ptr<Journal> journal,
-	                  std::unique_ptr<IArbiter> arbiter = {});
-	GameData(const GameData& rhs) = delete;
-	GameData(GameData&& rhs) = default;
-	GameData& operator=(GameData& ) = delete;
-	GameData& operator=(GameData&& rhs) = default;
-	~GameData() noexcept;
 
-	Dials dials; //!< Extra-journal control settings for the current game session
-	std::unique_ptr<GameState> state; //!< Active and always current game state container
-	std::unique_ptr<Journal> journal; //!< Game events and checkpoints record
-	Rules rules; //!< Game state manipulation routines
+public:
+
+	virtual ~IGame() = 0;
+
+	/**
+	 * Return the current switch values.
+	 * These contain extra control information outside gameplay.
+	 */
+	Switches switches();
+
+	/**
+	 * Return the game state object.
+	 * This reference is valid as long as the current game is ongoing or over.
+	 *
+	 * @throw EnforceException if the game is not currently in progress.
+	 */
+	const GameState& state() const;
+
+	/**
+	 * Return the record of game events and checkpoints.
+	 * This reference is valid as long as the current game is ongoing or over.
+	 *
+	 * @throw EnforceException if the game is not currently in progress.
+	 */
+	const Journal& journal() const;
+
+	/**
+	 * Return the subscription service for game events.
+	 * This reference is valid as long as the current game is ongoing or over.
+	 *
+	 * @throw EnforceException if the game is not currently in progress.
+	 */
+	evt::GameEventHub& hub();
+
+	/**
+	 * Return the high-level game logic implementation.
+	 * This is only exposed to enable debug functions.
+	 * TODO: remove this and instead directly disable the gameover check here.
+	 *
+	 * @throw EnforceException if the game is not currently in progress.
+	 */
+	BlockDirector& director();
+
+	/**
+	 * Start the game based on the internal meta information.
+	 * The internal information is available iff the ready switch is true.
+	 *
+	 * After this start, the game may not immediately be in progress.
+	 * In network mode, we can merely request that the server should start.
+	 *
+	 * TODO: In network mode, this should only work from a privileged client.
+	 *
+	 * @throw EnforceException if the game is not ready to start.
+	 */
+	virtual void game_start() = 0;
+
+	/**
+	 * Apply the given input to the game.
+	 */
+	virtual void game_input(Input input) = 0;
+
+	/**
+	 * Start a fresh game with the specified number of players.
+	 *
+	 * Invalidate all references to the @c GameState, @c Journal and @c GameEventHub.
+	 * The game is then no longer in progress and possibly not ready.
+	 *
+	 * After this reset, the game may not immediately be reset.
+	 * In network mode, we can merely request that the server should reset.
+	 *
+	 * TODO: In network mode, this should only work from a privileged client.
+	 */
+	virtual void game_reset(int players) = 0;
+
+	/**
+	 * Change the speed of the game.
+	 *
+	 * To pause the game, set the speed to 0.
+	 * To run at regular speed, set the speed to 1.
+	 *
+	 * TODO: In network mode, this should only work from a privileged client.
+	 */
+	virtual void set_speed(int speed) = 0;
+
+	/**
+	 * Look for external messages and handle them.
+	 *
+	 * In the network implementation, such messages include control messages
+	 * and additional inputs from the server.
+	 */
+	virtual void poll() = 0;
+
+	/**
+	 * Based on all available information: inputs gathered, game journal and
+	 * game rules, calculate the game state to the given @c target_time.
+	 *
+	 * @throw EnforceException if the game is not in progress.
+	 */
+	void synchronurse(long target_time);
+
+protected:
+
+	Switches m_switches; //!< extra control information values
+
+	std::optional<GameMeta> m_meta; //!< game meta-info, available when ready or ingame
+	std::unique_ptr<GameState> m_state; //!< game state object, non-null ingame
+	std::unique_ptr<Journal> m_journal; //!< game record, non-null ingame
+	std::unique_ptr<BlockDirector> m_director; //!< game rules implementation
+	std::unique_ptr<evt::GameEventHub> m_hub; //!< game events subscriptions, non-null ingame
+
 };
+
+/**
+ * Return a new Game without any network association.
+ *
+ * This implementation offers an interface as if the
+ * server was always immediately responsive.
+ */
+std::unique_ptr<IGame> make_local_game();
+
+/**
+ * Return a new Game equipped for the server's perspective.
+ *
+ * The server communicates via the given protocol.
+ */
+std::unique_ptr<IGame> make_server_game(ServerProtocol&& protocol);
+
+/**
+ * Return a new Game equipped for the client's perspective.
+ *
+ * The client communicates via the given protocol.
+ */
+std::unique_ptr<IGame> make_client_game(ClientProtocol&& protocol);

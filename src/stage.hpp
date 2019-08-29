@@ -83,7 +83,7 @@ class Stage
 
 public:
 
-	explicit Stage(GameState& state);
+	explicit Stage(const GameState& state);
 	Stage(const Stage& ) =delete;
 
 	/**
@@ -124,7 +124,7 @@ public:
 
 private:
 
-	GameState* const m_state;
+	const GameState* const m_state;
 	SobVector m_sobs;
 	evt::BonusRelay m_bonus_relay;
 	evt::DupeFiltered<evt::SoundRelay> m_sound_relay;

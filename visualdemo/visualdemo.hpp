@@ -25,7 +25,7 @@ class VisualDemo
 
 public:
 	
-	VisualDemo(GameState state);
+	VisualDemo();
 
 	void put_block(RowCol rc, Color color = Color::BLUE, Block::State state = Block::State::REST);
 
@@ -46,11 +46,10 @@ private:
 		bool pause, step, abort;
 	};
 
-	GameState m_state;
+	std::unique_ptr<IGame> m_game;
 	Pit& m_pit;
 	Stage m_stage;
 	DrawGame m_draw;
-	Rules m_rules;
 	SDL_Color m_indicator = {0, 0, 0, 0};
 	InputFlags m_input{true, true, false};
 
@@ -76,8 +75,6 @@ private:
 	 */
 	GameState run_and_checkpoint(long target_time);
 };
-
-std::unique_ptr<VisualDemo> construct_demo();
 
 class Options
 {

@@ -17,8 +17,7 @@ void configure_context_for_testing();
 /**
  * Create a game context for testing game scenarios.
  */
-GameData make_gamedata_for_testing();
-
+std::unique_ptr<IGame> make_game_for_testing();
 
 // helper function for generating non-random loot for garbage bricks
 std::vector<Color> rainbow_loot(size_t count);

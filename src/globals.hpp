@@ -297,16 +297,6 @@ struct GameMeta
 	static GameMeta from_string(std::string meta_string);
 };
 
-/**
- * These dials contain general parameters that govern the current game session
- * outside the journal record of the game. They can be manipulated by the
- * server.
- */
-struct Dials
-{
-	int speed = 1; //!< display speed of the game (currently just 0 for pause and 1 normally)
-};
-
 // ================================================
 // Miscellaneous
 // ================================================

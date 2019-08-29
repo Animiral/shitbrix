@@ -6,14 +6,12 @@
 #include <cassert>
 #include <sstream>
 
-VisualDemo::VisualDemo(GameState state) :
-	m_state(std::move(state)),
-	m_pit(*m_state.pit().at(0)),
-	m_stage(m_state),
-	m_draw(m_stage),
-	m_rules()
+VisualDemo::VisualDemo() :
+	m_game(make_local_game()),
+	m_pit(*m_game->state().pit().at(0)),
+	m_stage(m_game->state()),
+	m_draw(m_stage)
 {
-	m_rules.block_director->set_state(m_state);
 }
 
 void VisualDemo::put_block(RowCol rc, Color color, Block::State state)
@@ -75,7 +73,7 @@ void VisualDemo::scenario_dissolve_garbage()
 
 	// 3 in a row
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-2,2};
-	m_rules.block_director->apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
+	m_game->director().apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -95,7 +93,7 @@ void VisualDemo::scenario_match_horizontal()
 	m_pit.spawn_block(Color::RED, RowCol{-3, 0}, Block::State::REST);
 	m_pit.spawn_block(Color::RED, RowCol{-4, 2}, Block::State::REST);
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-4,1};
-	m_rules.block_director->apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
+	m_game->director().apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// wait until block has swapped above the gap
 	const int SWAP_T = SWAP_TIME;
@@ -133,7 +131,7 @@ void VisualDemo::scenario_fall_after_shrink()
 
 	// 3 in a row
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-3,2};
-	m_rules.block_director->apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
+	m_game->director().apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// ticks until blocks swapped, garbage shrunk, blocks have started to fall down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME + 2;
@@ -155,7 +153,7 @@ void VisualDemo::scenario_chaining_garbage()
 	garbage.set_state(Physical::State::REST);
 	const_cast<Cursor&>(m_pit.cursor()).rc = {-2, 2};
 	// match yellow blocks vertically
-	m_rules.block_director->apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
+	m_game->director().apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	// ticks until block landed, garbage has shrunk, blocks have fallen down
 	const int DISSOLVE_T = SWAP_TIME + DISSOLVE_TIME;
@@ -252,8 +250,7 @@ void VisualDemo::run_game_ticks(int ticks)
 		if(m_input.pause && !m_input.step) {
 			t--;
 		} else {
-			m_state.update();
-			m_rules.block_director->update();
+			m_game->synchronurse(t);
 
 			// clear for next frame
 			sdlok(SDL_RenderClear(&renderer));
@@ -280,11 +277,11 @@ void VisualDemo::run_game_ticks(int ticks)
 void VisualDemo::run_and_input(PlayerInput input)
 {
 	// can only apply inputs in the future
-	assert(input.game_time > m_state.game_time());
+	assert(input.game_time > m_game->state().game_time());
 
 	// caution! Inputs for time N+1 are applied when the state time is N.
-	run_game_ticks(input.game_time - m_state.game_time() - 1);
-	m_rules.block_director->apply_input(Input{input});
+	run_game_ticks(input.game_time - m_game->state().game_time() - 1);
+	m_game->director().apply_input(Input{input});
 	run_game_ticks(1);
 }
 
@@ -295,20 +292,11 @@ void VisualDemo::run_and_input(PlayerInput input)
 GameState VisualDemo::run_and_checkpoint(long target_time)
 {
 	// can only continue towards the future
-	assert(target_time >= m_state.game_time());
+	assert(target_time >= m_game->state().game_time());
 
-	run_game_ticks(target_time - m_state.game_time());
-	return m_state;
+	run_game_ticks(target_time - m_game->state().game_time());
+	return m_game->state();
 }
-
-
-std::unique_ptr<VisualDemo> construct_demo()
-{
-	GameMeta meta{2, 0, NOONE};
-	// TODO: Introduce a LocalArbiter to the demo
-	return std::make_unique<VisualDemo>(GameState{meta});
-}
-
 
 Options::Options(int argc, const char* argv[])
 	: m_scenario_nr(int_option(argc, argv, "--scenario"))
@@ -360,32 +348,32 @@ int main(int argc, char* argv[])
 	configuration.log_path = "visualdemo.log";
 
 	configure_context(configuration);
-	auto demo = construct_demo();
+	VisualDemo demo;
 
 	switch(options.scenario_nr()) {
 		default:
 		case 0:
-			demo->scenario_dissolve_garbage();
+			demo.scenario_dissolve_garbage();
 			break;
 
 		case 1:
-			demo->scenario_match_horizontal();
+			demo.scenario_match_horizontal();
 			break;
 
 		case 2:
-			demo->scenario_fall_after_shrink();
+			demo.scenario_fall_after_shrink();
 			break;
 
 		case 3:
-			demo->scenario_chaining_garbage();
+			demo.scenario_chaining_garbage();
 			break;
 
 		case 4:
-			demo->scenario_panic();
+			demo.scenario_panic();
 			break;
 
 		case 5:
-			demo->scenario_desync();
+			demo.scenario_desync();
 			break;
 	}
 

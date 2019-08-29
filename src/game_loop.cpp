@@ -1,5 +1,6 @@
 #include "game_loop.hpp"
 #include "replay.hpp"
+#include "game.hpp"
 #include "error.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
@@ -17,8 +18,8 @@ GameLoop::GameLoop()
 	   NetworkMode::WITH_SERVER == configuration.network_mode) {
 		auto server_channel = make_server_channel(configuration.port);
 		ServerProtocol server_protocol{std::move(server_channel)};
-		auto server_impl = std::make_unique<BasicServer>(std::move(server_protocol));
-		m_server.reset(new ServerThread(std::move(server_impl)));
+		auto game = make_server_game(std::move(server_protocol));
+		m_server.reset(new ServerThread(std::move(game)));
 		m_screen_factory.set_server(m_server.get());
 	}
 
@@ -93,7 +94,7 @@ void GameLoop::game_loop()
 		}
 
 
-		if(m_client) m_client->poll();
+		if(m_game) m_game->poll();
 
 		// run one frame of local logic
 		m_screen->update();
@@ -129,17 +130,17 @@ void GameLoop::next_screen()
 				throw GameException("Client mode requires server_url configuration.");
 
 			if(NetworkMode::LOCAL == mode) {
-				m_client.reset(new LocalClient());
+				m_game = make_local_game();
 			}
 			else {
 				auto client_channel = make_client_channel(
 					the_context.configuration->server_url->c_str(),
 					the_context.configuration->port); // network implementation
 				ClientProtocol client_protocol{std::move(client_channel)};
-				m_client.reset(new BasicClient(std::move(client_protocol)));
+				m_game = make_client_game(std::move(client_protocol));
 			}
 
-			m_screen_factory.set_client(m_client.get());
+			m_screen_factory.set_game(m_game.get());
 
 			// If we want to play back a replay, feed it all to the client
 			// and let the normal timing in the game loop take care of it.
@@ -155,10 +156,10 @@ void GameLoop::next_screen()
 				Journal journal = replay_read(stream);
 				GameMeta meta = journal.meta();
 				meta.winner = NOONE; // this is currently necessary to prevent early exit
-				m_client->send_reset(meta);
-				m_client->game_start();
+				m_game->game_reset(meta.players);
+				m_game->game_start();
 				for(InputDiscovered id : journal.inputs()) {
-					m_client->send_input(id.input);
+					m_game->game_input(id.input);
 				}
 				m_game_screen = m_screen_factory.create_game();
 				m_screen = m_game_screen.get();
@@ -183,7 +184,7 @@ void GameLoop::next_screen()
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(m_screen)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
-			m_client->game_start(); // create game state from meta info
+			m_game->game_start(); // create game state from meta info
 			m_game_screen = m_screen_factory.create_game();
 			m_transition_screen = m_screen_factory.create_transition(*menu, *m_game_screen);
 			m_screen = m_transition_screen.get();

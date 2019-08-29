@@ -1,6 +1,7 @@
 #define NOMINMAX
 
 #include "game_loop.hpp"
+#include "game.hpp"
 #include "configuration.hpp"
 #include "error.hpp"
 #include "context.hpp"

@@ -33,12 +33,15 @@ protected:
 	virtual void SetUp() override
 	{
 		configure_context_for_testing();
-		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		state = &*gamedata->state;
+		GameMeta meta{2,0};
+		state = std::make_unique<GameState>(meta);
 		pit = state->pit().at(0).get();
 		prefill_pit(*pit);
-		director = gamedata->rules.block_director.get();
+		director = std::make_unique<BlockDirector>();
+		//hub = std::make_unique<evt::GameEventHub>();
+		//director->set_handler(*hub);
+		director->set_state(*state);
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
 		pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
@@ -72,15 +75,14 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		for(int t = 0; t < ticks; t++) {
-			pit->update();
+			state->update();
 			director->update();
 		}
 	}
 
-	std::unique_ptr<GameData> gamedata;
-	GameState* state;
-	Pit* pit = nullptr;
-	BlockDirector* director;
+	std::unique_ptr<GameState> state;
+	Pit* pit = nullptr; // shortcut to player 1 pit
+	std::unique_ptr<BlockDirector> director;
 
 };
 

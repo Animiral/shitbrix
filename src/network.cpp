@@ -383,259 +383,7 @@ void ClientProtocol::poll(IServerMessages& server_messages)
 }
 
 
-namespace
-{
-
-/**
- * Construct and wire all the objects that we need to run
- * the game session from the meta-information.
- */
-GameData make_gamedata(GameMeta meta)
-{
-	Log::info("Initialize new game for %d players, seed=%u.", meta.players, meta.seed);
-
-	// [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
-	// IArbiter arbiter = // some arbiter instead of RandomColorSupplier
-	auto state = std::make_unique<GameState>(meta);
-	auto journal = std::make_unique<Journal>(meta, *state);
-
-	return GameData(move(state), move(journal));
-}
-
-/**
- * Construct and wire all the objects that we need to run
- * a local game session from the meta-information.
- */
-GameData make_local_gamedata(GameMeta meta)
-{
-	Log::info("Initialize new local game for %d players, seed=%u.", meta.players, meta.seed);
-
-	// [meta](int player) { return std::make_unique<RandomColorSupplier>(meta.seed, player); };
-	// IArbiter arbiter = // some arbiter instead of RandomColorSupplier
-	auto state = std::make_unique<GameState>(meta);
-	auto journal = std::make_unique<Journal>(meta, *state);
-	auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
-	auto arbiter = std::make_unique<LocalArbiter>(*state, *journal, move(color_supplier));
-
-	return GameData(move(state), move(journal), move(arbiter));
-}
-
-}
-
-
-BasicClient::BasicClient(ClientProtocol protocol)
-: m_protocol(std::move(protocol))
-{}
-
-BasicClient::~BasicClient() noexcept = default;
-
-bool BasicClient::is_game_ready() const noexcept
-{
-	return 1 == m_ready;
-}
-
-bool BasicClient::is_ingame() const noexcept
-{
-	return 2 == m_ready;
-}
-
-void BasicClient::game_start()
-{
-	game_start_impl();
-	m_ready = 2;
-}
-
-void BasicClient::send_input(Input input)
-{
-	m_protocol.input(input);
-}
-
-void BasicClient::send_reset(GameMeta meta)
-{
-	m_protocol.meta(meta);
-	m_protocol.start();
-}
-
-void BasicClient::send_speed(int speed)
-{
-	m_protocol.speed(speed);
-}
-
-void BasicClient::poll()
-{
-	m_protocol.poll(*this);
-}
-
-void BasicClient::meta(GameMeta meta)
-{
-	m_gamedata.reset(); // new meta info invalidates game state and history
-	m_ready = 1;
-}
-
-void BasicClient::input(Input input)
-{
-	if(!m_gamedata.has_value())
-		throw GameException("Got input from server before the game is running.");
-
-	m_gamedata->journal->add_input(input);
-}
-
-void BasicClient::speed(int speed)
-{
-	if(!m_gamedata.has_value())
-		throw GameException("Got speed from server before the game is running.");
-
-	m_gamedata->dials.speed = speed;
-}
-
-void BasicClient::start()
-{
-	// Towards the outside, we must pretend not to have constructed the
-	// game state yet. We are merely “ready”. However, the server might
-	// already send us input messages, which we must be able to handle.
-	game_start_impl();
-}
-
-void BasicClient::gameend(int winner)
-{
-	if(!m_gamedata.has_value())
-		throw GameException("Got gameend from server before the game is running.");
-
-	m_gamedata->journal->set_winner(winner);
-}
-
-void BasicClient::game_start_impl()
-{
-	enforce(is_game_ready() || is_ingame());
-
-	if(m_gamedata.has_value())
-		return; // do not prepare twice
-
-	m_gamedata = make_gamedata(*m_meta);
-}
-
-
-LocalClient::~LocalClient() noexcept = default;
-
-bool LocalClient::is_game_ready() const noexcept
-{
-	return 1 == m_ready;
-}
-
-bool LocalClient::is_ingame() const noexcept
-{
-	return 2 == m_ready;
-}
-
-void LocalClient::game_start()
-{
-	enforce(is_game_ready() || is_ingame());
-
-	m_ready = 2;
-
-	if(m_gamedata.has_value())
-		return; // do not prepare twice
-
-	m_gamedata = make_local_gamedata(*m_meta);
-}
-
-void LocalClient::send_input(Input input)
-{
-	if(!m_gamedata.has_value())
-		throw GameException("Got input before the game is running.");
-
-	m_gamedata->journal->add_input(std::move(input));
-}
-
-void LocalClient::send_reset(GameMeta meta)
-{
-	m_meta = meta;
-	m_gamedata.reset(); // new meta info invalidates game state and history
-	m_ready = 1;
-	m_gamedata = make_local_gamedata(*m_meta);
-}
-
-void LocalClient::send_speed(int speed)
-{
-	m_gamedata->dials.speed = speed;
-}
-
-void LocalClient::poll()
-{
-	// game over check
-	if(is_ingame() && m_gamedata->rules.block_director->over()) {
-		const int winner = m_gamedata->rules.block_director->winner();
-		m_gamedata->journal->set_winner(winner);
-		m_ready = 0;
-	}
-}
-
-
-BasicServer::BasicServer(ServerProtocol protocol)
-: m_protocol(std::move(protocol))
-{}
-
-BasicServer::~BasicServer() noexcept = default;
-
-bool BasicServer::is_game_ready() const noexcept
-{
-	return m_meta.has_value() && !m_gamedata.has_value();
-}
-
-bool BasicServer::is_ingame() const noexcept
-{
-	return m_gamedata.has_value();
-}
-
-void BasicServer::game_start()
-{
-	enforce(is_game_ready());
-
-	m_gamedata = make_gamedata(*m_meta);
-}
-
-void BasicServer::send_gameend(int winner)
-{
-	m_protocol.gameend(winner);
-}
-
-void BasicServer::poll()
-{
-	// TODO: on error, properly discard the message and offending client
-	m_protocol.poll(*this);
-}
-
-void BasicServer::meta(GameMeta meta)
-{
-	m_gamedata.reset(); // new meta info invalidates game state and history
-	m_protocol.meta(meta); // re-broadcast the message
-}
-
-void BasicServer::input(Input input)
-{
-	if(!is_ingame())
-		throw GameException("Got input from client before the game is running.");
-
-	m_gamedata->journal->add_input(input);
-	m_protocol.input(input); // re-broadcast the message
-}
-
-void BasicServer::speed(int speed)
-{
-	if(!is_ingame())
-		throw GameException("Got speed from client before the game is running.");
-
-	m_gamedata->dials.speed = speed;
-	m_protocol.speed(speed); // re-broadcast the message
-}
-
-void BasicServer::start()
-{
-	m_protocol.start(); // re-broadcast the message
-}
-
-
-ServerThread::ServerThread(std::unique_ptr<BasicServer> server)
+ServerThread::ServerThread(std::unique_ptr<IGame> server)
 	: m_server(std::move(server))
 {
 	enforce(nullptr != m_server);
@@ -698,7 +446,8 @@ void ServerThread::main_loop()
 		}
 
 		// start game at every opportunity
-		if(m_server->is_game_ready()) {
+		// TODO: actually we should wait for all clients
+		if(m_server->switches().ready) {
 			m_server->game_start();
 			t0 = SDL_GetPerformanceCounter();
 			tick = 0;
@@ -708,15 +457,13 @@ void ServerThread::main_loop()
 		// run logic update, if applicable
 		if(in_game && tick > INTRO_TIME) {
 			const long game_time = tick - INTRO_TIME;
-			GameData& gamedata = m_server->gamedata();
-			synchronurse(*gamedata.state, game_time, *gamedata.journal, gamedata.rules);
+			m_server->synchronurse(game_time);
 
 			// game over check
-			if(gamedata.rules.block_director->over()) {
-				const int winner = gamedata.rules.block_director->winner();
-				gamedata.journal->set_winner(winner);
-				m_server->send_gameend(winner);
-				replay_write(*gamedata.journal);
+			// TODO: save the replay only if it has not yet been saved!
+			if(m_server->director().over()) {
+				const int winner = m_server->director().winner();
+				replay_write(m_server->journal());
 				in_game = false;
 			}
 		}
