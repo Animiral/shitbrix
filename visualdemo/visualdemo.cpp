@@ -1,13 +1,12 @@
 #include "visualdemo.hpp"
 #include "stage.hpp"
 #include "configuration.hpp"
-#include "arbiter.hpp"
 #include "error.hpp"
 #include <cassert>
 #include <sstream>
 
 VisualDemo::VisualDemo() :
-	m_game(make_local_game()),
+	m_game(std::make_unique<LocalGame>()),
 	m_pit(*m_game->state().pit().at(0)),
 	m_stage(m_game->state()),
 	m_draw(m_stage)

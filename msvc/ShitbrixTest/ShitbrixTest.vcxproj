@@ -83,6 +83,7 @@
     <ClCompile Include="..\..\tests\test_arbiter.cpp" />
     <ClCompile Include="..\..\tests\test_director.cpp" />
     <ClCompile Include="..\..\tests\test_event.cpp" />
+    <ClCompile Include="..\..\tests\test_game.cpp" />
     <ClCompile Include="..\..\tests\test_input.cpp" />
     <ClCompile Include="..\..\tests\test_network.cpp" />
     <ClCompile Include="..\..\tests\test_stage.cpp" />

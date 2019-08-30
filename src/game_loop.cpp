@@ -1,5 +1,6 @@
 #include "game_loop.hpp"
 #include "replay.hpp"
+#include "arbiter.hpp"
 #include "game.hpp"
 #include "error.hpp"
 #include "context.hpp"
@@ -18,7 +19,7 @@ GameLoop::GameLoop()
 	   NetworkMode::WITH_SERVER == configuration.network_mode) {
 		auto server_channel = make_server_channel(configuration.port);
 		ServerProtocol server_protocol{std::move(server_channel)};
-		auto game = make_server_game(std::move(server_protocol));
+		auto game = std::make_unique<ServerGame>(std::move(server_protocol));
 		m_server.reset(new ServerThread(std::move(game)));
 		m_screen_factory.set_server(m_server.get());
 	}
@@ -130,14 +131,14 @@ void GameLoop::next_screen()
 				throw GameException("Client mode requires server_url configuration.");
 
 			if(NetworkMode::LOCAL == mode) {
-				m_game = make_local_game();
+				m_game = std::make_unique<LocalGame>();
 			}
 			else {
 				auto client_channel = make_client_channel(
 					the_context.configuration->server_url->c_str(),
 					the_context.configuration->port); // network implementation
 				ClientProtocol client_protocol{std::move(client_channel)};
-				m_game = make_client_game(std::move(client_protocol));
+				m_game = std::make_unique<ClientGame>(std::move(client_protocol));
 			}
 
 			m_screen_factory.set_game(m_game.get());

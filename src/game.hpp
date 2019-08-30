@@ -3,13 +3,13 @@
 #include <memory>
 #include "globals.hpp"
 #include "input.hpp"
+#include "network.hpp"
 
 // forward declarations
 class BlockDirector;
 class GameState;
 class Journal;
-class ClientProtocol;
-class ServerProtocol;
+class IArbiter;
 
 namespace evt
 {
@@ -157,23 +157,98 @@ protected:
 };
 
 /**
- * Return a new Game without any network association.
+ * Local-only game implementation.
  *
  * This implementation offers an interface as if the
  * server was always immediately responsive.
  */
-std::unique_ptr<IGame> make_local_game();
+class LocalGame : public IGame
+{
+
+public:
+
+	explicit LocalGame() noexcept;
+	virtual ~LocalGame() noexcept;
+
+	// IGame member functions - local-specific implementation
+	virtual void game_start() override;
+	virtual void game_input(Input input) override;
+	virtual void game_reset(int players) override;
+	virtual void set_speed(int speed) override;
+	virtual void poll() override;
+
+private:
+
+	std::unique_ptr<IArbiter> m_arbiter;  //!< centralized decision component, non-null ingame
+
+};
 
 /**
- * Return a new Game equipped for the server's perspective.
+ * Client game implementation.
  *
- * The server communicates via the given protocol.
+ * This implementation coordinates with a server over a protocol.
  */
-std::unique_ptr<IGame> make_server_game(ServerProtocol&& protocol);
+class ClientGame : public IGame, private IServerMessages
+{
+
+public:
+
+	/**
+	 * Construct the game to communicate via the given protocol.
+	 */
+	explicit ClientGame(ClientProtocol protocol) noexcept;
+
+	// IGame member functions - client-specific implementation
+	virtual void game_start() override;
+	virtual void game_input(Input input) override;
+	virtual void game_reset(int players) override;
+	virtual void set_speed(int speed) override;
+	virtual void poll() override;
+
+private:
+
+	ClientProtocol m_protocol; //!< communicator object
+
+	// IServerMessages member functions - handlers for incoming messages
+	virtual void meta(GameMeta meta) override;
+	virtual void input(Input input) override;
+	virtual void speed(int speed) override;
+	virtual void start() override;
+	virtual void gameend(int winner) override;
+
+};
 
 /**
- * Return a new Game equipped for the client's perspective.
+ * Server game implementation.
  *
- * The client communicates via the given protocol.
+ * Provides coordination and game decisions for connected clients.
  */
-std::unique_ptr<IGame> make_client_game(ClientProtocol&& protocol);
+class ServerGame : public IGame, private IClientMessages
+{
+
+public:
+
+	/**
+	 * Construct the game to communicate via the given protocol.
+	 */
+	explicit ServerGame(ServerProtocol protocol) noexcept;
+
+	// IGame member functions - server-specific implementation
+	virtual void game_start() override;
+	virtual void game_input(Input input) override;
+	virtual void game_reset(int players) override;
+	virtual void set_speed(int speed) override;
+	virtual void poll() override;
+
+private:
+
+	std::unique_ptr<IArbiter> m_arbiter;  //!< centralized decision component, non-null ingame
+	ServerProtocol m_protocol; //!< communicator object
+
+	// IClientMessages member functions - handlers for incoming messages
+	virtual void meta(GameMeta meta) override;
+	virtual void input(Input input) override;
+	virtual void speed(int speed) override;
+	virtual void start() override;
+
+};

@@ -2,7 +2,6 @@
 #include "replay.hpp"
 #include "configuration.hpp"
 #include "game.hpp"
-#include "state.hpp"
 #include "error.hpp"
 #include <string>
 #include <fstream>

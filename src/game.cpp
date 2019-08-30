@@ -2,8 +2,8 @@
 
 #include "game.hpp"
 #include "director.hpp"
-//#include "event.hpp"
-//#include "state.hpp"
+#include "event.hpp"
+#include "state.hpp"
 #include "arbiter.hpp"
 #include "network.hpp"
 #include "replay.hpp"
@@ -106,125 +106,9 @@ void IGame::synchronurse(long target_time)
 	}
 }
 
+LocalGame::LocalGame() noexcept = default;
 
-namespace
-{
-
-/**
- * Local-only game implementation.
- *
- * This implementation offers an interface as if the
- * server was always immediately responsive.
- */
-class LocalGame : public IGame
-{
-
-public:
-
-	// IGame member functions - local-specific implementation
-	virtual void game_start() override;
-	virtual void game_input(Input input) override;
-	virtual void game_reset(int players) override;
-	virtual void set_speed(int speed) override;
-	virtual void poll() override;
-
-private:
-
-	std::unique_ptr<IArbiter> m_arbiter;  //!< centralized decision component, non-null ingame
-
-};
-
-/**
- * Client game implementation.
- *
- * This implementation coordinates with a server over a protocol.
- */
-class ClientGame : public IGame, private IServerMessages
-{
-
-public:
-
-	/**
-	 * Construct the game to communicate via the given protocol.
-	 */
-	explicit ClientGame(ClientProtocol protocol);
-
-	// IGame member functions - client-specific implementation
-	virtual void game_start() override;
-	virtual void game_input(Input input) override;
-	virtual void game_reset(int players) override;
-	virtual void set_speed(int speed) override;
-	virtual void poll() override;
-
-private:
-
-	ClientProtocol m_protocol; //!< communicator object
-
-	// IServerMessages member functions - handlers for incoming messages
-	virtual void meta(GameMeta meta) override;
-	virtual void input(Input input) override;
-	virtual void speed(int speed) override;
-	virtual void start() override;
-	virtual void gameend(int winner) override;
-
-};
-
-/**
- * Server game implementation.
- *
- * Provides coordination and game decisions for connected clients.
- */
-class ServerGame : public IGame, private IClientMessages
-{
-
-public:
-
-	/**
-	 * Construct the game to communicate via the given protocol.
-	 */
-	explicit ServerGame(ServerProtocol protocol);
-
-	// IGame member functions - server-specific implementation
-	virtual void game_start() override;
-	virtual void game_input(Input input) override;
-	virtual void game_reset(int players) override;
-	virtual void set_speed(int speed) override;
-	virtual void poll() override;
-
-private:
-
-	std::unique_ptr<IArbiter> m_arbiter;  //!< centralized decision component, non-null ingame
-	ServerProtocol m_protocol; //!< communicator object
-
-	// IClientMessages member functions - handlers for incoming messages
-	virtual void meta(GameMeta meta) override;
-	virtual void input(Input input) override;
-	virtual void speed(int speed) override;
-	virtual void start() override;
-
-};
-
-}
-
-
-std::unique_ptr<IGame> make_local_game()
-{
-	return std::make_unique<LocalGame>();
-}
-
-std::unique_ptr<IGame> make_server_game(ServerProtocol&& protocol)
-{
-	return std::make_unique<ServerGame>(std::move(protocol));
-}
-
-std::unique_ptr<IGame> make_client_game(ClientProtocol&& protocol)
-{
-	return std::make_unique<ClientGame>(std::move(protocol));
-}
-
-
-namespace
-{
+LocalGame::~LocalGame() noexcept = default;
 
 void LocalGame::game_start()
 {
@@ -291,7 +175,7 @@ void LocalGame::poll()
 	}
 }
 
-ClientGame::ClientGame(ClientProtocol protocol)
+ClientGame::ClientGame(ClientProtocol protocol) noexcept
 	: m_protocol(std::move(protocol))
 {}
 
@@ -383,7 +267,7 @@ void ClientGame::gameend(int winner)
 	m_switches.winner = winner;
 }
 
-ServerGame::ServerGame(ServerProtocol protocol)
+ServerGame::ServerGame(ServerProtocol protocol) noexcept
 	: m_protocol(std::move(protocol))
 {}
 
@@ -514,6 +398,9 @@ void ServerGame::start()
 }
 
 // --- implementation of module-specific functions ---
+
+namespace
+{
 
 [[ maybe_unused ]]
 void debug_dump_state(const GameState& state)
