@@ -48,6 +48,16 @@ BlockDirector& IGame::director()
 	return *m_director;
 }
 
+void IGame::before_reset(Handler handler)
+{
+	m_reset_handler = handler;
+}
+
+void IGame::after_start(Handler handler)
+{
+	m_start_handler = handler;
+}
+
 // debug helpers
 namespace
 {
@@ -131,6 +141,9 @@ void LocalGame::game_start()
 	auto color_supplier = std::make_unique<RandomColorSupplier>(m_meta->seed, 0);
 	m_arbiter = std::make_unique<LocalArbiter>(*m_state, *m_journal, move(color_supplier));
 	m_hub->subscribe(*m_arbiter);
+
+	if(m_start_handler)
+		m_start_handler();
 }
 
 void LocalGame::game_input(Input input)
@@ -144,6 +157,9 @@ void LocalGame::game_input(Input input)
 void LocalGame::game_reset(int players)
 {
 	assert(2 == players); // different player numbers are not yet supported
+
+	if(m_reset_handler)
+		m_reset_handler();
 
 	m_switches.ingame = false;
 	m_switches.ready = true;
@@ -175,38 +191,43 @@ void LocalGame::poll()
 	}
 }
 
-ClientGame::ClientGame(ClientProtocol protocol) noexcept
-	: m_protocol(std::move(protocol))
-{}
+ClientGame::ClientGame(std::unique_ptr<ClientProtocol> protocol) noexcept
+	: m_protocol(move(protocol))
+{
+	enforce(nullptr != m_protocol);
+}
 
 void ClientGame::game_start()
 {
-	m_protocol.start();
+	m_protocol->start();
 }
 
 void ClientGame::game_input(Input input)
 {
-	m_protocol.input(input);
+	m_protocol->input(input);
 }
 
 void ClientGame::game_reset(int players)
 {
-	m_protocol.meta(GameMeta{players, 0});
+	m_protocol->meta(GameMeta{players, 0});
 }
 
 void ClientGame::set_speed(int speed)
 {
-	m_protocol.speed(speed);
+	m_protocol->speed(speed);
 }
 
 void ClientGame::poll()
 {
-	m_protocol.poll(*this);
+	m_protocol->poll(*this);
 }
 
 void ClientGame::meta(GameMeta meta)
 {
 	assert(2 == meta.players); // different player numbers are not yet supported
+
+	if(m_reset_handler)
+		m_reset_handler();
 
 	m_switches.ingame = false;
 	m_switches.ready = true;
@@ -254,6 +275,9 @@ void ClientGame::start()
 	m_hub = std::make_unique<evt::GameEventHub>();
 	m_director->set_handler(*m_hub);
 	m_director->set_state(*m_state);
+
+	if(m_start_handler)
+		m_start_handler();
 }
 
 void ClientGame::gameend(int winner)
@@ -267,9 +291,11 @@ void ClientGame::gameend(int winner)
 	m_switches.winner = winner;
 }
 
-ServerGame::ServerGame(ServerProtocol protocol) noexcept
-	: m_protocol(std::move(protocol))
-{}
+ServerGame::ServerGame(std::unique_ptr<ServerProtocol> protocol) noexcept
+	: m_protocol(move(protocol))
+{
+	enforce(nullptr != m_protocol);
+}
 
 void ServerGame::game_start()
 {
@@ -294,10 +320,13 @@ void ServerGame::game_start()
 	m_director->set_state(*m_state);
 
 	auto color_supplier = std::make_unique<RandomColorSupplier>(m_meta->seed, 0);
-	m_arbiter = std::make_unique<ServerArbiter>(m_protocol, *m_state, *m_journal, move(color_supplier));
+	m_arbiter = std::make_unique<ServerArbiter>(*m_protocol, *m_state, *m_journal, move(color_supplier));
 	m_hub->subscribe(*m_arbiter);
 
-	m_protocol.start();
+	m_protocol->start();
+
+	if(m_start_handler)
+		m_start_handler();
 }
 
 void ServerGame::game_input(Input input)
@@ -308,11 +337,14 @@ void ServerGame::game_input(Input input)
 	assert(m_journal);
 	m_journal->add_input(input);
 
-	m_protocol.input(input);
+	m_protocol->input(input);
 }
 
 void ServerGame::game_reset(int players)
 {
+	if(m_reset_handler)
+		m_reset_handler();
+
 	if(2 != players)
 		throw GameException("Only 2 players are currently supported.");
 
@@ -328,19 +360,19 @@ void ServerGame::game_reset(int players)
 	m_hub.reset();
 	m_arbiter.reset();
 
-	m_protocol.meta(*m_meta);
+	m_protocol->meta(*m_meta);
 }
 
 void ServerGame::set_speed(int speed)
 {
 	m_switches.speed = speed;
-	m_protocol.speed(speed);
+	m_protocol->speed(speed);
 }
 
 void ServerGame::poll()
 {
 	// TODO: on error, properly discard the message and offending client
-	m_protocol.poll(*this);
+	m_protocol->poll(*this);
 
 	// game over check
 	if(m_switches.ingame && m_director->over()) {
@@ -350,7 +382,7 @@ void ServerGame::poll()
 		const int winner = m_director->winner();
 		m_journal->set_winner(winner);
 		m_switches.winner = winner;
-		m_protocol.gameend(winner);
+		m_protocol->gameend(winner);
 	}
 }
 

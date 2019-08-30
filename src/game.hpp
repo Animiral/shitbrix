@@ -137,6 +137,21 @@ public:
 	virtual void poll() = 0;
 
 	/**
+	 * Callback type for changes in the game state machine.
+	 */
+	using Handler = std::function<void()>;
+
+	/**
+	 * Set the callback handler to be called just before the game resets.
+	 */
+	void before_reset(Handler handler);
+
+	/**
+	 * Set the callback handler to be called just after the game starts.
+	 */
+	void after_start(Handler handler);
+
+	/**
 	 * Based on all available information: inputs gathered, game journal and
 	 * game rules, calculate the game state to the given @c target_time.
 	 *
@@ -147,6 +162,8 @@ public:
 protected:
 
 	Switches m_switches; //!< extra control information values
+	Handler m_reset_handler; //!< callable to notify on game reset
+	Handler m_start_handler; //!< callable to notify on game reset
 
 	std::optional<GameMeta> m_meta; //!< game meta-info, available when ready or ingame
 	std::unique_ptr<GameState> m_state; //!< game state object, non-null ingame
@@ -196,7 +213,7 @@ public:
 	/**
 	 * Construct the game to communicate via the given protocol.
 	 */
-	explicit ClientGame(ClientProtocol protocol) noexcept;
+	explicit ClientGame(std::unique_ptr<ClientProtocol> protocol) noexcept;
 
 	// IGame member functions - client-specific implementation
 	virtual void game_start() override;
@@ -207,7 +224,7 @@ public:
 
 private:
 
-	ClientProtocol m_protocol; //!< communicator object
+	std::unique_ptr<ClientProtocol> m_protocol; //!< communicator object
 
 	// IServerMessages member functions - handlers for incoming messages
 	virtual void meta(GameMeta meta) override;
@@ -231,7 +248,7 @@ public:
 	/**
 	 * Construct the game to communicate via the given protocol.
 	 */
-	explicit ServerGame(ServerProtocol protocol) noexcept;
+	explicit ServerGame(std::unique_ptr<ServerProtocol> protocol) noexcept;
 
 	// IGame member functions - server-specific implementation
 	virtual void game_start() override;
@@ -243,7 +260,7 @@ public:
 private:
 
 	std::unique_ptr<IArbiter> m_arbiter;  //!< centralized decision component, non-null ingame
-	ServerProtocol m_protocol; //!< communicator object
+	std::unique_ptr<ServerProtocol> m_protocol; //!< communicator object
 
 	// IClientMessages member functions - handlers for incoming messages
 	virtual void meta(GameMeta meta) override;
