@@ -48,8 +48,8 @@ std::unique_ptr<IScreen> ScreenFactory::create_server()
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
 {
-	const IDraw& predecessor_draw = predecessor.get_draw();
-	const IDraw& successor_draw = successor.get_draw();
+	const IDraw2& predecessor_draw = predecessor.get_draw();
+	const IDraw2& successor_draw = successor.get_draw();
 	DrawTransition draw_transition(predecessor_draw, successor_draw);
 	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
 }

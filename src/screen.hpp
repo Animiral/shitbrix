@@ -41,7 +41,7 @@ public:
 	/**
 	 * Access the object which can draw this screen.
 	 */
-	virtual const IDraw& get_draw() const =0;
+	virtual const IDraw2& get_draw() const =0;
 
 	virtual void input(ControllerAction cinput) =0;
 };
@@ -93,7 +93,7 @@ public:
 	virtual void update() override {}
 	virtual void draw(float dt) override { m_draw.draw(dt); }
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
 
 private:
@@ -115,7 +115,7 @@ public:
 	virtual void update() override;
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override;
 
 	/**
@@ -159,7 +159,7 @@ public:
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
 	virtual void stop() override;
-	virtual const IDraw& get_draw() const override { assert(m_draw); return *m_draw; }
+	virtual const IDraw2& get_draw() const override { assert(m_draw); return *m_draw; }
 	virtual void input(ControllerAction cinput) override;
 
 private:
@@ -204,13 +204,13 @@ public:
 	virtual void update() override;
 	virtual void draw(float dt) override {}
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override;
 
 private:
 
 	ServerThread* const m_server;
-	NoDraw m_draw;
+	NoDraw2 m_draw;
 	bool m_done;
 
 };
@@ -227,7 +227,7 @@ public:
 	virtual void update() override;
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
+	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override { m_successor.input(cinput); }
 
 	IScreen& successor() const { return m_successor; }

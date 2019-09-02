@@ -5,8 +5,21 @@
 #include <cassert>
 #include <sstream>
 
+namespace
+{
+
+std::unique_ptr<IGame> make_game()
+{
+	auto game = std::make_unique<LocalGame>();
+	game->game_reset(2);
+	game->game_start();
+	return move(game);
+}
+
+}
+
 VisualDemo::VisualDemo() :
-	m_game(std::make_unique<LocalGame>()),
+	m_game(make_game()),
 	m_pit(*m_game->state().pit().at(0)),
 	m_stage(m_game->state()),
 	m_draw(m_stage)
@@ -373,6 +386,10 @@ int main(int argc, char* argv[])
 
 		case 5:
 			demo.scenario_desync();
+			break;
+
+		case 6:
+			demo.draw_demo();
 			break;
 	}
 

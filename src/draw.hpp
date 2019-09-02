@@ -13,10 +13,176 @@
 #include <SDL_image.h>
 
 /**
+ * Represents a screen-sized drawing surface.
+ *
+ * Its dimensions are fixed by the global @c CANVAS_W and @c CANVAS_H constants.
+ *
+ * Canvases may be created via the draw implementation.
+ */
+class ICanvas
+{
+
+public:
+
+	virtual ~ICanvas() = 0;
+
+	/**
+	 * Establish the canvas as a rendering target for future drawing operations.
+	 */
+	virtual void use_as_target() = 0;
+
+	/**
+	 * Draw the contents of this canvas to the active rendering target.
+	 */
+	virtual void draw() = 0;
+
+};
+
+/**
+ * Facade for drawing operations used by the game.
+ */
+class IDraw
+{
+
+public:
+
+	virtual ~IDraw() = 0;
+
+	/**
+	 * Draw one of the graphics from the well-known assets library.
+	 */
+	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) = 0;
+
+	/**
+	 * Draw a primitive rectangle with alpha blending.
+	 */
+	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) = 0;
+
+	/**
+	 * Draw a primitive rectangle with additive blending.
+	 */
+	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) = 0;
+
+	/**
+	 * Restrict the drawing area to the specified rectangle.
+	 */
+	virtual void clip(int x, int y, int w, int h) = 0;
+
+	/**
+	 * Remove restrictions on the drawing area.
+	 */
+	virtual void unclip() = 0;
+
+	/**
+	 * Create a new canvas for drawing onto.
+	 */
+	virtual std::unique_ptr<ICanvas> create_canvas() = 0;
+
+	/**
+	 * Draw onto the default rendering target from now on, which is the real screen.
+	 */
+	virtual void reset_target() = 0;
+
+	/**
+	 * Flush all previous drawing operations to the rendering target.
+	 */
+	virtual void render() = 0;
+
+};
+
+/**
+ * Not-drawing canvas implementation.
+ *
+ * This implementation does nothing when asked to draw.
+ * It can be used when SDL's video subsystem was not initialized,
+ * i.e. on the server.
+ */
+class NoDrawCanvas : public ICanvas
+{
+
+public:
+
+	virtual void use_as_target() override {}
+	virtual void draw() override {}
+
+};
+
+/**
+ * Not-drawing implementation.
+ *
+ * This implementation does nothing when asked to draw.
+ * It can be used when SDL's video subsystem was not initialized,
+ * i.e. on the server.
+ */
+class NoDraw : public IDraw
+{
+
+public:
+
+	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override {}
+	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
+	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
+	virtual void clip(int x, int y, int w, int h) override {}
+	virtual void unclip() override {}
+	virtual std::unique_ptr<ICanvas> create_canvas() override { return std::make_unique<NoDrawCanvas>(); }
+	virtual void reset_target() override {}
+	virtual void render() override {}
+
+};
+
+/**
+ * SDL specific canvas implementation.
+ */
+class SdlCanvas : public ICanvas
+{
+
+public:
+
+	explicit SdlCanvas(TexturePtr texture, SDL_Renderer& renderer);
+
+	virtual void use_as_target() override;
+	virtual void draw() override;
+
+private:
+
+	TexturePtr m_texture;
+	SDL_Renderer* m_renderer;
+
+};
+
+/**
+ * SDL specific draw implementation.
+ */
+class SdlDraw : public IDraw
+{
+
+public:
+
+	explicit SdlDraw(SDL_Renderer& renderer, const Assets& assets);
+
+	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override;
+	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
+	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
+	virtual void clip(int x, int y, int w, int h) override;
+	virtual void unclip() override;
+	virtual std::unique_ptr<ICanvas> create_canvas() override;
+	virtual void reset_target() override;
+	virtual void render() override;
+
+private:
+
+	SDL_Renderer* m_renderer;
+	const Assets* m_assets;
+
+};
+
+
+
+/**
  * Interface for classes that can draw stuff.
  * One IDraw will usually draw a whole screen with all the objects in it.
  */
-class IDraw
+class IDraw2
 {
 
 public:
@@ -37,13 +203,8 @@ public:
 
 };
 
-/**
- * Not-drawaing implementation.
- * This implementation does nothing when asked to draw.
- * It can be used when SDL's video subsystem was not initialized,
- * i.e. on the server.
- */
-class NoDraw : public IDraw
+
+class NoDraw2 : public IDraw2
 {
 
 public:
@@ -56,7 +217,7 @@ public:
  * Debugging draw implementation.
  * This is never used in actual releases.
  */
-class DrawPink : public IDraw
+class DrawPink : public IDraw2
 {
 
 public:
@@ -79,7 +240,7 @@ private:
 /**
  * Draw the main menu to the screen.
  */
-class DrawMenu : public IDraw
+class DrawMenu : public IDraw2
 {
 
 public:
@@ -92,7 +253,7 @@ public:
  * DrawGame draws gameplay-related objects to the screen.
  * It knows how to interpret various objects’ state and which textures to use.
  */
-class DrawGame : public IDraw
+class DrawGame : public IDraw2
 {
 
 public:
@@ -171,12 +332,12 @@ private:
 
 };
 
-class DrawTransition : public IDraw
+class DrawTransition : public IDraw2
 {
 
 public:
 
-	DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw);
+	DrawTransition(const IDraw2& pred_draw, const IDraw2& succ_draw);
 	DrawTransition(const DrawTransition& ) = delete;
 	DrawTransition(DrawTransition&& rhs) = default;
 	DrawTransition& operator=(const DrawTransition& ) = delete;
@@ -191,8 +352,8 @@ public:
 
 private:
 
-	const IDraw& m_pred_draw; //!< for drawing the predecessor screen
-	const IDraw& m_succ_draw; //!< for drawing the successor screen
+	const IDraw2& m_pred_draw; //!< for drawing the predecessor screen
+	const IDraw2& m_succ_draw; //!< for drawing the successor screen
 	std::unique_ptr<SDL_Texture, SdlDeleter> m_pred_texture; //!< for compositing the predecessor screen
 	std::unique_ptr<SDL_Texture, SdlDeleter> m_succ_texture; //!< for compositing the successor screen
 	int m_time;

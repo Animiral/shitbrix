@@ -70,6 +70,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\visualdemo\draw_demo.cpp" />
     <ClCompile Include="..\..\visualdemo\visualdemo.cpp" />
   </ItemGroup>
   <ItemGroup>

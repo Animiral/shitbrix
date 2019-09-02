@@ -38,6 +38,7 @@ public:
 	void scenario_fall_after_shrink();
 	void scenario_chaining_garbage();
 	void scenario_desync();
+	void draw_demo();
 
 private:
 
