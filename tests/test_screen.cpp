@@ -3,6 +3,7 @@
  */
 
 #include "screen.hpp"
+#include "draw.hpp"
 #include "game.hpp"
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
@@ -19,10 +20,8 @@ protected:
 		game = std::make_unique<LocalGame>();
 		game->game_reset(2);
 		game->game_start();
-		const GameState& state = game->state();
 		draw = std::make_unique<NoDraw>();
-		auto stage = std::make_unique<Stage>(state, *draw);
-		game_screen = std::make_unique<GameScreen>(std::move(stage), *game);
+		game_screen = std::make_unique<GameScreen>(*draw, *game);
 	}
 
 	// virtual void TearDown() {}

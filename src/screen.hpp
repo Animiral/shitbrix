@@ -9,19 +9,21 @@
 #include "input.hpp"
 #include "event.hpp"
 #include "stage.hpp"
-#include "draw.hpp"
 #include "logic.hpp"
 #include "director.hpp"
 #include "network.hpp"
 #include <memory>
 #include <cassert>
 
+class ICanvas;
+class IDraw;
+
 class IScreen
 {
 
 public:
 
-	IScreen() = default;
+	explicit IScreen(IDraw& draw);
 	virtual ~IScreen() =0;
 
 	// Screens are complex objects and can not be copied or moved.
@@ -33,11 +35,14 @@ public:
 	virtual void update() =0;
 
 	/**
-	 * Draw everything visible on the screen.
+	 * Draw and render everything visible on the screen.
+	 *
+	 * This template method leaves the specifics of what to draw to the
+	 * derived class' draw implementation.
 	 *
 	 * @param dt the given fraction elapsed since the last tick
 	 */
-	virtual void draw(float dt) =0;
+	void draw(float dt);
 
 	virtual bool done() const =0; // whether the screen has ended
 
@@ -47,6 +52,17 @@ public:
 	virtual void stop() {}
 
 	virtual void input(ControllerAction cinput) =0;
+
+protected:
+
+	IDraw* m_draw;
+
+	/**
+	 * Derived class draw implementation.
+	 */
+	virtual void draw_impl(float dt) =0;
+
+	friend class TransitionScreen; // may access draw_impl of other screens
 
 };
 
@@ -107,17 +123,19 @@ class PinkScreen : public IScreen
 
 public:
 
-	explicit PinkScreen(uint8_t r, uint8_t g, uint8_t b, IDraw& draw) noexcept;
+	explicit PinkScreen(IDraw& draw, uint8_t r, uint8_t g, uint8_t b) noexcept;
 
 	virtual void update() override {}
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerAction cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
 	uint8_t m_r, m_g, m_b;
-	IDraw* m_draw;
 	bool m_done = false;
 
 };
@@ -132,7 +150,6 @@ public:
 	explicit MenuScreen(IDraw& draw, IGame& game);
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerAction cinput) override;
 
@@ -141,6 +158,10 @@ public:
 	 * It is an error to ask for this before the screen is done().
 	 */
 	Result result() const { enforce(m_done); return m_result; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
@@ -166,17 +187,17 @@ public:
 
 	enum class Phase { INTRO, PLAY, RESULT };
 
-	explicit GameScreen(
-		std::unique_ptr<Stage> stage,
-		IGame& game,
-		ServerThread* server = nullptr);
+	explicit GameScreen(IDraw& draw, IGame& game, ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
 	virtual void stop() override;
 	virtual void input(ControllerAction cinput) override;
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
@@ -213,13 +234,16 @@ class ServerScreen : public IScreen
 
 public:
 
-	explicit ServerScreen(ServerThread& server) noexcept;
+	explicit ServerScreen(IDraw& draw, ServerThread& server) noexcept;
 	virtual ~ServerScreen() noexcept;
 
-	virtual void update() override;
-	virtual void draw(float dt) override {}
+	virtual void update() override {}
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerAction cinput) override;
+
+protected:
+
+	virtual void draw_impl(float dt) override {}
 
 private:
 
@@ -233,14 +257,17 @@ class TransitionScreen : public IScreen
 
 public:
 
-	explicit TransitionScreen(IScreen& predecessor, IScreen& successor, IDraw& draw);
+	explicit TransitionScreen(IDraw& draw, IScreen& predecessor, IScreen& successor);
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
 	virtual void input(ControllerAction cinput) override { m_successor.input(cinput); }
 
 	IScreen& successor() const { return m_successor; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
@@ -249,6 +276,5 @@ private:
 	std::unique_ptr<ICanvas> m_predecessor_canvas;
 	std::unique_ptr<ICanvas> m_successor_canvas;
 	int m_time; //!< starts at 0 and increases with update()
-	IDraw* m_draw;
 
 };

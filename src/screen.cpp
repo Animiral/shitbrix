@@ -2,6 +2,7 @@
 #include "replay.hpp"
 #include "configuration.hpp"
 #include "game.hpp"
+#include "draw.hpp"
 #include "error.hpp"
 #include <string>
 #include <fstream>
@@ -19,58 +20,68 @@ void autorecord_replay(const Journal& journal);
 
 }
 
+IScreen::IScreen(IDraw& draw) : m_draw(&draw) {}
+
 IScreen::~IScreen() = default;
+
+void IScreen::draw(float dt)
+{
+	draw_impl(dt);
+	m_draw->render();
+}
 
 std::unique_ptr<IScreen> ScreenFactory::create_menu()
 {
+	enforce(nullptr != m_draw);
 	enforce(m_game);
-
 	return std::make_unique<MenuScreen>(*m_draw, *m_game);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_game()
 {
+	enforce(nullptr != m_draw);
 	enforce(m_game);
-
-	const GameState& state = m_game->state();
-	auto stage = std::make_unique<Stage>(state, *m_draw);
-	auto screen = std::make_unique<GameScreen>(std::move(stage), *m_game);
+	auto screen = std::make_unique<GameScreen>(*m_draw, *m_game);
 	return std::move(screen);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_server()
 {
+	enforce(nullptr != m_draw);
 	enforce(m_server);
-
-	return std::make_unique<ServerScreen>(*m_server);
+	return std::make_unique<ServerScreen>(*m_draw, *m_server);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
 {
-	return std::make_unique<TransitionScreen>(predecessor, successor, *m_draw);
+	enforce(nullptr != m_draw);
+	return std::make_unique<TransitionScreen>(*m_draw, predecessor, successor);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_pink(uint8_t r, uint8_t g, uint8_t b)
 {
-	return std::make_unique<PinkScreen>(r, g, b, *m_draw);
+	enforce(nullptr != m_draw);
+	return std::make_unique<PinkScreen>(*m_draw, r, g, b);
 }
 
 
-PinkScreen::PinkScreen(uint8_t r, uint8_t g, uint8_t b, IDraw& draw) noexcept
-	: m_r(r), m_g(g), m_b(b), m_draw(&draw)
+PinkScreen::PinkScreen(IDraw& draw, uint8_t r, uint8_t g, uint8_t b) noexcept
+	: IScreen(draw), m_r(r), m_g(g), m_b(b)
 {}
 
-void PinkScreen::draw(float dt)
+void PinkScreen::draw_impl(float dt)
 {
 	m_draw->rect(0, 0, CANVAS_W, CANVAS_H, m_r, m_g, m_b, ALPHA_OPAQUE);
 }
 
 
 MenuScreen::MenuScreen(IDraw& draw, IGame& game)
-: m_game_time(0),
-  m_done(false),
-  m_draw(&draw),
-  m_game(&game)
+	:
+	IScreen(draw),
+	m_game_time(0),
+	m_done(false),
+	m_draw(&draw),
+	m_game(&game)
 {
 	Log::info("MenuScreen turn on.");
 }
@@ -86,11 +97,6 @@ void MenuScreen::update()
 	}
 }
 
-void MenuScreen::draw(float dt)
-{
-	m_draw->gfx(0, 0, Gfx::MENUBG);
-}
-
 void MenuScreen::input(ControllerAction cinput)
 {
 	if(ButtonAction::DOWN == cinput.action) {
@@ -104,12 +110,18 @@ void MenuScreen::input(ControllerAction cinput)
 	}
 }
 
+void MenuScreen::draw_impl(float dt)
+{
+	m_draw->gfx(0, 0, Gfx::MENUBG);
+}
 
-GameScreen::GameScreen(std::unique_ptr<Stage> stage, IGame& game, ServerThread* server) :
+
+GameScreen::GameScreen(IDraw& draw, IGame& game, ServerThread* server) :
+	IScreen(draw),
 	m_phase(Phase::INTRO),
 	m_time(0),
 	m_done(false),
-	m_stage(std::move(stage)),
+	m_stage(new Stage(game.state(), *m_draw)),
 	m_game(&game),
 	m_server(server)
 {
@@ -139,11 +151,6 @@ void GameScreen::update()
 		return;
 
 	advance_tick();
-}
-
-void GameScreen::draw(float dt)
-{
-	m_stage->draw(dt);
 }
 
 void GameScreen::stop()
@@ -255,6 +262,11 @@ void GameScreen::input(ControllerAction cinput)
 	}
 }
 
+void GameScreen::draw_impl(float dt)
+{
+	m_stage->draw(dt);
+}
+
 void GameScreen::advance_tick()
 {
 	// logic-independent stage effects
@@ -302,8 +314,8 @@ void GameScreen::update_play()
 	m_game->synchronurse(m_time);
 }
 
-ServerScreen::ServerScreen(ServerThread& server) noexcept
-	: m_server(&server), m_done(false)
+ServerScreen::ServerScreen(IDraw& draw, ServerThread& server) noexcept
+	: IScreen(draw), m_server(&server), m_done(false)
 {
 }
 
@@ -320,10 +332,6 @@ ServerScreen::~ServerScreen() noexcept
 	}
 }
 
-void ServerScreen::update()
-{
-}
-
 void ServerScreen::input(ControllerAction cinput)
 {
 	if(Button::QUIT == cinput.button)
@@ -331,14 +339,14 @@ void ServerScreen::input(ControllerAction cinput)
 }
 
 
-TransitionScreen::TransitionScreen(IScreen& predecessor, IScreen& successor, IDraw& draw)
+TransitionScreen::TransitionScreen(IDraw& draw, IScreen& predecessor, IScreen& successor)
 	:
+	IScreen(draw),
 	m_predecessor(predecessor),
 	m_successor(successor),
 	m_predecessor_canvas(draw.create_canvas()),
 	m_successor_canvas(draw.create_canvas()),
-	m_time(0),
-	m_draw(&draw)
+	m_time(0)
 {}
 
 void TransitionScreen::update()
@@ -348,13 +356,13 @@ void TransitionScreen::update()
 	m_time++;
 }
 
-void TransitionScreen::draw(float dt)
+void TransitionScreen::draw_impl(float dt)
 {
 	m_predecessor_canvas->use_as_target();
-	m_predecessor.draw(dt);
+	m_predecessor.draw_impl(dt);
 
 	m_successor_canvas->use_as_target();
-	m_successor.draw(dt);
+	m_successor.draw_impl(dt);
 
 	int progress_px = CANVAS_W * m_time / TRANSITION_TIME;
 
@@ -362,10 +370,10 @@ void TransitionScreen::draw(float dt)
 	m_draw->reset_target();
 
 	m_draw->clip(0, 0, progress_px, CANVAS_H);
-	m_predecessor_canvas->draw();
+	m_successor_canvas->draw();
 
 	m_draw->clip(progress_px, 0, CANVAS_W-progress_px, CANVAS_H);
-	m_successor_canvas->draw();
+	m_predecessor_canvas->draw();
 }
 
 namespace
