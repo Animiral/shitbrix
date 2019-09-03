@@ -374,6 +374,8 @@ void TransitionScreen::draw_impl(float dt)
 
 	m_draw->clip(progress_px, 0, CANVAS_W-progress_px, CANVAS_H);
 	m_predecessor_canvas->draw();
+
+	m_draw->unclip();
 }
 
 namespace
