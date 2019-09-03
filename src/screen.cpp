@@ -25,7 +25,7 @@ std::unique_ptr<IScreen> ScreenFactory::create_menu()
 {
 	enforce(m_game);
 
-	return std::make_unique<MenuScreen>(DrawMenu{}, *m_game);
+	return std::make_unique<MenuScreen>(*m_draw, *m_game);
 }
 
 std::unique_ptr<IScreen> ScreenFactory::create_game()
@@ -33,9 +33,8 @@ std::unique_ptr<IScreen> ScreenFactory::create_game()
 	enforce(m_game);
 
 	const GameState& state = m_game->state();
-	auto stage = std::make_unique<Stage>(state);
-	auto draw = std::make_unique<DrawGame>(*stage);
-	auto screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), *m_game);
+	auto stage = std::make_unique<Stage>(state, *m_draw);
+	auto screen = std::make_unique<GameScreen>(std::move(stage), *m_game);
 	return std::move(screen);
 }
 
@@ -48,17 +47,29 @@ std::unique_ptr<IScreen> ScreenFactory::create_server()
 
 std::unique_ptr<IScreen> ScreenFactory::create_transition(IScreen& predecessor, IScreen& successor)
 {
-	const IDraw2& predecessor_draw = predecessor.get_draw();
-	const IDraw2& successor_draw = successor.get_draw();
-	DrawTransition draw_transition(predecessor_draw, successor_draw);
-	return std::make_unique<TransitionScreen>(predecessor, successor, std::move(draw_transition));
+	return std::make_unique<TransitionScreen>(predecessor, successor, *m_draw);
+}
+
+std::unique_ptr<IScreen> ScreenFactory::create_pink(uint8_t r, uint8_t g, uint8_t b)
+{
+	return std::make_unique<PinkScreen>(r, g, b, *m_draw);
 }
 
 
-MenuScreen::MenuScreen(DrawMenu&& draw, IGame& game)
+PinkScreen::PinkScreen(uint8_t r, uint8_t g, uint8_t b, IDraw& draw) noexcept
+	: m_r(r), m_g(g), m_b(b), m_draw(&draw)
+{}
+
+void PinkScreen::draw(float dt)
+{
+	m_draw->rect(0, 0, CANVAS_W, CANVAS_H, m_r, m_g, m_b, ALPHA_OPAQUE);
+}
+
+
+MenuScreen::MenuScreen(IDraw& draw, IGame& game)
 : m_game_time(0),
   m_done(false),
-  m_draw(std::move(draw)),
+  m_draw(&draw),
   m_game(&game)
 {
 	Log::info("MenuScreen turn on.");
@@ -77,7 +88,7 @@ void MenuScreen::update()
 
 void MenuScreen::draw(float dt)
 {
-	m_draw.draw(dt);
+	m_draw->gfx(0, 0, Gfx::MENUBG);
 }
 
 void MenuScreen::input(ControllerAction cinput)
@@ -94,25 +105,21 @@ void MenuScreen::input(ControllerAction cinput)
 }
 
 
-GameScreen::GameScreen(std::unique_ptr<Stage> stage, std::unique_ptr<DrawGame> draw,
-                       IGame& game, ServerThread* server) :
+GameScreen::GameScreen(std::unique_ptr<Stage> stage, IGame& game, ServerThread* server) :
 	m_phase(Phase::INTRO),
 	m_time(0),
 	m_done(false),
-	m_draw(std::move(draw)),
 	m_stage(std::move(stage)),
 	m_game(&game),
 	m_server(server)
 {
 	assert(m_stage);
-	assert(m_draw);
 	enforce(game.switches().ingame);
 
 	Log::info("GameScreen turn on.");
 
-	m_draw->show_cursor(true);
-	m_draw->show_banner(false);
-
+	// prepare to clear stage's dangling state pointer whenever necessary
+	m_game->before_reset([this] { m_stage->set_state(nullptr); m_done = true; });
 	m_stage->subscribe_to(m_game->hub());
 }
 
@@ -127,13 +134,6 @@ GameScreen::~GameScreen() noexcept
 
 void GameScreen::update()
 {
-	// detect game end from server
-	// TODO: this is subject to a race condition if the server immediately starts another game.
-	//       It will be fixed when the server waits for all clients' ready before starting.
-	if(!m_game->switches().ingame) {
-		m_done = true;
-	}
-
 	// check pause
 	if(0 == m_game->switches().speed)
 		return;
@@ -143,7 +143,7 @@ void GameScreen::update()
 
 void GameScreen::draw(float dt)
 {
-	m_draw->draw(dt);
+	m_stage->draw(dt);
 }
 
 void GameScreen::stop()
@@ -216,8 +216,8 @@ void GameScreen::input(ControllerAction cinput)
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			m_draw->toggle_pit_debug_overlay();
-			m_draw->toggle_pit_debug_highlight();
+			m_stage->toggle_pit_debug_overlay();
+			m_stage->toggle_pit_debug_highlight();
 			break;
 
 		case Button::DEBUG2:
@@ -277,8 +277,8 @@ void GameScreen::advance_tick()
 
 void GameScreen::update_intro()
 {
-	float fadeness = (static_cast<float>(m_time) / INTRO_TIME);
-	m_draw->fade(fadeness);
+	float black_fraction = 1.f - (static_cast<float>(m_time) / INTRO_TIME);
+	m_stage->fade(black_fraction);
 
 	if(INTRO_TIME <= m_time) {
 		m_phase = Phase::PLAY;
@@ -292,16 +292,8 @@ void GameScreen::update_play()
 	const Journal& journal = m_game->journal();
 	const int winner = journal.meta().winner;
 	if(NOONE != winner) {
-		// display winner
-		auto& stage_objects = m_stage->sobs();
-		for(size_t i = 0; i < stage_objects.size(); i++) {
-			BannerFrame frame = (i == winner) ? BannerFrame::WIN : BannerFrame::LOSE;
-			stage_objects[i].banner.frame = frame;
-		}
-
 		m_phase = Phase::RESULT;
-		m_draw->show_cursor(false);
-		m_draw->show_banner(true);
+		m_stage->show_result(winner);
 		autorecord_replay(journal);
 		return; // skip the usual; we don't need more game logic
 	}
@@ -310,7 +302,7 @@ void GameScreen::update_play()
 	m_game->synchronurse(m_time);
 }
 
-ServerScreen::ServerScreen(ServerThread& server)
+ServerScreen::ServerScreen(ServerThread& server) noexcept
 	: m_server(&server), m_done(false)
 {
 }
@@ -339,6 +331,16 @@ void ServerScreen::input(ControllerAction cinput)
 }
 
 
+TransitionScreen::TransitionScreen(IScreen& predecessor, IScreen& successor, IDraw& draw)
+	:
+	m_predecessor(predecessor),
+	m_successor(successor),
+	m_predecessor_canvas(draw.create_canvas()),
+	m_successor_canvas(draw.create_canvas()),
+	m_time(0),
+	m_draw(&draw)
+{}
+
 void TransitionScreen::update()
 {
 	m_predecessor.update();
@@ -348,8 +350,22 @@ void TransitionScreen::update()
 
 void TransitionScreen::draw(float dt)
 {
-	m_draw.set_time(m_time);
-	m_draw.draw(dt);
+	m_predecessor_canvas->use_as_target();
+	m_predecessor.draw(dt);
+
+	m_successor_canvas->use_as_target();
+	m_successor.draw(dt);
+
+	int progress_px = CANVAS_W * m_time / TRANSITION_TIME;
+
+	// swipe transition: successor screen enters from the left.
+	m_draw->reset_target();
+
+	m_draw->clip(0, 0, progress_px, CANVAS_H);
+	m_predecessor_canvas->draw();
+
+	m_draw->clip(progress_px, 0, CANVAS_W-progress_px, CANVAS_H);
+	m_successor_canvas->draw();
 }
 
 namespace

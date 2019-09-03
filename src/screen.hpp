@@ -18,7 +18,9 @@
 
 class IScreen
 {
+
 public:
+
 	IScreen() = default;
 	virtual ~IScreen() =0;
 
@@ -29,6 +31,12 @@ public:
 	IScreen& operator=(IScreen&& ) = delete;
 
 	virtual void update() =0;
+
+	/**
+	 * Draw everything visible on the screen.
+	 *
+	 * @param dt the given fraction elapsed since the last tick
+	 */
 	virtual void draw(float dt) =0;
 
 	virtual bool done() const =0; // whether the screen has ended
@@ -38,12 +46,8 @@ public:
 	 */
 	virtual void stop() {}
 
-	/**
-	 * Access the object which can draw this screen.
-	 */
-	virtual const IDraw2& get_draw() const =0;
-
 	virtual void input(ControllerAction cinput) =0;
+
 };
 
 /**
@@ -61,6 +65,12 @@ public:
 	void set_game(IGame* game) noexcept { m_game = game; }
 
 	/**
+	 * Configure the game dependency.
+	 * In the future, this will hopefully be taken from a central repository.
+	 */
+	void set_draw(std::unique_ptr<IDraw> draw) noexcept { m_draw = move(draw); }
+
+	/**
 	 * Configure the server dependency.
 	 * In the future, this will hopefully be taken from a central repository.
 	 */
@@ -70,10 +80,12 @@ public:
 	std::unique_ptr<IScreen> create_game();
 	std::unique_ptr<IScreen> create_server();
 	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
+	std::unique_ptr<IScreen> create_pink(uint8_t r, uint8_t g, uint8_t b);
 
 private:
 
 	// resources to create the Screens
+	std::unique_ptr<IDraw> m_draw;
 	IGame* m_game;
 	ServerThread* m_server;
 
@@ -84,21 +96,28 @@ class MenuScreen;
 class GameScreen;
 class TransitionScreen;
 
+/**
+ * The PinkScreen is a simple screen which displays only one solid color.
+ *
+ * It serves a temporary role as a screen placeholder or for testing
+ * purposes. It can be finished by a press of the A button.
+ */
 class PinkScreen : public IScreen
 {
 
 public:
 
-	PinkScreen(DrawPink&& draw) : m_draw(draw) {}
+	explicit PinkScreen(uint8_t r, uint8_t g, uint8_t b, IDraw& draw) noexcept;
+
 	virtual void update() override {}
-	virtual void draw(float dt) override { m_draw.draw(dt); }
+	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
 
 private:
 
-	DrawPink m_draw;
+	uint8_t m_r, m_g, m_b;
+	IDraw* m_draw;
 	bool m_done = false;
 
 };
@@ -110,12 +129,11 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	MenuScreen(DrawMenu&& draw, IGame& game);
+	explicit MenuScreen(IDraw& draw, IGame& game);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override;
 
 	/**
@@ -130,7 +148,7 @@ private:
 	bool m_done; //!< true if this screen has reached its end
 	Result m_result; //!< valid only when m_done
 
-	DrawMenu m_draw; //!< Interface for drawing the screen
+	IDraw* m_draw; //!< Interface for drawing the screen
 	IGame* m_game; //!< Game object
 
 };
@@ -150,7 +168,6 @@ public:
 
 	explicit GameScreen(
 		std::unique_ptr<Stage> stage,
-		std::unique_ptr<DrawGame> draw,
 		IGame& game,
 		ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
@@ -159,7 +176,6 @@ public:
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
 	virtual void stop() override;
-	virtual const IDraw2& get_draw() const override { assert(m_draw); return *m_draw; }
 	virtual void input(ControllerAction cinput) override;
 
 private:
@@ -168,7 +184,6 @@ private:
 	long m_time; //!< starts at 0 with the intro and each game round
 	bool m_done; //!< true if this screen has reached its end
 
-	std::unique_ptr<DrawGame> m_draw;
 	std::unique_ptr<Stage> m_stage;
 	IGame* m_game;
 	ServerThread* const m_server;
@@ -198,19 +213,17 @@ class ServerScreen : public IScreen
 
 public:
 
-	explicit ServerScreen(ServerThread& server);
+	explicit ServerScreen(ServerThread& server) noexcept;
 	virtual ~ServerScreen() noexcept;
 
 	virtual void update() override;
 	virtual void draw(float dt) override {}
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override;
 
 private:
 
 	ServerThread* const m_server;
-	NoDraw2 m_draw;
 	bool m_done;
 
 };
@@ -220,14 +233,11 @@ class TransitionScreen : public IScreen
 
 public:
 
-	TransitionScreen(IScreen& predecessor, IScreen& successor, DrawTransition&& draw)
-	: m_predecessor(predecessor), m_successor(successor), m_time(0), m_draw(std::move(draw))
-	{}
+	explicit TransitionScreen(IScreen& predecessor, IScreen& successor, IDraw& draw);
 
 	virtual void update() override;
 	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
-	virtual const IDraw2& get_draw() const override { return m_draw; }
 	virtual void input(ControllerAction cinput) override { m_successor.input(cinput); }
 
 	IScreen& successor() const { return m_successor; }
@@ -236,7 +246,9 @@ private:
 
 	IScreen& m_predecessor;
 	IScreen& m_successor;
+	std::unique_ptr<ICanvas> m_predecessor_canvas;
+	std::unique_ptr<ICanvas> m_successor_canvas;
 	int m_time; //!< starts at 0 and increases with update()
-	DrawTransition m_draw;
+	IDraw* m_draw;
 
 };

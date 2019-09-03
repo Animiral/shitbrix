@@ -3,6 +3,7 @@
  */
 
 #include "stage.hpp"
+#include "draw.hpp"
 #include "error.hpp"
 #include "tests_common.hpp"
 #include "gtest/gtest.h"
@@ -18,13 +19,15 @@ protected:
 
 		GameMeta meta{2,0};
 		state = std::make_unique<GameState>(meta);
-		stage.reset(new Stage(*state));
+		draw = std::make_unique<NoDraw>();
+		stage = std::make_unique<Stage>(*state, *draw);
 		indicator = &stage->sobs().at(0).bonus;
 	}
 
 	// virtual void TearDown() {}
 
 	std::unique_ptr<GameState> state;
+	std::unique_ptr<IDraw> draw;
 	std::unique_ptr<Stage> stage;
 	BonusIndicator* indicator;
 

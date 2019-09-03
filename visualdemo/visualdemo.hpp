@@ -49,8 +49,8 @@ private:
 
 	std::unique_ptr<IGame> m_game;
 	Pit& m_pit;
+	std::unique_ptr<IDraw> m_draw;
 	Stage m_stage;
-	DrawGame m_draw;
 	SDL_Color m_indicator = {0, 0, 0, 0};
 	InputFlags m_input{true, true, false};
 
@@ -75,6 +75,7 @@ private:
 	 * taken. Then return a copy of the game state.
 	 */
 	GameState run_and_checkpoint(long target_time);
+
 };
 
 class Options

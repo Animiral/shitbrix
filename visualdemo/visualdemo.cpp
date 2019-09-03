@@ -21,8 +21,8 @@ std::unique_ptr<IGame> make_game()
 VisualDemo::VisualDemo() :
 	m_game(make_game()),
 	m_pit(*m_game->state().pit().at(0)),
-	m_stage(m_game->state()),
-	m_draw(m_stage)
+	m_draw(new SdlDraw(the_context.sdl->renderer(), *the_context.assets)),
+	m_stage(m_game->state(), *m_draw)
 {
 }
 
@@ -266,7 +266,7 @@ void VisualDemo::run_game_ticks(int ticks)
 
 			// clear for next frame
 			sdlok(SDL_RenderClear(&renderer));
-			m_draw.draw_offscreen(0); // leave finale open for us to draw our indicator
+			m_stage.draw(0); // leave finale open for us to draw our indicator
 			sdlok(SDL_SetRenderDrawColor(&renderer, m_indicator.r, m_indicator.g, m_indicator.b, SDL_ALPHA_OPAQUE));
 			sdlok(SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_NONE));
 			sdlok(SDL_RenderFillRect(&renderer, &indicator_rect)); // draw indicator

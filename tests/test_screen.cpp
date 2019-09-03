@@ -17,15 +17,18 @@ protected:
 		configure_context_for_testing();
 
 		game = std::make_unique<LocalGame>();
+		game->game_reset(2);
+		game->game_start();
 		const GameState& state = game->state();
-		auto stage = std::make_unique<Stage>(state);
-		std::unique_ptr<DrawGame> draw = std::make_unique<DrawGame>(*stage); // TODO: use abstract draw
-		game_screen = std::make_unique<GameScreen>(std::move(stage), std::move(draw), *game);
+		draw = std::make_unique<NoDraw>();
+		auto stage = std::make_unique<Stage>(state, *draw);
+		game_screen = std::make_unique<GameScreen>(std::move(stage), *game);
 	}
 
 	// virtual void TearDown() {}
 
 	std::unique_ptr<IGame> game;
+	std::unique_ptr<IDraw> draw;
 	std::unique_ptr<GameScreen> game_screen;
 
 };

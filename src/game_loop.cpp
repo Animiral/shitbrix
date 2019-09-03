@@ -22,6 +22,12 @@ GameLoop::GameLoop()
 		auto game = std::make_unique<ServerGame>(move(server_protocol));
 		m_server.reset(new ServerThread(std::move(game)));
 		m_screen_factory.set_server(m_server.get());
+		auto draw = std::make_unique<NoDraw>();
+		m_screen_factory.set_draw(move(draw));
+	}
+	else {
+		auto draw = std::make_unique<SdlDraw>(the_context.sdl->renderer(), *the_context.assets);
+		m_screen_factory.set_draw(move(draw));
 	}
 
 	// configure player control
@@ -216,14 +222,12 @@ void GameLoop::next_screen()
 	} else
 	if(PinkScreen* pink = dynamic_cast<PinkScreen*>(m_screen)) {
 		if(m_pink_screen.get() == pink) {
-			DrawPink creme_draw(250, 220, 220);
-			m_creme_screen = std::make_unique<PinkScreen>(std::move(creme_draw));
+			m_creme_screen = m_screen_factory.create_pink(250, 220, 220);
 			m_transition_screen = m_screen_factory.create_transition(*pink, *m_creme_screen);
 			m_screen = m_transition_screen.get();
 		}
 		else {
-			DrawPink pink_draw(255, 0, 255);
-			m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
+			m_pink_screen = m_screen_factory.create_pink(255, 0, 255);
 			m_transition_screen = m_screen_factory.create_transition(*pink, *m_pink_screen);
 			m_screen = m_transition_screen.get();
 		}
