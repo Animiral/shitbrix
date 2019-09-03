@@ -84,17 +84,17 @@ MenuScreen::MenuScreen(IDraw& draw, IGame& game)
 	m_game(&game)
 {
 	Log::info("MenuScreen turn on.");
+
+	// When the game object becomes ready to start, this screen is finished.
+	m_game->before_reset([this] {
+		m_result = Result::PLAY;
+		m_done = true;
+	});
 }
 
 void MenuScreen::update()
 {
 	m_game_time++;
-
-	// If the game has a fresh new meta/init seed, we know that the game starts.
-	if(m_game->switches().ready) {
-		m_result = Result::PLAY;
-		m_done = true;
-	}
 }
 
 void MenuScreen::input(ControllerAction cinput)
