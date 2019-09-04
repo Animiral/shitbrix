@@ -38,10 +38,39 @@ TEST_F(ArbiterTest, LocalArbiterSpawnBlocksOnStarve)
 {
 	LocalArbiter arbiter{state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
 
-	arbiter.fire(evt::Starve{{1, 0}});
+	const long game_time = 1;
+	const long player = 0;
+	arbiter.fire(evt::Starve{{game_time, player}});
 
 	const Inputs& inputs = journal.inputs();
-	EXPECT_EQ(1, inputs.size());
+	ASSERT_EQ(1, inputs.size());
+	SpawnBlockInput sbi;
+	ASSERT_NO_THROW(sbi = inputs[0].input.get<SpawnBlockInput>()); // no bad variant access
+	EXPECT_EQ(game_time + 1, sbi.game_time); // input must be in the future
+	EXPECT_EQ(player, sbi.player);
+}
+
+/**
+ * When a Match event reaches the LocalArbiter, it must generate a
+ * @c SpawnGarbageInput to throw a new Garbage block containing loot according
+ * to its random generator.
+ */
+TEST_F(ArbiterTest, LocalArbiterSpawnGarbageOnMatch)
+{
+	LocalArbiter arbiter{state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
+
+	const long game_time = 1;
+	const long player = 0;
+	const int combo = 4;
+	arbiter.fire(evt::Match{{game_time, player}, combo, false});
+
+	const Inputs& inputs = journal.inputs();
+	ASSERT_EQ(1, inputs.size());
+	SpawnGarbageInput sgi;
+	ASSERT_NO_THROW(sgi = inputs[0].input.get<SpawnGarbageInput>()); // no bad variant access
+	EXPECT_EQ(game_time + 1, sgi.game_time); // input must be in the future
+	EXPECT_EQ(1, sgi.player); // target is opponent
+	EXPECT_EQ(3, sgi.loot.size());
 }
 
 /**
@@ -53,12 +82,17 @@ TEST_F(ArbiterTest, LocalArbiterSpawnGarbageOnChain)
 {
 	LocalArbiter arbiter{state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
 
-	int chain_counter = 3;
-	arbiter.fire(evt::Chain{{1, 0}, chain_counter});
+	const long game_time = 1;
+	const long player = 0;
+	const int chain_counter = 3;
+	arbiter.fire(evt::Chain{{game_time, player}, chain_counter});
 
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());
-	const SpawnGarbageInput& sgi = inputs[0].input.get<SpawnGarbageInput>();
+	SpawnGarbageInput sgi;
+	ASSERT_NO_THROW(sgi = inputs[0].input.get<SpawnGarbageInput>()); // no bad variant access
+	EXPECT_EQ(game_time + 1, sgi.game_time); // input must be in the future
+	EXPECT_EQ(1, sgi.player); // target is opponent
 	EXPECT_EQ(sgi.loot.size(), PIT_COLS * chain_counter);
 }
 
@@ -88,7 +122,9 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
 	ServerProtocol server_protocol{move(channels.first)};
 	ServerArbiter arbiter{server_protocol, state, journal, std::make_unique<RandomColorSupplier>(0, 0)};
 
-	arbiter.fire(evt::Starve{{1, 0}});
+	const long game_time = 1;
+	const long player = 0;
+	arbiter.fire(evt::Starve{{game_time, player}});
 
 	// The appropriate inputs must be in the local journal
 	const Inputs& inputs = journal.inputs();
@@ -97,7 +133,7 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
 	// The appropriate messages must have been sent to the clients
 	MockServerMessages recipient;
 	ClientProtocol client_protocol{move(channels.second[0])};
-	auto matches_input = [](Input i) { auto pi = i.get<SpawnBlockInput>(); return 1 == pi.game_time && 0 == pi.player && 1 == pi.row; };
+	auto matches_input = [](Input i) { auto pi = i.get<SpawnBlockInput>(); return 2 == pi.game_time && 0 == pi.player && 1 == pi.row; };
 	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
 
 	client_protocol.poll(recipient);
