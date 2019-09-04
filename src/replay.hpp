@@ -19,8 +19,7 @@
 #include "state.hpp"
 #include "input.hpp"
 
-struct InputDiscovered { Input input; bool discovered; };
-using Inputs = std::vector<InputDiscovered>;
+using Inputs = std::vector<Input>;
 using InputSpan = std::pair<Inputs::const_iterator, Inputs::const_iterator>;
 
 /**
@@ -74,10 +73,17 @@ public:
 	long earliest_undiscovered() const noexcept { return m_earliest_undiscovered; }
 
 	/**
-	 * Return all inputs with time >= start_time and <= end_time.
-	 * The inputs will be marked as discovered.
+	 * Push back the time marker for the earliest discovered input to @c game_time.
+	 *
+	 * The logic (@c synchronurse function) does this when we know that we have
+	 * just seen and handled all inputs up to that point.
 	 */
-	InputSpan discover_inputs(long start_time, long end_time) noexcept;
+	void discover_inputs(long game_time) noexcept { m_earliest_undiscovered = game_time; }
+
+	/**
+	 * Return all inputs at the given @c game_time.
+	 */
+	InputSpan get_inputs(long game_time) noexcept;
 
 	/**
 	 * Simply return the list of inputs and do not discover anything.

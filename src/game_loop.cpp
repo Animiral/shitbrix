@@ -168,8 +168,8 @@ void GameLoop::next_screen()
 				meta.winner = NOONE; // this is currently necessary to prevent early exit
 				m_game->game_reset(meta.players);
 				m_game->game_start();
-				for(InputDiscovered id : journal.inputs()) {
-					m_game->game_input(id.input);
+				for(Input input : journal.inputs()) {
+					m_game->game_input(input);
 				}
 				m_game_screen = m_screen_factory.create_game();
 				m_screen = m_game_screen.get();

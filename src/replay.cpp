@@ -44,27 +44,28 @@ Journal::Journal(GameMeta meta, GameState state0)
 namespace
 {
 
-auto greater_time(long cutoff) noexcept
+/**
+ * Helper for searching the journal's sorted inputs with the standard libary.
+ */
+struct CompareInputTime
 {
-	return [cutoff](const InputDiscovered& id) { return id.input.game_time() > cutoff; };
-}
-
-}
-
-InputSpan Journal::discover_inputs(long start_time, long end_time) noexcept
-{
-	enforce(start_time <= end_time);
-
-	auto begin = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(start_time - 1));
-	auto end = std::find_if(begin, m_inputs.end(), greater_time(end_time));
-
-	for(auto it = begin; it != end; ++it) {
-		it->discovered = true;
+	bool operator()(const Input& input, long time) noexcept
+	{
+		return input.game_time() < time;
 	}
+	bool operator()(long time, const Input& input) noexcept
+	{
+		return time < input.game_time();
+	}
+};
 
-	m_earliest_undiscovered = NO_UNDISCOVERED;
+}
 
-	return {begin, end};
+InputSpan Journal::get_inputs(long game_time) noexcept
+{
+	enforce(0 < game_time);
+
+	return equal_range(m_inputs.begin(), m_inputs.end(), game_time, CompareInputTime{});
 }
 
 void Journal::add_input(Input input)
@@ -78,8 +79,8 @@ void Journal::add_input(Input input)
 		m_earliest_undiscovered = itime;
 
 	// ordered insert of the input into the record
-	const auto after = std::find_if(m_inputs.begin(), m_inputs.end(), greater_time(itime));
-	m_inputs.insert(after, InputDiscovered{input, false});
+	const auto after = upper_bound(m_inputs.begin(), m_inputs.end(), itime, CompareInputTime{});
+	m_inputs.insert(after, input);
 
 	// prune checkpoints to maintain integrity
 	auto is_obsolete = [itime](const GameState& s) { return s.game_time() >= itime; };
@@ -141,9 +142,9 @@ void replay_stream(std::ostream& stream, const Journal& journal)
 	       << " " << meta.seed
 	       << " " << meta.winner << "\n";
 
-	for(const auto& id : journal.inputs()) {
+	for(const auto& input : journal.inputs()) {
 		stream << replay_record_type_string(ReplayRecord::Type::INPUT)
-		       << " " << std::string(id.input) << "\n";
+		       << " " << std::string(input) << "\n";
 	}
 }
 

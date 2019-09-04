@@ -45,7 +45,7 @@ TEST_F(ArbiterTest, LocalArbiterSpawnBlocksOnStarve)
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());
 	SpawnBlockInput sbi;
-	ASSERT_NO_THROW(sbi = inputs[0].input.get<SpawnBlockInput>()); // no bad variant access
+	ASSERT_NO_THROW(sbi = inputs[0].get<SpawnBlockInput>()); // no bad variant access
 	EXPECT_EQ(game_time + 1, sbi.game_time); // input must be in the future
 	EXPECT_EQ(player, sbi.player);
 }
@@ -67,7 +67,7 @@ TEST_F(ArbiterTest, LocalArbiterSpawnGarbageOnMatch)
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());
 	SpawnGarbageInput sgi;
-	ASSERT_NO_THROW(sgi = inputs[0].input.get<SpawnGarbageInput>()); // no bad variant access
+	ASSERT_NO_THROW(sgi = inputs[0].get<SpawnGarbageInput>()); // no bad variant access
 	EXPECT_EQ(game_time + 1, sgi.game_time); // input must be in the future
 	EXPECT_EQ(1, sgi.player); // target is opponent
 	EXPECT_EQ(3, sgi.loot.size());
@@ -90,7 +90,7 @@ TEST_F(ArbiterTest, LocalArbiterSpawnGarbageOnChain)
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());
 	SpawnGarbageInput sgi;
-	ASSERT_NO_THROW(sgi = inputs[0].input.get<SpawnGarbageInput>()); // no bad variant access
+	ASSERT_NO_THROW(sgi = inputs[0].get<SpawnGarbageInput>()); // no bad variant access
 	EXPECT_EQ(game_time + 1, sgi.game_time); // input must be in the future
 	EXPECT_EQ(1, sgi.player); // target is opponent
 	EXPECT_EQ(sgi.loot.size(), PIT_COLS * chain_counter);
@@ -156,7 +156,7 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnGarbageOnChain)
 	// The appropriate input must be in the local journal
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());
-	const SpawnGarbageInput& sgi = inputs[0].input.get<SpawnGarbageInput>();
+	const SpawnGarbageInput& sgi = inputs[0].get<SpawnGarbageInput>();
 	EXPECT_EQ(sgi.loot.size(), PIT_COLS * chain_counter);
 
 	// The appropriate message must have been sent to the clients

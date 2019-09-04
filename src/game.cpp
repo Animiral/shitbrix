@@ -152,30 +152,32 @@ void IGame::synchronurse(long target_time)
 	assert(m_journal);
 	assert(m_director);
 
-	// get events from journal, from which inputs will be applied to the state
-	const long time0 = m_journal->earliest_undiscovered();
+	// if the state is ahead of the target or the new inputs, roll back
+	const long time0 = std::min(m_journal->earliest_undiscovered(), target_time + 1);
 
-	if(time0 < target_time) {
+	if(time0 <= m_state->game_time()) {
 		*m_state = m_journal->checkpoint_before(time0);
 		Log::trace("%s(%d): revert to checkpoint before time=%d -> at time=%d.", __FUNCTION__, target_time, time0, m_state->game_time());
 		debug_dump_state(*m_state);
 	}
 
-	InputSpan inputs = m_journal->discover_inputs(m_state->game_time() + 1, target_time);
-	auto input_it = inputs.first;
-
 	while(m_state->game_time() < target_time && !m_director->over()) {
-		for(; input_it != inputs.second && input_it->input.game_time() == m_state->game_time() + 1; ++input_it) {
-			Log::trace("%s(%d): apply input %s.", __FUNCTION__, target_time, std::string(input_it->input).c_str());
-			m_director->apply_input(input_it->input);
+		InputSpan inputs = m_journal->get_inputs(m_state->game_time() + 1);
+		for(auto it = inputs.first; it != inputs.second; ++it) {
+			Log::trace("%s(%d): apply input %s.", __FUNCTION__, target_time, std::string(*it).c_str());
+			m_director->apply_input(*it);
 		}
 
-		// Run self-contained object behaviors. state.game_time() is incremented here.
+		// Run self-contained object behaviors.
+		// state.game_time() is incremented here.
 		m_state->update();
 
 		// Run updates based on game logic and interactions.
+		// This may invalidate the above iterators in inputs due to new inputs.
 		m_director->update();
 	}
+
+	m_journal->discover_inputs(target_time + 1);
 
 	if(m_director->over())
 		return; // stop feeding the journal now

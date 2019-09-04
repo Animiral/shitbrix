@@ -83,7 +83,7 @@ input PlayerInput 10 1 swap press
 
 	Inputs inputs = journal->inputs();
 	ASSERT_EQ(1, inputs.size());
-	const PlayerInput input = inputs[0].input.get<PlayerInput>();
+	const PlayerInput input = inputs[0].get<PlayerInput>();
 	EXPECT_EQ(10, input.game_time);
 	EXPECT_EQ(1, input.player);
 	EXPECT_EQ(GameButton::SWAP, input.button);
@@ -132,23 +132,16 @@ TEST_F(ReplayTest, DiscoverInputs)
 	EXPECT_EQ(1, earliest);
 
 	// Test 2: Journal must properly discover inputs
-	InputSpan span = journal->discover_inputs(earliest, 4);
-	ASSERT_EQ(2, std::distance(span.first, span.second));
-	EXPECT_EQ(1, span.first->input.get<PlayerInput>().game_time);
-	EXPECT_EQ(3, (span.first+1)->input.get<PlayerInput>().game_time);
+	InputSpan span = journal->get_inputs(1);
+	ASSERT_EQ(1, std::distance(span.first, span.second));
+	EXPECT_EQ(1, span.first->get<PlayerInput>().game_time);
 
 	// Test 3: insert inputs in the past
+	journal->discover_inputs(4); // we declare all existing inputs seen
 	journal->add_input(input2);
 	journal->add_input(input4);
 	earliest = journal->earliest_undiscovered();
 	EXPECT_EQ(2, earliest);
-
-	// Test 4: Journal must discover only recent inputs
-	span = journal->discover_inputs(earliest, 4);
-	ASSERT_EQ(3, std::distance(span.first, span.second));
-	EXPECT_EQ(2, span.first->input.get<PlayerInput>().game_time);
-	EXPECT_EQ(3, (span.first+1)->input.get<PlayerInput>().game_time);
-	EXPECT_EQ(4, (span.first+2)->input.get<PlayerInput>().game_time);
 }
 
 /**
@@ -167,8 +160,8 @@ TEST_F(ReplayTest, EarliestUndiscovered)
 	earliest = journal->earliest_undiscovered();
 	EXPECT_EQ(5, earliest);
 
-	// Test 3: After input discovery, the time again indicates no new inputs.
-	journal->discover_inputs(5, 5);
+	// Test 3: After input discovery, the earliest time is set accordingly.
+	journal->discover_inputs(6);
 	earliest = journal->earliest_undiscovered();
-	EXPECT_EQ(Journal::NO_UNDISCOVERED, earliest);
+	EXPECT_EQ(6, earliest);
 }

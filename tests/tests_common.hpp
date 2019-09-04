@@ -5,6 +5,7 @@
 #pragma once
 
 #include "stage.hpp"
+#include "arbiter.hpp"
 #include "director.hpp"
 #include "network.hpp"
 #include "gmock/gmock.h"
@@ -95,5 +96,20 @@ public:
 	MOCK_METHOD(void, input, (Input input), (override));
 	MOCK_METHOD(void, speed, (int speed), (override));
 	MOCK_METHOD(void, start, (), (override));
+
+};
+
+/**
+ * Mock for examining interaction with central
+ * nondeterministic gameplay decisions.
+ */
+class MockArbiter : public IArbiter
+{
+
+public:
+
+	MOCK_METHOD(void, fire, (evt::Match match), (override));
+	MOCK_METHOD(void, fire, (evt::Chain chain), (override));
+	MOCK_METHOD(void, fire, (evt::Starve starve), (override));
 
 };
