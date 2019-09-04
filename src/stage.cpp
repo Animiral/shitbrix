@@ -383,12 +383,12 @@ void Stage::draw_bonus(const BonusIndicator& bonus, float dt) const
 	bonus.get_indication(combo, combo_fade, chain, chain_fade);
 
 	for(int i = 0; i < combo; i++) {
-		Point star_loc{0, static_cast<float>(-BONUS_H * (i + 1))};
+		Point star_loc = origin.offset(0, static_cast<float>(-BONUS_H * (i + 1)));
 		m_draw->gfx(star_loc, Gfx::BONUS, static_cast<int>(BonusFrame::COMBO), combo_fade);
 	}
 
 	for(int i = 0; i < chain; i++) {
-		Point star_loc{static_cast<float>(BONUS_W), static_cast<float>(-BONUS_H * (i + 1))};
+		Point star_loc = origin.offset(static_cast<float>(BONUS_W), static_cast<float>(-BONUS_H * (i + 1)));
 		m_draw->gfx(star_loc, Gfx::BONUS, static_cast<int>(BonusFrame::CHAIN), chain_fade);
 	}
 }
