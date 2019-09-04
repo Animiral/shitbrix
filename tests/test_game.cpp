@@ -15,14 +15,16 @@ protected:
 	{
 		configure_context_for_testing();
 
-		local_game.reset(new LocalGame{});
+		local_game.reset(new LocalGame{std::make_unique<LocalGameFactory>()});
 		auto channels = make_test_channels(1);
 		auto client_protocol = std::make_unique<ClientProtocol>(move(channels.second[0]));
 		auto server_protocol = std::make_unique<ServerProtocol>(move(channels.first));
 		this->client_protocol = client_protocol.get(); // preserve access for later
 		this->server_protocol = server_protocol.get(); // preserve access for later
-		client_game.reset(new ClientGame{std::move(client_protocol)});
-		server_game.reset(new ServerGame{std::move(server_protocol)});
+		auto client_factory = std::make_unique<ClientGameFactory>();
+		client_game.reset(new ClientGame{move(client_factory), std::move(client_protocol)});
+		auto server_factory = std::make_unique<ServerGameFactory>(*server_protocol);
+		server_game.reset(new ServerGame{move(server_factory), std::move(server_protocol)});
 	}
 
 	// virtual void TearDown() {}

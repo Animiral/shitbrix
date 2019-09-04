@@ -19,7 +19,8 @@ GameLoop::GameLoop()
 	   NetworkMode::WITH_SERVER == configuration.network_mode) {
 		auto server_channel = make_server_channel(configuration.port);
 		auto server_protocol = std::make_unique<ServerProtocol>(std::move(server_channel));
-		auto game = std::make_unique<ServerGame>(move(server_protocol));
+		auto factory = std::make_unique<ServerGameFactory>(*server_protocol);
+		auto game = std::make_unique<ServerGame>(move(factory), move(server_protocol));
 		m_server.reset(new ServerThread(std::move(game)));
 		m_screen_factory.set_server(m_server.get());
 		auto draw = std::make_unique<NoDraw>();
@@ -137,14 +138,16 @@ void GameLoop::next_screen()
 				throw GameException("Client mode requires server_url configuration.");
 
 			if(NetworkMode::LOCAL == mode) {
-				m_game = std::make_unique<LocalGame>();
+				auto factory = std::make_unique<LocalGameFactory>();
+				m_game = std::make_unique<LocalGame>(move(factory));
 			}
 			else {
 				auto client_channel = make_client_channel(
 					the_context.configuration->server_url->c_str(),
 					the_context.configuration->port); // network implementation
 				auto client_protocol = std::make_unique<ClientProtocol>(std::move(client_channel));
-				m_game = std::make_unique<ClientGame>(move(client_protocol));
+				auto factory = std::make_unique<ClientGameFactory>();
+				m_game = std::make_unique<ClientGame>(move(factory), move(client_protocol));
 			}
 
 			m_screen_factory.set_game(m_game.get());

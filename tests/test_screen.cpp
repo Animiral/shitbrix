@@ -17,7 +17,7 @@ protected:
 	{
 		configure_context_for_testing();
 
-		game = std::make_unique<LocalGame>();
+		game = std::make_unique<LocalGame>(std::make_unique<LocalGameFactory>());
 		game->game_reset(2);
 		game->game_start();
 		draw = std::make_unique<NoDraw>();

@@ -13,6 +13,78 @@
 #include <optional>
 #include <fstream>
 
+IGameFactory::IGameFactory() = default;
+
+IGameFactory::~IGameFactory() = default;
+
+std::unique_ptr<GameState> IGameFactory::state()
+{
+	return move(m_state);
+}
+
+std::unique_ptr<Journal> IGameFactory::journal()
+{
+	return move(m_journal);
+}
+
+std::unique_ptr<BlockDirector> IGameFactory::director()
+{
+	return move(m_director);
+}
+
+std::unique_ptr<evt::GameEventHub> IGameFactory::hub()
+{
+	return move(m_hub);
+}
+
+std::unique_ptr<IArbiter> IGameFactory::arbiter()
+{
+	return move(m_arbiter);
+}
+
+void IGameFactory::base_create(GameMeta meta)
+{
+	m_state = std::make_unique<GameState>(meta);
+	m_journal = std::make_unique<Journal>(meta, *m_state);
+	m_director = std::make_unique<BlockDirector>();
+	m_hub = std::make_unique<evt::GameEventHub>();
+	m_director->set_handler(*m_hub);
+	m_director->set_state(*m_state);
+}
+
+void LocalGameFactory::create(GameMeta meta)
+{
+	base_create(meta);
+
+	auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
+	m_arbiter = std::make_unique<LocalArbiter>(*m_state, *m_journal, move(color_supplier));
+	m_hub->subscribe(*m_arbiter);
+}
+
+void ClientGameFactory::create(GameMeta meta)
+{
+	base_create(meta);
+}
+
+ServerGameFactory::ServerGameFactory(ServerProtocol& protocol)
+	: m_protocol(&protocol)
+{}
+
+void ServerGameFactory::create(GameMeta meta)
+{
+	base_create(meta);
+
+	auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
+	m_arbiter = std::make_unique<ServerArbiter>(*m_protocol, *m_state, *m_journal, move(color_supplier));
+	m_hub->subscribe(*m_arbiter);
+}
+
+IGame::IGame(std::unique_ptr<IGameFactory> game_factory) noexcept
+	: m_game_factory(move(game_factory))
+{
+	enforce(nullptr != m_game_factory);
+}
+
 IGame::~IGame() = default;
 
 Switches IGame::switches()
@@ -116,34 +188,61 @@ void IGame::synchronurse(long target_time)
 	}
 }
 
-LocalGame::LocalGame() noexcept = default;
-
-LocalGame::~LocalGame() noexcept = default;
-
-void LocalGame::game_start()
+void IGame::base_start()
 {
 	enforce(m_switches.ready);
 	enforce(!m_switches.ingame);
 	assert(m_meta.has_value());
 
-	Log::info("Initialize new local game for %d players, seed=%u.", m_meta->players, m_meta->seed);
-
 	m_switches.ingame = true;
 	m_switches.winner = NOONE;
 
-	m_state = std::make_unique<GameState>(*m_meta);
-	m_journal = std::make_unique<Journal>(*m_meta, *m_state);
-	m_director = std::make_unique<BlockDirector>();
-	m_hub = std::make_unique<evt::GameEventHub>();
-	m_director->set_handler(*m_hub);
-	m_director->set_state(*m_state);
+	m_game_factory->create(*m_meta);
 
-	auto color_supplier = std::make_unique<RandomColorSupplier>(m_meta->seed, 0);
-	m_arbiter = std::make_unique<LocalArbiter>(*m_state, *m_journal, move(color_supplier));
-	m_hub->subscribe(*m_arbiter);
+	m_state = m_game_factory->state();
+	m_journal = m_game_factory->journal();
+	m_director = m_game_factory->director();
+	m_hub = m_game_factory->hub();
+
+	// validate factory output
+	enforce(nullptr != m_state);
+	enforce(nullptr != m_journal);
+	enforce(nullptr != m_director);
+	enforce(nullptr != m_hub);
 
 	if(m_start_handler)
 		m_start_handler();
+}
+
+void IGame::base_reset()
+{
+	if(m_reset_handler)
+		m_reset_handler();
+
+	m_switches.ingame = false;
+	m_switches.ready = true;
+
+	m_state.reset();
+	m_journal.reset();
+	m_director.reset();
+	m_hub.reset();
+}
+
+LocalGame::LocalGame(std::unique_ptr<IGameFactory> game_factory)
+	: IGame(move(game_factory))
+{}
+
+LocalGame::~LocalGame() noexcept = default;
+
+void LocalGame::game_start()
+{
+	assert(m_meta.has_value());
+
+	Log::info("Initialize new local game for %d players, seed=%u.", m_meta->players, m_meta->seed);
+
+	base_start();
+	m_arbiter = m_game_factory->arbiter();
+	enforce(nullptr != m_arbiter); // validate factory
 }
 
 void LocalGame::game_input(Input input)
@@ -158,20 +257,11 @@ void LocalGame::game_reset(int players)
 {
 	assert(2 == players); // different player numbers are not yet supported
 
-	if(m_reset_handler)
-		m_reset_handler();
-
-	m_switches.ingame = false;
-	m_switches.ready = true;
+	base_reset();
+	m_arbiter.reset();
 
 	static std::random_device rdev;
 	m_meta = GameMeta{players, rdev(), NOONE};
-
-	m_state.reset();
-	m_journal.reset();
-	m_director.reset();
-	m_hub.reset();
-	m_arbiter.reset();
 }
 
 void LocalGame::set_speed(int speed)
@@ -191,8 +281,8 @@ void LocalGame::poll()
 	}
 }
 
-ClientGame::ClientGame(std::unique_ptr<ClientProtocol> protocol) noexcept
-	: m_protocol(move(protocol))
+ClientGame::ClientGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ClientProtocol> protocol) noexcept
+	: IGame(move(game_factory)), m_protocol(move(protocol))
 {
 	enforce(nullptr != m_protocol);
 }
@@ -226,17 +316,9 @@ void ClientGame::meta(GameMeta meta)
 {
 	assert(2 == meta.players); // different player numbers are not yet supported
 
-	if(m_reset_handler)
-		m_reset_handler();
+	base_reset();
 
-	m_switches.ingame = false;
-	m_switches.ready = true;
 	m_meta = meta;
-
-	m_state.reset();
-	m_journal.reset();
-	m_director.reset();
-	m_hub.reset();
 }
 
 void ClientGame::input(Input input)
@@ -266,18 +348,7 @@ void ClientGame::start()
 
 	Log::info("Initialize new client game for %d players, seed=%u.", m_meta->players, m_meta->seed);
 
-	m_switches.ingame = true;
-	m_switches.winner = NOONE;
-
-	m_state = std::make_unique<GameState>(*m_meta);
-	m_journal = std::make_unique<Journal>(*m_meta, *m_state);
-	m_director = std::make_unique<BlockDirector>();
-	m_hub = std::make_unique<evt::GameEventHub>();
-	m_director->set_handler(*m_hub);
-	m_director->set_state(*m_state);
-
-	if(m_start_handler)
-		m_start_handler();
+	base_start();
 }
 
 void ClientGame::gameend(int winner)
@@ -291,8 +362,8 @@ void ClientGame::gameend(int winner)
 	m_switches.winner = winner;
 }
 
-ServerGame::ServerGame(std::unique_ptr<ServerProtocol> protocol) noexcept
-	: m_protocol(move(protocol))
+ServerGame::ServerGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ServerProtocol> protocol) noexcept
+	: IGame(move(game_factory)), m_protocol(move(protocol))
 {
 	enforce(nullptr != m_protocol);
 }
@@ -308,25 +379,12 @@ void ServerGame::game_start()
 	assert(m_meta.has_value());
 
 	Log::info("Initialize new server game for %d players, seed=%u.", m_meta->players, m_meta->seed);
-
-	m_switches.ingame = true;
-	m_switches.winner = NOONE;
-
-	m_state = std::make_unique<GameState>(*m_meta);
-	m_journal = std::make_unique<Journal>(*m_meta, *m_state);
-	m_director = std::make_unique<BlockDirector>();
-	m_hub = std::make_unique<evt::GameEventHub>();
-	m_director->set_handler(*m_hub);
-	m_director->set_state(*m_state);
-
-	auto color_supplier = std::make_unique<RandomColorSupplier>(m_meta->seed, 0);
-	m_arbiter = std::make_unique<ServerArbiter>(*m_protocol, *m_state, *m_journal, move(color_supplier));
-	m_hub->subscribe(*m_arbiter);
+	
+	base_start();
+	m_arbiter = m_game_factory->arbiter();
+	enforce(nullptr != m_arbiter); // validate factory
 
 	m_protocol->start();
-
-	if(m_start_handler)
-		m_start_handler();
 }
 
 void ServerGame::game_input(Input input)
@@ -342,24 +400,13 @@ void ServerGame::game_input(Input input)
 
 void ServerGame::game_reset(int players)
 {
-	if(m_reset_handler)
-		m_reset_handler();
+	base_reset();
 
 	if(2 != players)
 		throw GameException("Only 2 players are currently supported.");
 
-	m_switches.ingame = false;
-	m_switches.ready = true;
-
 	static std::random_device rdev;
 	m_meta = GameMeta{players, rdev(), NOONE};
-
-	m_state.reset();
-	m_journal.reset();
-	m_director.reset();
-	m_hub.reset();
-	m_arbiter.reset();
-
 	m_protocol->meta(*m_meta);
 }
 

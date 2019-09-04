@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <functional>
 #include "globals.hpp"
 #include "input.hpp"
 #include "network.hpp"
@@ -17,6 +18,92 @@ namespace evt
 class GameEventHub;
 
 }
+
+/**
+ * An abstract factory that can create dependencies for a @c Game tailored to
+ * a specific scenario, like production or testing.
+ *
+ * The @c Game object keeps the factory until the start of the game, when the
+ * created objects become necessary.
+ */
+class IGameFactory
+{
+
+public:
+
+	explicit IGameFactory();
+	virtual ~IGameFactory() = 0;
+
+	/**
+	 * Build all game objects based on the given meta information.
+	 */
+	virtual void create(GameMeta meta) = 0;
+
+	// Getters for the created objects.
+	// The ownership transfers to the caller.
+	std::unique_ptr<GameState> state();
+	std::unique_ptr<Journal> journal();
+	std::unique_ptr<BlockDirector> director();
+	std::unique_ptr<evt::GameEventHub> hub();
+	std::unique_ptr<IArbiter> arbiter();
+
+protected:
+
+	/**
+	 * Common implementation for creating everything but the arbiter.
+	 */
+	void base_create(GameMeta meta);
+
+	// storage for the created objects - all concrete factories will need this.
+	std::unique_ptr<GameState> m_state;
+	std::unique_ptr<Journal> m_journal;
+	std::unique_ptr<BlockDirector> m_director;
+	std::unique_ptr<evt::GameEventHub> m_hub;
+	std::unique_ptr<IArbiter> m_arbiter;
+
+};
+
+/**
+ * The concrete factory which creates dependencies for @c LocalGame.
+ */
+class LocalGameFactory : public IGameFactory
+{
+
+public:
+
+	virtual void create(GameMeta meta) override;
+
+};
+
+/**
+ * The concrete factory which creates dependencies for @c ClientGame.
+ */
+class ClientGameFactory : public IGameFactory
+{
+
+public:
+
+	virtual void create(GameMeta meta) override;
+
+};
+
+/**
+ * The concrete factory which creates dependencies for @c ServerGame.
+ */
+class ServerGameFactory : public IGameFactory
+{
+
+public:
+
+	explicit ServerGameFactory(ServerProtocol& protocol);
+
+	virtual void create(GameMeta meta) override;
+
+private:
+
+	ServerProtocol* m_protocol;
+
+};
 
 /**
  * These switches contain general information about the state of the current
@@ -46,6 +133,7 @@ class IGame
 
 public:
 
+	explicit IGame(std::unique_ptr<IGameFactory> game_factory) noexcept;
 	virtual ~IGame() = 0;
 
 	/**
@@ -165,7 +253,18 @@ protected:
 	Handler m_reset_handler; //!< callable to notify on game reset
 	Handler m_start_handler; //!< callable to notify on game reset
 
+	/**
+	 * Create the objects that every @c Game implementation needs at game start.
+	 */
+	void base_start();
+
+	/**
+	 * Destroy/reset the game objects when they are no longer needed.
+	 */
+	void base_reset();
+
 	std::optional<GameMeta> m_meta; //!< game meta-info, available when ready or ingame
+	std::unique_ptr<IGameFactory> m_game_factory; //!< creates dependencies in @c base_start
 	std::unique_ptr<GameState> m_state; //!< game state object, non-null ingame
 	std::unique_ptr<Journal> m_journal; //!< game record, non-null ingame
 	std::unique_ptr<BlockDirector> m_director; //!< game rules implementation
@@ -184,7 +283,7 @@ class LocalGame : public IGame
 
 public:
 
-	explicit LocalGame() noexcept;
+	explicit LocalGame(std::unique_ptr<IGameFactory> game_factory);
 	virtual ~LocalGame() noexcept;
 
 	// IGame member functions - local-specific implementation
@@ -196,7 +295,7 @@ public:
 
 private:
 
-	std::unique_ptr<IArbiter> m_arbiter;  //!< centralized decision component, non-null ingame
+	std::unique_ptr<IArbiter> m_arbiter; //!< centralized decision component, non-null ingame
 
 };
 
@@ -213,7 +312,7 @@ public:
 	/**
 	 * Construct the game to communicate via the given protocol.
 	 */
-	explicit ClientGame(std::unique_ptr<ClientProtocol> protocol) noexcept;
+	explicit ClientGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ClientProtocol> protocol) noexcept;
 
 	// IGame member functions - client-specific implementation
 	virtual void game_start() override;
@@ -248,7 +347,7 @@ public:
 	/**
 	 * Construct the game to communicate via the given protocol.
 	 */
-	explicit ServerGame(std::unique_ptr<ServerProtocol> protocol) noexcept;
+	explicit ServerGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ServerProtocol> protocol) noexcept;
 
 	// IGame member functions - server-specific implementation
 	virtual void game_start() override;

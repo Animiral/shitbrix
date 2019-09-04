@@ -40,7 +40,7 @@ void configure_context_for_testing()
 
 std::unique_ptr<IGame> make_game_for_testing()
 {
-	return std::make_unique<LocalGame>();
+	return std::make_unique<LocalGame>(std::make_unique<LocalGameFactory>());
 }
 
 std::vector<Color> rainbow_loot(size_t count)
