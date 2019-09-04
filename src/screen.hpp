@@ -192,7 +192,6 @@ public:
 
 	virtual void update() override;
 	virtual bool done() const override { return m_done; }
-	virtual void stop() override;
 	virtual void input(ControllerAction cinput) override;
 
 protected:

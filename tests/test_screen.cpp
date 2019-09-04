@@ -34,6 +34,7 @@ protected:
 
 /**
  * When the before_reset event comes from the game, the game screen must exit.
+ * It must also not access the game again.
  */
 TEST_F(ScreenTest, GameScreenDoneOnReset)
 {
@@ -42,4 +43,12 @@ TEST_F(ScreenTest, GameScreenDoneOnReset)
 	EXPECT_TRUE(game_screen->done());
 	EXPECT_NO_THROW(game_screen->update()); // we can still update the screen without the game
 	EXPECT_NO_THROW(game_screen->draw(0.f)); // we can still draw the screen without the game
+
+	// the same holds after INTRO_TIME ticks
+	for(int i = 0; i < INTRO_TIME; i++) {
+		EXPECT_NO_THROW(game_screen->update());
+		EXPECT_NO_THROW(game_screen->draw(0.f));
+	}
+
+	EXPECT_NO_THROW(game_screen->stop());
 }

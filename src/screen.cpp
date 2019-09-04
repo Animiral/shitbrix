@@ -131,7 +131,12 @@ GameScreen::GameScreen(IDraw& draw, IGame& game, ServerThread* server) :
 	Log::info("GameScreen turn on.");
 
 	// prepare to clear stage's dangling state pointer whenever necessary
-	m_game->before_reset([this] { m_stage->set_state(nullptr); m_done = true; });
+	m_game->before_reset([this] {
+		// preserve the replay before it is gone
+		autorecord_replay(m_game->journal());
+		m_stage->set_state(nullptr);
+		m_done = true;
+	});
 	m_stage->subscribe_to(m_game->hub());
 }
 
@@ -153,13 +158,13 @@ void GameScreen::update()
 	advance_tick();
 }
 
-void GameScreen::stop()
-{
-	autorecord_replay(m_game->journal());
-}
-
 void GameScreen::input(ControllerAction cinput)
 {
+	// At the moment, a game reset means that the game state becomes unusable.
+	// -> no more inputs when we're finished.
+	if(m_done)
+		return;
+
 	// Generally, inputs to the game screen are given to the game object.
 	// From there, it might be sent over the network and acknowledged by the
 	// server. In any case, the input will finally arrive in the Journal,
@@ -207,14 +212,12 @@ void GameScreen::input(ControllerAction cinput)
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			// preserve the state and replay before it is gone
-			autorecord_replay(m_game->journal());
-
 			m_game->game_reset(2);
 		}
 			break;
 
 		case Button::QUIT:
+			autorecord_replay(m_game->journal());
 			m_done = true;
 			break;
 
@@ -271,6 +274,11 @@ void GameScreen::advance_tick()
 {
 	// logic-independent stage effects
 	m_stage->update();
+
+	// At the moment, a game reset means that the game state becomes unusable.
+	// -> no more updates when we're finished.
+	if(!m_game->switches().ingame)
+		return;
 
 	m_time++;
 
