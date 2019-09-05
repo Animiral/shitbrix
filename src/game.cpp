@@ -1,5 +1,3 @@
-#pragma once
-
 #include "game.hpp"
 #include "director.hpp"
 #include "event.hpp"
