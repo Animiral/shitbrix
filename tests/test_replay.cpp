@@ -145,6 +145,34 @@ TEST_F(ReplayTest, DiscoverInputs)
 }
 
 /**
+ * Test that the Journal retracts the correct kinds of inputs.
+ */
+TEST_F(ReplayTest, Retract)
+{
+	std::array<Color, PIT_COLS> colors; // preparation for SpawnBlockInputs
+	colors.fill(Color::BLUE);
+
+	auto inputs = {
+		Input{PlayerInput{1, 0, GameButton::SWAP, ButtonAction::DOWN}}, // early input - not retracted
+		Input{SpawnBlockInput{1, 0, 1, colors}}, // early input - not retracted
+		Input{PlayerInput{2, 0, GameButton::SWAP, ButtonAction::DOWN}}, // player input - not retracted
+		Input{SpawnBlockInput{2, 0, 2, colors}}, // to be retracted
+		Input{SpawnGarbageInput{2, 0, 1, PIT_COLS, {-9, 0}, {colors.begin(), colors.end()}}} // to be retracted
+	};
+
+	for(auto input : inputs)
+		journal->add_input(input);
+
+	journal->discover_inputs(3);
+	ASSERT_EQ(5, journal->inputs().size());
+	ASSERT_EQ(3, journal->earliest_undiscovered());
+
+	journal->retract(1); // e.g. when a new input at time 1 becomes known
+	EXPECT_EQ(3, journal->inputs().size());
+	EXPECT_EQ(2, journal->earliest_undiscovered());
+}
+
+/**
  * Test that the Journal reports when there are no more inputs to discover.
  */
 TEST_F(ReplayTest, EarliestUndiscovered)

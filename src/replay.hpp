@@ -97,6 +97,12 @@ public:
 	void add_input(Input input);
 
 	/**
+	 * Remove all retractable (non-player) inputs after the given @c time from
+	 * memory.
+	 */
+	void retract(long time);
+
+	/**
 	 * Update the winner in the meta information.
 	 */
 	void set_winner(int winner) noexcept;

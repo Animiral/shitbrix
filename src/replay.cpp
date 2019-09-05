@@ -88,6 +88,23 @@ void Journal::add_input(Input input)
 	m_checkpoint.erase(obs_it, m_checkpoint.end());
 }
 
+void Journal::retract(long time)
+{
+	struct IsRetractable
+	{
+		bool operator()(const PlayerInput& ) { return false; }
+		bool operator()(const SpawnBlockInput& ) { return true; }
+		bool operator()(const SpawnGarbageInput& ) { return true; }
+	};
+
+	auto is_retractable = [time](Input i) { return i.game_time() > time && i.visit(IsRetractable{}); };
+	auto new_end = std::remove_if(m_inputs.begin(), m_inputs.end(), is_retractable);
+	m_inputs.erase(new_end, m_inputs.end());
+
+	// we have "undiscovered" the potential inputs that we might want to generate again.
+	m_earliest_undiscovered = time + 1;
+}
+
 void Journal::set_winner(int winner) noexcept
 {
 	enforce(winner == NOONE || (winner >= 0 && winner < m_meta.players));
