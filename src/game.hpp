@@ -263,6 +263,15 @@ protected:
 	 */
 	void base_reset();
 
+	/**
+	 * This method is called by @c synchronurse if new inputs lead to a rollback
+	 * of the game state to an earlier point.
+	 *
+	 * @param target_time the target time passed to @c synchronurse
+	 * @param checkpoint_time the time of the checkpoint from which we start
+	 */
+	virtual void before_rollback(long target_time, long checkpoint_time) {}
+
 	std::optional<GameMeta> m_meta; //!< game meta-info, available when ready or ingame
 	std::unique_ptr<IGameFactory> m_game_factory; //!< creates dependencies in @c base_start
 	std::unique_ptr<GameState> m_state; //!< game state object, non-null ingame
@@ -292,6 +301,10 @@ public:
 	virtual void game_reset(int players) override;
 	virtual void set_speed(int speed) override;
 	virtual void poll() override;
+
+protected:
+
+	virtual void before_rollback(long target_time, long checkpoint_time) override;
 
 private:
 
@@ -328,6 +341,7 @@ private:
 	// IServerMessages member functions - handlers for incoming messages
 	virtual void meta(GameMeta meta) override;
 	virtual void input(Input input) override;
+	virtual void retract(long cutoff_time) override;
 	virtual void speed(int speed) override;
 	virtual void start() override;
 	virtual void gameend(int winner) override;
@@ -355,6 +369,10 @@ public:
 	virtual void game_reset(int players) override;
 	virtual void set_speed(int speed) override;
 	virtual void poll() override;
+
+protected:
+
+	virtual void before_rollback(long target_time, long checkpoint_time) override;
 
 private:
 

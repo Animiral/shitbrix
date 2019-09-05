@@ -98,6 +98,7 @@ std::vector<Message> TestChannel::poll()
 	return messages;
 }
 
+
 std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> make_test_channels(int clients)
 {
 	enforce(clients >= 0);

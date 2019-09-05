@@ -69,6 +69,18 @@ private:
 std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> make_test_channels(int clients);
 
 /**
+ * Mock for examining network interactions.
+ */
+class MockChannel : public IChannel
+{
+
+public:
+
+	MOCK_METHOD(void, send, (Message message), (override));
+	MOCK_METHOD(std::vector<Message>, poll, (), (override));
+};
+
+/**
  * Mock for examining interaction with messages from the server.
  */
 class MockServerMessages : public IServerMessages
@@ -78,6 +90,7 @@ public:
 
 	MOCK_METHOD(void, meta, (GameMeta meta), (override));
 	MOCK_METHOD(void, input, (Input input), (override));
+	MOCK_METHOD(void, retract, (long cutoff_time), (override));
 	MOCK_METHOD(void, speed, (int speed), (override));
 	MOCK_METHOD(void, start, (), (override));
 	MOCK_METHOD(void, gameend, (int winner), (override));

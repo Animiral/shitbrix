@@ -249,6 +249,12 @@ void ServerProtocol::input(Input input)
 	m_channel->send(std::move(out_msg));
 }
 
+void ServerProtocol::retract(long cutoff_time)
+{
+	const Message out_msg{0, 0, MsgType::RETRACT, std::to_string(cutoff_time)};
+	m_channel->send(std::move(out_msg));
+}
+
 void ServerProtocol::speed(int speed)
 {
 	const Message out_msg{0, 0, MsgType::SPEED, std::to_string(speed)};
@@ -349,6 +355,12 @@ void ClientProtocol::poll(IServerMessages& server_messages)
 			server_messages.input(std::move(input));
 		}
 		break;
+
+		case MsgType::RETRACT:
+		{
+			const long cutoff_time = std::stoi(message.data);
+			server_messages.retract(cutoff_time);
+		}
 
 		case MsgType::SPEED:
 		{

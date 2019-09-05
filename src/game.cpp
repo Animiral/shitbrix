@@ -156,8 +156,10 @@ void IGame::synchronurse(long target_time)
 	const long time0 = std::min(m_journal->earliest_undiscovered(), target_time + 1);
 
 	if(time0 <= m_state->game_time()) {
-		*m_state = m_journal->checkpoint_before(time0);
-		Log::trace("%s(%d): revert to checkpoint before time=%d -> at time=%d.", __FUNCTION__, target_time, time0, m_state->game_time());
+		const GameState& checkpoint = m_journal->checkpoint_before(time0);
+		before_rollback(target_time, checkpoint.game_time());
+		Log::trace("%s(%d): revert to checkpoint before time=%d -> at time=%d.", __FUNCTION__, target_time, time0, checkpoint.game_time());
+		*m_state = checkpoint;
 		debug_dump_state(*m_state);
 	}
 
@@ -283,6 +285,11 @@ void LocalGame::poll()
 	}
 }
 
+void LocalGame::before_rollback(long target_time, long checkpoint_time)
+{
+	assert(!"Rollback should never happen in local game.");
+}
+
 ClientGame::ClientGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ClientProtocol> protocol) noexcept
 	: IGame(move(game_factory)), m_protocol(move(protocol))
 {
@@ -331,6 +338,11 @@ void ClientGame::input(Input input)
 		throw GameException("Got input from server before the game is running.");
 
 	m_journal->add_input(std::move(input));
+}
+
+void ClientGame::retract(long cutoff_time)
+{
+	m_journal->retract(cutoff_time);
 }
 
 void ClientGame::speed(int speed)
@@ -433,6 +445,12 @@ void ServerGame::poll()
 		m_switches.winner = winner;
 		m_protocol->gameend(winner);
 	}
+}
+
+void ServerGame::before_rollback(long target_time, long checkpoint_time)
+{
+	m_protocol->retract(checkpoint_time);
+	m_journal->retract(checkpoint_time);
 }
 
 void ServerGame::meta(GameMeta meta)

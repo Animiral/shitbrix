@@ -126,6 +126,7 @@ public:
 
 	virtual void meta(GameMeta meta) = 0;
 	virtual void input(Input input) = 0;
+	virtual void retract(long cutoff_time) = 0;
 	virtual void speed(int speed) = 0;
 	virtual void start() = 0;
 	virtual void gameend(int winner) = 0;
@@ -166,6 +167,7 @@ public:
 
 	virtual void meta(GameMeta meta) override;
 	virtual void input(Input input) override;
+	virtual void retract(long cutoff_time) override;
 	virtual void speed(int speed) override;
 	virtual void start() override;
 	virtual void gameend(int winner) override;

@@ -135,6 +135,19 @@ TEST_F(NetworkTest, ServerProtocolInput)
 }
 
 /**
+ * Tests whether the ServerProtocol correctly passes the retract message.
+ */
+TEST_F(NetworkTest, ServerProtocolRetract)
+{
+	m_server_protocol->retract(1);
+
+	MockServerMessages recipient;
+	EXPECT_CALL(recipient, retract(1)).Times(1);
+
+	m_client_protocol->poll(recipient);
+}
+
+/**
  * Tests whether the ServerProtocol correctly passes the speed message.
  */
 TEST_F(NetworkTest, ServerProtocolSpeed)
