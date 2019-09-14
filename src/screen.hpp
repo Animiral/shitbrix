@@ -15,6 +15,7 @@
 #include <memory>
 #include <cassert>
 
+struct GlobalContext;
 class ICanvas;
 class IDraw;
 
@@ -65,52 +66,6 @@ protected:
 	friend class TransitionScreen; // may access draw_impl of other screens
 
 };
-
-/**
- * Creates Screens.
- */
-class ScreenFactory
-{
-
-public:
-
-	/**
-	 * Configure the game dependency.
-	 * In the future, this will hopefully be taken from a central repository.
-	 */
-	void set_game(IGame* game) noexcept { m_game = game; }
-
-	/**
-	 * Configure the game dependency.
-	 * In the future, this will hopefully be taken from a central repository.
-	 */
-	void set_draw(std::unique_ptr<IDraw> draw) noexcept { m_draw = move(draw); }
-
-	/**
-	 * Configure the server dependency.
-	 * In the future, this will hopefully be taken from a central repository.
-	 */
-	void set_server(ServerThread* server) noexcept { m_server = server; }
-
-	std::unique_ptr<IScreen> create_menu();
-	std::unique_ptr<IScreen> create_game();
-	std::unique_ptr<IScreen> create_server();
-	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
-	std::unique_ptr<IScreen> create_pink(uint8_t r, uint8_t g, uint8_t b);
-
-private:
-
-	// resources to create the Screens
-	std::unique_ptr<IDraw> m_draw;
-	IGame* m_game;
-	ServerThread* m_server;
-
-};
-
-class PinkScreen; //!< debugging screen, never shown
-class MenuScreen;
-class GameScreen;
-class TransitionScreen;
 
 /**
  * The PinkScreen is a simple screen which displays only one solid color.
@@ -194,6 +149,11 @@ public:
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerAction cinput) override;
 
+	/**
+	 * Set whether to automatically save replays.
+	 */
+	void set_autorecord(bool autorecord) noexcept { m_autorecord = autorecord; }
+
 protected:
 
 	virtual void draw_impl(float dt) override;
@@ -203,6 +163,7 @@ private:
 	Phase m_phase; //!< game round state machine
 	long m_time; //!< starts at 0 with the intro and each game round
 	bool m_done; //!< true if this screen has reached its end
+	bool m_autorecord; //!< true if we want to automatically save replays
 
 	std::unique_ptr<Stage> m_stage;
 	IGame* m_game;
@@ -222,6 +183,11 @@ private:
 	 * Tick implementation for the intro phase.
 	 */
 	void update_play();
+
+	/**
+	 * If the autorecord configuration is on, write the appropriate file.
+	 */
+	void autorecord_replay() const;
 
 };
 
@@ -275,5 +241,51 @@ private:
 	std::unique_ptr<ICanvas> m_predecessor_canvas;
 	std::unique_ptr<ICanvas> m_successor_canvas;
 	int m_time; //!< starts at 0 and increases with update()
+
+};
+
+/**
+ * Creates Screens from the application's global settings.
+ */
+class ScreenFactory
+{
+
+public:
+
+	explicit ScreenFactory(const GlobalContext& context) noexcept;
+
+	/**
+	 * Based on the global settings, create the initial starting screen of the
+	 * application. This is most often the MenuScreen.
+	 *
+	 * @return pointer to the initial screen object or @c nullptr for application exit
+	 */
+	IScreen* create_default();
+
+	/**
+	 * Create the screen that follows after the given screen concludes.
+	 *
+	 * The predecessor must be @c done().
+	 *
+	 * @return pointer to the successor screen object or @c nullptr for application exit
+	 */
+	IScreen* create_next(IScreen& predecessor);
+
+private:
+
+	// resources to create the Screens
+	const GlobalContext* m_context; //!< global settings dependency
+
+	std::unique_ptr<IDraw> m_draw; //!< draw object according to configuration
+	std::unique_ptr<IGame> m_game; //!< game object according to configuration
+	std::unique_ptr<ServerThread> m_server; //!< optional server object
+
+	// all screens are owned and stored by the factory
+	std::unique_ptr<MenuScreen> m_menu_screen;
+	std::unique_ptr<GameScreen> m_game_screen;
+	std::unique_ptr<ServerScreen> m_server_screen;
+	std::unique_ptr<TransitionScreen> m_transition_screen;
+	std::unique_ptr<PinkScreen> m_pink_screen;
+	std::unique_ptr<PinkScreen> m_creme_screen;
 
 };
