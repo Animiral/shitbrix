@@ -395,10 +395,10 @@ void ClientProtocol::poll(IServerMessages& server_messages)
 }
 
 
-ServerThread::ServerThread(std::unique_ptr<IGame> server)
-	: m_server(std::move(server))
+ServerThread::ServerThread(std::unique_ptr<IGame> game)
+	: m_game(std::move(game))
 {
-	enforce(nullptr != m_server);
+	enforce(nullptr != m_game);
 
 	m_exit.test_and_set(); // flag is now known set
 	m_future = std::async([this] { main_loop(); });
@@ -438,14 +438,16 @@ void ServerThread::main_loop()
 	Uint64 freq = SDL_GetPerformanceFrequency();
 	long tick = 0; // current logic tick counter
 	Uint64 next_logic = t0 + freq / TPS; // time for next logic update
-	bool in_game = false; // true if the game round is in progress
+
+	// count ticks from 0 when game starts
+	m_game->after_start([&t0, &tick] { t0 = SDL_GetPerformanceCounter(); tick = 0; });
 
 	while(m_exit.test_and_set())
 	{
 		// process messages as long as logic is up to date
 		Uint64 now = SDL_GetPerformanceCounter();
 		while (now < next_logic) {
-			m_server->poll();
+			m_game->poll();
 			now = SDL_GetPerformanceCounter();
 
 			// yield CPU if we have the time
@@ -457,27 +459,10 @@ void ServerThread::main_loop()
 			}
 		}
 
-		// start game at every opportunity
-		// TODO: actually we should wait for all clients
-		if(m_server->switches().ready) {
-			m_server->game_start();
-			t0 = SDL_GetPerformanceCounter();
-			tick = 0;
-			in_game = true;
-		}
-
 		// run logic update, if applicable
-		if(in_game && tick > INTRO_TIME) {
+		if(m_game->switches().ingame && tick > INTRO_TIME) {
 			const long game_time = tick - INTRO_TIME;
-			m_server->synchronurse(game_time);
-
-			// game over check
-			// TODO: save the replay only if it has not yet been saved!
-			if(m_server->director().over()) {
-				const int winner = m_server->director().winner();
-				replay_write(m_server->journal());
-				in_game = false;
-			}
+			m_game->synchronurse(game_time);
 		}
 
 		tick++;

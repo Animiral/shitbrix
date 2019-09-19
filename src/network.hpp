@@ -231,7 +231,7 @@ public:
 	/**
 	 * Start a game server in a separate thread.
 	 */
-	ServerThread(std::unique_ptr<IGame> server);
+	ServerThread(std::unique_ptr<IGame> game);
 
 	/**
 	 * Exit from the server thread, if necessary.
@@ -250,7 +250,7 @@ private:
 
 	std::atomic_flag m_exit;
 	std::future<void> m_future;
-	std::unique_ptr<IGame> m_server;
+	std::unique_ptr<IGame> m_game;
 
 	/**
 	 * Main entry point of the thread.

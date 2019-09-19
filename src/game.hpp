@@ -362,6 +362,7 @@ public:
 	 * Construct the game to communicate via the given protocol.
 	 */
 	explicit ServerGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ServerProtocol> protocol) noexcept;
+	~ServerGame() noexcept;
 
 	// IGame member functions - server-specific implementation
 	virtual void game_start() override;

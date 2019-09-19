@@ -380,6 +380,8 @@ ServerGame::ServerGame(std::unique_ptr<IGameFactory> game_factory, std::unique_p
 	enforce(nullptr != m_protocol);
 }
 
+ServerGame::~ServerGame() noexcept = default;
+
 void ServerGame::game_start()
 {
 	if(!m_switches.ready)

@@ -120,7 +120,7 @@ protected:
 
 private:
 
-	long m_game_time; //!< starts at 0 and increases with update()
+	long m_time; //!< starts at 0 and increases with update()
 	bool m_done; //!< true if this screen has reached its end
 	Result m_result; //!< valid only when m_done
 

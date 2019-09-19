@@ -119,7 +119,6 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(&predecessor)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
-			m_game->game_start(); // create game state from meta info
 			m_game_screen = std::make_unique<GameScreen>(*m_draw, *m_game);
 			m_game_screen->set_autorecord(m_context->configuration->autorecord);
 			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *menu, *m_game_screen);
@@ -177,15 +176,15 @@ void PinkScreen::draw_impl(float dt)
 MenuScreen::MenuScreen(IDraw& draw, IGame& game)
 	:
 	IScreen(draw),
-	m_game_time(0),
+	m_time(0),
 	m_done(false),
 	m_draw(&draw),
 	m_game(&game)
 {
 	Log::info("MenuScreen turn on.");
 
-	// When the game object becomes ready to start, this screen is finished.
-	m_game->before_reset([this] {
+	// When the game starts, this screen is finished.
+	m_game->after_start([this] {
 		m_result = Result::PLAY;
 		m_done = true;
 	});
@@ -193,7 +192,8 @@ MenuScreen::MenuScreen(IDraw& draw, IGame& game)
 
 void MenuScreen::update()
 {
-	m_game_time++;
+	m_game->poll();
+	m_time++;
 }
 
 void MenuScreen::input(ControllerAction cinput)
@@ -201,6 +201,7 @@ void MenuScreen::input(ControllerAction cinput)
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
 			m_game->game_reset(2);
+			m_game->game_start();
 		} else
 		if(Button::QUIT == cinput.button) {
 			m_result = Result::QUIT;
