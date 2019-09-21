@@ -361,6 +361,7 @@ void ClientProtocol::poll(IServerMessages& server_messages)
 			const long cutoff_time = std::stoi(message.data);
 			server_messages.retract(cutoff_time);
 		}
+		break;
 
 		case MsgType::SPEED:
 		{
