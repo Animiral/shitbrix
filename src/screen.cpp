@@ -119,6 +119,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 	} else
 	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(&predecessor)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
+			m_game_screen.release(); // first delete previous instance
 			m_game_screen = std::make_unique<GameScreen>(*m_draw, *m_game);
 			m_game_screen->set_autorecord(m_context->configuration->autorecord);
 			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *menu, *m_game_screen);
@@ -136,6 +137,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 		}
 		else {
 			// Go back to menu
+			m_menu_screen.release(); // first delete previous instance
 			m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_game);
 			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *game, *m_menu_screen);
 			return m_transition_screen.get();
@@ -190,6 +192,11 @@ MenuScreen::MenuScreen(IDraw& draw, IGame& game)
 	});
 }
 
+MenuScreen::~MenuScreen() noexcept
+{
+	m_game->after_start(nullptr); // unregister my handler (potential dangling this ptr)
+}
+
 void MenuScreen::update()
 {
 	m_game->poll();
@@ -236,6 +243,7 @@ GameScreen::GameScreen(IDraw& draw, IGame& game, ServerThread* server) :
 		autorecord_replay();
 		m_stage->set_state(nullptr);
 		m_done = true;
+		m_game->before_reset(nullptr); // don't call this handler twice
 	});
 	m_stage->subscribe_to(m_game->hub());
 }
@@ -247,6 +255,8 @@ GameScreen::~GameScreen() noexcept
 	if(m_game->switches().ingame) {
 		m_stage->unsubscribe_from(m_game->hub());
 	}
+
+	m_game->before_reset(nullptr); // unregister my handler (potential dangling this ptr)
 }
 
 void GameScreen::update()

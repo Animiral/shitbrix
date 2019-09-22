@@ -103,6 +103,7 @@ public:
 	enum class Result { PLAY, QUIT };
 
 	explicit MenuScreen(IDraw& draw, IGame& game);
+	virtual ~MenuScreen() noexcept;
 
 	virtual void update() override;
 	virtual bool done() const override { return m_done; }
