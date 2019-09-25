@@ -98,9 +98,6 @@
     <ProjectReference Include="..\googletest\gtest.vcxproj">
       <Project>{c8f6c172-56f2-4e76-b5fa-c3b423b31be7}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\googletest\gtest_main.vcxproj">
-      <Project>{3af54c8a-10bf-4332-9147-f68ed9862032}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\Shitbrix\Shitbrix.vcxproj">
       <Project>{cbbd0d30-4803-4e63-862a-799750ab7314}</Project>
     </ProjectReference>

@@ -16,8 +16,6 @@ public:
 
 	explicit ReplayTest()
 	{
-		configure_context_for_testing();
-
 		meta = GameMeta{2 /* players */, 4711 /* seed */};
 		// TODO: Add an Arbiter to the game data where the color supplier used to be
 		// ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };

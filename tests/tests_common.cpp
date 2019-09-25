@@ -8,7 +8,6 @@
 #include "replay.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
-#include "sdl_helper.hpp"
 #include "asset.hpp"
 #include "audio.hpp"
 #include "error.hpp"
@@ -114,4 +113,19 @@ std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> mak
 	}
 
 	return {move(server_channel), move(client_channels)};
+}
+
+// get rid of interfering SDL macro
+#ifdef main
+#undef main
+#endif
+
+/**
+ * Unit tests entry point.
+ */
+int main(int argc, char** argv)
+{
+	::testing::InitGoogleTest(&argc, argv);
+	configure_context_for_testing();
+	return RUN_ALL_TESTS();
 }

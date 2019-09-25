@@ -17,7 +17,6 @@ public:
 
 	explicit NetworkTest()
 	{
-		configure_context_for_testing();
 		auto channels = make_test_channels(1);
 		m_server_protocol = std::make_unique<ServerProtocol>(move(channels.first));
 		m_client_protocol = std::make_unique<ClientProtocol>(move(channels.second[0]));

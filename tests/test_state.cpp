@@ -10,18 +10,16 @@
 class StateTest : public ::testing::Test
 {
 
-protected:
+public:
 
-	virtual void SetUp()
+	explicit StateTest()
 	{
-		configure_context_for_testing();
-
-		GameMeta meta{2,0};
+		GameMeta meta{ 2,0 };
 		state = std::make_unique<GameState>(meta);
 		pit = state->pit().at(0).get();
 	}
 
-	// virtual void TearDown() {}
+protected:
 
 	std::unique_ptr<GameState> state;
 	Pit* pit = nullptr; // shortcut to player 1 pit

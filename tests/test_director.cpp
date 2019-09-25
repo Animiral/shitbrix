@@ -28,20 +28,22 @@ bool is_panic(const Pit& pit) noexcept
 class BlockDirectorTest : public ::testing::Test
 {
 
+public:
+
+	explicit BlockDirectorTest()
+	{
+		GameMeta meta{ 2,0 };
+		state = std::make_unique<GameState>(meta);
+		pit = state->pit().at(0).get();
+		director = std::make_unique<BlockDirector>();
+		director->set_state(*state);
+	}
+
 protected:
 
 	virtual void SetUp() override
 	{
-		configure_context_for_testing();
-
-		GameMeta meta{2,0};
-		state = std::make_unique<GameState>(meta);
-		pit = state->pit().at(0).get();
 		prefill_pit(*pit);
-		director = std::make_unique<BlockDirector>();
-		//hub = std::make_unique<evt::GameEventHub>();
-		//director->set_handler(*hub);
-		director->set_state(*state);
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
 		pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
@@ -69,8 +71,6 @@ protected:
 		pit->spawn_block(Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
 		pit->spawn_block(Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 	}
-
-	// virtual void TearDown() {}
 
 	void run_game_ticks(int ticks)
 	{

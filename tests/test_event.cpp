@@ -50,22 +50,25 @@ public:
 class GameEventTest : public ::testing::Test
 {
 
-protected:
+public:
 
-	virtual void SetUp()
+	explicit GameEventTest()
 	{
-		configure_context_for_testing();
-
-		GameMeta meta{2,0};
+		GameMeta meta{ 2,0 };
 		state = std::make_unique<GameState>(meta);
 		pit = state->pit().at(0).get();
-		prefill_pit(*pit);
+
 		director = std::make_unique<BlockDirector>();
 		director->set_handler(counter);
 		director->set_state(*state);
 	}
 
-	// virtual void TearDown() {}
+protected:
+
+	virtual void SetUp()
+	{
+		prefill_pit(*pit);
+	}
 
 	void run_game_ticks(int ticks)
 	{

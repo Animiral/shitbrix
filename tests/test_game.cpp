@@ -51,15 +51,13 @@ public:
 class GameTest : public ::testing::Test
 {
 
-protected:
+public:
 
-	virtual void SetUp() override
+	explicit GameTest()
 	{
-		configure_context_for_testing();
-
 		auto factory = std::make_unique<TestingGameFactory>();
 		m_local_factory = factory.get();
-		local_game.reset(new LocalGame{move(factory)});
+		local_game.reset(new LocalGame{ move(factory) });
 
 		auto client_channel = std::make_unique<MockChannel>();
 		auto server_channel = std::make_unique<MockChannel>();
@@ -68,11 +66,13 @@ protected:
 
 		factory.reset(new TestingGameFactory());
 		m_client_factory = factory.get();
-		client_game.reset(new ClientGame{move(factory), std::make_unique<ClientProtocol>(move(client_channel))});
+		client_game.reset(new ClientGame{ move(factory), std::make_unique<ClientProtocol>(move(client_channel)) });
 		factory.reset(new TestingGameFactory());
 		m_server_factory = factory.get();
-		server_game.reset(new ServerGame{move(factory), std::make_unique<ServerProtocol>(move(server_channel))});
+		server_game.reset(new ServerGame{ move(factory), std::make_unique<ServerProtocol>(move(server_channel)) });
 	}
+
+protected:
 
 	TestingGameFactory* m_local_factory; //!< access to internals of local_game
 	std::unique_ptr<LocalGame> local_game;

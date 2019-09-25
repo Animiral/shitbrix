@@ -11,20 +11,18 @@
 class StageTest : public ::testing::Test
 {
 
-protected:
+public:
 
-	virtual void SetUp()
+	explicit StageTest()
 	{
-		configure_context_for_testing();
-
-		GameMeta meta{2,0};
+		GameMeta meta{ 2,0 };
 		state = std::make_unique<GameState>(meta);
 		draw = std::make_unique<NoDraw>();
 		stage = std::make_unique<Stage>(*state, *draw);
 		indicator = &stage->sobs().at(0).bonus;
 	}
 
-	// virtual void TearDown() {}
+protected:
 
 	std::unique_ptr<GameState> state;
 	std::unique_ptr<IDraw> draw;

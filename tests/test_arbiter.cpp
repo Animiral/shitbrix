@@ -16,16 +16,10 @@ class ArbiterTest : public ::testing::Test
 
 protected:
 
-	virtual void SetUp()
-	{
-		configure_context_for_testing();
-	}
-
-	// virtual void TearDown() {}
-
 	GameMeta meta{2, 0};
 	GameState state{meta};
 	Journal journal{meta, state};
+
 };
 
 
@@ -152,7 +146,7 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnGarbageOnChain)
 
 	int chain_counter = 3;
 	arbiter.fire(evt::Chain{{1, 0}, chain_counter});
-	
+
 	// The appropriate input must be in the local journal
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());

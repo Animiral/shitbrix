@@ -11,12 +11,10 @@
 class ScreenTest : public ::testing::Test
 {
 
-protected:
+public:
 
-	virtual void SetUp() override
+	explicit ScreenTest()
 	{
-		configure_context_for_testing();
-
 		game = std::make_unique<LocalGame>(std::make_unique<LocalGameFactory>());
 		game->game_reset(2);
 		game->game_start();
@@ -24,7 +22,7 @@ protected:
 		game_screen = std::make_unique<GameScreen>(*draw, *game);
 	}
 
-	// virtual void TearDown() {}
+protected:
 
 	std::unique_ptr<IGame> game;
 	std::unique_ptr<IDraw> draw;
