@@ -38,9 +38,6 @@ public:
 	ENet(const ENet& ) =delete;
 	ENet& operator=(const ENet& ) =delete;
 
-	// access single-instance objects
-	//SDL_Window& window() const { return *m_window; }
-
 	// creation methods
 
 	/**
@@ -62,7 +59,5 @@ private:
 
 	ENet();
 	~ENet();
-
-	//std::unique_ptr<SDL_Window, SdlDeleter> m_window;
 
 };

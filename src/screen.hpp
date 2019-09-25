@@ -7,18 +7,24 @@
 
 #include "globals.hpp"
 #include "input.hpp"
+#include "event.hpp"
 #include "stage.hpp"
-#include "draw.hpp"
 #include "logic.hpp"
 #include "director.hpp"
 #include "network.hpp"
 #include <memory>
 #include <cassert>
 
+struct GlobalContext;
+class ICanvas;
+class IDraw;
+
 class IScreen
 {
+
 public:
-	IScreen() = default;
+
+	explicit IScreen(IDraw& draw);
 	virtual ~IScreen() =0;
 
 	// Screens are complex objects and can not be copied or moved.
@@ -28,7 +34,16 @@ public:
 	IScreen& operator=(IScreen&& ) = delete;
 
 	virtual void update() =0;
-	virtual void draw(float dt) =0;
+
+	/**
+	 * Draw and render everything visible on the screen.
+	 *
+	 * This template method leaves the specifics of what to draw to the
+	 * derived class' draw implementation.
+	 *
+	 * @param dt the given fraction elapsed since the last tick
+	 */
+	void draw(float dt);
 
 	virtual bool done() const =0; // whether the screen has ended
 
@@ -37,67 +52,45 @@ public:
 	 */
 	virtual void stop() {}
 
-	/**
-	 * Access the object which can draw this screen.
-	 */
-	virtual const IDraw& get_draw() const =0;
+	virtual void input(ControllerAction cinput) =0;
 
-	virtual void input(ControllerInput cinput) =0;
+protected:
+
+	IDraw* m_draw;
+
+	/**
+	 * Derived class draw implementation.
+	 */
+	virtual void draw_impl(float dt) =0;
+
+	friend class TransitionScreen; // may access draw_impl of other screens
+
 };
 
 /**
- * Creates Screens.
+ * The PinkScreen is a simple screen which displays only one solid color.
+ *
+ * It serves a temporary role as a screen placeholder or for testing
+ * purposes. It can be finished by a press of the A button.
  */
-class ScreenFactory
-{
-
-public:
-
-	/**
-	 * Configure the client dependency.
-	 * In the future, this will hopefully be taken from a central repository.
-	 */
-	void set_client(IClient* client) noexcept { m_client = client; }
-
-	/**
-	 * Configure the server dependency.
-	 * In the future, this will hopefully be taken from a central repository.
-	 */
-	void set_server(ServerThread* server) noexcept { m_server = server; }
-
-	std::unique_ptr<IScreen> create_menu();
-	std::unique_ptr<IScreen> create_game();
-	std::unique_ptr<IScreen> create_server();
-	std::unique_ptr<IScreen> create_transition(IScreen& predecessor, IScreen& successor);
-
-private:
-
-	// resources to create the Screens
-	IClient* m_client;
-	ServerThread* m_server;
-
-};
-
-class PinkScreen; //!< debugging screen, never shown
-class MenuScreen;
-class GameScreen;
-class TransitionScreen;
-
 class PinkScreen : public IScreen
 {
 
 public:
 
-	PinkScreen(DrawPink&& draw) : m_draw(draw) {}
+	explicit PinkScreen(IDraw& draw, uint8_t r, uint8_t g, uint8_t b) noexcept;
+
 	virtual void update() override {}
-	virtual void draw(float dt) override { m_draw.draw(dt); }
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
+	virtual void input(ControllerAction cinput) override { if(Button::A == cinput.button && ButtonAction::DOWN == cinput.action) m_done = true; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
-	DrawPink m_draw;
+	uint8_t m_r, m_g, m_b;
 	bool m_done = false;
 
 };
@@ -109,13 +102,12 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	MenuScreen(DrawMenu&& draw, IClient& client);
+	explicit MenuScreen(IDraw& draw, IGame& game);
+	virtual ~MenuScreen() noexcept;
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override;
+	virtual void input(ControllerAction cinput) override;
 
 	/**
 	 * Return the result of the MenuScreen.
@@ -123,14 +115,18 @@ public:
 	 */
 	Result result() const { enforce(m_done); return m_result; }
 
+protected:
+
+	virtual void draw_impl(float dt) override;
+
 private:
 
-	long m_game_time; //!< starts at 0 and increases with update()
+	long m_time; //!< starts at 0 and increases with update()
 	bool m_done; //!< true if this screen has reached its end
 	Result m_result; //!< valid only when m_done
 
-	DrawMenu m_draw; //!< Interface for drawing the screen
-	IClient* const m_client; //!< Network communication endpoint
+	IDraw* m_draw; //!< Interface for drawing the screen
+	IGame* m_game; //!< Game object
 
 };
 
@@ -147,29 +143,31 @@ public:
 
 	enum class Phase { INTRO, PLAY, RESULT };
 
-	explicit GameScreen(
-		std::unique_ptr<Stage> stage,
-		std::unique_ptr<DrawGame> draw,
-		IClient& client,
-		ServerThread* server = nullptr);
+	explicit GameScreen(IDraw& draw, IGame& game, ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_done; }
-	virtual void stop() override;
-	virtual const IDraw& get_draw() const override { assert(m_draw); return *m_draw; }
-	virtual void input(ControllerInput cinput) override;
+	virtual void input(ControllerAction cinput) override;
+
+	/**
+	 * Set whether to automatically save replays.
+	 */
+	void set_autorecord(bool autorecord) noexcept { m_autorecord = autorecord; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
 	Phase m_phase; //!< game round state machine
 	long m_time; //!< starts at 0 with the intro and each game round
 	bool m_done; //!< true if this screen has reached its end
+	bool m_autorecord; //!< true if we want to automatically save replays
 
-	std::unique_ptr<DrawGame> m_draw;
 	std::unique_ptr<Stage> m_stage;
-	IClient* const m_client;
+	IGame* m_game;
 	ServerThread* const m_server;
 
 	/**
@@ -187,7 +185,10 @@ private:
 	 */
 	void update_play();
 
-	void start();
+	/**
+	 * If the autorecord configuration is on, write the appropriate file.
+	 */
+	void autorecord_replay() const;
 
 };
 
@@ -199,19 +200,20 @@ class ServerScreen : public IScreen
 
 public:
 
-	explicit ServerScreen(ServerThread& server);
+	explicit ServerScreen(IDraw& draw, ServerThread& server) noexcept;
 	virtual ~ServerScreen() noexcept;
 
-	virtual void update() override;
-	virtual void draw(float dt) override {}
+	virtual void update() override {}
 	virtual bool done() const override { return m_done; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override;
+	virtual void input(ControllerAction cinput) override;
+
+protected:
+
+	virtual void draw_impl(float dt) override {}
 
 private:
 
 	ServerThread* const m_server;
-	NoDraw m_draw;
 	bool m_done;
 
 };
@@ -221,23 +223,70 @@ class TransitionScreen : public IScreen
 
 public:
 
-	TransitionScreen(IScreen& predecessor, IScreen& successor, DrawTransition&& draw)
-	: m_predecessor(predecessor), m_successor(successor), m_time(0), m_draw(std::move(draw))
-	{}
+	explicit TransitionScreen(IDraw& draw, IScreen& predecessor, IScreen& successor);
 
 	virtual void update() override;
-	virtual void draw(float dt) override;
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
-	virtual const IDraw& get_draw() const override { return m_draw; }
-	virtual void input(ControllerInput cinput) override { m_successor.input(cinput); }
+	virtual void input(ControllerAction cinput) override { m_successor.input(cinput); }
 
 	IScreen& successor() const { return m_successor; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
 
 private:
 
 	IScreen& m_predecessor;
 	IScreen& m_successor;
+	std::unique_ptr<ICanvas> m_predecessor_canvas;
+	std::unique_ptr<ICanvas> m_successor_canvas;
 	int m_time; //!< starts at 0 and increases with update()
-	DrawTransition m_draw;
+
+};
+
+/**
+ * Creates Screens from the application's global settings.
+ */
+class ScreenFactory
+{
+
+public:
+
+	explicit ScreenFactory(const GlobalContext& context) noexcept;
+
+	/**
+	 * Based on the global settings, create the initial starting screen of the
+	 * application. This is most often the MenuScreen.
+	 *
+	 * @return pointer to the initial screen object or @c nullptr for application exit
+	 */
+	IScreen* create_default();
+
+	/**
+	 * Create the screen that follows after the given screen concludes.
+	 *
+	 * The predecessor must be @c done().
+	 *
+	 * @return pointer to the successor screen object or @c nullptr for application exit
+	 */
+	IScreen* create_next(IScreen& predecessor);
+
+private:
+
+	// resources to create the Screens
+	const GlobalContext* m_context; //!< global settings dependency
+
+	std::unique_ptr<IDraw> m_draw; //!< draw object according to configuration
+	std::unique_ptr<IGame> m_game; //!< game object according to configuration
+	std::unique_ptr<ServerThread> m_server; //!< optional server object
+
+	// all screens are owned and stored by the factory
+	std::unique_ptr<MenuScreen> m_menu_screen;
+	std::unique_ptr<GameScreen> m_game_screen;
+	std::unique_ptr<ServerScreen> m_server_screen;
+	std::unique_ptr<TransitionScreen> m_transition_screen;
+	std::unique_ptr<PinkScreen> m_pink_screen;
+	std::unique_ptr<PinkScreen> m_creme_screen;
 
 };

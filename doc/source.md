@@ -1,6 +1,72 @@
 # Introduction
-This file documents the technical design of shitbrix. It explains the different modules, classes and interactions from different perspectives.
+This file documents the software engineering design of shitbrix. It explains the different modules, classes and interactions from different perspectives.
 Documentation is to be added bit by bit when an area is worked on. It is still very much incomplete.
+
+# Orientation
+Shitbrix is distributed from its git repository. The *master* branch holds the most current version. Releases are marked using tags.
+
+## Dependencies
+The application uses the following libraries:
+
+* Google Test for unit testing
+* SDL and SDL_image for user interaction and presentation
+* enet for network communication
+
+All external libraries reside in subdirectories under the `ext/` path in the form of git submodules.
+Shitbrix will only compile if all these submodules are checked out.
+
+## Build System
+The supported build systems are *CMake* and *MSBuild* through Visual Studio project files.
+
+The CMake build files include `CMakeLists.txt` in the top directory and a few helper scripts in the `cmake` directory.
+
+Visual Studio files for shitbrix itself and all its library dependencies reside in the `msvc` directoy and subdirectories.
+
+## Source Code
+Shitbrix compiles into two to four different binaries with sources in separate directories:
+
+* In `src`: *Shitbrix*, the library which contains all functionality of the game
+* In `src/main.cpp`: *ShitbrixMain*, the platform-specific executable which unifies invocation and argument parsing
+* In `test`: *ShitbrixTest*, the executable based on Google Test which runs unit tests over the main library
+* In `visualdemo`: *VisualDemo*, a separate executable used for development experimentation and debugging
+
+## Documentation
+Program documentation resides in the `doc` directory.
+
+It presently includes:
+
+* This design document
+* JavaDoc-based source code documentation (optional, can be generated separately)
+* `README.md` in the top directory
+
+In the future, it might include a user manual, a more extensive README and perhaps other pieces like HACKING.
+
+## Assets
+Game assets are separated into directories according to their type.
+
+* In `gfx`: image files
+* In `snd`: sound files
+
+In the future, more categories of assets might include *music*, *character definitions*, *scripts*, *content packs*, *shaders* and more.
+
+# Principles
+The design goal is to (hopefully) create an application using exemplary modern C++, object-oriented principles and good practices.
+
+If some aspect violates this ambition, it should happen for a good reason. These can include lack of knowledge and case-by-case comprehensibility.
+
+# Context
+Similar to the Spring framework, shitbrix features a *context* which is defined globally in `context.hpp`:
+
+```
+extern GlobalContext the_context;
+```
+
+This Context provides a repository for objects which are convenient to have a global default of, which are unique and/or live as long as the application does.
+Examples are the logger, configuration and library interfaces.
+
+After a setup period at the start of the program, in which the context is set up according to the application's invocation parameters and configuration files, objects in the context are assumed to be properly set up and functioning in their key roles.
+
+The context objects are the root of many resources that we later use to construct objects. Many classes follow the dependency injection pattern. Swapping out the implementations of context objects allows us to easily set up a different environment for testing.
 
 # Input
 There is a hierarchy of inputs.
@@ -124,3 +190,28 @@ Every match which involves a chaining block increases the *chain counter* of the
 The combos and chains detected by the MatchBuilder are exposed by its user, the BlockDirector (see chapter on Game Logic), in *game events*. A game event is a function call sent to the director’s registered game event handler. The director sends game events when a match happens and when a chain finishes, among other circumstances.
 
 While there is at least one chaining block in the pit, the pit’s scrolling is disabled. Chaining can stave off the player’s losing the game.
+
+# Networking
+
+The Network module is layered in 3 abstractions:
+
+## enet implementation
+The low-level network communication is implemented using the enet library.
+
+## Channels and Messages
+The `Channel` allows a network-connected peer to send `Message` data structures across the network to one or more remote peers, as well as receive a buffered collection of messages upon request via `Channel::poll()`. `Channel` is abstracted in the interface `class IChannel`.
+
+A `Message` contains a small header with common data and a variable-length payload.
+When sending a message, the recipients are determined by the underlying implementation from the `Message` header fields.
+
+`ServerChannel` is an implementation that allows many clients to connect and broadcasts messages to all of them. `ClientChannel` is an implementation that connects to one server and sends messages to it.
+
+## Protocols
+The `Protocol` classes provide an interface for sending specific messages to the remote(s). They translate C++ function calls to and from low-level `Message` representation and send/receive the messages over a `Channel`.
+
+The interface `class IServerProtocol` implements messages from the server, while the interface `class IClientProtocol` implements messages from the client.
+
+On the server side, the `ServerSendProtocol` uses a `ServerChannel` to build `Message`s and send them. The server uses its own client protocol recipient implementation, derived from `IClientProtocol`, to receive client messages by invoking `server_send_protocol.poll(recipient)`. The client side sends and receives messages analogously.
+
+## Network Testing
+In tests, the `ServerChannel` and `ClientChannel` can be replaced by a `TestServerChannel` and `TestClientChannel`, which pass messages in memory to the other channel in the local program.

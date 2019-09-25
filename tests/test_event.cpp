@@ -3,6 +3,7 @@
  */
 
 #include "stage.hpp"
+#include "game.hpp"
 #include "director.hpp"
 #include "event.hpp"
 #include "replay.hpp"
@@ -20,6 +21,7 @@ public:
 	virtual void fire(evt::Chain chained) override { last_chain = chained; }
 	virtual void fire(evt::BlockDies died) override { countBlockDies++; }
 	virtual void fire(evt::GarbageDissolves dissolved) override { countGarbageDissolves++; }
+	virtual void fire(evt::Starve starve) override { if(0 == starve.trivia.player) countStarves++; }
 
 	int countCursorMoves = 0;
 	int countSwap = 0;
@@ -27,7 +29,22 @@ public:
 	evt::Chain last_chain{0};
 	int countBlockDies = 0;
 	int countGarbageDissolves = 0;
+	int countStarves = 0;
 
+};
+
+/**
+ * An implementation of IGame that allows us to access underlying information.
+ */
+class TestGame : public IGame
+{
+public:
+	// IGame member functions - local-specific implementation
+	virtual void game_start() override {}
+	virtual void game_input(Input input) override {}
+	virtual void game_reset(int players) override {}
+	virtual void set_speed(int speed) override {}
+	virtual void poll() override {}
 };
 
 class GameEventTest : public ::testing::Test
@@ -38,11 +55,14 @@ protected:
 	virtual void SetUp()
 	{
 		configure_context_for_testing();
-		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		pit = gamedata->state.pit().at(0).get();
-		block_director = &gamedata->rules.block_director;
-		gamedata->rules.event_hub.subscribe(counter);
+		GameMeta meta{2,0};
+		state = std::make_unique<GameState>(meta);
+		pit = state->pit().at(0).get();
+		prefill_pit(*pit);
+		director = std::make_unique<BlockDirector>();
+		director->set_handler(counter);
+		director->set_state(*state);
 	}
 
 	// virtual void TearDown() {}
@@ -50,13 +70,16 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		assert(0 < ticks);
-		ticks += gamedata->state.game_time();
-		synchronurse(gamedata->state, ticks, gamedata->journal, gamedata->rules);
+
+		for(int t = 0; t < ticks; t++) {
+			state->update();
+			director->update();
+		}
 	}
 
-	std::unique_ptr<GameData> gamedata;
-	Pit* pit = nullptr; // special Pit with non-random spawn queue
-	BlockDirector* block_director = nullptr; // shortcut to the environment's director
+	std::unique_ptr<GameState> state;
+	Pit* pit = nullptr; // shortcut to player 1 pit
+	std::unique_ptr<BlockDirector> director = nullptr; // event-generating game logic
 	GameEventCounter counter;
 
 };
@@ -66,12 +89,11 @@ protected:
  */
 TEST_F(GameEventTest, CursorMoves)
 {
-	gamedata->journal.add_input(GameInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN});
-	gamedata->journal.add_input(GameInput{2, 0, GameButton::LEFT, ButtonAction::DOWN});
-
+	director->apply_input(Input{PlayerInput{1, 0, GameButton::RIGHT, ButtonAction::DOWN}});
 	run_game_ticks(1);
 	EXPECT_EQ(1, counter.countCursorMoves);
 
+	director->apply_input(Input{PlayerInput{2, 0, GameButton::LEFT, ButtonAction::DOWN}});
 	run_game_ticks(1);
 	EXPECT_EQ(2, counter.countCursorMoves);
 }
@@ -81,16 +103,16 @@ TEST_F(GameEventTest, CursorMoves)
  */
 TEST_F(GameEventTest, Swap)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 1}, Block::State::REST);
 
-	swap_at(*pit, *block_director, RowCol{0, 0});
+	swap_at(*pit, *director, RowCol{0, 0});
 	EXPECT_EQ(1, counter.countSwap);
 
-	swap_at(*pit, *block_director, RowCol{0, 1});
+	swap_at(*pit, *director, RowCol{0, 1});
 	EXPECT_EQ(2, counter.countSwap);
 
-	swap_at(*pit, *block_director, RowCol{-1, 1});
+	swap_at(*pit, *director, RowCol{-1, 1});
 	EXPECT_EQ(2, counter.countSwap);
 }
 
@@ -99,14 +121,14 @@ TEST_F(GameEventTest, Swap)
  */
 TEST_F(GameEventTest, Match)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 4}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-1, 2}, Block::State::REST);
 
-	swap_at(*pit, *block_director, RowCol{0, 2});
+	swap_at(*pit, *director, RowCol{0, 2});
 
 	run_game_ticks(SWAP_TIME);
 	EXPECT_EQ(3, counter.last_match.combo);
@@ -123,14 +145,14 @@ TEST_F(GameEventTest, Match)
  */
 TEST_F(GameEventTest, Chain)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{0, 4}, Block::State::REST);
-	pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{0, 4}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-1, 2}, Block::State::REST);
 
-	swap_at(*pit, *block_director, RowCol{0, 2});
+	swap_at(*pit, *director, RowCol{0, 2});
 
 	const int FALL1_TIME = static_cast<int>(std::ceil(static_cast<float>(ROW_HEIGHT)/FALL_SPEED));
 	run_game_ticks(SWAP_TIME + BREAK_TIME + FALL1_TIME + BREAK_TIME);
@@ -142,12 +164,12 @@ TEST_F(GameEventTest, Chain)
  */
 TEST_F(GameEventTest, BlockDies)
 {
-	Block& blue_block = pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	Block& blue_block = pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
 	blue_block.set_state(Physical::State::BREAK, BREAK_TIME);
 	run_game_ticks(BREAK_TIME);
 	EXPECT_EQ(1, counter.countBlockDies);
 
-	Block& fake_block = pit->spawn_block(Block::Color::FAKE, RowCol{0, 0}, Block::State::REST);
+	Block& fake_block = pit->spawn_block(Color::FAKE, RowCol{0, 0}, Block::State::REST);
 	fake_block.set_state(Physical::State::BREAK, BREAK_TIME);
 	run_game_ticks(BREAK_TIME);
 	EXPECT_EQ(1, counter.countBlockDies);
@@ -158,12 +180,28 @@ TEST_F(GameEventTest, BlockDies)
  */
 TEST_F(GameEventTest, GarbageDissolves)
 {
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 1}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, RowCol{0, 3}, Block::State::REST);
-	pit->spawn_garbage(RowCol{-1, 2}, 3, 1);
+	pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 1}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, RowCol{0, 3}, Block::State::REST);
+	pit->spawn_garbage(RowCol{-1, 2}, 3, 1, rainbow_loot(3));
 
-	swap_at(*pit, *block_director, RowCol{0, 2});
+	swap_at(*pit, *director, RowCol{0, 2});
+
 	run_game_ticks(SWAP_TIME + DISSOLVE_TIME);
 	EXPECT_EQ(1, counter.countGarbageDissolves);
+}
+
+/**
+ * When the Pit is empty below, the Director::update_single() must raise the Starve event.
+ */
+TEST_F(GameEventTest, PitStarves)
+{
+	// the pit is set up to contain blocks in rows 1-3.
+	EXPECT_TRUE(pit->block_at({3,0}));
+
+	run_game_ticks(ROW_HEIGHT * 3 / SCROLL_SPEED - 1);
+	EXPECT_EQ(0, counter.countStarves);
+
+	run_game_ticks(1);
+	EXPECT_EQ(1, counter.countStarves);
 }

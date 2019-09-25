@@ -12,33 +12,113 @@
 #include <SDL.h>
 #include <SDL_image.h>
 
+extern const uint8_t ALPHA_OPAQUE; //!< highest alpha value
+
 /**
- * Interface for classes that can draw stuff.
- * One IDraw will usually draw a whole screen with all the objects in it.
+ * Represents a screen-sized drawing surface.
+ *
+ * Its dimensions are fixed by the global @c CANVAS_W and @c CANVAS_H constants.
+ *
+ * Canvases may be created via the draw implementation.
+ */
+class ICanvas
+{
+
+public:
+
+	virtual ~ICanvas() = 0;
+
+	/**
+	 * Establish the canvas as a rendering target for future drawing operations.
+	 */
+	virtual void use_as_target() = 0;
+
+	/**
+	 * Draw the contents of this canvas to the active rendering target.
+	 */
+	virtual void draw() = 0;
+
+};
+
+/**
+ * Facade for drawing operations used by the game.
  */
 class IDraw
 {
 
 public:
 
-	/**
-	 * Draw something on the screen with the given fraction elapsed since the last tick.
-	 * Template method interface.
-	 */
-	void draw(float dt) const;
+	virtual ~IDraw() = 0;
 
 	/**
-	 * Draw everything using the configured renderer, but do not SDL_RenderPresent.
-	 * Template method implementation.
-	 * Called by the draw function.
-	 * To be overridden by subclasses.
+	 * Draw one of the graphics from the well-known assets library.
 	 */
-	virtual void draw_offscreen(float dt) const =0;
+	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) = 0;
+
+	/**
+	 * Convenince function: x/y are given by a Point.
+	 *
+	 * The x and y floating-point coordinates are simply cast to int.
+	 */
+	void gfx(Point loc, Gfx gfx, size_t frame = 0, uint8_t a = 255);
+
+	/**
+	 * Draw a primitive rectangle with alpha blending.
+	 */
+	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) = 0;
+
+	/**
+	 * Draw a primitive rectangle with additive blending.
+	 */
+	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) = 0;
+
+	/**
+	 * Restrict the drawing area to the specified rectangle.
+	 */
+	virtual void clip(int x, int y, int w, int h) = 0;
+
+	/**
+	 * Remove restrictions on the drawing area.
+	 */
+	virtual void unclip() = 0;
+
+	/**
+	 * Create a new canvas for drawing onto.
+	 */
+	virtual std::unique_ptr<ICanvas> create_canvas() = 0;
+
+	/**
+	 * Draw onto the default rendering target from now on, which is the real screen.
+	 */
+	virtual void reset_target() = 0;
+
+	/**
+	 * Flush all previous drawing operations to the rendering target.
+	 */
+	virtual void render() = 0;
 
 };
 
 /**
- * Not-drawaing implementation.
+ * Not-drawing canvas implementation.
+ *
+ * This implementation does nothing when asked to draw.
+ * It can be used when SDL's video subsystem was not initialized,
+ * i.e. on the server.
+ */
+class NoDrawCanvas : public ICanvas
+{
+
+public:
+
+	virtual void use_as_target() override {}
+	virtual void draw() override {}
+
+};
+
+/**
+ * Not-drawing implementation.
+ *
  * This implementation does nothing when asked to draw.
  * It can be used when SDL's video subsystem was not initialized,
  * i.e. on the server.
@@ -48,153 +128,59 @@ class NoDraw : public IDraw
 
 public:
 
-	virtual void draw_offscreen(float dt) const override {}
+	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override {}
+	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
+	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
+	virtual void clip(int x, int y, int w, int h) override {}
+	virtual void unclip() override {}
+	virtual std::unique_ptr<ICanvas> create_canvas() override { return std::make_unique<NoDrawCanvas>(); }
+	virtual void reset_target() override {}
+	virtual void render() override {}
 
 };
 
 /**
- * Debugging draw implementation.
- * This is never used in actual releases.
+ * SDL specific canvas implementation.
  */
-class DrawPink : public IDraw
+class SdlCanvas : public ICanvas
 {
 
 public:
 
-	DrawPink(Uint8 r, Uint8 g, Uint8 b) : m_r(r), m_g(g), m_b(b) {}
-	virtual void draw_offscreen(float dt) const override
-	{
-		SDL_Renderer* renderer = &the_context.sdl->renderer();
-		SDL_SetRenderDrawColor(renderer, m_r, m_g, m_b, SDL_ALPHA_OPAQUE);
-		SDL_Rect canvas_rect{0, 0, CANVAS_W, CANVAS_H};
-		SDL_RenderFillRect(renderer, &canvas_rect);
-	}
+	explicit SdlCanvas(TexturePtr texture, SDL_Renderer& renderer);
+
+	virtual void use_as_target() override;
+	virtual void draw() override;
 
 private:
 
-	Uint8 m_r, m_g, m_b;
+	TexturePtr m_texture;
+	SDL_Renderer* m_renderer;
 
 };
 
 /**
- * Draw the main menu to the screen.
+ * SDL specific draw implementation.
  */
-class DrawMenu : public IDraw
+class SdlDraw : public IDraw
 {
 
 public:
 
-	virtual void draw_offscreen(float) const override;
+	explicit SdlDraw(SDL_Renderer& renderer, const Assets& assets);
 
-};
-
-/**
- * DrawGame draws gameplay-related objects to the screen.
- * It knows how to interpret various objects’ state and which textures to use.
- */
-class DrawGame : public IDraw
-{
-
-public:
-
-	/**
-	 * Construct a new DrawGame object from the given dependencies.
-	 */
-	DrawGame(const Stage& stage);
-
-	void fade(float fraction);
-
-	/**
-	 * Render all that we know to the screen.
-	 * This includes background, pits and cursors.
-	 */
-	virtual void draw_offscreen(float dt) const override;
-
-	/**
-	 * Set whether or not the cursors should be displayed.
-	 */
-	void show_cursor(bool show);
-
-	/**
-	 * Set whether or not the banners should be displayed.
-	 */
-	void show_banner(bool show);
-
-	/**
-	 * Show or hide the debug info on the pits.
-	 */
-	void toggle_pit_debug_overlay();
-
-	/**
-	 * Show or hide the debug highlight on the pits.
-	 */
-	void toggle_pit_debug_highlight();
-
-
-	// Animation contants
-	static constexpr float BLOCK_BOUNCE_H = 10.f; // height of a block’s bouncing animation when it lands
-	static constexpr int CURSOR_FRAME_TIME = 4; // how many sceen frames to display one cursor frame
-	static constexpr int CURSOR_FRAMES = 4; // number of available cursor frames
+	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override;
+	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
+	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
+	virtual void clip(int x, int y, int w, int h) override;
+	virtual void unclip() override;
+	virtual std::unique_ptr<ICanvas> create_canvas() override;
+	virtual void reset_target() override;
+	virtual void render() override;
 
 private:
 
-	const Stage& m_stage; // drawable objects container
-	bool m_show_cursor;
-	bool m_show_banner;
-	bool m_show_pit_debug_overlay = false;
-	bool m_show_pit_debug_highlight = false;
-
-	float m_fade = 1.f;
-	mutable Point m_pitloc{0,0}; //!< point location of the current pit, translate sprites
-	mutable uint8_t m_alpha = 255;
-	TexturePtr m_fadetex; // solid pixel used for fading
-
-	Point translate(Point p) const noexcept;
-
-	void draw_background() const;
-	void draw_pit(const Pit& pit, float dt) const;
-	void draw_pit_debug_overlay(const Pit& pit) const;
-	void draw_block(const Block& block, float dt) const;
-	void draw_garbage(const Garbage& garbage, float dt) const;
-	void draw_cursor(const Cursor& cursor, float dt) const;
-	void draw_banner(const Banner& banner, float dt) const;
-	void draw_bonus(const BonusIndicator& bonus, float dt) const;
-	void draw_highlight(Point top_left, int width, int height,
-	                    uint8_t r, uint8_t g, uint8_t b, uint8_t a) const;
-	
-	void putsprite(Point loc, Gfx gfx, size_t frame = 0) const;
-
-	/**
-	 * Apply the configured m_fade value to the screen.
-	 */
-	void tint() const;
-
-};
-
-class DrawTransition : public IDraw
-{
-
-public:
-
-	DrawTransition(const IDraw& pred_draw, const IDraw& succ_draw);
-	DrawTransition(const DrawTransition& ) = delete;
-	DrawTransition(DrawTransition&& rhs) = default;
-	DrawTransition& operator=(const DrawTransition& ) = delete;
-	DrawTransition& operator=(DrawTransition&& rhs) = default;
-
-	void set_time(int transition_time) { m_time = transition_time;  }
-
-	/**
-	 * Draw both screens with a transition animation.
-	 */
-	virtual void draw_offscreen(float dt) const override;
-
-private:
-
-	const IDraw& m_pred_draw; //!< for drawing the predecessor screen
-	const IDraw& m_succ_draw; //!< for drawing the successor screen
-	std::unique_ptr<SDL_Texture, SdlDeleter> m_pred_texture; //!< for compositing the predecessor screen
-	std::unique_ptr<SDL_Texture, SdlDeleter> m_succ_texture; //!< for compositing the successor screen
-	int m_time;
+	SDL_Renderer* m_renderer;
+	const Assets* m_assets;
 
 };

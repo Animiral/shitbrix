@@ -57,31 +57,30 @@ ButtonAction string_to_button_action(const std::string& action_string)
 	else throw GameException("Invalid button action string: \"" + action_string + "\"");
 }
 
-std::string GameInput::to_string() const
+namespace
 {
-	std::ostringstream ss;
-	ss << game_time << " " << player << " "
-	   << game_button_to_string(button) << " "
-	   << button_action_to_string(action);
-	return ss.str();
+
+const char* color_string[] =
+{ "fake", "blue", "red", "yellow", "green", "purple", "orange" };
+
 }
 
-GameInput GameInput::from_string(std::string input_string)
+std::string color_to_string(Color color) noexcept
 {
-	std::istringstream tokenizer(input_string);
-	int game_time;
-	int player;
-	std::string button_str;
-	std::string action_str;
+	const size_t color_index = static_cast<size_t>(color);
+	assert(color_index < std::size(color_string));
+	return color_string[color_index];
+}
 
-	tokenizer >> game_time >> player >> button_str >> action_str;
-	if(!tokenizer)
-		throw GameException("Invalid GameInput string: \"" + input_string + "\"");
+Color string_to_color(const std::string& source)
+{
+	const auto color_found = std::find(color_string, std::end(color_string), source);
+	const size_t color_index = std::distance(color_string, color_found);
 
-	GameButton button = string_to_game_button(button_str);
-	ButtonAction action = string_to_button_action(action_str);
+	if(std::size(color_string) <= color_index)
+		throw GameException("Invalid color string: \"" + source + "\"");
 
-	return GameInput{game_time, player, button, action};
+	return static_cast<Color>(color_index);
 }
 
 std::string GameMeta::to_string() const

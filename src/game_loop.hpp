@@ -31,25 +31,11 @@ private:
 	// resources
 	InputDevices m_input_devices;
 
-	// network hosts
+	// network host
 	std::unique_ptr<ServerThread> m_server;
-	std::unique_ptr<IClient> m_client;
 
 	// screens (instance if active, nullptr otherwise)
 	ScreenFactory m_screen_factory;
 	IScreen* m_screen; //!< currently active screen
-	std::unique_ptr<IScreen> m_server_screen;
-	std::unique_ptr<IScreen> m_menu_screen;
-	std::unique_ptr<IScreen> m_game_screen;
-	std::unique_ptr<IScreen> m_transition_screen;
-
-	// debug screens
-	std::unique_ptr<IScreen> m_pink_screen; //!< pink screen when active, nullptr otherwise
-	std::unique_ptr<IScreen> m_creme_screen; //!< creme screen when active, nullptr otherwise
-
-	/**
-	 * Switch the screen object to a successor. Destroy the previous one.
-	 */
-	void next_screen();
 
 };

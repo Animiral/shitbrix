@@ -13,7 +13,7 @@ namespace
 /**
  * Properly generates a block falling from the given coordinates.
  */
-Block& spawn_falling_block(Pit& pit, Block::Color color, RowCol from);
+Block& spawn_falling_block(Pit& pit, Color color, RowCol from);
 
 /**
  * Return true if the game is in panic state.
@@ -30,41 +30,44 @@ class BlockDirectorTest : public ::testing::Test
 
 protected:
 
-	virtual void SetUp()
+	virtual void SetUp() override
 	{
 		configure_context_for_testing();
-		gamedata.reset(new GameData{make_gamedata_for_testing()});
 
-		state = &gamedata->state;
+		GameMeta meta{2,0};
+		state = std::make_unique<GameState>(meta);
 		pit = state->pit().at(0).get();
-		director = &gamedata->rules.block_director;
-		logic.reset(new Logic(*pit));
+		prefill_pit(*pit);
+		director = std::make_unique<BlockDirector>();
+		//hub = std::make_unique<evt::GameEventHub>();
+		//director->set_handler(*hub);
+		director->set_state(*state);
 
 		// 1 preview row, 2 normal rows, 1 half row, match-ready
-		pit->spawn_block(Block::Color::BLUE, RowCol{0, 0}, Block::State::REST);
-		pit->spawn_block(Block::Color::RED, RowCol{0, 1}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{0, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{0, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{0, 4}, Block::State::REST);
-		pit->spawn_block(Block::Color::ORANGE, RowCol{0, 5}, Block::State::REST);
+		pit->spawn_block(Color::BLUE, RowCol{0, 0}, Block::State::REST);
+		pit->spawn_block(Color::RED, RowCol{0, 1}, Block::State::REST);
+		pit->spawn_block(Color::YELLOW, RowCol{0, 2}, Block::State::REST);
+		pit->spawn_block(Color::GREEN, RowCol{0, 3}, Block::State::REST);
+		pit->spawn_block(Color::PURPLE, RowCol{0, 4}, Block::State::REST);
+		pit->spawn_block(Color::ORANGE, RowCol{0, 5}, Block::State::REST);
 
-		pit->spawn_block(Block::Color::ORANGE, RowCol{-1, 0}, Block::State::REST);
-		pit->spawn_block(Block::Color::BLUE, RowCol{-1, 1}, Block::State::REST);
-		pit->spawn_block(Block::Color::RED, RowCol{-1, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{-1, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{-1, 4}, Block::State::REST);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{-1, 5}, Block::State::REST);
+		pit->spawn_block(Color::ORANGE, RowCol{-1, 0}, Block::State::REST);
+		pit->spawn_block(Color::BLUE, RowCol{-1, 1}, Block::State::REST);
+		pit->spawn_block(Color::RED, RowCol{-1, 2}, Block::State::REST);
+		pit->spawn_block(Color::YELLOW, RowCol{-1, 3}, Block::State::REST);
+		pit->spawn_block(Color::GREEN, RowCol{-1, 4}, Block::State::REST);
+		pit->spawn_block(Color::PURPLE, RowCol{-1, 5}, Block::State::REST);
 
-		pit->spawn_block(Block::Color::BLUE, RowCol{-2, 0}, Block::State::REST);
-		pit->spawn_block(Block::Color::RED, RowCol{-2, 1}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{-2, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{-2, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::PURPLE, RowCol{-2, 4}, Block::State::REST);
-		pit->spawn_block(Block::Color::ORANGE, RowCol{-2, 5}, Block::State::REST);
+		pit->spawn_block(Color::BLUE, RowCol{-2, 0}, Block::State::REST);
+		pit->spawn_block(Color::RED, RowCol{-2, 1}, Block::State::REST);
+		pit->spawn_block(Color::YELLOW, RowCol{-2, 2}, Block::State::REST);
+		pit->spawn_block(Color::GREEN, RowCol{-2, 3}, Block::State::REST);
+		pit->spawn_block(Color::PURPLE, RowCol{-2, 4}, Block::State::REST);
+		pit->spawn_block(Color::ORANGE, RowCol{-2, 5}, Block::State::REST);
 
-		pit->spawn_block(Block::Color::RED, RowCol{-3, 2}, Block::State::REST);
-		pit->spawn_block(Block::Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
-		pit->spawn_block(Block::Color::GREEN, RowCol{-3, 4}, Block::State::REST);
+		pit->spawn_block(Color::RED, RowCol{-3, 2}, Block::State::REST);
+		pit->spawn_block(Color::YELLOW, RowCol{-3, 3}, Block::State::REST);
+		pit->spawn_block(Color::GREEN, RowCol{-3, 4}, Block::State::REST);
 	}
 
 	// virtual void TearDown() {}
@@ -72,16 +75,14 @@ protected:
 	void run_game_ticks(int ticks)
 	{
 		for(int t = 0; t < ticks; t++) {
-			pit->update();
+			state->update();
 			director->update();
 		}
 	}
 
-	std::unique_ptr<GameData> gamedata;
-	GameState* state;
-	Pit* pit = nullptr;
-	BlockDirector* director;
-	std::unique_ptr<Logic> logic;
+	std::unique_ptr<GameState> state;
+	Pit* pit = nullptr; // shortcut to player 1 pit
+	std::unique_ptr<BlockDirector> director;
 
 };
 
@@ -91,8 +92,8 @@ protected:
  */
 TEST_F(BlockDirectorTest, LandAndMatch)
 {
-	auto& top_block = spawn_falling_block(*pit, Block::Color::RED, RowCol{-7, 2});
-	auto& mid_block = spawn_falling_block(*pit, Block::Color::RED, RowCol{-5, 2});
+	auto& top_block = spawn_falling_block(*pit, Color::RED, RowCol{-7, 2});
+	auto& mid_block = spawn_falling_block(*pit, Color::RED, RowCol{-5, 2});
 
 	// wait until blocks landed and match
 	const int FALL_T = (ROW_HEIGHT * 2 + FALL_SPEED - 1) / FALL_SPEED;
@@ -115,8 +116,8 @@ TEST_F(BlockDirectorTest, LandAndMatch)
  */
 TEST_F(BlockDirectorTest, HorizontalMatch)
 {
-	pit->spawn_block(Block::Color::RED, RowCol{-3, 0}, Block::State::REST);
-	auto& fall_block = pit->spawn_block(Block::Color::RED, RowCol{-4, 2}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-3, 0}, Block::State::REST);
+	auto& fall_block = pit->spawn_block(Color::RED, RowCol{-4, 2}, Block::State::REST);
 	const RowCol swap_target_rc{-4,1};
 	bool swapping = swap_at(*pit, *director, swap_target_rc);
 	ASSERT_TRUE(swapping);
@@ -160,7 +161,7 @@ TEST_F(BlockDirectorTest, HorizontalMatch)
  */
 TEST_F(BlockDirectorTest, DissolveGarbage)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, PIT_COLS, 2); // chain garbage
+	auto& garbage = spawn_garbage(*pit, RowCol{-5, 0}, PIT_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -188,11 +189,11 @@ TEST_F(BlockDirectorTest, DissolveGarbage)
  */
 TEST_F(BlockDirectorTest, GarbageDissolveRecursive)
 {
-	auto& garbage1 = pit->spawn_garbage(RowCol{-5, 0}, PIT_COLS, 2); // immediately adjacent
-	auto& garbage2 = pit->spawn_garbage(RowCol{-6, 0}, 2, 1); // dissolved through garbage1
+	auto& garbage1 = spawn_garbage(*pit, RowCol{-5, 0}, PIT_COLS, 2); // immediately adjacent
+	auto& garbage2 = spawn_garbage(*pit, RowCol{-6, 0}, 2, 1); // dissolved through garbage1
 
-	const_cast<Cursor&>(pit->cursor()).rc = RowCol{-2, 2};
-	EXPECT_TRUE(director->swap(0));
+	bool swapping = swap_at(*pit, *director, RowCol{-2, 2});
+	EXPECT_TRUE(swapping);
 
 	run_game_ticks(SWAP_TIME);
 
@@ -207,7 +208,7 @@ TEST_F(BlockDirectorTest, GarbageDissolveRecursive)
  */
 TEST_F(BlockDirectorTest, DissolveAndFall)
 {
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, 6, 2); // chain garbage
+	auto& garbage = spawn_garbage(*pit, RowCol{-5, 0}, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	RowCol lrc = RowCol{-2,2};
@@ -236,11 +237,11 @@ TEST_F(BlockDirectorTest, DissolveAndFall)
 TEST_F(BlockDirectorTest, FallAfterShrink)
 {
 	RowCol garbage_rc{-6,0};
-	auto& garbage = pit->spawn_garbage(garbage_rc, 6, 2); // chain garbage
+	auto& garbage = spawn_garbage(*pit, garbage_rc, 6, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 
 	// vertical match just under the garbage
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
+	pit->spawn_block(Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
 
 	RowCol lrc = RowCol{-3,2};
 	RowCol rrc = RowCol{-3,3};
@@ -271,7 +272,7 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 	// At the last moment before it completes the swap, a green block lands
 	// on the red block. The red block notices it doesn’t have ground and falls.
 	// The green block immediately falls with it.
-	Block& red_block = pit->spawn_block(Block::Color::RED, RowCol{-4, 4}, Block::State::REST);
+	Block& red_block = pit->spawn_block(Color::RED, RowCol{-4, 4}, Block::State::REST);
 	Block* green_block = nullptr;
 	bool swapping = false;
 
@@ -286,7 +287,7 @@ TEST_F(BlockDirectorTest, FallAfterSwap)
 			swapping = swap_at(*pit, *director, RowCol{-4, 4});
 		}
 		if(SPAWN_MOMENT == t) {
-			green_block = &spawn_falling_block(*pit, Block::Color::GREEN, RowCol{-6, 5});
+			green_block = &spawn_falling_block(*pit, Color::GREEN, RowCol{-6, 5});
 		}
 
 		if(LAND_MOMENT-1 == t) {
@@ -348,7 +349,7 @@ TEST_F(BlockDirectorTest, ChainingFallBlock)
 TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 {
 	const int GARBAGE_COLS = 6;
-	auto& garbage = pit->spawn_garbage(RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
+	auto& garbage = spawn_garbage(*pit, RowCol{-5, 0}, GARBAGE_COLS, 2); // chain garbage
 	garbage.set_state(Physical::State::REST);
 	bool swapping = swap_at(*pit, *director, RowCol{-2, 2}); // match yellow blocks vertically
 	ASSERT_TRUE(swapping);
@@ -380,9 +381,9 @@ TEST_F(BlockDirectorTest, ChainingGarbageBlock)
 TEST_F(BlockDirectorTest, RestingBlockNotChaining)
 {
 	// blocks resting on this garbage might fall
-	auto& garbage = pit->spawn_garbage(RowCol{-4, 2}, 3, 1);
+	auto& garbage = spawn_garbage(*pit, RowCol{-4, 2}, 3, 1);
 	// this block will be examined for falling, but end in rest
-	auto& block = pit->spawn_block(Block::Color::BLUE, RowCol{-5, 2}, Block::State::REST);
+	auto& block = pit->spawn_block(Color::BLUE, RowCol{-5, 2}, Block::State::REST);
 	garbage.set_state(Physical::State::BREAK, 1);
 
 	run_game_ticks(2);
@@ -429,18 +430,18 @@ TEST_F(BlockDirectorTest, ChainingSwapBlock)
 TEST_F(BlockDirectorTest, PanicSimple)
 {
 	// complete the test scenario with a block pillar almost to the top
-	pit->spawn_block(Block::Color::RED, RowCol{-4, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, RowCol{-6, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-4, 3}, Block::State::REST);
+	pit->spawn_block(Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
+	pit->spawn_block(Color::GREEN, RowCol{-6, 3}, Block::State::REST);
+	pit->spawn_block(Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
+	pit->spawn_block(Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
 
 	// time it takes for the orange block to reach the top of the pit
 	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
 
 	// discover more blocks and fix them not to match instantly
 	run_game_ticks(1);
-	pit->block_at({1, 2})->col = Block::Color::GREEN;
+	pit->block_at({1, 2})->col = Color::GREEN;
 
 	// moment before panic
 	run_game_ticks(TIME_TO_FULL-1);
@@ -470,18 +471,18 @@ TEST_F(BlockDirectorTest, PanicSimple)
 TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 {
 	// complete the test scenario with a block pillar almost to the top
-	pit->spawn_block(Block::Color::RED, RowCol{-4, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::GREEN, RowCol{-6, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
+	pit->spawn_block(Color::RED, RowCol{-4, 3}, Block::State::REST);
+	pit->spawn_block(Color::YELLOW, RowCol{-5, 3}, Block::State::REST);
+	pit->spawn_block(Color::GREEN, RowCol{-6, 3}, Block::State::REST);
+	pit->spawn_block(Color::PURPLE, RowCol{-7, 3}, Block::State::REST);
+	pit->spawn_block(Color::ORANGE, RowCol{-8, 3}, Block::State::REST);
 
 	// time it takes for the orange block to reach the top of the pit
 	const int TIME_TO_FULL = ROW_HEIGHT / SCROLL_SPEED;
 
 	// discover more blocks and fix them not to match instantly
 	run_game_ticks(1);
-	pit->block_at({1, 2})->col = Block::Color::GREEN;
+	pit->block_at({1, 2})->col = Color::GREEN;
 
 	run_game_ticks(TIME_TO_FULL - 1);
 	ASSERT_FALSE(is_panic(*pit));
@@ -500,8 +501,8 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 	run_game_ticks(DELAY);
 
 	// these blocks will be dissolved while we are in panic
-	pit->spawn_block(Block::Color::GREEN, RowCol{-4, 4}, Block::State::REST);
-	Block& yellow_block = pit->spawn_block(Block::Color::GREEN, RowCol{-5, 4}, Block::State::REST);
+	pit->spawn_block(Color::GREEN, RowCol{-4, 4}, Block::State::REST);
+	Block& yellow_block = pit->spawn_block(Color::GREEN, RowCol{-5, 4}, Block::State::REST);
 	yellow_block.set_state(Block::State::FALL); // prime block for matching by director
 	run_game_ticks(1);
 	ASSERT_EQ(Block::State::BREAK, yellow_block.block_state());
@@ -529,9 +530,9 @@ TEST_F(BlockDirectorTest, PanicPausedWhileBreak)
 TEST_F(BlockDirectorTest, AboveGarbageFall)
 {
 	// complete the test scenario
-	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
-	Garbage& bottom_garbage = pit->spawn_garbage({-6, 0}, PIT_COLS, 2);
-	Garbage& top_garbage = pit->spawn_garbage({-8, 0}, PIT_COLS, 2);
+	Block& block = pit->spawn_block(Color::YELLOW, RowCol{-4, 2}, Block::State::REST);
+	Garbage& bottom_garbage = spawn_garbage(*pit, {-6, 0}, PIT_COLS, 2);
+	Garbage& top_garbage = spawn_garbage(*pit, {-8, 0}, PIT_COLS, 2);
 
 	block.set_state(Physical::State::BREAK, 1);
 
@@ -551,8 +552,8 @@ TEST_F(BlockDirectorTest, AboveGarbageFall)
 TEST_F(BlockDirectorTest, GarbageDissolveFall)
 {
 	// complete the test scenario
-	Garbage& garbage = pit->spawn_garbage({-4, 0}, PIT_COLS, 1);
-	Block& block = pit->spawn_block(Block::Color::YELLOW, RowCol{-5, 0}, Block::State::REST);
+	Garbage& garbage = spawn_garbage(*pit, {-4, 0}, PIT_COLS, 1);
+	Block& block = pit->spawn_block(Color::YELLOW, RowCol{-5, 0}, Block::State::REST);
 
 	garbage.set_state(Physical::State::BREAK, DISSOLVE_TIME);
 
@@ -571,13 +572,13 @@ TEST_F(BlockDirectorTest, GarbageDissolveFall)
 TEST_F(BlockDirectorTest, RecoveryTime)
 {
 	// complete the test scenario with some blocks ready to match
-	pit->spawn_block(Block::Color::PURPLE, {-3, 5}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, {-4, 2}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, {-4, 3}, Block::State::REST);
-	pit->spawn_block(Block::Color::BLUE, {-4, 5}, Block::State::REST);
+	pit->spawn_block(Color::PURPLE, {-3, 5}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, {-4, 2}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, {-4, 3}, Block::State::REST);
+	pit->spawn_block(Color::BLUE, {-4, 5}, Block::State::REST);
 
 	RowCol match_rc{-4, 4};
-	Block& block = pit->spawn_block(Block::Color::BLUE, match_rc, Block::State::REST);
+	Block& block = pit->spawn_block(Color::BLUE, match_rc, Block::State::REST);
 	block.set_state(Block::State::FALL);
 
 	// execute match
@@ -598,7 +599,7 @@ TEST_F(BlockDirectorTest, RecoveryTime)
 namespace
 {
 
-Block& spawn_falling_block(Pit& pit, Block::Color color, RowCol from)
+Block& spawn_falling_block(Pit& pit, Color color, RowCol from)
 {
 	// A falling block really belongs on the next row, where it expects
 	// to arrive from the fall.

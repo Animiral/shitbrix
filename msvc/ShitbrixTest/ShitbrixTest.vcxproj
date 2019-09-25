@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -51,7 +51,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\ext\googletest\googletest\include;..\..\src;..\..\ext\sdl\include;..\..\ext\sdl_image;..\..\ext\enet\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\ext\googletest\googletest\include;..\..\ext\googletest\googlemock\include;..\..\src;..\..\ext\sdl\include;..\..\ext\sdl_image;..\..\ext\enet\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -80,14 +80,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\tests\tests_common.cpp" />
+    <ClCompile Include="..\..\tests\test_arbiter.cpp" />
     <ClCompile Include="..\..\tests\test_director.cpp" />
     <ClCompile Include="..\..\tests\test_event.cpp" />
-    <ClCompile Include="..\..\tests\test_globals.cpp" />
+    <ClCompile Include="..\..\tests\test_game.cpp" />
+    <ClCompile Include="..\..\tests\test_input.cpp" />
     <ClCompile Include="..\..\tests\test_network.cpp" />
+    <ClCompile Include="..\..\tests\test_screen.cpp" />
     <ClCompile Include="..\..\tests\test_stage.cpp" />
     <ClCompile Include="..\..\tests\test_replay.cpp" />
+    <ClCompile Include="..\..\tests\test_state.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\googletest\gmock.vcxproj">
+      <Project>{6e52e1da-03e6-4157-becc-be959d215ad6}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\googletest\gtest.vcxproj">
       <Project>{c8f6c172-56f2-4e76-b5fa-c3b423b31be7}</Project>
     </ProjectReference>

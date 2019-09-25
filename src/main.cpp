@@ -1,4 +1,5 @@
 #include "game_loop.hpp"
+#include "game.hpp"
 #include "configuration.hpp"
 #include "error.hpp"
 #include "context.hpp"
@@ -38,7 +39,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd)
 	game_main(argc, &argv[0]);
 
 	for (const char* arg : argv)
-		delete arg;
+		delete[] arg;
 
 	return 0;
 }

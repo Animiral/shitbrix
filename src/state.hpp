@@ -10,6 +10,7 @@
 #include <random>
 #include <memory>
 #include <functional>
+#include <ostream>
 
 /**
  * Base class for game objects that can be placed in the Pit.
@@ -131,8 +132,6 @@ class Block : public Physical
 
 public:
 
-	enum class Color { FAKE, BLUE, RED, YELLOW, GREEN, PURPLE, ORANGE };
-
 	/*
 	 * Block states.
 	 *  * DEAD: should be removed from the pit asap as it is an error to logic update() a dead block
@@ -184,9 +183,9 @@ private:
 };
 
 /*
- * Allow operator- on Block::Color
+ * Allow operator- on Color
  */
-int operator-(Block::Color lhs, Block::Color rhs) noexcept;
+int operator-(Color lhs, Color rhs) noexcept;
 
 /**
  * Comparison predicate for ordering blocks bottom-to-top.
@@ -196,7 +195,7 @@ bool y_greater(const Block& lhs, const Block& rhs) noexcept;
 /**
  * Type of the blocks hidden in a Garbage brick for the player to break and discover.
  */
-using Loot = std::vector<Block::Color>;
+using Loot = std::vector<Color>;
 
 /**
  * Garbage block.
@@ -249,72 +248,6 @@ private:
 
 };
 
-/**
- * Abstract representation of a generator of block colors.
- * These colors (or, in the future, other properties) are used to spawn blocks
- * into the game with desirable guarantees, such as not immediately matching
- * from spawn.
- */
-class IColorSupplier
-{
-
-public:
-
-	virtual ~IColorSupplier() = 0;
-
-	/**
-	 * Return the next color of a block coming out on the stack from below.
-	 * TODO: this function must generate blocks not to auto-match instantly.
-	 */
-	virtual Block::Color next_spawn() noexcept = 0;
-
-	/**
-	 * Return the next color of a block emerging as a result of dissolving garbage.
-	 * TODO: this function must not generate three same-colored blocks in a row.
-	 */
-	virtual Block::Color next_emerge() noexcept = 0;
-
-	/**
-	 * Suppliers can copy themselves.
-	 */
-	virtual std::unique_ptr<IColorSupplier> clone() const = 0;
-
-};
-
-/**
- * Maintains a sequence of block colors spawned deterministically out of an
- * initial seed. This allows us to see what color blocks to introduce next,
- * as well as reconstruct the whole history of spawned block colors for
- * replay and netplay purposes.
- */
-class RandomColorSupplier : public IColorSupplier
-{
-
-public:
-
-	/**
-	 * Construct the supplier with the given seed, which deterministically produces
-	 * the same block colors every time.
-	 * The blocks are mixed up by the given player number.
-	 */
-	explicit RandomColorSupplier(unsigned seed, int player);
-
-	virtual Block::Color next_spawn() noexcept override;
-	virtual Block::Color next_emerge() noexcept override;
-	virtual std::unique_ptr<IColorSupplier> clone() const override { return std::make_unique<RandomColorSupplier>(*this); }
-
-private:
-
-	//std::vector<Block::Color> m_record; // required later for rules refinement
-	std::minstd_rand m_generator;
-
-};
-
-/**
- * This factory function creates a color supplier based on the given player number.
- */
-using ColorSupplierFactory = std::function<std::unique_ptr<IColorSupplier>(int)>;
-
 
 /**
  * As part of the game data in the Pit, the Cursor is the player's input location.
@@ -338,7 +271,7 @@ class Pit
 
 public:
 
-	explicit Pit(Point loc, std::unique_ptr<IColorSupplier> color_supplier) noexcept;
+	explicit Pit(Point loc) noexcept;
 	Pit(const Pit& rhs);
 	Pit& operator=(const Pit& rhs);
 
@@ -407,25 +340,15 @@ public:
 	 *
 	 * @return a reference to the created Block
 	 */
-	Block& spawn_block(Block::Color color, RowCol rc, Block::State state);
+	Block& spawn_block(Color color, RowCol rc, Block::State state);
 
 	/**
-	 * Create a new Block with the specified properties in the Pit.
-	 * The color of the block is determined by the next output of the color supplier.
-	 * Caution! This may invalidate all existing references to Blocks in the Pit.
-	 *
-	 * @return a reference to the created Block
-	 */
-	Block& spawn_random_block(RowCol rc, Block::State state);
-
-	/**
-	 * Create a new Garbage with the specified dimensions.
-	 * The color of the Loot Blocks inside is determined by the next output of the color supplier.
+	 * Create a new Garbage with the specified dimensions and loot inside.
 	 * Caution! This may invalidate all existing references to Garbage in the Pit.
 	 *
 	 * @return a reference to the created Garbage
 	 */
-	Garbage& spawn_garbage(RowCol rc, int columns, int rows);
+	Garbage& spawn_garbage(RowCol rc, int columns, int rows, Loot loot);
 
 	/**
 	 * Return true if it is acceptable to move the object
@@ -538,7 +461,7 @@ public:
 
 	/**
 	 * Decrease panic time towards 0 and return the new value.
-	 * Panic time is used to stop scrolling briefly when the pit is full.and after blocks break.
+	 * Panic time is used to stop scrolling briefly when the pit is full.
 	 */
 	int do_panic() noexcept { return (m_panic > 0) ? --m_panic : 0; }
 
@@ -582,7 +505,6 @@ private:
 	int m_chain;     //!< chain counter
 	int m_recovery;  //!< recover time pool; scrolling stops after a quality match
 	int m_panic;     //!< panic time pool; the player has this many ticks left until game over
-	std::unique_ptr<IColorSupplier> m_color_supplier; //< generator for blocks spawning
 
 	PhysVec m_contents; // list of all blocks in the pit
 	PhysMap m_content_map; // sparse matrix of blocked spaces
@@ -608,7 +530,7 @@ class GameState
 
 public:
 
-	explicit GameState(GameMeta meta, ColorSupplierFactory& color_factory);
+	explicit GameState(GameMeta meta);
 	GameState(const GameState& rhs);
 	GameState(GameState&& rhs);
 
@@ -621,9 +543,33 @@ public:
 
 	void update();
 
+	/**
+	 * Given the number of one player in the game, returns the target opponent.
+	 * If the given player loses, the opponent wins.
+	 * If the given player produces a combo or chain, the opponent receives garbage.
+	 */
+	int opponent(int player) const noexcept;
+
 private:
 
 	PitVector m_pit; //!< state by player number
 	long m_game_time; //!< tick counter
 
 };
+
+/**
+ * Write a list of the complete pit contents to the stream.
+ */
+void debug_print_pit(std::ostream& stream, const Pit& pit);
+
+/**
+ * Write an ASCII-art depiction of the Pit to the stream.
+ * This visualization does not depict Physical states or countdowns.
+ */
+void debug_asciiart_pit(std::ostream& stream, const Pit& pit);
+
+/**
+ * Write an ASCII-art depiction of all Pits to the stream.
+ * This visualization does not depict Physical states or countdowns.
+ */
+void debug_asciiart_state(std::ostream& stream, const GameState& state);

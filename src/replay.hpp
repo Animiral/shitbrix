@@ -12,18 +12,26 @@
 #pragma once
 
 #include <string>
+#include <vector>
+#include <optional>
 #include <ostream>
 #include "globals.hpp"
-#include "stage.hpp"
+#include "state.hpp"
 #include "input.hpp"
 
+using Inputs = std::vector<Input>;
+using InputSpan = std::pair<Inputs::const_iterator, Inputs::const_iterator>;
+
+/**
+ * Represents one piece of information in the replay file.
+ */
 struct ReplayRecord
 {
 	enum class Type { START, META, INPUT };
 
 	Type type;
-	GameMeta meta;   //!< Meta information
-	GameInput input; //!< Input player and key
+	GameMeta meta; //!< Meta information
+	std::optional<Input> input; //!< Input information
 
 	/**
 	 * Meta information specification.
@@ -37,14 +45,10 @@ struct ReplayRecord
 	static ReplayRecord make_start() noexcept;
 
 	/**
-	 * Player input.
+	 * All kinds of input.
 	 */
-	static ReplayRecord make_input(GameInput input) noexcept;
+	static ReplayRecord make_input(Input input) noexcept;
 };
-
-struct InputDiscovered { GameInput input; bool discovered; };
-using GameInputs = std::vector<InputDiscovered>;
-using GameInputSpan = std::pair<GameInputs::const_iterator, GameInputs::const_iterator>;
 
 /**
  * Keeps the game record.
@@ -69,21 +73,34 @@ public:
 	long earliest_undiscovered() const noexcept { return m_earliest_undiscovered; }
 
 	/**
-	 * Return all inputs with time >= start_time and <= end_time.
-	 * The inputs will be marked as discovered.
+	 * Push back the time marker for the earliest discovered input to @c game_time.
+	 *
+	 * The logic (@c synchronurse function) does this when we know that we have
+	 * just seen and handled all inputs up to that point.
 	 */
-	GameInputSpan discover_inputs(long start_time, long end_time) noexcept;
+	void discover_inputs(long game_time) noexcept { m_earliest_undiscovered = game_time; }
+
+	/**
+	 * Return all inputs at the given @c game_time.
+	 */
+	InputSpan get_inputs(long game_time) noexcept;
 
 	/**
 	 * Simply return the list of inputs and do not discover anything.
 	 */
-	const GameInputs& inputs() const noexcept { return m_inputs; }
+	const Inputs& inputs() const noexcept { return m_inputs; }
 
 	/**
 	 * Add an input into the queue and mark it as undiscovered.
 	 * All checkpoints made at or after the time of the input become obsolete.
 	 */
-	void add_input(GameInput input);
+	void add_input(Input input);
+
+	/**
+	 * Remove all retractable (non-player) inputs after the given @c time from
+	 * memory.
+	 */
+	void retract(long time);
 
 	/**
 	 * Update the winner in the meta information.
@@ -103,16 +120,23 @@ public:
 private:
 
 	GameMeta m_meta;
-	GameInputs m_inputs; //!< player inputs ordered by time
+	Inputs m_inputs; //!< all inputs ordered by time
 	long m_earliest_undiscovered;
 	std::vector<GameState> m_checkpoint; //!< checkpoints ordered by time
 
 };
 
 /**
- * Write a replay file from a Journal.
+ * Write a text representation of the journal to the stream.
  */
-void replay_write(std::ostream& stream, const Journal& journal);
+void replay_stream(std::ostream& stream, const Journal& journal);
+
+/**
+ * Write the journal to an automatically generated file name in the replay directory.
+ * If the replay directory does not exist, do nothing.
+ * This name is built from the current date and time.
+ */
+void replay_write(const Journal& journal);
 
 /**
  * Reads a replay file and sends event by event to the sink.

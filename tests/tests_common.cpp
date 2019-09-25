@@ -3,6 +3,9 @@
  */
 
 #include "tests_common.hpp"
+#include "arbiter.hpp"
+#include "game.hpp"
+#include "replay.hpp"
 #include "context.hpp"
 #include "configuration.hpp"
 #include "sdl_helper.hpp"
@@ -12,6 +15,13 @@
 
 void configure_context_for_testing()
 {
+	// Destroy any leftover context from previous test runs.
+	// This is especially important for objects that own an only-once resource (e.g. SDL)
+	the_context.sdl.reset();
+	the_context.log.reset();
+	the_context.assets.reset();
+	the_context.audio.reset();
+
 	Configuration configuration;
 	configuration.network_mode = /* NetworkMode::LOCAL */ NetworkMode::CLIENT; // TODO: use least-harm setting
 	configuration.player_number = {};
@@ -28,27 +38,80 @@ void configure_context_for_testing()
 	the_context.audio.reset(new NoAudio);
 }
 
-GameData make_gamedata_for_testing()
+std::unique_ptr<IGame> make_game_for_testing()
 {
-	// we uniformly use a 2-player deterministic play field
-	GameMeta meta{2, 0};
-	ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };
-	GameState state{meta, color_factory};
-	Journal journal{meta, state};
-
-	return GameData{std::move(state), std::move(journal)};
+	return std::make_unique<LocalGame>(std::make_unique<LocalGameFactory>());
 }
 
-Block::Color RainbowColorSupplier::next_spawn() noexcept
+std::vector<Color> rainbow_loot(size_t count)
 {
-	Block::Color previous = m_color;
-	m_color = static_cast<Block::Color>((static_cast<int>(m_color) + 1 - 1) % 6 + 1);
-	return previous;
+	std::vector<Color> result;
+
+	for(int i = 0; i < count; i++)
+		result.push_back(static_cast<Color>((i % 6) + 1));
+
+	return result;
 }
 
+
+Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows)
+{
+	return pit.spawn_garbage(rc, columns, rows, rainbow_loot(columns * rows));
+}
 
 bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)
 {
 	const_cast<Cursor&>(pit.cursor()).rc = rc;
-	return director.swap(0);
+	director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
+
+	if(Block* block = pit.block_at(rc))
+		return Block::State::SWAP_LEFT == block->block_state();
+	else
+		return false;
+}
+
+void prefill_pit(Pit& pit)
+{
+	for(int c = 0; c < PIT_COLS; c++)
+		for(int r = 1; r <= 3; r++) {
+			Color color = (c + r) % 2 ? Color::PURPLE : Color::ORANGE;
+			pit.spawn_block(color, {r, c}, Block::State::PREVIEW);
+		}
+}
+
+
+void TestChannel::add_recipient(TestChannel& channel)
+{
+	m_recipients.push_back(&channel);
+}
+
+void TestChannel::send(Message message)
+{
+	for(TestChannel* recipient : m_recipients)
+		recipient->m_buffer.push_back(message);
+}
+
+std::vector<Message> TestChannel::poll()
+{
+	std::vector<Message> messages;
+	swap(m_buffer, messages);
+	return messages;
+}
+
+
+std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> make_test_channels(int clients)
+{
+	enforce(clients >= 0);
+
+	auto server_channel = std::make_unique<TestChannel>();
+	std::vector<std::unique_ptr<IChannel>> client_channels;
+
+	for(int i = 0; i < clients; i++) {
+		auto client_channel = std::make_unique<TestChannel>();
+		server_channel->add_recipient(*client_channel);
+		client_channel->add_recipient(*server_channel);
+		client_channels.push_back(move(client_channel));
+	}
+
+	return {move(server_channel), move(client_channels)};
 }
