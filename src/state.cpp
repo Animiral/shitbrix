@@ -139,7 +139,7 @@ Garbage::Garbage(RowCol rc, int columns, int rows, Loot loot)
 {
 	enforce(columns > 0);
 	enforce(rows > 0);
-	enforce(loot.size() == columns * rows);
+	enforce(loot.size() == (size_t)columns * (size_t)rows);
 }
 
 Loot::const_iterator Garbage::loot() const
@@ -153,7 +153,7 @@ int Garbage::shrink() noexcept
 	enforce(m_rows > 0);
 	m_loot.erase(m_loot.begin(), m_loot.begin() + m_columns);
 	--m_rows;
-	enforce(m_loot.size() == m_columns * m_rows);
+	enforce(m_loot.size() == (size_t)m_columns * (size_t)m_rows);
 	return m_rows;
 }
 
@@ -244,7 +244,7 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
 	// make sure the Garbage fits in the Pit
 	enforce(rc.c >= 0);
 	enforce(rc.c + width <= PIT_COLS);
-	enforce(width * height == loot.size());
+	enforce((size_t)width * (size_t)height == loot.size());
 
 	if (rc.r + height - 1 >= m_floor)
 		throw LogicException("Pit: Attempt to spawn garbage in or below the floor.");

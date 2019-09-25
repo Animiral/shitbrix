@@ -187,7 +187,7 @@ Input input_garbage(long game_time, int victim, int columns, int rows, bool righ
 	int spawn_row = std::min(pit.peak(), pit.top()) - rows - 1;
 	RowCol rc{spawn_row, 0};
 
-	Loot loot(columns * rows);
+	Loot loot((size_t)columns * (size_t)rows);
 	for(Color& c : loot)
 		c = color_supplier.next_emerge();
 

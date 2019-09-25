@@ -39,11 +39,11 @@ public:
 	}
 
 	// free access to the created objects
-	GameState* m_state_ptr;
-	Journal* m_journal_ptr;
-	BlockDirector* m_director_ptr;
-	evt::GameEventHub* m_hub_ptr;
-	MockArbiter* m_arbiter_ptr;
+	GameState* m_state_ptr = nullptr;
+	Journal* m_journal_ptr = nullptr;
+	BlockDirector* m_director_ptr = nullptr;
+	evt::GameEventHub* m_hub_ptr = nullptr;
+	MockArbiter* m_arbiter_ptr = nullptr;
 
 };
 
