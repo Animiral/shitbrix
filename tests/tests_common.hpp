@@ -8,7 +8,13 @@
 #include "arbiter.hpp"
 #include "director.hpp"
 #include "network.hpp"
+
+#pragma warning(push)
+#pragma warning(disable : 26451)
+#pragma warning(disable : 26495)
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
+#pragma warning(pop)
 
 /**
  * Set the global context to use stub implementations for our test environment.

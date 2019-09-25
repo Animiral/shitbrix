@@ -7,7 +7,6 @@
 #include "replay.hpp"
 #include "input.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 using testing::Truly;
 

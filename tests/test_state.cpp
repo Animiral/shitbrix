@@ -5,7 +5,6 @@
 #include "stage.hpp"
 #include "error.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 class StateTest : public ::testing::Test
 {

@@ -6,7 +6,6 @@
 #include "draw.hpp"
 #include "game.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 class ScreenTest : public ::testing::Test
 {

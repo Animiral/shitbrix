@@ -5,7 +5,6 @@
 #include "stage.hpp"
 #include "director.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 namespace
 {

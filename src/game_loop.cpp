@@ -94,7 +94,7 @@ void GameLoop::game_loop()
 		}
 		else {
 			tick++;
-			next_logic = t0 + (tick + 1) * freq / TPS;
+			next_logic = t0 + ((Uint64)tick + 1) * freq / TPS;
 		}
 	}
 

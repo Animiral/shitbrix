@@ -6,7 +6,6 @@
 #include "draw.hpp"
 #include "error.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 class StageTest : public ::testing::Test
 {

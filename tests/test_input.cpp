@@ -3,7 +3,7 @@
  */
 
 #include "input.hpp"
-#include "gtest/gtest.h"
+#include "tests_common.hpp"
 
 /**
  * Tests parsing of some Inputs from strings.

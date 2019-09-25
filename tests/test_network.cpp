@@ -5,8 +5,6 @@
 #include "network.hpp"
 #include "input.hpp"
 #include "tests_common.hpp"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using testing::Truly;
 

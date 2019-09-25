@@ -55,7 +55,7 @@ std::vector<Color> rainbow_loot(size_t count)
 
 Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows)
 {
-	return pit.spawn_garbage(rc, columns, rows, rainbow_loot(columns * rows));
+	return pit.spawn_garbage(rc, columns, rows, rainbow_loot((size_t)columns * (size_t)rows));
 }
 
 bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)

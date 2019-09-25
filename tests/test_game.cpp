@@ -7,7 +7,6 @@
 #include "arbiter.hpp"
 #include "replay.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 using testing::_;
 using testing::An;

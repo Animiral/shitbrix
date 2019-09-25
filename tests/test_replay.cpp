@@ -5,7 +5,6 @@
 #include "tests_common.hpp"
 #include "replay.hpp"
 #include "error.hpp"
-#include "gtest/gtest.h"
 #include <string>
 #include <sstream>
 

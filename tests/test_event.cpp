@@ -8,7 +8,6 @@
 #include "event.hpp"
 #include "replay.hpp"
 #include "tests_common.hpp"
-#include "gtest/gtest.h"
 
 class GameEventCounter : public evt::IEventObserver
 {

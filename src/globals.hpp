@@ -221,7 +221,7 @@ Point from_rc(RowCol rc); // conversion to pit-relative coordinates
  */
 struct RowColHash
 {
-	size_t operator()(RowCol rc) const noexcept { return (rc.c << 16) + rc.r; }
+	size_t operator()(RowCol rc) const noexcept { return ((size_t)rc.c << 16) + (size_t)rc.r; }
 };
 
 std::ostream& operator<<(std::ostream& stream, RowCol rc);
