@@ -167,6 +167,7 @@ Pit::Pit(Point loc) noexcept
   m_scroll((1-PIT_ROWS) * ROW_HEIGHT),
   m_speed(SCROLL_SPEED),
   m_peak(1),
+  m_floor(-PIT_ROWS), // by default, block everything
   m_chain(0),
   m_recovery(0),
   m_panic(PANIC_TIME),
@@ -223,6 +224,9 @@ Block& Pit::spawn_block(Color color, RowCol rc, Block::State state)
 	enforce(rc.c >= 0);
 	enforce(rc.c < PIT_COLS);
 
+	if(rc.r >= m_floor)
+		throw LogicException("Pit: Attempt to spawn block in or below the floor.");
+
 	auto block = std::make_unique<Block>(color, rc, state);
 	Block* raw_block = block.get();
 	fill_area(*raw_block);
@@ -242,6 +246,9 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
 	enforce(rc.c + width <= PIT_COLS);
 	enforce(width * height == loot.size());
 
+	if (rc.r + height - 1 >= m_floor)
+		throw LogicException("Pit: Attempt to spawn garbage in or below the floor.");
+
 	auto garbage = std::make_unique<Garbage>(rc, width, height, move(loot));
 	Garbage* raw_garbage = garbage.get();
 	fill_area(*raw_garbage);
@@ -254,6 +261,11 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
 	return *raw_garbage;
 }
 
+void Pit::set_floor(int row) noexcept
+{
+	m_floor = row;
+}
+
 bool Pit::can_fall(Physical& physical) const noexcept
 {
 	RowCol rc = physical.rc();
@@ -261,6 +273,9 @@ bool Pit::can_fall(Physical& physical) const noexcept
 	// there must be no obstacle at the target location and the
 	// target location must be a valid location in the pit
 	RowCol to {rc.r + physical.rows(), rc.c};
+
+	if(to.r + physical.rows() - 1 >= m_floor)
+		return false;
 
 	for(int c = to.c; c < to.c + physical.columns(); c++) {
 		RowCol target{to.r, c};
@@ -457,6 +472,9 @@ void Pit::fall_block(Block& block)
 	RowCol rc = block.rc();
 	RowCol to { rc.r+1, rc.c };
 
+	if(to.r >= m_floor)
+		throw LogicException("Pit: Attempt to move block into or below the floor.");
+
 	if(at(to))
 		throw LogicException("Pit: Attempt to move block to occupied location.");
 
@@ -471,6 +489,9 @@ void Pit::fall_garbage(Garbage& garbage)
 {
 	RowCol rc = garbage.rc();
 	RowCol to { rc.r+1, rc.c };
+
+	if(to.r + garbage.rows() - 1 >= m_floor)
+		throw LogicException("Pit: Attempt to move garbage into or below the floor.");
 
 	clear_area(garbage);
 	garbage.set_rc(to);
@@ -515,6 +536,7 @@ void Pit::assign_basic(const Pit& rhs)
 	m_scroll = rhs.m_scroll;
 	m_speed = rhs.m_speed;
 	m_peak = rhs.m_peak;
+	m_floor = rhs.m_floor;
 	m_chain = rhs.m_chain;
 	m_recovery = rhs.m_recovery;
 	m_panic = rhs.m_panic;
@@ -577,7 +599,7 @@ GameState::GameState(const GameState& rhs)
 		m_pit.push_back(std::make_unique<Pit>(*pit));
 }
 
-GameState::GameState(GameState&& rhs)
+GameState::GameState(GameState&& rhs) noexcept
 	: m_pit(move(rhs.m_pit)), m_game_time(rhs.m_game_time)
 {
 }

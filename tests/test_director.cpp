@@ -86,6 +86,25 @@ protected:
 };
 
 /**
+ * Tests whether the director correctly lowers the floor of the pit when
+ * spawning blocks.
+ */
+TEST_F(BlockDirectorTest, SpawnLowerFloor)
+{
+	int next_row = 4; // below prefilled content
+	pit->set_floor(next_row); // before: floor reserves space for new blocks
+
+	std::array<Color, PIT_COLS> colors;
+	colors.fill(Color::GREEN);
+	SpawnBlockInput input{ 1, 0, next_row, colors };
+
+	EXPECT_NO_THROW(director->apply_input(Input{ input })); // blocks spawn due to floor moving
+	Block* block = pit->block_at({ next_row, 0 });
+	EXPECT_TRUE(block);
+	EXPECT_THROW(pit->fall(*block), LogicException); // block cannot fall through floor
+}
+
+/**
  * Tests whether blocks correctly cause a match when one lands next
  * to others of the same color.
  */

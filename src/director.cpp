@@ -191,6 +191,7 @@ void BlockDirector::apply_input(const SpawnBlockInput& spinput)
 	Log::trace("%s %s", __FUNCTION__, spinput.to_string().c_str());
 
 	Pit& pit = *m_state->pit().at(spinput.player);
+	pit.set_floor(spinput.row + 1);
 	for(int c = 0; c < spinput.colors.size(); c++) {
 		RowCol spawn_rc{spinput.row, c};
 		pit.spawn_block(spinput.colors[c], spawn_rc, Block::State::PREVIEW);

@@ -20,6 +20,11 @@ public:
 
 protected:
 
+	void SetUp() override
+	{
+		pit->set_floor(10); // most tests don't care about the floor
+	}
+
 	std::unique_ptr<GameState> state;
 	Pit* pit = nullptr; // shortcut to player 1 pit
 
@@ -162,6 +167,19 @@ TEST_F(StateTest, SpawnGarbageOutOfBounds)
 }
 
 /**
+ * Tests whether the floor of the pit correctly prohibits objects from spawning.
+ */
+TEST_F(StateTest, FloorStopsSpawn)
+{
+	pit->set_floor(1);
+
+	RowCol block_rc{ 1, 0 };
+	RowCol garbage_rc{ 0, 1 };
+	EXPECT_THROW(pit->spawn_block(Color::RED, block_rc, Block::State::REST), LogicException);
+	EXPECT_THROW(spawn_garbage(*pit, garbage_rc, 4, 2), LogicException);
+}
+
+/**
  * Tests whether can_fall() correctly indicates true when space is free.
  */
 TEST_F(StateTest, CanFallBlockYes)
@@ -291,6 +309,27 @@ TEST_F(StateTest, FallGarbageFail)
 	auto& chain_gb = spawn_garbage(*pit, chain_rc, 6, 2);
 
 	EXPECT_THROW(pit->fall(chain_gb), LogicException);
+}
+
+/**
+ * Tests whether the floor of the pit correctly prohibits objects from falling.
+ *
+ * If an object is lying on the floor, it can not fall. An attempt to make it fall
+ * results in a LogicException.
+ */
+TEST_F(StateTest, FloorStopsFall)
+{
+	pit->set_floor(2);
+
+	RowCol block_rc{ 1, 0 };
+	auto& block = pit->spawn_block(Color::RED, block_rc, Block::State::REST);
+	EXPECT_FALSE(pit->can_fall(block));
+	EXPECT_THROW(pit->fall(block), LogicException);
+
+	RowCol garbage_rc{ 0, 1 };
+	auto& garbage = spawn_garbage(*pit, garbage_rc, 4, 2);
+	EXPECT_FALSE(pit->can_fall(garbage));
+	EXPECT_THROW(pit->fall(garbage), LogicException);
 }
 
 /**

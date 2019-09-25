@@ -351,6 +351,14 @@ public:
 	Garbage& spawn_garbage(RowCol rc, int columns, int rows, Loot loot);
 
 	/**
+	 * Set the floor marker to the given row.
+	 *
+	 * No object may fall into or below the row marked as floor.
+	 * No object may spawn into or below the floor either.
+	 */
+	void set_floor(int row) noexcept;
+
+	/**
 	 * Return true if it is acceptable to move the object
 	 * one row down, based on spaces blocked.
 	 */
@@ -502,6 +510,7 @@ private:
 	int m_scroll;    //!< y-offset in points for view on pit contents
 	int m_speed;     //!< per-update delta for m_scroll in points
 	int m_peak;      //!< highest blocked row (may be above visible space)
+	int m_floor;     //!< bottom boundary for objects (cannot enter or pass the floor)
 	int m_chain;     //!< chain counter
 	int m_recovery;  //!< recover time pool; scrolling stops after a quality match
 	int m_panic;     //!< panic time pool; the player has this many ticks left until game over
@@ -532,7 +541,7 @@ public:
 
 	explicit GameState(GameMeta meta);
 	GameState(const GameState& rhs);
-	GameState(GameState&& rhs);
+	GameState(GameState&& rhs) noexcept;
 
 	GameState& operator=(GameState rhs) noexcept;
 
