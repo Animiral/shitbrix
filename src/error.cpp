@@ -69,6 +69,12 @@ void imgok(void* pointer)
 		throw SdlException(IMG_GetError());
 }
 
+void ttfok(void* pointer)
+{
+	if(!pointer)
+		throw SdlException(TTF_GetError());
+}
+
 void enetok_impl(int result, const char* what)
 {
 	if(0 != result)

@@ -7,8 +7,10 @@
 #include "globals.hpp"
 #include <memory>
 #include <vector>
+#include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_audio.h>
+#include <SDL_ttf.h>
 
 /**
  * Custom deleter for SDL objects, to be used with unique_ptrs
@@ -22,11 +24,13 @@ public:
 	void operator()(SDL_Window* p) const { SDL_DestroyWindow(p); }
 	void operator()(SDL_Renderer* p) const { SDL_DestroyRenderer(p); }
 	void operator()(SDL_Joystick* p) const { SDL_JoystickClose(p); }
+	void operator()(TTF_Font* p) const { TTF_CloseFont(p); }
 };
 
 using SurfacePtr = std::unique_ptr<SDL_Surface, SdlDeleter>;
 using TexturePtr = std::unique_ptr<SDL_Texture, SdlDeleter>;
 using JoystickPtr = std::unique_ptr<SDL_Joystick, SdlDeleter>;
+using FontPtr = std::unique_ptr<TTF_Font, SdlDeleter>;
 
 /**
  * RAII for an SDL sound asset.
@@ -125,6 +129,11 @@ public:
 
 	std::vector<TexturePtr> create_texture_row(const char* file, int width) const;
 	std::vector< std::vector<TexturePtr> > create_texture_sheet(const char* file, int height, int width) const;
+
+	/**
+	 * Read the font with SDL_ttf.
+	 */
+	FontPtr open_font(const char* file, int ptsize) const;
 
 private:
 

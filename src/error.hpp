@@ -187,6 +187,12 @@ void sdlok(void* pointer);
  */
 void imgok(void* pointer);
 
+/**
+ * Validate that the object created by SDL_ttf (cast to bool) is true (not nullptr).
+ * If not, throw an SdlException.
+ */
+void ttfok(void* pointer);
+
 #define enetok(VALUE) enetok_impl((VALUE), "Bad result: " SB_STRINGIZE(VALUE))
 
 /**

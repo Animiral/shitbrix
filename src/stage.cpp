@@ -305,6 +305,8 @@ void Stage::draw(float dt) const
 		}
 	}
 
+	m_draw->text(CANVAS_W / 2 - 40, 10, "Text Demo", SDL_Color{ 255, 255, 0 });
+
 	tint();
 }
 

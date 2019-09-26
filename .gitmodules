@@ -10,3 +10,6 @@
 [submodule "ext/googletest"]
 	path = ext/googletest
 	url = https://github.com/google/googletest
+[submodule "ext/sdl_ttf"]
+	path = ext/sdl_ttf
+	url = https://github.com/SDL-mirror/SDL_ttf.git

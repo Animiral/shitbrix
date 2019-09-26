@@ -16,6 +16,12 @@ const Sound& NoAssets::sound(Snd snd) const
 	return *static_cast<Sound*>(nullptr);
 }
 
+TTF_Font& NoAssets::font() const
+{
+	assert(0);
+	return *static_cast<TTF_Font*>(nullptr);
+}
+
 FileAssets::FileAssets()
 {
 	const Sdl& sdl = *the_context.sdl;
@@ -47,6 +53,8 @@ FileAssets::FileAssets()
 	sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
 	sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
 	sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
+
+	defaultFont = sdl.open_font("font/default.ttf", DEFAULT_FONT_SIZE);
 }
 
 SDL_Texture& FileAssets::texture(Gfx gfx, size_t frame) const
@@ -64,4 +72,9 @@ const Sound& FileAssets::sound(Snd snd) const
 	enforce(snd_index < sounds.size());
 
 	return sounds[snd_index];
+}
+
+TTF_Font& FileAssets::font() const
+{
+	return *defaultFont;
 }

@@ -68,6 +68,22 @@ void SdlDraw::highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_
 	sdlok(SDL_RenderFillRect(m_renderer, &fill_rect));
 }
 
+void SdlDraw::text(int x, int y, const char* text, SDL_Color color)
+{
+	SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->font(), text, color) };
+	ttfok(text_surface.get());
+	TexturePtr texture{ SDL_CreateTextureFromSurface(m_renderer, text_surface.get()) };
+	sdlok(texture.get());
+
+	Uint32 format;
+	int access;
+	int w;
+	int h;
+	sdlok(SDL_QueryTexture(texture.get(), &format, &access, &w, &h));
+	const SDL_Rect dest_rect{x, y, w, h};
+	sdlok(SDL_RenderCopy(m_renderer, texture.get(), NULL, &dest_rect));
+}
+
 void SdlDraw::clip(int x, int y, int w, int h)
 {
 	SDL_Rect clip_rect{x, y, w, h};

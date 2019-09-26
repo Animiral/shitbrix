@@ -73,6 +73,11 @@ public:
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) = 0;
 
 	/**
+	 * Draw a text string.
+	 */
+	virtual void text(int x, int y, const char* text, SDL_Color color) = 0;
+
+	/**
 	 * Restrict the drawing area to the specified rectangle.
 	 */
 	virtual void clip(int x, int y, int w, int h) = 0;
@@ -131,6 +136,7 @@ public:
 	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override {}
 	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
+	virtual void text(int x, int y, const char* text, SDL_Color color) override {}
 	virtual void clip(int x, int y, int w, int h) override {}
 	virtual void unclip() override {}
 	virtual std::unique_ptr<ICanvas> create_canvas() override { return std::make_unique<NoDrawCanvas>(); }
@@ -172,6 +178,7 @@ public:
 	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override;
 	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
+	virtual void text(int x, int y, const char* text, SDL_Color color) override;
 	virtual void clip(int x, int y, int w, int h) override;
 	virtual void unclip() override;
 	virtual std::unique_ptr<ICanvas> create_canvas() override;

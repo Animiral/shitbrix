@@ -2,7 +2,6 @@
 #include "error.hpp"
 #include <cassert>
 #include <cstring>
-#include <SDL.h>
 
 namespace
 {
@@ -92,6 +91,7 @@ void SdlSoundPlayer::callback(void* userdata, Uint8* stream, int length)
 Sdl::Sdl(Uint32 flags)
 {
 	assert(!SDL_WasInit(0));
+	assert(!TTF_WasInit());
 
 	// basic library setup
 	sdlok(SDL_Init(flags));
@@ -101,6 +101,13 @@ Sdl::Sdl(Uint32 flags)
 	if((img_result & img_flags) != img_flags) {
 		SDL_Quit();
 		throw SdlException(IMG_GetError());
+	}
+
+	const int ttf_result = TTF_Init();
+	if(0 != ttf_result) {
+		IMG_Quit();
+		SDL_Quit();
+		throw SdlException(TTF_GetError());
 	}
 
 	// graphics: window & renderer
@@ -136,6 +143,7 @@ Sdl::~Sdl()
 	m_audio.reset();
 	m_renderer.reset();
 	m_window.reset();
+	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
 }
@@ -210,6 +218,13 @@ std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* fil
 	}
 
 	return textures;
+}
+
+FontPtr Sdl::open_font(const char* file, int ptsize) const
+{
+	FontPtr font(TTF_OpenFont(file, ptsize));
+	ttfok(font.get());
+	return font;
 }
 
 

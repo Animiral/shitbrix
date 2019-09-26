@@ -268,6 +268,7 @@ constexpr int BANNER_W = 200; //!< width of the win/lose banner in canvas pixels
 constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixels
 
 constexpr int TRANSITION_TIME = 20; //!< Number of frames for screen transition
+constexpr int DEFAULT_FONT_SIZE = 20; //!< Point size of the font to load
 
 // ================================================
 // Global types and shared structures
