@@ -4,6 +4,8 @@
 #include "draw.hpp"
 #include "globals.hpp"
 #include "error.hpp"
+#include <string>
+#include <sstream>
 #include <cmath>
 #include <cassert>
 #include <SDL.h>
@@ -70,18 +72,27 @@ void SdlDraw::highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_
 
 void SdlDraw::text(int x, int y, const char* text, SDL_Color color)
 {
-	SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->font(), text, color) };
-	ttfok(text_surface.get());
-	TexturePtr texture{ SDL_CreateTextureFromSurface(m_renderer, text_surface.get()) };
-	sdlok(texture.get());
+	std::vector<TexturePtr> line_textures;
+	std::istringstream stream(text);
+	std::string line;
 
-	Uint32 format;
-	int access;
-	int w;
-	int h;
-	sdlok(SDL_QueryTexture(texture.get(), &format, &access, &w, &h));
-	const SDL_Rect dest_rect{x, y, w, h};
-	sdlok(SDL_RenderCopy(m_renderer, texture.get(), NULL, &dest_rect));
+	while(std::getline(stream, line, '\n')) {
+		SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->font(), line.c_str(), color) };
+		ttfok(text_surface.get());
+		auto& tex = line_textures.emplace_back(SDL_CreateTextureFromSurface(m_renderer, text_surface.get()));
+		sdlok(tex.get());
+	}
+
+	for(int line = 0; line < line_textures.size(); line++) {
+		TexturePtr& tex = line_textures[line];
+		Uint32 format;
+		int access;
+		int w;
+		int h;
+		sdlok(SDL_QueryTexture(tex.get(), &format, &access, &w, &h));
+		const SDL_Rect dest_rect{ x, y + line * DEFAULT_FONT_LINEHEIGHT, w, h };
+		sdlok(SDL_RenderCopy(m_renderer, tex.get(), NULL, &dest_rect));
+	}
 }
 
 void SdlDraw::clip(int x, int y, int w, int h)
