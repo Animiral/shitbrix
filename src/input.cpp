@@ -142,7 +142,7 @@ SpawnGarbageInput SpawnGarbageInput::from_string(std::string input_string)
 		                    std::to_string(result.rows) + "r * " +
 		                    std::to_string(result.columns) + "c\"");
 
-	result.loot.resize(result.rows * result.columns);
+	result.loot.resize((size_t)result.rows * (size_t)result.columns);
 	for(int i = 0; i < result.rows * result.columns; i++) {
 		tokenizer >> color_source;
 		result.loot[i] = string_to_color(color_source);

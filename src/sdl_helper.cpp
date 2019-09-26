@@ -86,7 +86,7 @@ void SdlSoundPlayer::callback(void* userdata, Uint8* stream, int length)
 	std::memcpy(stream, audio->pos, fill);
 	// SDL_MixAudioFormat(stream, pos, AUDIO_S16, length, SDL_MIX_MAXVOLUME);
 
-	std::memset(stream+fill, 0, length-fill); // pad with silence
+	std::memset(stream + fill, 0, (size_t)length - (size_t)fill); // pad with silence
 
 	audio->pos += fill;
 	audio->remaining -= fill;

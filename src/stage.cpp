@@ -41,7 +41,8 @@ DrawPit::DrawPit(IDraw& draw, float dt, Point shake, bool show_result,
                  bool debug_overlay, bool debug_highlight)
 	:
 	m_draw(&draw), m_dt(dt), m_shake(shake), m_show_result(show_result),
-	m_debug_overlay(debug_overlay), m_debug_highlight(debug_highlight)
+	m_debug_overlay(debug_overlay), m_debug_highlight(debug_highlight),
+	m_pit(nullptr)
 {
 	enforce(0.f <= dt);
 	enforce(1.f >= dt);
@@ -118,7 +119,7 @@ void DrawPit::block(const Block& block) const
 		assert(time >= 0.f); // an expired breaking physical should be dead instead
 		int begin = static_cast<int>(BlockFrame::BREAK_BEGIN);
 		int end = static_cast<int>(BlockFrame::BREAK_END);
-		frame = static_cast<BlockFrame>(begin + int(time) % (end - begin));
+		frame = static_cast<BlockFrame>((size_t)begin + static_cast<size_t>(time) % ((size_t)end - begin));
 		// TODO: use the following for single full break anim
 		// frame = time * frames / (BLOCK_BREAK_TIME + 1);
 	}
@@ -144,7 +145,7 @@ void DrawPit::garbage(const Garbage& garbage) const
 	// and turns into small blocks.
 	if(Physical::State::BREAK == garbage.physical_state()) {
 		assert(time >= 0.f); // an expired breaking physical should be dead instead
-		frame = static_cast<size_t>(1 + int(time) % 5);
+		frame = 1 + static_cast<size_t>(time) % 5;
 		// TODO: use the following for single full break anim
 		// frame = time * frames / (GARBAGE_BREAK_TIME + 1);
 	}
