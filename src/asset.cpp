@@ -4,51 +4,6 @@
 #include <cassert>
 #include <SDL.h>
 
-BitmapFont::BitmapFont(const Sdl& sdl, const char* file, wrap::Color outline_color, wrap::Color fill_color)
-{
-	if(nullptr == file) {
-		for(int i = 0; i < 4 * 16; i++)
-			m_textures.emplace_back();
-		return;
-	}
-
-	SurfacePtr charset = sdl.load_surface(file, SDL_PIXELFORMAT_RGBA32);
-
-	// we can atm only deal with the exact expected layout
-	enforce(13 * 16 + 1 == charset->w);
-	enforce(21 * 4 + 1 == charset->h);
-
-	const wrap::Color placeholder_background{ 144, 144, 144, 255 };
-	const wrap::Color placeholder_outline{ 255, 255, 255, 255 };
-	const wrap::Color placeholder_fill{ 0, 0, 0, 255 };
-	sdl.recolor(*charset, placeholder_background, wrap::Color{ 0, 0, 0, 0 });
-	sdl.recolor(*charset, placeholder_outline, outline_color);
-	sdl.recolor(*charset, placeholder_fill, fill_color);
-
-	for(int y = 0; y < 4; y++)
-		for(int x = 0; x < 16; x++) {
-			wrap::Rect rect{ 13 * x + 1, 21 * y + 1, 12, 20 };
-			m_textures.push_back(sdl.cutout_texture(*charset, rect));
-		}
-}
-
-bool BitmapFont::can_print(char c) const noexcept
-{
-	return (size_t)c - ' ' < m_textures.size();
-}
-
-SDL_Texture& BitmapFont::char_texture(char c) const
-{
-	enforce(c >= ' ');
-	enforce(c <= '_');
-
-	return *m_textures[(size_t)c - ' '];
-}
-
-NoAssets::NoAssets() noexcept
-	: m_bitmap_font(*the_context.sdl, nullptr, {}, {})
-{}
-
 SDL_Texture& NoAssets::texture(Gfx gfx, size_t frame) const
 {
 	assert(0);
@@ -67,10 +22,10 @@ TTF_Font& NoAssets::ttf_font() const
 	return *static_cast<TTF_Font*>(nullptr);
 }
 
-const BitmapFont& NoAssets::bmp_font() const
+SDL_Surface& NoAssets::charset() const
 {
 	assert(0);
-	return m_bitmap_font;
+	return *static_cast<SDL_Surface*>(nullptr);
 }
 
 FileAssets::FileAssets(const Sdl& sdl)
@@ -104,9 +59,7 @@ FileAssets::FileAssets(const Sdl& sdl)
 	m_sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
 
 	m_ttf_font = sdl.open_font("font/default.ttf", DEFAULT_FONT_SIZE);
-	wrap::Color outline_color{ 111, 31, 148, 255 };
-	wrap::Color fill_color{ 198, 247, 242, 255 };
-	m_bitmap_font = std::make_unique<BitmapFont>(sdl, "font/fixed.png", outline_color, fill_color);
+	m_charset = sdl.load_surface("font/fixed.png", SDL_PIXELFORMAT_RGBA32);
 }
 
 SDL_Texture& FileAssets::texture(Gfx gfx, size_t frame) const
@@ -131,7 +84,7 @@ TTF_Font& FileAssets::ttf_font() const
 	return *m_ttf_font;
 }
 
-const BitmapFont& FileAssets::bmp_font() const
+SDL_Surface& FileAssets::charset() const
 {
-	return *m_bitmap_font;
+	return *m_charset;
 }

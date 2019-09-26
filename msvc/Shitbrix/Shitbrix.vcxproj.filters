@@ -78,6 +78,9 @@
     <ClInclude Include="..\..\src\game.hpp">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\text.hpp">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\audio.cpp">
@@ -141,6 +144,9 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\game.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\text.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>

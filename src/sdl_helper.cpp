@@ -15,11 +15,6 @@ wrap::Rect to_wrap(SDL_Rect rect) noexcept;
 SDL_Rect unwrap(wrap::Rect rect) noexcept;
 
 /**
- * Create an SDL surface with our preferred bit depth and color mask.
- */
-SurfacePtr create_surface(int width, int height);
-
-/**
  * Get the data of a single pixel from the surface in its own pixel format.
  */
 Uint32 getpixel(SDL_Surface& surface, int x, int y) noexcept;
@@ -245,6 +240,27 @@ SdlSoundPlayer& Sdl::audio() const
 	return *m_audio;
 }
 
+SurfacePtr Sdl::create_surface(int width, int height) const
+{
+	// be careful to preserve alpha channel (SDL defaults to amask=0)
+	Uint32 rmask, gmask, bmask, amask;
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	rmask = 0xff000000;
+	gmask = 0x00ff0000;
+	bmask = 0x0000ff00;
+	amask = 0x000000ff;
+#else
+	rmask = 0x000000ff;
+	gmask = 0x0000ff00;
+	bmask = 0x00ff0000;
+	amask = 0xff000000;
+#endif
+
+	SurfacePtr surface(SDL_CreateRGBSurface(0, width, height, 32, rmask, gmask, bmask, amask));
+	sdlok(surface.get());
+	return surface;
+}
+
 SurfacePtr Sdl::load_surface(const char* file, int format) const
 {
 	SurfacePtr surface(IMG_Load(file));
@@ -366,27 +382,6 @@ wrap::Rect to_wrap(SDL_Rect rect) noexcept
 SDL_Rect unwrap(wrap::Rect rect) noexcept
 {
 	return { rect.x, rect.y, rect.w, rect.h };
-}
-
-SurfacePtr create_surface(int width, int height)
-{
-	// be careful to preserve alpha channel (SDL defaults to amask=0)
-	Uint32 rmask, gmask, bmask, amask;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	rmask = 0xff000000;
-	gmask = 0x00ff0000;
-	bmask = 0x0000ff00;
-	amask = 0x000000ff;
-#else
-	rmask = 0x000000ff;
-	gmask = 0x0000ff00;
-	bmask = 0x00ff0000;
-	amask = 0xff000000;
-#endif
-
-	SurfacePtr surface(SDL_CreateRGBSurface(0, width, height, 32, rmask, gmask, bmask, amask));
-	sdlok(surface.get());
-	return surface;
 }
 
 // https://stackoverflow.com/questions/53033971/how-to-get-the-color-of-a-specific-pixel-from-sdl-surface

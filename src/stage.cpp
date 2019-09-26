@@ -259,7 +259,9 @@ Stage::Stage(const GameState& state, IDraw& draw)
 	m_draw(&draw),
 	m_bonus_relay(*this),
 	m_sound_relay(),
-	m_shake_relay(*this)
+	m_shake_relay(*this),
+	m_font(*the_context.sdl, the_context.assets->charset(), wrap::Color{ 111, 31, 148, 255 }, wrap::Color{ 198, 247, 242, 255 }),
+	m_text(*the_context.sdl, the_context.assets->ttf_font(), u8"Hello TTF W\u00F6rld! \u6210\u529F!") // u8"Hello TTF Wörld! 成功!"
 {
 	enforce(2 == state.pit().size()); // different player number not supported yet
 
@@ -306,7 +308,8 @@ void Stage::draw(float dt) const
 		}
 	}
 
-	m_draw->text_fixed(CANVAS_W / 2 - 40, 10, "Text Demo\nHello Shitbrix World!");
+	m_draw->text_fixed(CANVAS_W / 2 - 140, 10, m_font, "Text Demo\nHello fixed-width world! <3");
+	m_draw->text(CANVAS_W / 2 - 140, CANVAS_H - 30, m_text);
 
 	tint();
 }

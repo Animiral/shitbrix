@@ -8,6 +8,7 @@
 #include "stage.hpp"
 #include "event.hpp"
 #include "asset.hpp"
+#include "text.hpp"
 #include "context.hpp"
 
 extern const uint8_t ALPHA_OPAQUE; //!< highest alpha value
@@ -73,12 +74,12 @@ public:
 	/**
 	 * Draw a text string using the default true type font.
 	 */
-	virtual void text(int x, int y, const char* text, wrap::Color color) = 0;
+	virtual void text(int x, int y, const TtfText& text) = 0;
 
 	/**
 	 * Draw a text string using the custom bitmap font.
 	 */
-	virtual void text_fixed(int x, int y, const char* text) = 0;
+	virtual void text_fixed(int x, int y, const BitmapFont& font, const char* text) = 0;
 
 	/**
 	 * Restrict the drawing area to the specified rectangle.
@@ -139,8 +140,8 @@ public:
 	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override {}
 	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
-	virtual void text(int x, int y, const char* text, wrap::Color color) override {}
-	virtual void text_fixed(int x, int y, const char* text) override {}
+	virtual void text(int x, int y, const TtfText& text) override {}
+	virtual void text_fixed(int x, int y, const BitmapFont& font, const char* text) override {}
 	virtual void clip(int x, int y, int w, int h) override {}
 	virtual void unclip() override {}
 	virtual std::unique_ptr<ICanvas> create_canvas() override { return std::make_unique<NoDrawCanvas>(); }
@@ -182,8 +183,8 @@ public:
 	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override;
 	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
-	virtual void text(int x, int y, const char* text, wrap::Color color) override;
-	virtual void text_fixed(int x, int y, const char* text) override;
+	virtual void text(int x, int y, const TtfText& text) override;
+	virtual void text_fixed(int x, int y, const BitmapFont& font, const char* text) override;
 	virtual void clip(int x, int y, int w, int h) override;
 	virtual void unclip() override;
 	virtual std::unique_ptr<ICanvas> create_canvas() override;

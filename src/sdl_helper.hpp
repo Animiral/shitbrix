@@ -30,6 +30,9 @@ namespace wrap
 struct Rect { int x, y, w, h; };
 struct Color { uint8_t r, g, b, a; };
 
+constexpr Color WHITE{ 255, 255, 255, 255 };
+constexpr Color BLACK{ 0, 0, 0, 255 };
+
 }
 
 /**
@@ -135,6 +138,11 @@ public:
 	SDL_Renderer& renderer() const;
 	SdlSoundPlayer& audio() const;
 
+
+	/**
+	 * Create an SDL surface with our preferred bit depth and color mask.
+	 */
+	SurfacePtr create_surface(int width, int height) const;
 
 	/**
 	 * Create an image surface from an image file.

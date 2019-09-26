@@ -72,35 +72,20 @@ void SdlDraw::highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_
 	sdlok(SDL_RenderFillRect(m_renderer, &fill_rect));
 }
 
-void SdlDraw::text(int x, int y, const char* text, wrap::Color color)
+void SdlDraw::text(int x, int y, const TtfText& text)
 {
-	std::vector<TexturePtr> line_textures;
-	std::istringstream stream(text);
-	std::string line;
-
-	while(std::getline(stream, line, '\n')) {
-		SDL_Color sdl_color{ color.r, color.g, color.b, color.a };
-		SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->ttf_font(), line.c_str(), sdl_color) };
-		ttfok(text_surface.get());
-		auto& tex = line_textures.emplace_back(SDL_CreateTextureFromSurface(m_renderer, text_surface.get()));
-		sdlok(tex.get());
-	}
-
-	for(int line = 0; line < line_textures.size(); line++) {
-		TexturePtr& tex = line_textures[line];
-		Uint32 format;
-		int access;
-		int w;
-		int h;
-		sdlok(SDL_QueryTexture(tex.get(), &format, &access, &w, &h));
-		const SDL_Rect dest_rect{ x, y + line * DEFAULT_FONT_LINEHEIGHT, w, h };
-		sdlok(SDL_RenderCopy(m_renderer, tex.get(), NULL, &dest_rect));
-	}
+	SDL_Texture& tex = text.texture();
+	Uint32 format;
+	int access;
+	int w;
+	int h;
+	sdlok(SDL_QueryTexture(&tex, &format, &access, &w, &h));
+	const SDL_Rect dest_rect{ x, y, w, h };
+	sdlok(SDL_RenderCopy(m_renderer, &tex, NULL, &dest_rect));
 }
 
-void SdlDraw::text_fixed(int x, int y, const char* text)
+void SdlDraw::text_fixed(int x, int y, const BitmapFont& font, const char* text)
 {
-	auto& font = m_assets->bmp_font();
 	std::istringstream stream(text);
 	int linenr = 0;
 	std::string line;

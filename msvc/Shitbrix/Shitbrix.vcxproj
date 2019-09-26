@@ -85,6 +85,7 @@
     <ClInclude Include="..\..\src\sdl_helper.hpp" />
     <ClInclude Include="..\..\src\stage.hpp" />
     <ClInclude Include="..\..\src\state.hpp" />
+    <ClInclude Include="..\..\src\text.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\arbiter.cpp" />
@@ -108,6 +109,7 @@
     <ClCompile Include="..\..\src\sdl_helper.cpp" />
     <ClCompile Include="..\..\src\stage.cpp" />
     <ClCompile Include="..\..\src\state.cpp" />
+    <ClCompile Include="..\..\src\text.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\enet\enet.vcxproj">
