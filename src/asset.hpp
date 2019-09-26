@@ -34,7 +34,7 @@ public:
 	 * To allow for the NoAssets class, if a nullptr is passed as file, all textures
 	 * will be null pointers. The available characters will be the same.
 	 */
-	explicit BitmapFont(const Sdl& sdl, const char* file, SDL_Color outline_color, SDL_Color fill_color);
+	explicit BitmapFont(const Sdl& sdl, const char* file, wrap::Color outline_color, wrap::Color fill_color);
 	BitmapFont(const BitmapFont&) = delete; // no copy
 	BitmapFont& operator=(const BitmapFont&) = delete; // no assign
 

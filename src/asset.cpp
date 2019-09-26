@@ -1,10 +1,10 @@
 #include "asset.hpp"
 #include "error.hpp"
 #include "context.hpp"
-#include <SDL.h>
 #include <cassert>
+#include <SDL.h>
 
-BitmapFont::BitmapFont(const Sdl& sdl, const char* file, SDL_Color outline_color, SDL_Color fill_color)
+BitmapFont::BitmapFont(const Sdl& sdl, const char* file, wrap::Color outline_color, wrap::Color fill_color)
 {
 	if(nullptr == file) {
 		for(int i = 0; i < 4 * 16; i++)
@@ -18,16 +18,16 @@ BitmapFont::BitmapFont(const Sdl& sdl, const char* file, SDL_Color outline_color
 	enforce(13 * 16 + 1 == charset->w);
 	enforce(21 * 4 + 1 == charset->h);
 
-	const SDL_Color placeholder_background{ 144, 144, 144, 255 };
-	const SDL_Color placeholder_outline{ 255, 255, 255, 255 };
-	const SDL_Color placeholder_fill{ 0, 0, 0, 255 };
-	sdl.recolor(*charset, placeholder_background, SDL_Color{ 0, 0, 0, 0 });
+	const wrap::Color placeholder_background{ 144, 144, 144, 255 };
+	const wrap::Color placeholder_outline{ 255, 255, 255, 255 };
+	const wrap::Color placeholder_fill{ 0, 0, 0, 255 };
+	sdl.recolor(*charset, placeholder_background, wrap::Color{ 0, 0, 0, 0 });
 	sdl.recolor(*charset, placeholder_outline, outline_color);
 	sdl.recolor(*charset, placeholder_fill, fill_color);
 
 	for(int y = 0; y < 4; y++)
 		for(int x = 0; x < 16; x++) {
-			SDL_Rect rect{ 13 * x + 1, 21 * y + 1, 12, 20 };
+			wrap::Rect rect{ 13 * x + 1, 21 * y + 1, 12, 20 };
 			m_textures.push_back(sdl.cutout_texture(*charset, rect));
 		}
 }
@@ -104,8 +104,8 @@ FileAssets::FileAssets(const Sdl& sdl)
 	m_sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
 
 	m_ttf_font = sdl.open_font("font/default.ttf", DEFAULT_FONT_SIZE);
-	SDL_Color outline_color{ 111, 31, 148, SDL_ALPHA_OPAQUE };
-	SDL_Color fill_color{ 198, 247, 242, SDL_ALPHA_OPAQUE };
+	wrap::Color outline_color{ 111, 31, 148, 255 };
+	wrap::Color fill_color{ 198, 247, 242, 255 };
 	m_bitmap_font = std::make_unique<BitmapFont>(sdl, "font/fixed.png", outline_color, fill_color);
 }
 

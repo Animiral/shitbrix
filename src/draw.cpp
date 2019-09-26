@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cassert>
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 const uint8_t ALPHA_OPAQUE = SDL_ALPHA_OPAQUE;
 
@@ -71,14 +72,15 @@ void SdlDraw::highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_
 	sdlok(SDL_RenderFillRect(m_renderer, &fill_rect));
 }
 
-void SdlDraw::text(int x, int y, const char* text, SDL_Color color)
+void SdlDraw::text(int x, int y, const char* text, wrap::Color color)
 {
 	std::vector<TexturePtr> line_textures;
 	std::istringstream stream(text);
 	std::string line;
 
 	while(std::getline(stream, line, '\n')) {
-		SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->ttf_font(), line.c_str(), color) };
+		SDL_Color sdl_color{ color.r, color.g, color.b, color.a };
+		SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->ttf_font(), line.c_str(), sdl_color) };
 		ttfok(text_surface.get());
 		auto& tex = line_textures.emplace_back(SDL_CreateTextureFromSurface(m_renderer, text_surface.get()));
 		sdlok(tex.get());

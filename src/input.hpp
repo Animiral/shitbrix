@@ -204,7 +204,7 @@ private:
 
 	std::optional<int> m_player_number;
 	JoystickPtr m_joystick; //!< Optional SDL joystick object
-	Uint8 m_joy_hat = SDL_HAT_CENTERED; //!< last known joystick hat position
+	uint8_t m_joy_hat = 0; //!< last known joystick hat position
 
 };
 

@@ -6,11 +6,31 @@
 
 #include "globals.hpp"
 #include <memory>
+#include <cstdint>
 #include <vector>
-#include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_audio.h>
-#include <SDL_ttf.h>
+
+// SDL forward declarations
+struct SDL_Surface;
+struct SDL_Texture;
+struct SDL_Window;
+struct SDL_Renderer;
+struct _SDL_Joystick;
+typedef struct _SDL_Joystick SDL_Joystick;
+struct _TTF_Font;
+typedef struct _TTF_Font TTF_Font;
+struct SDL_AudioSpec;
+typedef uint8_t Uint8;
+typedef uint16_t Uint16;
+typedef uint32_t Uint32;
+
+// SDL equivalents
+namespace wrap
+{
+
+struct Rect { int x, y, w, h; };
+struct Color { uint8_t r, g, b, a; };
+
+}
 
 /**
  * Custom deleter for SDL objects, to be used with unique_ptrs
@@ -18,19 +38,24 @@
  */
 class SdlDeleter
 {
+
 public:
-	void operator()(SDL_Surface* p) const { SDL_FreeSurface(p); }
-	void operator()(SDL_Texture* p) const { SDL_DestroyTexture(p); }
-	void operator()(SDL_Window* p) const { SDL_DestroyWindow(p); }
-	void operator()(SDL_Renderer* p) const { SDL_DestroyRenderer(p); }
-	void operator()(SDL_Joystick* p) const { SDL_JoystickClose(p); }
-	void operator()(TTF_Font* p) const { TTF_CloseFont(p); }
+
+	void operator()(SDL_Surface* p) const noexcept;
+	void operator()(SDL_Texture* p) const noexcept;
+	void operator()(SDL_Window* p) const noexcept;
+	void operator()(SDL_Renderer* p) const noexcept;
+	void operator()(SDL_Joystick* p) const noexcept;
+	void operator()(TTF_Font* p) const noexcept;
+
 };
 
 using SurfacePtr = std::unique_ptr<SDL_Surface, SdlDeleter>;
 using TexturePtr = std::unique_ptr<SDL_Texture, SdlDeleter>;
 using JoystickPtr = std::unique_ptr<SDL_Joystick, SdlDeleter>;
 using FontPtr = std::unique_ptr<TTF_Font, SdlDeleter>;
+
+class SoundImpl; // SDL-specifics hidden
 
 /**
  * RAII for an SDL sound asset.
@@ -45,7 +70,7 @@ class Sound
 
 public:
 
-	Sound(const char* file);
+	explicit Sound(const char* file);
 	~Sound() noexcept;
 
 	Sound(const Sound& ) = delete;
@@ -53,17 +78,17 @@ public:
 	Sound& operator=(const Sound& ) = delete;
 	Sound& operator=(Sound&& rhs) noexcept;
 
-	Uint32 length() const noexcept { return m_length; }
-	const Uint8* buffer() const noexcept { return m_buffer; }
-	const SDL_AudioSpec& spec() const noexcept { return m_spec; }
+	uint32_t length() const noexcept;
+	const uint8_t* buffer() const noexcept;
+	const SDL_AudioSpec& spec() const noexcept;
 
 private:
 
-	Uint32 m_length; // bytes in wav
-	Uint8* m_buffer; // wav data
-	SDL_AudioSpec m_spec; // metadata
+	std::unique_ptr<SoundImpl> m_impl; // pImpl
 
 };
+
+class SdlSoundPlayerImpl; // SDL-specifics hidden
 
 /**
  * Basic SDL sound player.
@@ -75,24 +100,19 @@ class SdlSoundPlayer
 
 public:
 
-	SdlSoundPlayer();
-	~SdlSoundPlayer();
+	explicit SdlSoundPlayer();
+	~SdlSoundPlayer() noexcept;
 
 	SdlSoundPlayer(const SdlSoundPlayer& ) =delete;
-	SdlSoundPlayer(SdlSoundPlayer&& ) =default;
+	SdlSoundPlayer(SdlSoundPlayer&& ) noexcept;
 	SdlSoundPlayer& operator=(const SdlSoundPlayer& ) =delete;
-	SdlSoundPlayer& operator=(SdlSoundPlayer&& ) =default;
+	SdlSoundPlayer& operator=(SdlSoundPlayer&& ) noexcept;
 
 	void play(const Sound& sound);
 
 private:
 
-	static void callback(void* userdata, Uint8* stream, int length);
-
-	SDL_AudioDeviceID devid;
-	SDL_AudioSpec spec; // metadata of audio device
-	const Uint8* pos = nullptr;
-	int remaining = 0;
+	std::unique_ptr<SdlSoundPlayerImpl> m_impl; // pImpl
 
 };
 
@@ -107,7 +127,7 @@ class Sdl
 
 public:
 
-	explicit Sdl(Uint32 flags);
+	explicit Sdl(uint32_t flags);
 	~Sdl();
 
 	// accessors
@@ -120,13 +140,16 @@ public:
 	 * Create an image surface from an image file.
 	 *
 	 * If the format is specifed, the returned surface will conform to the desired format.
+	 *
+	 * @param file path to the source file
+	 * @param format desired format value from enum SDL_PixelFormatEnum.
 	 */
-	SurfacePtr load_surface(const char* file, SDL_PixelFormatEnum format = SDL_PIXELFORMAT_UNKNOWN) const;
+	SurfacePtr load_surface(const char* file, int format = 0) const;
 
 	/**
 	 * Create a new texture from the specified region of the source surface.
 	 */
-	TexturePtr cutout_texture(SDL_Surface& source, SDL_Rect rect) const;
+	TexturePtr cutout_texture(SDL_Surface& source, wrap::Rect rect) const;
 
 	/**
 	 * Create an image texture from an image file.
@@ -145,7 +168,7 @@ public:
 	 * Replace all pixels of the specified before color in
 	 * the surface with the given after color.
 	 */
-	void recolor(SDL_Surface& surface, SDL_Color before, SDL_Color after) const;
+	void recolor(SDL_Surface& surface, wrap::Color before, wrap::Color after) const;
 
 	/**
 	 * Read the font with SDL_ttf.

@@ -396,6 +396,8 @@ void ClientProtocol::poll(IServerMessages& server_messages)
 }
 
 
+#include <SDL.h>
+
 ServerThread::ServerThread(std::unique_ptr<IGame> game)
 	: m_game(std::move(game))
 {

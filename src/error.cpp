@@ -9,6 +9,7 @@
 #include <mutex>
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
 
 GameException::GameException(std::string what, std::unique_ptr<GameException> cause)
 	: m_what(std::move(what)), m_cause(std::move(cause))

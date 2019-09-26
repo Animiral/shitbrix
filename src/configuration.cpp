@@ -9,6 +9,7 @@
 #include <regex>
 #include <functional>
 #include <map>
+#include <SDL.h>
 
 namespace
 {

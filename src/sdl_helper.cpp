@@ -2,9 +2,17 @@
 #include "error.hpp"
 #include <cassert>
 #include <cstring>
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_audio.h>
+#include <SDL_ttf.h>
 
 namespace
 {
+
+// conversions
+wrap::Rect to_wrap(SDL_Rect rect) noexcept;
+SDL_Rect unwrap(wrap::Rect rect) noexcept;
 
 /**
  * Create an SDL surface with our preferred bit depth and color mask.
@@ -24,76 +32,142 @@ void setpixel(SDL_Surface& surface, int x, int y, Uint32 data) noexcept;
 }
 
 
-Sound::Sound(const char* file)
+void SdlDeleter::operator()(SDL_Surface* p) const noexcept
 {
-	sdlok(SDL_LoadWAV(file, &m_spec, &m_buffer, &m_length));
+	SDL_FreeSurface(p);
 }
 
-Sound::~Sound() noexcept
+void SdlDeleter::operator()(SDL_Texture* p) const noexcept
 {
-	SDL_FreeWAV(m_buffer);
+	SDL_DestroyTexture(p);
 }
 
-Sound::Sound(Sound&& rhs) noexcept
-: m_length(rhs.m_length), m_buffer(rhs.m_buffer), m_spec(rhs.m_spec)
+void SdlDeleter::operator()(SDL_Window* p) const noexcept
 {
-	rhs.m_buffer = nullptr;
+	SDL_DestroyWindow(p);
 }
 
-Sound& Sound::operator=(Sound&& rhs) noexcept
+void SdlDeleter::operator()(SDL_Renderer* p) const noexcept
 {
-	m_length = rhs.m_length;
-	m_buffer = rhs.m_buffer;
-	m_spec = rhs.m_spec;
-	rhs.m_buffer = nullptr;
-
-	return *this;
+	SDL_DestroyRenderer(p);
 }
 
-
-SdlSoundPlayer::SdlSoundPlayer()
+void SdlDeleter::operator()(SDL_Joystick* p) const noexcept
 {
-	SDL_AudioSpec want;
-	want.freq = 48000;
-	want.format = AUDIO_S16;
-	want.channels = 1;
-	want.samples = AUDIO_SAMPLES;
-	want.callback = &callback;
-	want.userdata = this;
-
-	devid = SDL_OpenAudioDevice(nullptr, 0, &want, &spec, 0);
-	if(devid <= 0)
-		throw SdlException();
-
-	SDL_PauseAudioDevice(devid, 0);
+	SDL_JoystickClose(p);
 }
 
-SdlSoundPlayer::~SdlSoundPlayer()
+void SdlDeleter::operator()(TTF_Font* p) const noexcept
 {
-	SDL_CloseAudioDevice(devid);
-}
-
-void SdlSoundPlayer::play(const Sound& sound)
-{
-	pos = sound.buffer();
-	remaining = sound.length();
-}
-
-void SdlSoundPlayer::callback(void* userdata, Uint8* stream, int length)
-{
-	SdlSoundPlayer* audio = reinterpret_cast<SdlSoundPlayer*>(userdata);
-	int fill = (length > audio->remaining) ? audio->remaining : length;
-	std::memcpy(stream, audio->pos, fill);
-	// SDL_MixAudioFormat(stream, pos, AUDIO_S16, length, SDL_MIX_MAXVOLUME);
-
-	std::memset(stream + fill, 0, (size_t)length - (size_t)fill); // pad with silence
-
-	audio->pos += fill;
-	audio->remaining -= fill;
+	TTF_CloseFont(p);
 }
 
 
-Sdl::Sdl(Uint32 flags)
+/**
+ * Implementation for class Sound.
+ */
+class SoundImpl
+{
+
+public:
+
+	SoundImpl(const char* file)
+	{
+		sdlok(SDL_LoadWAV(file, &m_spec, &m_buffer, &m_length));
+	}
+
+	~SoundImpl() noexcept
+	{
+		SDL_FreeWAV(m_buffer);
+	}
+
+	Uint32 length() const noexcept { return m_length; }
+	const Uint8* buffer() const noexcept { return m_buffer; }
+	const SDL_AudioSpec& spec() const noexcept { return m_spec; }
+
+private:
+
+	Uint32 m_length; // bytes in wav
+	Uint8* m_buffer; // wav data
+	SDL_AudioSpec m_spec; // metadata
+
+};
+
+Sound::Sound(const char* file) : m_impl(new SoundImpl(file)) {}
+Sound::~Sound() noexcept = default;
+Sound::Sound(Sound&& rhs) noexcept = default;
+Sound& Sound::operator=(Sound&& rhs) noexcept = default;
+uint32_t Sound::length() const noexcept { return m_impl->length(); }
+const uint8_t* Sound::buffer() const noexcept { return m_impl->buffer(); }
+const SDL_AudioSpec& Sound::spec() const noexcept { return m_impl->spec(); }
+
+
+/**
+ * Implementation for class SdlSoundPlayer.
+ */
+class SdlSoundPlayerImpl
+{
+
+public:
+
+	SdlSoundPlayerImpl()
+	{
+		SDL_AudioSpec want;
+		want.freq = 48000;
+		want.format = AUDIO_S16;
+		want.channels = 1;
+		want.samples = AUDIO_SAMPLES;
+		want.callback = &callback;
+		want.userdata = this;
+
+		devid = SDL_OpenAudioDevice(nullptr, 0, &want, &spec, 0);
+		if(devid <= 0)
+			throw SdlException();
+
+		SDL_PauseAudioDevice(devid, 0);
+	}
+
+	~SdlSoundPlayerImpl()
+	{
+		SDL_CloseAudioDevice(devid);
+	}
+
+	void play(const Sound& sound)
+	{
+		pos = sound.buffer();
+		remaining = sound.length();
+	}
+
+private:
+
+	static void callback(void* userdata, Uint8* stream, int length)
+	{
+		SdlSoundPlayerImpl* audio = reinterpret_cast<SdlSoundPlayerImpl*>(userdata);
+		int fill = (length > audio->remaining) ? audio->remaining : length;
+		std::memcpy(stream, audio->pos, fill);
+		// SDL_MixAudioFormat(stream, pos, AUDIO_S16, length, SDL_MIX_MAXVOLUME);
+
+		std::memset(stream + fill, 0, (size_t)length - (size_t)fill); // pad with silence
+
+		audio->pos += fill;
+		audio->remaining -= fill;
+	}
+
+	SDL_AudioDeviceID devid;
+	SDL_AudioSpec spec; // metadata of audio device
+	const Uint8* pos = nullptr;
+	int remaining = 0;
+
+};
+
+SdlSoundPlayer::SdlSoundPlayer() : m_impl(new SdlSoundPlayerImpl()) {}
+SdlSoundPlayer::~SdlSoundPlayer() noexcept = default;
+SdlSoundPlayer::SdlSoundPlayer(SdlSoundPlayer&&) noexcept = default;
+SdlSoundPlayer& SdlSoundPlayer::operator=(SdlSoundPlayer&&) noexcept = default;
+void SdlSoundPlayer::play(const Sound& sound) { m_impl->play(sound); }
+
+
+Sdl::Sdl(uint32_t flags)
 {
 	assert(!SDL_WasInit(0));
 	assert(!TTF_WasInit());
@@ -171,7 +245,7 @@ SdlSoundPlayer& Sdl::audio() const
 	return *m_audio;
 }
 
-SurfacePtr Sdl::load_surface(const char* file, SDL_PixelFormatEnum format) const
+SurfacePtr Sdl::load_surface(const char* file, int format) const
 {
 	SurfacePtr surface(IMG_Load(file));
 	imgok(surface.get());
@@ -193,11 +267,12 @@ SurfacePtr Sdl::load_surface(const char* file, SDL_PixelFormatEnum format) const
 	return surface;
 }
 
-TexturePtr Sdl::cutout_texture(SDL_Surface& source, SDL_Rect rect) const
+TexturePtr Sdl::cutout_texture(SDL_Surface& source, wrap::Rect rect) const
 {
-	SurfacePtr surface = create_surface(rect.w, rect.h);
-	SDL_Rect dstrect{ 0, 0, rect.w, rect.h };
-	sdlok(SDL_BlitSurface(&source, &rect, surface.get(), &dstrect));
+	SDL_Rect srcrect = unwrap(rect);
+	SurfacePtr surface = create_surface(srcrect.w, srcrect.h);
+	SDL_Rect dstrect{ 0, 0, srcrect.w, srcrect.h };
+	sdlok(SDL_BlitSurface(&source, &srcrect, surface.get(), &dstrect));
 
 	TexturePtr texture(SDL_CreateTextureFromSurface(m_renderer.get(), surface.get()));
 	sdlok(texture.get());
@@ -229,7 +304,7 @@ std::vector<TexturePtr> Sdl::create_texture_row(const char* file, int width) con
 
 	for(int c = 0; c < columns; c++) {
 		SDL_Rect srcrect{ c*width, 0, width, sheet->h };
-		frames[c] = cutout_texture(*sheet, srcrect);
+		frames[c] = cutout_texture(*sheet, to_wrap(srcrect));
 	}
 
 	return frames;
@@ -249,7 +324,7 @@ std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* fil
 
 		for(int c = 0; c < columns; c++) {
 			SDL_Rect srcrect{ c*width, r*height, width, height };
-			frames[c] = cutout_texture(*sheet, srcrect);
+			frames[c] = cutout_texture(*sheet, to_wrap(srcrect));
 		}
 
 		textures[r] = std::move(frames);
@@ -258,7 +333,7 @@ std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* fil
 	return textures;
 }
 
-void Sdl::recolor(SDL_Surface& surface, SDL_Color before, SDL_Color after) const
+void Sdl::recolor(SDL_Surface& surface, wrap::Color before, wrap::Color after) const
 {
 	Uint32 before_data = SDL_MapRGBA(surface.format, before.r, before.g, before.b, before.a);
 	Uint32 after_data = SDL_MapRGBA(surface.format, after.r, after.g, after.b, after.a);
@@ -282,6 +357,16 @@ FontPtr Sdl::open_font(const char* file, int ptsize) const
 
 namespace
 {
+
+wrap::Rect to_wrap(SDL_Rect rect) noexcept
+{
+	return { rect.x, rect.y, rect.w, rect.h };
+}
+
+SDL_Rect unwrap(wrap::Rect rect) noexcept
+{
+	return { rect.x, rect.y, rect.w, rect.h };
+}
 
 SurfacePtr create_surface(int width, int height)
 {

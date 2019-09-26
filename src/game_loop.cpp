@@ -6,7 +6,7 @@
 #include "context.hpp"
 #include "configuration.hpp"
 #include <fstream>
-#include <random> // DEBUG
+#include <SDL.h> // DEBUG
 
 GameLoop::GameLoop()
 : m_input_devices(),

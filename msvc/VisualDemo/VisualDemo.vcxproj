@@ -46,7 +46,7 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\src;..\..\ext\sdl\include;..\..\ext\sdl_image;..\..\ext\sdl_ttf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\src;..\..\ext\sdl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -74,6 +74,9 @@
     <ClCompile Include="..\..\visualdemo\visualdemo.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\sdl\SDL.vcxproj">
+      <Project>{81ce8daf-ebb2-4761-8e45-b71abcca8c68}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\Shitbrix\Shitbrix.vcxproj">
       <Project>{cbbd0d30-4803-4e63-862a-799750ab7314}</Project>
     </ProjectReference>

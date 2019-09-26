@@ -9,8 +9,6 @@
 #include "event.hpp"
 #include "asset.hpp"
 #include "context.hpp"
-#include <SDL.h>
-#include <SDL_image.h>
 
 extern const uint8_t ALPHA_OPAQUE; //!< highest alpha value
 
@@ -75,7 +73,7 @@ public:
 	/**
 	 * Draw a text string using the default true type font.
 	 */
-	virtual void text(int x, int y, const char* text, SDL_Color color) = 0;
+	virtual void text(int x, int y, const char* text, wrap::Color color) = 0;
 
 	/**
 	 * Draw a text string using the custom bitmap font.
@@ -141,7 +139,7 @@ public:
 	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override {}
 	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override {}
-	virtual void text(int x, int y, const char* text, SDL_Color color) override {}
+	virtual void text(int x, int y, const char* text, wrap::Color color) override {}
 	virtual void text_fixed(int x, int y, const char* text) override {}
 	virtual void clip(int x, int y, int w, int h) override {}
 	virtual void unclip() override {}
@@ -184,7 +182,7 @@ public:
 	virtual void gfx(int x, int y, Gfx gfx, size_t frame = 0, uint8_t a = 255) override;
 	virtual void rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
 	virtual void highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a) override;
-	virtual void text(int x, int y, const char* text, SDL_Color color) override;
+	virtual void text(int x, int y, const char* text, wrap::Color color) override;
 	virtual void text_fixed(int x, int y, const char* text) override;
 	virtual void clip(int x, int y, int w, int h) override;
 	virtual void unclip() override;
