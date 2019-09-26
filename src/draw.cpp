@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include <cctype>
 #include <cassert>
 #include <SDL.h>
 
@@ -77,7 +78,7 @@ void SdlDraw::text(int x, int y, const char* text, SDL_Color color)
 	std::string line;
 
 	while(std::getline(stream, line, '\n')) {
-		SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->font(), line.c_str(), color) };
+		SurfacePtr text_surface{ TTF_RenderUTF8_Blended(&m_assets->ttf_font(), line.c_str(), color) };
 		ttfok(text_surface.get());
 		auto& tex = line_textures.emplace_back(SDL_CreateTextureFromSurface(m_renderer, text_surface.get()));
 		sdlok(tex.get());
@@ -92,6 +93,34 @@ void SdlDraw::text(int x, int y, const char* text, SDL_Color color)
 		sdlok(SDL_QueryTexture(tex.get(), &format, &access, &w, &h));
 		const SDL_Rect dest_rect{ x, y + line * DEFAULT_FONT_LINEHEIGHT, w, h };
 		sdlok(SDL_RenderCopy(m_renderer, tex.get(), NULL, &dest_rect));
+	}
+}
+
+void SdlDraw::text_fixed(int x, int y, const char* text)
+{
+	auto& font = m_assets->bmp_font();
+	std::istringstream stream(text);
+	int linenr = 0;
+	std::string line;
+
+	while(std::getline(stream, line, '\n')) {
+		for(int i = 0; i < line.size(); i++) {
+			char c = static_cast<char>(std::toupper(line[i]));
+
+			if(!font.can_print(c))
+				c = '?';
+
+			SDL_Texture& tex = font.char_texture(c);
+			Uint32 format;
+			int access;
+			int w;
+			int h;
+			sdlok(SDL_QueryTexture(&tex, &format, &access, &w, &h));
+			const SDL_Rect dest_rect{ x + i * BITMAP_FONT_ADVANCE, y + linenr * BITMAP_FONT_LINEHEIGHT, w, h };
+			sdlok(SDL_RenderCopy(m_renderer, &tex, NULL, &dest_rect));
+		}
+
+		linenr++;
 	}
 }
 

@@ -115,7 +115,18 @@ public:
 	SDL_Renderer& renderer() const;
 	SdlSoundPlayer& audio() const;
 
-	// creation methods
+
+	/**
+	 * Create an image surface from an image file.
+	 *
+	 * If the format is specifed, the returned surface will conform to the desired format.
+	 */
+	SurfacePtr load_surface(const char* file, SDL_PixelFormatEnum format = SDL_PIXELFORMAT_UNKNOWN) const;
+
+	/**
+	 * Create a new texture from the specified region of the source surface.
+	 */
+	TexturePtr cutout_texture(SDL_Surface& source, SDL_Rect rect) const;
 
 	/**
 	 * Create an image texture from an image file.
@@ -129,6 +140,12 @@ public:
 
 	std::vector<TexturePtr> create_texture_row(const char* file, int width) const;
 	std::vector< std::vector<TexturePtr> > create_texture_sheet(const char* file, int height, int width) const;
+
+	/**
+	 * Replace all pixels of the specified before color in
+	 * the surface with the given after color.
+	 */
+	void recolor(SDL_Surface& surface, SDL_Color before, SDL_Color after) const;
 
 	/**
 	 * Read the font with SDL_ttf.

@@ -12,9 +12,14 @@ namespace
 SurfacePtr create_surface(int width, int height);
 
 /**
- * Create a texture from the specified region of the source surface.
+ * Get the data of a single pixel from the surface in its own pixel format.
  */
-TexturePtr cutout_texture(SDL_Renderer& renderer, SDL_Surface& source, SDL_Rect& srcrect);
+Uint32 getpixel(SDL_Surface& surface, int x, int y) noexcept;
+
+/**
+ * Set the data of a single pixel on the surface in its own pixel format.
+ */
+void setpixel(SDL_Surface& surface, int x, int y, Uint32 data) noexcept;
 
 }
 
@@ -166,6 +171,39 @@ SdlSoundPlayer& Sdl::audio() const
 	return *m_audio;
 }
 
+SurfacePtr Sdl::load_surface(const char* file, SDL_PixelFormatEnum format) const
+{
+	SurfacePtr surface(IMG_Load(file));
+	imgok(surface.get());
+
+	if(SDL_PIXELFORMAT_UNKNOWN != format) {
+		Uint32 original_format = SDL_MasksToPixelFormatEnum(
+			surface->format->BitsPerPixel,
+			surface->format->Rmask,
+			surface->format->Gmask,
+			surface->format->Bmask,
+			surface->format->Amask);
+
+		if(original_format != format) {
+			surface.reset(SDL_ConvertSurfaceFormat(surface.get(), format, 0));
+			sdlok(surface.get());
+		}
+	}
+
+	return surface;
+}
+
+TexturePtr Sdl::cutout_texture(SDL_Surface& source, SDL_Rect rect) const
+{
+	SurfacePtr surface = create_surface(rect.w, rect.h);
+	SDL_Rect dstrect{ 0, 0, rect.w, rect.h };
+	sdlok(SDL_BlitSurface(&source, &rect, surface.get(), &dstrect));
+
+	TexturePtr texture(SDL_CreateTextureFromSurface(m_renderer.get(), surface.get()));
+	sdlok(texture.get());
+	return texture;
+}
+
 TexturePtr Sdl::create_texture(const char* file) const
 {
 	TexturePtr texture(IMG_LoadTexture(m_renderer.get(), file));
@@ -191,7 +229,7 @@ std::vector<TexturePtr> Sdl::create_texture_row(const char* file, int width) con
 
 	for(int c = 0; c < columns; c++) {
 		SDL_Rect srcrect{ c*width, 0, width, sheet->h };
-		frames[c] = cutout_texture(*m_renderer, *sheet, srcrect);
+		frames[c] = cutout_texture(*sheet, srcrect);
 	}
 
 	return frames;
@@ -211,13 +249,27 @@ std::vector< std::vector<TexturePtr> > Sdl::create_texture_sheet(const char* fil
 
 		for(int c = 0; c < columns; c++) {
 			SDL_Rect srcrect{ c*width, r*height, width, height };
-			frames[c] = cutout_texture(*m_renderer, *sheet, srcrect);
+			frames[c] = cutout_texture(*sheet, srcrect);
 		}
 
 		textures[r] = std::move(frames);
 	}
 
 	return textures;
+}
+
+void Sdl::recolor(SDL_Surface& surface, SDL_Color before, SDL_Color after) const
+{
+	Uint32 before_data = SDL_MapRGBA(surface.format, before.r, before.g, before.b, before.a);
+	Uint32 after_data = SDL_MapRGBA(surface.format, after.r, after.g, after.b, after.a);
+
+	for(int y = 0; y < surface.h; y++)
+	for(int x = 0; x < surface.w; x++) {
+		Uint32 data = getpixel(surface, x, y);
+		if(data == before_data) {
+			setpixel(surface, x, y, after_data);
+		}
+	}
 }
 
 FontPtr Sdl::open_font(const char* file, int ptsize) const
@@ -252,15 +304,89 @@ SurfacePtr create_surface(int width, int height)
 	return surface;
 }
 
-TexturePtr cutout_texture(SDL_Renderer& renderer, SDL_Surface& source, SDL_Rect& srcrect)
+// https://stackoverflow.com/questions/53033971/how-to-get-the-color-of-a-specific-pixel-from-sdl-surface
+Uint32 getpixel(SDL_Surface& surface, int x, int y) noexcept
 {
-	SurfacePtr surface = create_surface(srcrect.w, srcrect.h);
-	SDL_Rect dstrect{ 0, 0, srcrect.w, srcrect.h};
-	SDL_BlitSurface(&source, &srcrect, surface.get(), &dstrect);
+	assert(x >= 0);
+	assert(y >= 0);
+	assert(x < surface.w);
+	assert(y < surface.h);
 
-	TexturePtr texture(SDL_CreateTextureFromSurface(&renderer, surface.get()));
-	sdlok(texture.get());
-	return texture;
+	int bpp = surface.format->BytesPerPixel;
+	/* Here p is the address to the pixel we want to retrieve */
+	Uint8* p = (Uint8*)surface.pixels + (ptrdiff_t)y * surface.pitch + (ptrdiff_t)x * bpp;
+
+	switch(bpp)
+	{
+
+	case 1:
+		return *p;
+		break;
+
+	case 2:
+		return *(Uint16*)p;
+		break;
+
+	case 3:
+		if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
+			return p[0] << 16 | p[1] << 8 | p[2];
+		else
+			return p[0] | p[1] << 8 | p[2] << 16;
+		break;
+
+	case 4:
+		return *(Uint32*)p;
+		break;
+
+	default:
+		assert(false);
+		return 0;       /* shouldn't happen, but avoids warnings */
+
+	}
+}
+
+void setpixel(SDL_Surface& surface, int x, int y, Uint32 data) noexcept
+{
+	assert(x >= 0);
+	assert(y >= 0);
+	assert(x < surface.w);
+	assert(y < surface.h);
+
+	int bpp = surface.format->BytesPerPixel;
+	Uint8* p = (Uint8*)surface.pixels + (ptrdiff_t)y * surface.pitch + (ptrdiff_t)x * bpp;
+
+	switch(bpp)
+	{
+
+	case 1:
+		*p = static_cast<Uint8>(data);
+		break;
+
+	case 2:
+		*(Uint16*)p = static_cast<Uint16>(data);
+		break;
+
+	case 3:
+		if(SDL_BYTEORDER == SDL_BIG_ENDIAN) {
+			p[0] = static_cast<Uint8>((data & 0xff0000) >> 16);
+			p[1] = static_cast<Uint8>((data & 0xff00) >> 8);
+			p[2] = static_cast<Uint8>(data & 0xff);
+		}
+		else {
+			p[0] = static_cast<Uint8>(data & 0xff);
+			p[1] = static_cast<Uint8>((data & 0xff00) >> 8);
+			p[2] = static_cast<Uint8>((data & 0xff0000) >> 16);
+		}
+		break;
+
+	case 4:
+		*(Uint32*)p = data;
+		break;
+
+	default:
+		assert(false);
+
+	}
 }
 
 }

@@ -131,7 +131,7 @@ void configure_context(const Configuration& configuration)
 		the_context.audio.reset(new NoAudio);
 	}
 	else {
-		the_context.assets.reset(new FileAssets);
+		the_context.assets.reset(new FileAssets(*the_context.sdl));
 		the_context.audio.reset(new SdlAudio(the_context.sdl->audio()));
 	}
 }

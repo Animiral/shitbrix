@@ -4,6 +4,51 @@
 #include <SDL.h>
 #include <cassert>
 
+BitmapFont::BitmapFont(const Sdl& sdl, const char* file, SDL_Color outline_color, SDL_Color fill_color)
+{
+	if(nullptr == file) {
+		for(int i = 0; i < 4 * 16; i++)
+			m_textures.emplace_back();
+		return;
+	}
+
+	SurfacePtr charset = sdl.load_surface(file, SDL_PIXELFORMAT_RGBA32);
+
+	// we can atm only deal with the exact expected layout
+	enforce(13 * 16 + 1 == charset->w);
+	enforce(21 * 4 + 1 == charset->h);
+
+	const SDL_Color placeholder_background{ 144, 144, 144, 255 };
+	const SDL_Color placeholder_outline{ 255, 255, 255, 255 };
+	const SDL_Color placeholder_fill{ 0, 0, 0, 255 };
+	sdl.recolor(*charset, placeholder_background, SDL_Color{ 0, 0, 0, 0 });
+	sdl.recolor(*charset, placeholder_outline, outline_color);
+	sdl.recolor(*charset, placeholder_fill, fill_color);
+
+	for(int y = 0; y < 4; y++)
+		for(int x = 0; x < 16; x++) {
+			SDL_Rect rect{ 13 * x + 1, 21 * y + 1, 12, 20 };
+			m_textures.push_back(sdl.cutout_texture(*charset, rect));
+		}
+}
+
+bool BitmapFont::can_print(char c) const noexcept
+{
+	return (size_t)c - ' ' < m_textures.size();
+}
+
+SDL_Texture& BitmapFont::char_texture(char c) const
+{
+	enforce(c >= ' ');
+	enforce(c <= '_');
+
+	return *m_textures[(size_t)c - ' '];
+}
+
+NoAssets::NoAssets() noexcept
+	: m_bitmap_font(*the_context.sdl, nullptr, {}, {})
+{}
+
 SDL_Texture& NoAssets::texture(Gfx gfx, size_t frame) const
 {
 	assert(0);
@@ -16,65 +61,77 @@ const Sound& NoAssets::sound(Snd snd) const
 	return *static_cast<Sound*>(nullptr);
 }
 
-TTF_Font& NoAssets::font() const
+TTF_Font& NoAssets::ttf_font() const
 {
 	assert(0);
 	return *static_cast<TTF_Font*>(nullptr);
 }
 
-FileAssets::FileAssets()
+const BitmapFont& NoAssets::bmp_font() const
 {
-	const Sdl& sdl = *the_context.sdl;
+	assert(0);
+	return m_bitmap_font;
+}
 
+FileAssets::FileAssets(const Sdl& sdl)
+{
 	Log::info("Load assets: graphics");
 	std::vector<TexturePtr> bgframe;
 	bgframe.emplace_back(sdl.create_texture("gfx/bg.png"));
-	textures.emplace_back(move(bgframe));                                        // Gfx::BACKGROUND
+	m_textures.emplace_back(move(bgframe));                                        // Gfx::BACKGROUND
 
 	auto blocks = sdl.create_texture_sheet("gfx/blocks.png", BLOCK_W, BLOCK_H);
 	for(auto& v : blocks)
-		textures.emplace_back(move(v));                                          // Gfx::BLOCK_*, Gfx::PITVIEW
+		m_textures.emplace_back(move(v));                                          // Gfx::BLOCK_*, Gfx::PITVIEW
 
-	textures.emplace_back(sdl.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
-	textures.emplace_back(sdl.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
+	m_textures.emplace_back(sdl.create_texture_row("gfx/cursor.png", CURSOR_W));   // Gfx::CURSOR
+	m_textures.emplace_back(sdl.create_texture_row("gfx/banner.png", BANNER_W));   // Gfx::BANNER
 
 	auto garbage = sdl.create_texture_sheet("gfx/garbage.png", GARBAGE_W, GARBAGE_H);
 	for(auto& v : garbage)
-		textures.emplace_back(move(v));                                          // Gfx::GARBAGE_*
+		m_textures.emplace_back(move(v));                                          // Gfx::GARBAGE_*
 
-	textures.emplace_back(sdl.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
+	m_textures.emplace_back(sdl.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
 
 	std::vector<TexturePtr> menuframe;
 	menuframe.emplace_back(sdl.create_texture("gfx/menubg.png"));
-	textures.emplace_back(move(menuframe)); // Gfx::MENUBG
+	m_textures.emplace_back(move(menuframe)); // Gfx::MENUBG
 
 	Log::info("Load assets: sounds");
-	sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
-	sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
-	sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
-	sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
+	m_sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
+	m_sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
+	m_sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
+	m_sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
 
-	defaultFont = sdl.open_font("font/default.ttf", DEFAULT_FONT_SIZE);
+	m_ttf_font = sdl.open_font("font/default.ttf", DEFAULT_FONT_SIZE);
+	SDL_Color outline_color{ 111, 31, 148, SDL_ALPHA_OPAQUE };
+	SDL_Color fill_color{ 198, 247, 242, SDL_ALPHA_OPAQUE };
+	m_bitmap_font = std::make_unique<BitmapFont>(sdl, "font/fixed.png", outline_color, fill_color);
 }
 
 SDL_Texture& FileAssets::texture(Gfx gfx, size_t frame) const
 {
 	size_t gfx_index = static_cast<size_t>(gfx);
-	enforce(gfx_index < textures.size());
-	enforce(frame < textures[gfx_index].size());
+	enforce(gfx_index < m_textures.size());
+	enforce(frame < m_textures[gfx_index].size());
 
-	return *textures[gfx_index][frame];
+	return *m_textures[gfx_index][frame];
 }
 
 const Sound& FileAssets::sound(Snd snd) const
 {
 	size_t snd_index = static_cast<size_t>(snd);
-	enforce(snd_index < sounds.size());
+	enforce(snd_index < m_sounds.size());
 
-	return sounds[snd_index];
+	return m_sounds[snd_index];
 }
 
-TTF_Font& FileAssets::font() const
+TTF_Font& FileAssets::ttf_font() const
 {
-	return *defaultFont;
+	return *m_ttf_font;
+}
+
+const BitmapFont& FileAssets::bmp_font() const
+{
+	return *m_bitmap_font;
 }

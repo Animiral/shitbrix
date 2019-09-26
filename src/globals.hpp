@@ -270,6 +270,8 @@ constexpr int BANNER_H = 140; //!< height of the win/lose banner in canvas pixel
 constexpr int TRANSITION_TIME = 20; //!< Number of frames for screen transition
 constexpr int DEFAULT_FONT_SIZE = 20; //!< Point size of the font to load
 constexpr int DEFAULT_FONT_LINEHEIGHT = 25; //!< Pixel height of one line in default font
+constexpr int BITMAP_FONT_ADVANCE = 14; //!< x-pixels per character for setting text in bmp font
+constexpr int BITMAP_FONT_LINEHEIGHT = 25; //!< Pixel height of one line in bmp font
 
 // ================================================
 // Global types and shared structures
