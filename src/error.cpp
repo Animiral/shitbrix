@@ -1,7 +1,9 @@
 #include "error.hpp"
 #include "globals.hpp"
 #include "context.hpp"
+#include "asset.hpp"
 #include "sdl_helper.hpp"
+#include "text.hpp"
 #include <fstream>
 #include <ctime>
 #include <cstdarg>
@@ -10,6 +12,26 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+
+namespace
+{
+
+// https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
+template<typename... Args>
+std::string string_format(const std::string& format, Args... args)
+{
+	int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
+	std::unique_ptr<char[]> buf(new char[size]);
+	snprintf(buf.get(), size, format.c_str(), args...);
+	return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
+
+/**
+ * Replace spaces with line breaks after at least the given number of characters in each line.
+ */
+void auto_linebreaks(std::string& str, int n);
+
+}
 
 GameException::GameException(std::string what, std::unique_ptr<GameException> cause)
 	: m_what(std::move(what)), m_cause(std::move(cause))
@@ -90,26 +112,30 @@ void enetok_impl(void* pointer, const char* what)
 
 void show_error(const std::exception& exception) noexcept
 {
+	std::string what;
+
 	// put the error message in the log file
 	if(const LogicException* logic_ex = dynamic_cast<const LogicException*>(&exception)) {
-		Log::error("%s: %s", logic_ex->class_name(), logic_ex->what());
+		what = string_format("%s: %s", logic_ex->class_name(), logic_ex->what());
 	} else
 	if(const ReplayException* replay_ex = dynamic_cast<const ReplayException*>(&exception)) {
-		Log::error("%s: %s", replay_ex->class_name(), replay_ex->what());
+		what = string_format("%s: %s", replay_ex->class_name(), replay_ex->what());
 	} else
 	if(const SdlException* sdl_ex = dynamic_cast<const SdlException*>(&exception)) {
-		Log::error("%s: %s", sdl_ex->class_name(), sdl_ex->what());
+		what = string_format("%s: %s", sdl_ex->class_name(), sdl_ex->what());
 	} else
 	if(const EnforceException* enforce_ex = dynamic_cast<const EnforceException*>(&exception)) {
-		Log::error("%s: %s in %s (%s:%d), expression: \"%s\"",
-		           enforce_ex->class_name(), enforce_ex->what(), enforce_ex->m_func,
-		           enforce_ex->m_file, enforce_ex->m_line, enforce_ex->m_condition);
+		what = string_format("%s: %s in %s (%s:%d), expression: \"%s\"",
+			enforce_ex->class_name(), enforce_ex->what(), enforce_ex->m_func,
+			enforce_ex->m_file, enforce_ex->m_line, enforce_ex->m_condition);
 	} else
 	if(const GameException* game_ex = dynamic_cast<const GameException*>(&exception)) {
-		Log::error("%s: %s", game_ex->class_name(), game_ex->what());
+		what = string_format("%s: %s", game_ex->class_name(), game_ex->what());
 	} else {
-		Log::error("%s", exception.what());
+		what = string_format("%s", exception.what());
 	}
+
+	Log::error("%s", what.c_str());
 
 	// display to the user, if we have SDL available.
 	Uint32 init = SDL_WasInit(SDL_INIT_EVERYTHING);
@@ -119,15 +145,29 @@ void show_error(const std::exception& exception) noexcept
 		SDL_Event event;
 		if(0 == SDL_WaitEvent(&event)) return;
 
+		auto_linebreaks(what, 40);
+		TtfText what_text(*the_context.sdl, the_context.assets->ttf_font(), what.c_str());
+
 		do {
-			// NOTE: there is no text support in the application yet,
-			//       so instead of the actual error message, we display a red rectangle instead.
-			SDL_Rect outer_rect{30, 30, CANVAS_W - 60,CANVAS_H - 60};
-			SDL_Rect inner_rect{60, 60, CANVAS_W - 120,CANVAS_H - 120};
+			// rects
+			SDL_Rect outer_rect{30, 30, CANVAS_W - 60, CANVAS_H - 60};
+			SDL_Rect inner_rect{60, 60, CANVAS_W - 120, CANVAS_H - 120};
 			if(0 != SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE)) break;
 			if(0 != SDL_RenderFillRect(renderer, &outer_rect)) break;
 			if(0 != SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE)) break;
 			if(0 != SDL_RenderFillRect(renderer, &inner_rect)) break;
+
+			// text
+			SDL_Texture& tex = what_text.texture();
+			Uint32 format;
+			int access;
+			int w;
+			int h;
+			sdlok(SDL_QueryTexture(&tex, &format, &access, &w, &h));
+			const SDL_Rect dest_rect{ 70, CANVAS_H/2 - 40, w, h };
+			sdlok(SDL_RenderCopy(renderer, &tex, NULL, &dest_rect));
+
+			// finish
 			SDL_RenderPresent(renderer);
 
 			if(SDL_QUIT == event.type ||
@@ -259,4 +299,20 @@ void Log::write(const char* level, const char *format, va_list vlist) noexcept
 	buffer.resize(buffer.size() - 1); // drop trailing '\0' from vsprintf
 
 	the_context.log->write(buffer);
+}
+
+namespace
+{
+
+void auto_linebreaks(std::string& str, int n)
+{
+	int last_break = 0;
+	for(int i = 0; i < str.length(); i++) {
+		if(last_break + n <= i && std::isspace(str[i])) {
+			str[i] = '\n';
+			last_break = i;
+		}
+	}
+}
+
 }
