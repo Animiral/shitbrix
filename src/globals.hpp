@@ -69,6 +69,7 @@ enum class Gfx
 	GARBAGE_D,
 	GARBAGE_RD,
 	BONUS,
+	TITLE,
 	MENUBG
 };
 
@@ -81,6 +82,7 @@ enum class Snd
 	BREAK,    // break blocks (splat)
 	MATCH,    // match blocks (ding)
 	LANDING,  // smashing block landing (thump)
+	CHOOSE,   // menu move choice (tick)
 	CONFIRM,  // menu confirm (cheerful ding)
 	DECLINE,  // menu decline (disappointed ding)
 	START,    // game start (shot or fireworks launch)

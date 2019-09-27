@@ -48,15 +48,22 @@ FileAssets::FileAssets(const Sdl& sdl)
 
 	m_textures.emplace_back(sdl.create_texture_row("gfx/bonus.png", BONUS_W));     // Gfx::BONUS
 
-	std::vector<TexturePtr> menuframe;
-	menuframe.emplace_back(sdl.create_texture("gfx/menubg.png"));
-	m_textures.emplace_back(move(menuframe)); // Gfx::MENUBG
+	std::vector<TexturePtr> title_frame;
+	title_frame.push_back(sdl.create_texture("gfx/title.png"));
+	m_textures.push_back(move(title_frame)); // Gfx::TITLE
+	std::vector<TexturePtr> menu_frame;
+	menu_frame.push_back(sdl.create_texture("gfx/menubg.png"));
+	m_textures.push_back(move(menu_frame)); // Gfx::MENUBG
 
 	Log::info("Load assets: sounds");
-	m_sounds.emplace_back(Sound("snd/swap.wav"));   // Snd::SWAP
-	m_sounds.emplace_back(Sound("snd/break.wav"));  // Snd::BREAK
-	m_sounds.emplace_back(Sound("snd/match.wav"));  // Snd::MATCH
-	m_sounds.emplace_back(Sound("snd/thump.wav"));  // Snd::LANDING
+	m_sounds.emplace_back(Sound("snd/swap.wav"));    // Snd::SWAP
+	m_sounds.emplace_back(Sound("snd/break.wav"));   // Snd::BREAK
+	m_sounds.emplace_back(Sound("snd/match.wav"));   // Snd::MATCH
+	m_sounds.emplace_back(Sound("snd/thump.wav"));   // Snd::LANDING
+	m_sounds.emplace_back(Sound("snd/zzt.wav"));     // Snd::CHOOSE
+	m_sounds.emplace_back(Sound("snd/confirm.wav")); // Snd::CONFIRM
+	m_sounds.emplace_back(Sound("snd/aww.wav"));     // Snd::DECLINE
+	m_sounds.emplace_back(Sound("snd/confirm.wav")); // Snd::START
 
 	m_ttf_font = sdl.open_font("font/default.ttf", DEFAULT_FONT_SIZE);
 	m_charset = sdl.load_surface("font/fixed.png", SDL_PIXELFORMAT_RGBA32);

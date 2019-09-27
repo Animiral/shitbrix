@@ -48,9 +48,9 @@ class BitmapFont
 public:
 
 	/**
-	 * Construct the font from the specified input file.
+	 * Construct the font from the specified charset template.
 	 *
-	 * The arrangement of letters in the file must match the expected layout:
+	 * The arrangement of letters in the charset must match the expected layout:
 	 * a single-color one-pixel solid grid filled with 4 rows / 16 columns of
 	 * character graphics ranging from 0x20 (space) to 0x5f (underscore).
 	 *

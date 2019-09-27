@@ -211,9 +211,6 @@ private:
 	evt::DupeFiltered<evt::SoundRelay> m_sound_relay;
 	evt::DupeFiltered<evt::ShakeRelay> m_shake_relay;
 
-	BitmapFont m_font; // temporary test/demo
-	TtfText m_text; // temporary test/demo
-
 	bool m_show_result = false; //!< when false, draw the cursor (ingame) - when true, draw the banners
 	bool m_show_pit_debug_overlay = false; //!< whether to draw the pit debug overlay or not
 	bool m_show_pit_debug_highlight = false; //!< whether to draw the pit debug highlight or not

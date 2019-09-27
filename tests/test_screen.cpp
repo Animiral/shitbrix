@@ -14,16 +14,16 @@ public:
 
 	explicit ScreenTest()
 	{
-		game = std::make_unique<LocalGame>(std::make_unique<LocalGameFactory>());
+		game = std::make_shared<LocalGame>(std::make_unique<LocalGameFactory>());
 		game->game_reset(2);
 		game->game_start();
 		draw = std::make_unique<NoDraw>();
-		game_screen = std::make_unique<GameScreen>(*draw, *game);
+		game_screen = std::make_unique<GameScreen>(*draw, game);
 	}
 
 protected:
 
-	std::unique_ptr<IGame> game;
+	std::shared_ptr<IGame> game;
 	std::unique_ptr<IDraw> draw;
 	std::unique_ptr<GameScreen> game_screen;
 

@@ -95,6 +95,15 @@ private:
 
 };
 
+/**
+ * The menu screen allows the user to navigate the main menu.
+ *
+ * The user may change configuration options, start some specific
+ * game mode, or exit the application.
+ *
+ * The GameScreen starts with an intro (ready-prompt), continues with the
+ * actual gameplay and ends with a result banner.
+ */
 class MenuScreen : public IScreen
 {
 
@@ -102,15 +111,83 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	explicit MenuScreen(IDraw& draw, IGame& game);
-	virtual ~MenuScreen() noexcept;
+	explicit MenuScreen(IDraw& draw, const GlobalContext& context);
+
+	virtual void update() override;
+	virtual bool done() const override; // whether the screen has ended
+	virtual void input(ControllerAction cinput) override;
+
+	/**
+	 * Return the result of the MenuScreen.
+	 * It is an error to ask for this before the screen is done().
+	 */
+	Result result() const { enforce(m_done); return m_result; }
+
+protected:
+
+	virtual void draw_impl(float dt) override;
+
+private:
+
+	static const wrap::Color CHOICE_OUTLINE_COLOR;
+	static const wrap::Color CHOICE_FILL_COLOR;
+	static const wrap::Color ACTIVE_OUTLINE_COLOR;
+	static const wrap::Color ACTIVE_FILL_COLOR;
+
+	enum class MenuAction
+	{
+		GOMAIN, //!< go to top-level menu
+		GOPLAY, //!< start the selected game mode
+		GOCONFIG, //!< enter the configuration sub-menu
+		GOQUIT, //!< exit the application
+		TOGGLE_MODE, //!< change the game mode
+		TOGGLE_AUTORECORD, //!< change the autorecord flag
+	};
+
+	/**
+	 * Act out the selected menu option when the user confirms.
+	 */
+	void dochoice(MenuAction action);
+
+	struct MenuChoice
+	{
+		const char* label;
+		MenuAction action;
+	};
+
+	struct SubMenu
+	{
+		std::vector<MenuChoice> choice;
+	};
+
+	static const SubMenu m_menu[];
+
+	const GlobalContext* m_context;
+	BitmapFont m_choice_font; //!< font for menu entries
+	BitmapFont m_active_font; //!< font for active menu entries
+	const SubMenu* m_active_menu; //!< pointer to currently visisble submenu
+	int m_active; //!< currently selected entry
+	bool m_done; //!< true if this screen has reached its end
+	Result m_result; //!< valid only when m_done
+
+};
+
+class PregameScreen : public IScreen
+{
+
+public:
+
+	enum class Result { PLAY, QUIT };
+
+	explicit PregameScreen(IDraw& draw, std::shared_ptr<IGame> game);
+	virtual ~PregameScreen() noexcept;
 
 	virtual void update() override;
 	virtual bool done() const override { return m_done; }
 	virtual void input(ControllerAction cinput) override;
 
 	/**
-	 * Return the result of the MenuScreen.
+	 * Return the result of the PregameScreen.
 	 * It is an error to ask for this before the screen is done().
 	 */
 	Result result() const { enforce(m_done); return m_result; }
@@ -126,7 +203,7 @@ private:
 	Result m_result; //!< valid only when m_done
 
 	IDraw* m_draw; //!< Interface for drawing the screen
-	IGame* m_game; //!< Game object
+	std::shared_ptr<IGame> m_game; //!< Game object
 
 };
 
@@ -143,7 +220,7 @@ public:
 
 	enum class Phase { INTRO, PLAY, RESULT };
 
-	explicit GameScreen(IDraw& draw, IGame& game, ServerThread* server = nullptr);
+	explicit GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server = nullptr);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
@@ -164,10 +241,10 @@ private:
 	Phase m_phase; //!< game round state machine
 	long m_time; //!< starts at 0 with the intro and each game round
 	bool m_done; //!< true if this screen has reached its end
-	bool m_autorecord; //!< true if we want to automatically save replays
+	bool m_autorecord = false; //!< true if we want to automatically save replays
 
 	std::unique_ptr<Stage> m_stage;
-	IGame* m_game;
+	std::shared_ptr<IGame> m_game;
 	ServerThread* const m_server;
 
 	/**
@@ -257,7 +334,7 @@ public:
 
 	/**
 	 * Based on the global settings, create the initial starting screen of the
-	 * application. This is most often the MenuScreen.
+	 * application. This is most often the PregameScreen.
 	 *
 	 * @return pointer to the initial screen object or @c nullptr for application exit
 	 */
@@ -278,11 +355,12 @@ private:
 	const GlobalContext* m_context; //!< global settings dependency
 
 	std::unique_ptr<IDraw> m_draw; //!< draw object according to configuration
-	std::unique_ptr<IGame> m_game; //!< game object according to configuration
+	std::shared_ptr<IGame> m_game; //!< game object, lives as long as the last dependent screen
 	std::unique_ptr<ServerThread> m_server; //!< optional server object
 
 	// all screens are owned and stored by the factory
 	std::unique_ptr<MenuScreen> m_menu_screen;
+	std::unique_ptr<PregameScreen> m_pregame_screen;
 	std::unique_ptr<GameScreen> m_game_screen;
 	std::unique_ptr<ServerScreen> m_server_screen;
 	std::unique_ptr<TransitionScreen> m_transition_screen;

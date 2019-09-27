@@ -3,7 +3,9 @@
 #include "configuration.hpp"
 #include "game.hpp"
 #include "draw.hpp"
+#include "audio.hpp"
 #include "error.hpp"
+#include <array>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -52,59 +54,7 @@ IScreen* ScreenFactory::create_default()
 	// Set up drawing
 	m_draw = std::make_unique<SdlDraw>(the_context.sdl->renderer(), *the_context.assets);
 
-	// Set up the appropriate game object
-	if(NetworkMode::LOCAL == configuration.network_mode) {
-		auto factory = std::make_unique<LocalGameFactory>();
-		m_game = std::make_unique<LocalGame>(move(factory));
-	}
-	else {
-		if(!configuration.server_url.has_value())
-			throw GameException("Client mode requires server_url configuration.");
-
-		auto client_channel = make_client_channel(
-			the_context.configuration->server_url->c_str(),
-			the_context.configuration->port); // network implementation
-		auto client_protocol = std::make_unique<ClientProtocol>(std::move(client_channel));
-		auto factory = std::make_unique<ClientGameFactory>();
-		m_game = std::make_unique<ClientGame>(move(factory), move(client_protocol));
-	}
-
-	// If we want to play back a replay, feed it all to the client
-	// and let the normal timing in the game loop take care of it.
-	auto replay_path = configuration.replay_path;
-	if(replay_path.has_value() &&
-		!std::filesystem::is_regular_file(replay_path.value())) {
-		Log::error("Replay not found: %s", replay_path->u8string().c_str());
-		replay_path.reset();
-	}
-
-	if(replay_path.has_value()) {
-		std::ifstream stream{replay_path.value()};
-		Journal journal = replay_read(stream);
-		GameMeta meta = journal.meta();
-		meta.winner = NOONE; // this is currently necessary to prevent early exit
-		m_game->game_reset(meta.players);
-		m_game->game_start();
-		for(Input input : journal.inputs()) {
-			m_game->game_input(input);
-		}
-
-		// We do not copy-save the same game again in replay mode.
-		m_game_screen = std::make_unique<GameScreen>(*m_draw, *m_game, m_server.get()); // m_screen_factory.create_game();
-		m_game_screen->set_autorecord(false);
-		return m_game_screen.get();
-	}
-	else {
-		m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_game);
-		return m_menu_screen.get();
-	}
-
-	// debug
-	//DrawPink pink_draw(m_sdl_factory, 255, 0, 255);
-	//m_pink_screen = std::make_unique<PinkScreen>(std::move(pink_draw));
-	//m_screen = m_pink_screen.get();
-
-	m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_game);
+	m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_context);
 	return m_menu_screen.get();
 }
 
@@ -117,16 +67,71 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 	if(ServerScreen* serv = dynamic_cast<ServerScreen*>(&predecessor)) {
 		return nullptr;
 	} else
-	if(MenuScreen* menu = dynamic_cast<MenuScreen*>(&predecessor)) {
+	if(MenuScreen * menu = dynamic_cast<MenuScreen*>(&predecessor)) {
 		if(MenuScreen::Result::PLAY == menu->result()) {
-			m_game_screen.release(); // first delete previous instance
-			m_game_screen = std::make_unique<GameScreen>(*m_draw, *m_game);
-			m_game_screen->set_autorecord(m_context->configuration->autorecord);
-			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *menu, *m_game_screen);
-			return m_transition_screen.get();
-		} else
+			// Set up the appropriate game object
+			if(NetworkMode::LOCAL == m_context->configuration->network_mode) {
+				auto factory = std::make_unique<LocalGameFactory>();
+				m_game = std::make_shared<LocalGame>(move(factory));
+			}
+			else {
+				if(!m_context->configuration->server_url.has_value())
+					throw GameException("Client mode requires server_url configuration.");
+
+				auto client_channel = make_client_channel(
+					the_context.configuration->server_url->c_str(),
+					the_context.configuration->port); // network implementation
+				auto client_protocol = std::make_unique<ClientProtocol>(std::move(client_channel));
+				auto factory = std::make_unique<ClientGameFactory>();
+				m_game = std::make_shared<ClientGame>(move(factory), move(client_protocol));
+			}
+
+			// If we want to play back a replay, feed it all to the client
+			// and let the normal timing in the game loop take care of it.
+			auto replay_path = m_context->configuration->replay_path;
+			if(replay_path.has_value() &&
+				!std::filesystem::is_regular_file(replay_path.value())) {
+				Log::error("Replay not found: %s", replay_path->u8string().c_str());
+				replay_path.reset();
+			}
+
+			if(replay_path.has_value()) {
+				std::ifstream stream{ replay_path.value() };
+				Journal journal = replay_read(stream);
+				GameMeta meta = journal.meta();
+				meta.winner = NOONE; // this is currently necessary to prevent early exit
+				m_game->game_reset(meta.players);
+				m_game->game_start();
+				for(Input input : journal.inputs()) {
+					m_game->game_input(input);
+				}
+
+				// We do not copy-save the same game again in replay mode.
+				m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get()); // m_screen_factory.create_game();
+				m_game_screen->set_autorecord(false);
+				return m_game_screen.get();
+			}
+
+			m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
+			return m_pregame_screen.get();
+		}
+		else
 		if(MenuScreen::Result::QUIT == menu->result()) {
 			return nullptr;
+		}
+	} else
+	if(PregameScreen* pregame = dynamic_cast<PregameScreen*>(&predecessor)) {
+		if(PregameScreen::Result::PLAY == pregame->result()) {
+			m_game_screen.release(); // first delete previous instance
+			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game);
+			m_game_screen->set_autorecord(m_context->configuration->autorecord);
+			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *pregame, *m_game_screen);
+			return m_transition_screen.get();
+		} else
+		if(PregameScreen::Result::QUIT == pregame->result()) {
+			m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_context);
+			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *pregame, *m_menu_screen);
+			return m_transition_screen.get();
 		}
 	} else
 	if(GameScreen* game = dynamic_cast<GameScreen*>(&predecessor)) {
@@ -137,9 +142,9 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 		}
 		else {
 			// Go back to menu
-			m_menu_screen.release(); // first delete previous instance
-			m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_game);
-			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *game, *m_menu_screen);
+			m_pregame_screen.release(); // first delete previous instance
+			m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
+			m_transition_screen = std::make_unique<TransitionScreen>(*m_draw, *game, *m_pregame_screen);
 			return m_transition_screen.get();
 		}
 	} else
@@ -175,15 +180,171 @@ void PinkScreen::draw_impl(float dt)
 }
 
 
-MenuScreen::MenuScreen(IDraw& draw, IGame& game)
+MenuScreen::MenuScreen(IDraw& draw, const GlobalContext& context)
+	: IScreen(draw),
+	m_context(&context),
+	m_choice_font(*context.sdl, context.assets->charset(), CHOICE_OUTLINE_COLOR, CHOICE_FILL_COLOR),
+	m_active_font(*context.sdl, context.assets->charset(), ACTIVE_OUTLINE_COLOR, ACTIVE_FILL_COLOR),
+	m_active_menu(&m_menu[0]),
+	m_active(0),
+	m_done(false),
+	m_result()
+{
+}
+
+void MenuScreen::update()
+{
+}
+
+bool MenuScreen::done() const
+{
+	return m_done;
+}
+
+void MenuScreen::input(ControllerAction cinput)
+{
+	if(ButtonAction::DOWN == cinput.action) {
+		switch(cinput.button) {
+
+		case Button::UP:
+			if(m_active > 0) {
+				m_active--;
+				m_context->audio->play(Snd::CHOOSE);
+			}
+			break;
+
+		case Button::DOWN:
+			if((size_t)m_active + 1 < m_active_menu->choice.size()) {
+				m_active++;
+				m_context->audio->play(Snd::CHOOSE);
+			}
+			break;
+
+		case Button::A:
+			dochoice(m_active_menu->choice[m_active].action);
+			break;
+
+		case Button::B:
+			dochoice(m_active_menu->choice.back().action); // last choice = back/quit
+			break;
+
+		case Button::QUIT:
+			m_done = true;
+			m_result = Result::QUIT;
+			break;
+
+		}
+	}
+}
+
+void MenuScreen::draw_impl(float dt)
+{
+	m_draw->gfx(0, 0, Gfx::MENUBG);
+
+	for(int i = 0; i < m_active_menu->choice.size(); i++) {
+		if(i == m_active) {
+			m_draw->text_fixed(80, 100 + i * BITMAP_FONT_LINEHEIGHT, m_active_font, m_active_menu->choice[i].label);
+		}
+		else {
+			m_draw->text_fixed(60, 100 + i * BITMAP_FONT_LINEHEIGHT, m_choice_font, m_active_menu->choice[i].label);
+		}
+	}
+
+	if(m_active_menu == &m_menu[1]) { // configuration menu
+		std::array<const char*, 4> modes{"Local Game", "Client Mode", "Server Mode", "Host Game"};
+		m_draw->text_fixed(360, 100, m_choice_font,
+			modes[(size_t)m_context->configuration->network_mode]);
+
+		m_draw->text_fixed(360, 100 + BITMAP_FONT_LINEHEIGHT, m_choice_font,
+			m_context->configuration->autorecord ? "Auto-Record Replays" : "No Auto-Record");
+	}
+}
+
+const wrap::Color MenuScreen::CHOICE_OUTLINE_COLOR{ 111, 31, 148, 255 };
+const wrap::Color MenuScreen::CHOICE_FILL_COLOR{ 198, 247, 242, 255 };
+const wrap::Color MenuScreen::ACTIVE_OUTLINE_COLOR{ 121, 51, 200, 255 };
+const wrap::Color MenuScreen::ACTIVE_FILL_COLOR{ 108, 200, 200, 255 };
+
+void MenuScreen::dochoice(MenuAction action)
+{
+	Configuration& conf = *m_context->configuration;
+
+	switch(action) {
+
+	case MenuAction::GOMAIN:
+		m_active_menu = &m_menu[0];
+		m_active = 0;
+		m_context->audio->play(Snd::DECLINE);
+		break;
+
+	case MenuAction::GOPLAY:
+		m_done = true;
+		m_result = Result::PLAY;
+		m_context->audio->play(Snd::START);
+		break;
+
+	case MenuAction::GOCONFIG:
+		m_active_menu = &m_menu[1];
+		m_active = 0;
+		m_context->audio->play(Snd::CONFIRM);
+		break;
+
+	case MenuAction::GOQUIT:
+		m_done = true;
+		m_result = Result::QUIT;
+		m_context->audio->play(Snd::DECLINE);
+		break;
+
+	case MenuAction::TOGGLE_MODE:
+		switch(conf.network_mode) {
+		case NetworkMode::LOCAL: conf.network_mode = NetworkMode::CLIENT; break;
+		case NetworkMode::CLIENT: conf.network_mode = NetworkMode::WITH_SERVER; break;
+		default: case NetworkMode::WITH_SERVER: conf.network_mode = NetworkMode::LOCAL; break;
+		}
+		m_context->audio->play(Snd::CONFIRM);
+		break;
+
+	case MenuAction::TOGGLE_AUTORECORD:
+		conf.autorecord = !conf.autorecord;
+		m_context->audio->play(Snd::CONFIRM);
+		break;
+
+	default:
+		assert(0);
+
+	}
+}
+
+const MenuScreen::SubMenu MenuScreen::m_menu[] =
+{
+	{
+		{
+			{ "Start Game", MenuScreen::MenuAction::GOPLAY },
+			{ "Configure", MenuScreen::MenuAction::GOCONFIG },
+			{ "Quit", MenuScreen::MenuAction::GOQUIT }
+		}
+	},
+	{
+		{
+			{ "Game Mode", MenuScreen::MenuAction::TOGGLE_MODE },
+			{ "Auto-Record Replay", MenuScreen::MenuAction::TOGGLE_AUTORECORD },
+			{ "Back", MenuScreen::MenuAction::GOMAIN }
+		}
+	}
+};
+
+PregameScreen::PregameScreen(IDraw& draw, std::shared_ptr<IGame> game)
 	:
 	IScreen(draw),
 	m_time(0),
 	m_done(false),
+	m_result(),
 	m_draw(&draw),
-	m_game(&game)
+	m_game(move(game))
 {
-	Log::info("MenuScreen turn on.");
+	enforce(nullptr != m_game);
+
+	Log::info("PregameScreen turn on.");
 
 	// When the game starts, this screen is finished.
 	m_game->after_start([this] {
@@ -192,18 +353,18 @@ MenuScreen::MenuScreen(IDraw& draw, IGame& game)
 	});
 }
 
-MenuScreen::~MenuScreen() noexcept
+PregameScreen::~PregameScreen() noexcept
 {
 	m_game->after_start(nullptr); // unregister my handler (potential dangling this ptr)
 }
 
-void MenuScreen::update()
+void PregameScreen::update()
 {
 	m_game->poll();
 	m_time++;
 }
 
-void MenuScreen::input(ControllerAction cinput)
+void PregameScreen::input(ControllerAction cinput)
 {
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
@@ -217,23 +378,24 @@ void MenuScreen::input(ControllerAction cinput)
 	}
 }
 
-void MenuScreen::draw_impl(float dt)
+void PregameScreen::draw_impl(float dt)
 {
-	m_draw->gfx(0, 0, Gfx::MENUBG);
+	m_draw->gfx(0, 0, Gfx::TITLE);
 }
 
 
-GameScreen::GameScreen(IDraw& draw, IGame& game, ServerThread* server) :
+GameScreen::GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server) :
 	IScreen(draw),
 	m_phase(Phase::INTRO),
 	m_time(0),
 	m_done(false),
-	m_stage(new Stage(game.state(), *m_draw)),
-	m_game(&game),
+	m_stage(new Stage(game->state(), *m_draw)),
+	m_game(move(game)),
 	m_server(server)
 {
 	assert(m_stage);
-	enforce(game.switches().ingame);
+	enforce(nullptr != m_game);
+	enforce(m_game->switches().ingame);
 
 	Log::info("GameScreen turn on.");
 
