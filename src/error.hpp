@@ -165,6 +165,37 @@ void enforce_impl(bool condition, const char* condition_str, const char* func, c
 #define SB_FUNC __func__
 #endif
 
+// prepare forward declarations for throwx, but avoid pulling in the huge windows.h
+#if defined(_WIN32)
+extern "C" __declspec(dllimport) void __stdcall DebugBreak();
+#else
+#include <csignal>
+#endif
+
+/**
+ * Construct the specified exception with the given parameters and throw it.
+ *
+ * Before the exception is thrown, this function attempts to break into the
+ * debugger, if available.
+ */
+template<class Except, class... Args>
+[[noreturn]]
+void throwx(Args&& ... params)
+{
+	// Stop and activate the debugger.
+	// https://stackoverflow.com/questions/4326414/set-breakpoint-in-c-or-c-code-programmatically-for-gdb-on-linux
+	// https://docs.microsoft.com/en-us/visualstudio/debugger/debugbreak-and-debugbreak
+	// https://hg.mozilla.org/mozilla-central/file/98fa9c0cff7a/js/src/jsutil.cpp#l66
+#if defined(_WIN32)
+		//* ((int*)NULL) = 0;
+	DebugBreak();
+#else
+	std::raise(SIGABRT);  /* To continue from here in GDB: "signal 0". */
+#endif
+
+	throw Except(std::forward<Args>(params)...);
+}
+
 /**
  * Evaluate the condition and throw an @c EnforceException if it is false.
  */

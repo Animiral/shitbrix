@@ -49,43 +49,43 @@ EnforceException::EnforceException(const char* condition, const char* func, cons
 void enforce_impl(bool condition, const char* condition_str, const char* func, const char* file, int line)
 {
 	if(!condition)
-		throw EnforceException(condition_str, func, file, line);
+		throwx<EnforceException>(condition_str, func, file, line);
 }
 
 void sdlok(int result)
 {
 	if(0 != result)
-		throw SdlException();
+		throwx<SdlException>();
 }
 
 void sdlok(void* pointer)
 {
 	if(!pointer)
-		throw SdlException();
+		throwx<SdlException>();
 }
 
 void imgok(void* pointer)
 {
 	if(!pointer)
-		throw SdlException(IMG_GetError());
+		throwx<SdlException>(IMG_GetError());
 }
 
 void ttfok(void* pointer)
 {
 	if(!pointer)
-		throw SdlException(TTF_GetError());
+		throwx<SdlException>(TTF_GetError());
 }
 
 void enetok_impl(int result, const char* what)
 {
 	if(0 != result)
-		throw ENetException(what);
+		throwx<ENetException>(what);
 }
 
 void enetok_impl(void* pointer, const char* what)
 {
 	if(!pointer)
-		throw ENetException(what);
+		throwx<ENetException>(what);
 }
 
 void show_error(const std::exception& exception) noexcept
