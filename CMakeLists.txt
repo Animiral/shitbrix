@@ -47,8 +47,9 @@ set(CMAKE_EXECUTABLE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/${CMAKE_BUILD_TYP
 SET(Threads_FOUND TRUE) # pthreads check is currently broken, maybe
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
+find_package(SDL2_ttf REQUIRED)
 find_package(enet REQUIRED)
-include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${ENet_INCLUDE_DIRS})
+include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${ENet_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
 
 # option(BUILD_DEPENDS
 #    "Build other CMake project."
@@ -59,11 +60,13 @@ include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${ENet_INCLU
 # if(BUILD_DEPENDS)
 #    add_subdirectory(ext/enet ${CMAKE_BINARY_DIR}/enet)
 #    add_subdirectory(ext/sdl ${CMAKE_BINARY_DIR}/SDL)
-#   add_subdirectory(ext/sdl_image ${CMAKE_BINARY_DIR}/SDL_image)
+#    add_subdirectory(ext/sdl_image ${CMAKE_BINARY_DIR}/SDL_image)
+#    add_subdirectory(ext/sdl_ttf ${CMAKE_BINARY_DIR}/SDL_ttf)
 # else()
 #    link_directories(dependencies/enet/build/)
 #    link_directories(dependencies/SDL/build/)
 #    link_directories(dependencies/SDL_image/build/)
+#    link_directories(dependencies/SDL_ttf/build/)
 # endif()
 
 ################# Flags ################
@@ -113,6 +116,6 @@ add_executable(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 # Link with other dependencies.
-target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${ENet_LIBRARIES} stdc++fs)
+target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES} ${ENet_LIBRARIES} stdc++fs)
 
 # set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
