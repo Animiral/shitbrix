@@ -247,6 +247,17 @@ public:
 	 */
 	void synchronurse(long target_time);
 
+	/**
+	 * Read the replay from the given replay file.
+	 *
+	 * The game resets and then starts using the meta-information from the replay.
+	 * The game state is then the initial state and the input history is available
+	 * in the journal.
+	 *
+	 * Clients can navigate to any point in the replay using the @c synchronurse function.
+	 */
+	void load_replay(std::filesystem::path path);
+
 protected:
 
 	Switches m_switches; //!< extra control information values

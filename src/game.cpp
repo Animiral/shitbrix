@@ -190,6 +190,30 @@ void IGame::synchronurse(long target_time)
 	}
 }
 
+void IGame::load_replay(std::filesystem::path path)
+{
+	if(!std::filesystem::is_regular_file(path)) {
+		throw GameException("Replay not found: " + path.u8string());
+	}
+
+	std::ifstream stream{ path };
+	Journal journal = replay_read(stream);
+	GameMeta meta = journal.meta();
+	meta.winner = NOONE; // this is currently necessary to prevent early exit
+
+	// If we want to play back a replay, feed it all to the game
+	// and let the normal timing in the game loop take care of it.
+	//
+	// What actually happens at reset, start and input depends on the concrete
+	// game implementation.
+	game_reset(meta.players);
+	game_start();
+
+	for(Input input : journal.inputs()) {
+		game_input(input);
+	}
+}
+
 void IGame::base_start()
 {
 	enforce(m_switches.ready);

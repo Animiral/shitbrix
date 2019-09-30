@@ -199,7 +199,7 @@ void throwx(Args&& ... params)
 /**
  * Evaluate the condition and throw an @c EnforceException if it is false.
  */
-#define enforce(CONDITION) enforce_impl((CONDITION), SB_STRINGIZE(CONDITION), SB_FUNC, __FILE__, __LINE__)
+#define enforce(CONDITION) enforce_impl(bool(CONDITION), SB_STRINGIZE(CONDITION), SB_FUNC, __FILE__, __LINE__)
 
 /**
  * Validate that the result of an SDL operation is 0 (OK). If not, throw an SdlException.

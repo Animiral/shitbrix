@@ -354,7 +354,7 @@ int main(int argc, char* argv[])
 
 	// need to set up global context
 	Configuration configuration;
-	configuration.network_mode = NetworkMode::LOCAL;
+	configuration.launch_mode = LaunchMode::LOCAL;
 	configuration.joystick_number = 0;
 	configuration.autorecord = false;
 	configuration.log_path = "visualdemo.log";

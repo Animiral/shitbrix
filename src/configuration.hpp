@@ -5,12 +5,13 @@
 #include <filesystem>
 
 /**
- * Network operation mode of the application.
+ * Initial mode (start screen) of the application.
  */
-enum class NetworkMode
+enum class LaunchMode
 {
-	LOCAL,       //!< Run only on this machine
-	CLIENT,      //!< Connect as a client
+	MENU,        //!< Standard for normal users
+	LOCAL,       //!< Immediately run 2-player local game
+	CLIENT,      //!< Immediately connect as a client
 	SERVER,      //!< Host the game as a server
 	WITH_SERVER  //!< Host the game locally and also act as a client
 };
@@ -46,7 +47,7 @@ public:
 	/**
 	 * Which application mode to launch.
 	 */
-	NetworkMode network_mode;
+	LaunchMode launch_mode;
 
 	/**
 	 * Number of the player that is controlled by this client.

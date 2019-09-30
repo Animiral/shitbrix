@@ -109,7 +109,7 @@ class MenuScreen : public IScreen
 
 public:
 
-	enum class Result { PLAY, QUIT };
+	enum class Result { PLAY_LOCAL, PLAY_HOST, PLAY_CLIENT, QUIT };
 
 	explicit MenuScreen(IDraw& draw, const GlobalContext& context);
 
@@ -136,11 +136,12 @@ private:
 
 	enum class MenuAction
 	{
+		PLAY_LOCAL, //!< start a local game
+		PLAY_HOST, //!< start a network game with local server
+		PLAY_CLIENT, //!< start a network game as client
 		GOMAIN, //!< go to top-level menu
-		GOPLAY, //!< start the selected game mode
 		GOCONFIG, //!< enter the configuration sub-menu
 		GOQUIT, //!< exit the application
-		TOGGLE_MODE, //!< change the game mode
 		TOGGLE_AUTORECORD, //!< change the autorecord flag
 	};
 
@@ -350,6 +351,18 @@ public:
 	IScreen* create_next(IScreen& predecessor);
 
 private:
+
+	/**
+	 * When transitioning to a game screen, instantiate the appropriate next
+	 * screen based on the given replay file configuration.
+	 *
+	 * If the replay path is configured, automatically load the replay and go
+	 * straight ahead to the game screen.
+	 * If there is no replay path configured, set up the pregame screen instead.
+	 *
+	 * @return a pointer to the new screen
+	 */
+	IScreen* ScreenFactory::create_screen_maybe_replay(std::optional<std::filesystem::path> replay_path);
 
 	// resources to create the Screens
 	const GlobalContext* m_context; //!< global settings dependency

@@ -22,7 +22,7 @@ void configure_context_for_testing()
 	the_context.audio.reset();
 
 	Configuration configuration;
-	configuration.network_mode = /* NetworkMode::LOCAL */ NetworkMode::CLIENT; // TODO: use least-harm setting
+	configuration.launch_mode = /* LaunchMode::LOCAL */ LaunchMode::CLIENT; // TODO: use least-harm setting
 	configuration.player_number = {};
 	configuration.joystick_number = {};
 	configuration.autorecord = false;

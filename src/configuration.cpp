@@ -15,10 +15,10 @@ namespace
 {
 
 /**
- * Return the corresponding @c NetworkMode for the string representation.
+ * Return the corresponding @c LaunchMode for the string representation.
  * @throw ConfigException if the string is not recognized.
  */
-NetworkMode parse_network_mode(std::string value);
+LaunchMode parse_launch_mode(std::string value);
 
 /**
  * If the string value contains data, convert it to an integer and return it.
@@ -40,7 +40,7 @@ extern const std::map<std::string, ConfigSetter> config_setter;
 
 
 Configuration::Configuration()
-: network_mode{NetworkMode::LOCAL},
+: launch_mode{LaunchMode::LOCAL},
   player_number{},
   joystick_number{},
   autorecord{false},
@@ -110,9 +110,8 @@ void Configuration::parse(std::string key, std::string value)
 
 void Configuration::normalize()
 {
-	if(NetworkMode::WITH_SERVER == network_mode) {
-		server_url = "localhost";
-	}
+	// Attempt to bring the configuration into a consistent state after loading it.
+	// Currently, there is nothing to do here, but there might be in the future.
 }
 
 
@@ -120,7 +119,7 @@ void configure_context(const Configuration& configuration)
 {
 	the_context.configuration.reset(new Configuration(std::move(configuration)));
 
-	const bool is_server_only = NetworkMode::SERVER == the_context.configuration->network_mode;
+	const bool is_server_only = LaunchMode::SERVER == the_context.configuration->launch_mode;
 	Uint32 sdl_flags = is_server_only ? SDL_INIT_TIMER | SDL_INIT_EVENTS
 	                                  : SDL_INIT_EVERYTHING;
 
@@ -141,18 +140,18 @@ void configure_context(const Configuration& configuration)
 namespace
 {
 
-const char* network_mode_string[] =
-{ "local", "client", "server", "with-server"};
+const char* launch_mode_string[] =
+{ "menu", "local", "client", "server", "with-server"};
 
-NetworkMode parse_network_mode(std::string value)
+LaunchMode parse_launch_mode(std::string value)
 {
-	const auto mode_found = std::find(network_mode_string, std::end(network_mode_string), value);
-	const size_t mode_index = std::distance(network_mode_string, mode_found);
+	const auto mode_found = std::find(launch_mode_string, std::end(launch_mode_string), value);
+	const size_t mode_index = std::distance(launch_mode_string, mode_found);
 
-	if(std::size(network_mode_string) <= mode_index)
-		throw ConfigException("Invalid network mode: \"" + value + "\"");
+	if(std::size(launch_mode_string) <= mode_index)
+		throw ConfigException("Invalid launch mode: \"" + value + "\"");
 
-	return static_cast<NetworkMode>(mode_index);
+	return static_cast<LaunchMode>(mode_index);
 }
 
 std::optional<int> to_opt_int(const std::string& value)
@@ -165,8 +164,8 @@ std::optional<int> to_opt_int(const std::string& value)
 
 const std::map<std::string, ConfigSetter> config_setter
 {
-	{"network_mode",    [](Configuration& c, std::string value) { c.network_mode    = parse_network_mode(value); }},
 	{"player_number",   [](Configuration& c, std::string value) { c.player_number   = to_opt_int(value); }},
+	{"launch_mode",     [](Configuration& c, std::string value) { c.launch_mode    = parse_launch_mode(value); }},
 	{"joystick_number", [](Configuration& c, std::string value) { c.joystick_number = to_opt_int(value); }},
 	{"autorecord",      [](Configuration& c, std::string value) { c.autorecord      = "true" == value; }},
 	{"replay_path",     [](Configuration& c, std::string value) { c.replay_path     = std::filesystem::path{value}; }},
