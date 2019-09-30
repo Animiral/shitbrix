@@ -288,6 +288,7 @@ struct GameMeta
 {
 	int players;   //!< number of participant players
 	unsigned seed; //!< initial random seed
+	bool replay;   //!< true if the game is in replay mode (no extra random decisions)
 	int winner = NOONE; //!< player who won the game
 
 	/**

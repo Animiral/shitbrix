@@ -155,9 +155,7 @@ void replay_stream(std::ostream& stream, const Journal& journal)
 
 	GameMeta meta = journal.meta();
 	stream << replay_record_type_string(ReplayRecord::Type::META)
-	       << " " << meta.players
-	       << " " << meta.seed
-	       << " " << meta.winner << "\n";
+	       << " " << meta.to_string() << "\n";
 
 	for(const auto& input : journal.inputs()) {
 		stream << replay_record_type_string(ReplayRecord::Type::INPUT)
@@ -215,7 +213,7 @@ ReplayRecord::Type string_to_replay_record_type(const std::string& type_string)
 Journal replay_read(std::istream& stream)
 {
 	// Replay contents
-	GameMeta meta{0, 0};
+	GameMeta meta{0, 0, true};
 	std::vector<Input> inputs;
 
 	// We read only the first game replay. Therefore, we must read
@@ -244,8 +242,19 @@ Journal replay_read(std::istream& stream)
 			break;
 
 		case ReplayRecord::Type::META:
-			tokenizer >> meta.players >> meta.seed >> meta.winner;
-			// TODO: if(!tokenizer) ReplayException failed to parse line
+			{
+				tokenizer >> std::ws;
+				std::string meta_string;
+				std::getline(tokenizer, meta_string);
+
+				try {
+					meta = GameMeta::from_string(meta_string);
+				}
+				catch(GameException ex) {
+					throw ReplayException("Failed to parse meta.",
+						std::make_unique<GameException>(std::move(ex)));
+				}
+			}
 			break;
 
 		case ReplayRecord::Type::INPUT:

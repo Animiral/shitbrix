@@ -153,6 +153,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 	if(PregameScreen* pregame = dynamic_cast<PregameScreen*>(&predecessor)) {
 		if(PregameScreen::Result::PLAY == pregame->result()) {
 			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get());
+			m_game_screen->set_autorecord(configuration.autorecord);
 			next_screen = m_game_screen.get();
 		} else
 		if(PregameScreen::Result::QUIT == pregame->result()) {
@@ -414,7 +415,7 @@ void PregameScreen::input(ControllerAction cinput)
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
 			// this calls my after_start handler, which will set m_done = true.
-			m_game->game_reset(2);
+			m_game->game_reset(2, false);
 			m_game->game_start();
 		} else
 		if(Button::QUIT == cinput.button) {
@@ -523,14 +524,14 @@ void GameScreen::input(ControllerAction cinput)
 		case Button::RESET:
 		{
 			// In replay playback mode, there is no reset (only quit).
-			if(the_context.configuration->replay_path.has_value())
+			if(m_game->journal().meta().replay)
 				break;
 
 			// Only reset once
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			m_game->game_reset(2);
+			m_game->game_reset(2, false);
 		}
 			break;
 

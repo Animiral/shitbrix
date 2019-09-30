@@ -40,7 +40,7 @@ extern const std::map<std::string, ConfigSetter> config_setter;
 
 
 Configuration::Configuration()
-: launch_mode{LaunchMode::LOCAL},
+: launch_mode{LaunchMode::MENU},
   player_number{},
   joystick_number{},
   autorecord{false},

@@ -196,6 +196,10 @@ public:
 	/**
 	 * Start a fresh game with the specified number of players.
 	 *
+	 * If the @c replay flag is true, the game starts in replay mode. This means
+	 * that the input set from the replay is complete and no extra live inputs
+	 * should be generated based on random decisions.
+	 *
 	 * Invalidate all references to the @c GameState, @c Journal and @c GameEventHub.
 	 * The game is then no longer in progress and possibly not ready.
 	 *
@@ -204,7 +208,7 @@ public:
 	 *
 	 * TODO: In network mode, this should only work from a privileged client.
 	 */
-	virtual void game_reset(int players) = 0;
+	virtual void game_reset(int players, bool replay) = 0;
 
 	/**
 	 * Change the speed of the game.
@@ -309,7 +313,7 @@ public:
 	// IGame member functions - local-specific implementation
 	virtual void game_start() override;
 	virtual void game_input(Input input) override;
-	virtual void game_reset(int players) override;
+	virtual void game_reset(int players, bool replay) override;
 	virtual void set_speed(int speed) override;
 	virtual void poll() override;
 
@@ -341,7 +345,7 @@ public:
 	// IGame member functions - client-specific implementation
 	virtual void game_start() override;
 	virtual void game_input(Input input) override;
-	virtual void game_reset(int players) override;
+	virtual void game_reset(int players, bool replay) override;
 	virtual void set_speed(int speed) override;
 	virtual void poll() override;
 
@@ -378,7 +382,7 @@ public:
 	// IGame member functions - server-specific implementation
 	virtual void game_start() override;
 	virtual void game_input(Input input) override;
-	virtual void game_reset(int players) override;
+	virtual void game_reset(int players, bool replay) override;
 	virtual void set_speed(int speed) override;
 	virtual void poll() override;
 

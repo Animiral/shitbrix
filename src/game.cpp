@@ -54,9 +54,14 @@ void LocalGameFactory::create(GameMeta meta)
 {
 	base_create(meta);
 
-	auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
-	m_arbiter = std::make_unique<LocalArbiter>(*m_state, *m_journal, move(color_supplier));
-	m_hub->subscribe(*m_arbiter);
+	if(meta.replay) {
+		m_arbiter.release();
+	}
+	else {
+		auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
+		m_arbiter = std::make_unique<LocalArbiter>(*m_state, *m_journal, move(color_supplier));
+		m_hub->subscribe(*m_arbiter);
+	}
 }
 
 void ClientGameFactory::create(GameMeta meta)
@@ -72,9 +77,14 @@ void ServerGameFactory::create(GameMeta meta)
 {
 	base_create(meta);
 
-	auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
-	m_arbiter = std::make_unique<ServerArbiter>(*m_protocol, *m_state, *m_journal, move(color_supplier));
-	m_hub->subscribe(*m_arbiter);
+	if(meta.replay) {
+		m_arbiter.release();
+	}
+	else {
+		auto color_supplier = std::make_unique<RandomColorSupplier>(meta.seed, 0);
+		m_arbiter = std::make_unique<ServerArbiter>(*m_protocol, *m_state, *m_journal, move(color_supplier));
+		m_hub->subscribe(*m_arbiter);
+	}
 }
 
 IGame::IGame(std::unique_ptr<IGameFactory> game_factory) noexcept
@@ -199,14 +209,13 @@ void IGame::load_replay(std::filesystem::path path)
 	std::ifstream stream{ path };
 	Journal journal = replay_read(stream);
 	GameMeta meta = journal.meta();
-	meta.winner = NOONE; // this is currently necessary to prevent early exit
 
 	// If we want to play back a replay, feed it all to the game
 	// and let the normal timing in the game loop take care of it.
 	//
 	// What actually happens at reset, start and input depends on the concrete
 	// game implementation.
-	game_reset(meta.players);
+	game_reset(meta.players, true);
 	game_start();
 
 	for(Input input : journal.inputs()) {
@@ -268,7 +277,6 @@ void LocalGame::game_start()
 
 	base_start();
 	m_arbiter = m_game_factory->arbiter();
-	enforce(nullptr != m_arbiter); // validate factory
 }
 
 void LocalGame::game_input(Input input)
@@ -279,7 +287,7 @@ void LocalGame::game_input(Input input)
 	m_journal->add_input(std::move(input));
 }
 
-void LocalGame::game_reset(int players)
+void LocalGame::game_reset(int players, bool replay)
 {
 	assert(2 == players); // different player numbers are not yet supported
 
@@ -287,7 +295,7 @@ void LocalGame::game_reset(int players)
 	m_arbiter.reset();
 
 	static std::random_device rdev;
-	m_meta = GameMeta{players, rdev(), NOONE};
+	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, NOONE};
 }
 
 void LocalGame::set_speed(int speed)
@@ -328,9 +336,9 @@ void ClientGame::game_input(Input input)
 	m_protocol->input(input);
 }
 
-void ClientGame::game_reset(int players)
+void ClientGame::game_reset(int players, bool replay)
 {
-	m_protocol->meta(GameMeta{players, 0});
+	m_protocol->meta(GameMeta{players, 0, replay});
 }
 
 void ClientGame::set_speed(int speed)
@@ -420,7 +428,6 @@ void ServerGame::game_start()
 	
 	base_start();
 	m_arbiter = m_game_factory->arbiter();
-	enforce(nullptr != m_arbiter); // validate factory
 
 	m_protocol->start();
 }
@@ -436,7 +443,7 @@ void ServerGame::game_input(Input input)
 	m_protocol->input(input);
 }
 
-void ServerGame::game_reset(int players)
+void ServerGame::game_reset(int players, bool replay)
 {
 	base_reset();
 
@@ -444,7 +451,7 @@ void ServerGame::game_reset(int players)
 		throw GameException("Only 2 players are currently supported.");
 
 	static std::random_device rdev;
-	m_meta = GameMeta{players, rdev(), NOONE};
+	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, NOONE};
 	m_protocol->meta(*m_meta);
 }
 
@@ -481,7 +488,7 @@ void ServerGame::meta(GameMeta meta)
 {
 	// TODO: only allow this if the client is privileged
 	try {
-		game_reset(meta.players);
+		game_reset(meta.players, meta.replay);
 	}
 	catch(const GameException& ) {
 		// TODO: report error back? kick the client for invalid messaging?

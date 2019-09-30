@@ -86,7 +86,7 @@ Color string_to_color(const std::string& source)
 std::string GameMeta::to_string() const
 {
 	std::ostringstream ss;
-	ss << players << " " << seed << " " << winner;
+	ss << players << " " << seed << " " << (replay ? "true" : "false") << winner;
 	return ss.str();
 }
 
@@ -95,13 +95,14 @@ GameMeta GameMeta::from_string(std::string meta_string)
 	std::istringstream tokenizer(meta_string);
 	int players;
 	unsigned seed;
+	bool replay;
 	int winner;
 
-	tokenizer >> players >> seed >> winner;
+	tokenizer >> std::boolalpha >> players >> seed >> replay >> winner;
 	if(!tokenizer)
 		throw GameException("Invalid GameMeta string: \"" + meta_string + "\"");
 
-	return GameMeta{players, seed, winner};
+	return GameMeta{players, seed, replay, winner};
 }
 
 Point from_rc(RowCol rc)

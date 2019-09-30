@@ -41,7 +41,7 @@ public:
 	// IGame member functions - local-specific implementation
 	virtual void game_start() override {}
 	virtual void game_input(Input input) override {}
-	virtual void game_reset(int players) override {}
+	virtual void game_reset(int players, bool replay) override {}
 	virtual void set_speed(int speed) override {}
 	virtual void poll() override {}
 };

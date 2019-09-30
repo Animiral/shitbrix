@@ -92,7 +92,7 @@ protected:
 TEST_F(GameTest, LocalGameReady)
 {
 	EXPECT_FALSE(local_game->switches().ready);
-	local_game->game_reset(2);
+	local_game->game_reset(2, false);
 	EXPECT_TRUE(local_game->switches().ready);
 }
 
@@ -103,7 +103,7 @@ TEST_F(GameTest, LocalGameBeforeReset)
 {
 	bool ready = true;
 	local_game->before_reset([&ready, this]() { ready = local_game->switches().ready; });
-	local_game->game_reset(2);
+	local_game->game_reset(2, false);
 	EXPECT_FALSE(ready);
 }
 
@@ -114,7 +114,7 @@ TEST_F(GameTest, LocalGameAfterStart)
 {
 	bool ingame = false;
 	local_game->after_start([&ingame, this]() { ingame = local_game->switches().ingame; });
-	local_game->game_reset(2);
+	local_game->game_reset(2, false);
 	local_game->game_start();
 	EXPECT_TRUE(ingame);
 }
@@ -127,7 +127,7 @@ TEST_F(GameTest, ClientGameBeforeReset)
 	bool ready = true;
 	client_game->before_reset([&ready, this]() { ready = client_game->switches().ready; });
 
-	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0}.to_string()};
+	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0, false}.to_string()};
 	EXPECT_CALL(*m_client_channel, poll()).Times(1).WillOnce(Return(std::vector<Message>{meta_message}));
 
 	client_game->poll();
@@ -142,7 +142,7 @@ TEST_F(GameTest, ClientGameAfterStart)
 	bool ingame = false;
 	client_game->after_start([&ingame, this]() { ingame = client_game->switches().ingame; });
 
-	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0}.to_string()};
+	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0, false}.to_string()};
 	Message start_message{0, 0, MsgType::START, {}};
 	EXPECT_CALL(*m_client_channel, poll()).Times(1).WillOnce(Return(std::vector<Message>{meta_message, start_message}));
 
@@ -155,7 +155,7 @@ TEST_F(GameTest, ClientGameAfterStart)
  */
 TEST_F(GameTest, ClientGameRetract)
 {
-	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0}.to_string()};
+	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0, false}.to_string()};
 	Message start_message{0, 0, MsgType::START, {}};
 	EXPECT_CALL(*m_client_channel, poll()).Times(1).WillOnce(Return(std::vector<Message>{meta_message, start_message}));
 	client_game->poll();
@@ -180,7 +180,7 @@ TEST_F(GameTest, ServerGameBeforeReset)
 {
 	bool ready = true;
 	server_game->before_reset([&ready, this]() { ready = server_game->switches().ready; });
-	server_game->game_reset(2);
+	server_game->game_reset(2, false);
 	EXPECT_FALSE(ready);
 }
 
@@ -192,7 +192,7 @@ TEST_F(GameTest, ServerGameAfterStart)
 {
 	bool ingame = false;
 	server_game->after_start([&ingame, this]() { ingame = server_game->switches().ingame; });
-	server_game->game_reset(2);
+	server_game->game_reset(2, false);
 	server_game->game_start();
 	EXPECT_TRUE(ingame);
 }
@@ -203,7 +203,7 @@ TEST_F(GameTest, ServerGameAfterStart)
  */
 TEST_F(GameTest, ServerGameRetract)
 {
-	server_game->game_reset(2);
+	server_game->game_reset(2, false);
 	server_game->game_start();
 
 	// add the retractable input to the journal
@@ -218,7 +218,7 @@ TEST_F(GameTest, ServerGameRetract)
 	server_game->game_input(Input{PlayerInput{1, 0, GameButton::SWAP, ButtonAction::DOWN}}); // tick 1 -> swap
 
 	auto matches_retract = [] (Message m)  { return MsgType::RETRACT == m.type && "0" == m.data; };
-	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0}.to_string()};
+	Message meta_message{0, 0, MsgType::META, GameMeta{2, 0, false}.to_string()};
 	Message start_message{0, 0, MsgType::START, {}};
 	EXPECT_CALL(*m_server_channel, send(Truly(matches_retract))).Times(1);
 
@@ -232,7 +232,7 @@ TEST_F(GameTest, ServerGameRetract)
  */
 TEST_F(GameTest, SynchronurseBackwards)
 {
-	server_game->game_reset(2);
+	server_game->game_reset(2, false);
 	server_game->game_start();
 
 	server_game->synchronurse(2); // forward
@@ -248,7 +248,7 @@ TEST_F(GameTest, SynchronurseBackwards)
  */
 TEST_F(GameTest, SynchronurseHandlesArbiterInputs)
 {
-	local_game->game_reset(2);
+	local_game->game_reset(2, false);
 	local_game->game_start();
 
 	const RowCol start_rc = m_local_factory->m_state_ptr->pit().at(0)->cursor().rc;

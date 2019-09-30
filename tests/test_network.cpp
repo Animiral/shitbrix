@@ -106,11 +106,14 @@ TEST_F(NetworkTest, MessageSerialization)
  */
 TEST_F(NetworkTest, ServerProtocolMeta)
 {
-	GameMeta meta{3, 1234, 1};
+	GameMeta meta{3, 1234, false, 1};
 	m_server_protocol->meta(meta);
 
 	MockServerMessages recipient;
-	auto matches_meta = [] (GameMeta m)  { return 3 == m.players && 1234 == m.seed && 1 == m.winner; };
+	auto matches_meta = [] (GameMeta m)
+	{
+		return 3 == m.players && 1234 == m.seed && false == m.replay && 1 == m.winner;
+	};
 	EXPECT_CALL(recipient, meta(Truly(matches_meta))).Times(1);
 
 	m_client_protocol->poll(recipient);
@@ -188,11 +191,14 @@ TEST_F(NetworkTest, ServerProtocolGameend)
  */
 TEST_F(NetworkTest, ClientProtocolMeta)
 {
-	GameMeta meta{3, 1234, 1};
+	GameMeta meta{3, 1234, false, 1};
 	m_client_protocol->meta(meta);
 
 	MockClientMessages recipient;
-	auto matches_meta = [] (GameMeta m)  { return 3 == m.players && 1234 == m.seed && 1 == m.winner; };
+	auto matches_meta = [] (GameMeta m)
+	{
+		return 3 == m.players && 1234 == m.seed && false == m.replay && 1 == m.winner;
+	};
 	EXPECT_CALL(recipient, meta(Truly(matches_meta))).Times(1);
 
 	m_server_protocol->poll(recipient);
