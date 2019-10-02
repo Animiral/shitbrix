@@ -128,6 +128,9 @@ std::pair<std::unique_ptr<IChannel>, std::vector<std::unique_ptr<IChannel>>> mak
 int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
+
+	on_failure_break_into_debugger = false; // disable interference with tests
 	configure_context_for_testing();
+
 	return RUN_ALL_TESTS();
 }

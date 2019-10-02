@@ -165,6 +165,15 @@ void enforce_impl(bool condition, const char* condition_str, const char* func, c
 #define SB_FUNC __func__
 #endif
 
+/**
+ * In our debug-build implementation, if a safety check fails (input contracts,
+ * library return values etc), we stop the application so that the debugger may
+ * inspect the state before the call stack unwinds.
+ * This can interfere with unit tests. Before executing unit tests, this flag
+ * must therefore be set to false.
+ */
+extern bool on_failure_break_into_debugger;
+
 // prepare forward declarations for throwx, but avoid pulling in the huge windows.h
 #if defined(_WIN32)
 extern "C" __declspec(dllimport) void __stdcall DebugBreak();
@@ -182,16 +191,18 @@ template<class Except, class... Args>
 [[noreturn]]
 void throwx(Args&& ... params)
 {
-	// Stop and activate the debugger.
-	// https://stackoverflow.com/questions/4326414/set-breakpoint-in-c-or-c-code-programmatically-for-gdb-on-linux
-	// https://docs.microsoft.com/en-us/visualstudio/debugger/debugbreak-and-debugbreak
-	// https://hg.mozilla.org/mozilla-central/file/98fa9c0cff7a/js/src/jsutil.cpp#l66
+	if(on_failure_break_into_debugger) {
+		// Stop and activate the debugger.
+		// https://stackoverflow.com/questions/4326414/set-breakpoint-in-c-or-c-code-programmatically-for-gdb-on-linux
+		// https://docs.microsoft.com/en-us/visualstudio/debugger/debugbreak-and-debugbreak
+		// https://hg.mozilla.org/mozilla-central/file/98fa9c0cff7a/js/src/jsutil.cpp#l66
 #if defined(_WIN32)
 		//* ((int*)NULL) = 0;
-	DebugBreak();
+		DebugBreak();
 #else
-	std::raise(SIGABRT);  /* To continue from here in GDB: "signal 0". */
+		std::raise(SIGABRT);  /* To continue from here in GDB: "signal 0". */
 #endif
+	}
 
 	throw Except(std::forward<Args>(params)...);
 }

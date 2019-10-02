@@ -74,6 +74,8 @@ void enforce_impl(bool condition, const char* condition_str, const char* func, c
 		throwx<EnforceException>(condition_str, func, file, line);
 }
 
+bool on_failure_break_into_debugger = true;
+
 void sdlok(int result)
 {
 	if(0 != result)

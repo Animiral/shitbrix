@@ -86,7 +86,7 @@ Color string_to_color(const std::string& source)
 std::string GameMeta::to_string() const
 {
 	std::ostringstream ss;
-	ss << players << " " << seed << " " << (replay ? "true" : "false") << winner;
+	ss << players << " " << seed << " " << (replay ? "true" : "false") << " " << winner;
 	return ss.str();
 }
 
