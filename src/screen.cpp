@@ -509,6 +509,9 @@ void GameScreen::input(ControllerAction cinput)
 		case Button::A:
 		case Button::B:
 		{
+			if(m_game->journal().meta().replay)
+				return; // game inputs are not allowed in replay mode
+
 			// Forward game input to the network (or other input handler).
 			// PlayerInput arrives in the m_phase only after a round trip through
 			// the Journal, which consists of server-approved inputs.
