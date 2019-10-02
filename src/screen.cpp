@@ -128,10 +128,12 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 		switch(menu->result()) {
 
 		case MenuScreen::Result::PLAY_LOCAL:
+			m_server.reset();
 			m_game = create_local_game();
 			break;
 
 		case MenuScreen::Result::PLAY_HOST:
+			m_server = create_server_thread(configuration.port);
 			m_game = create_client_game("localhost", configuration.port);
 			break;
 
@@ -147,16 +149,16 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 
 		}
 
-		// NOTE: maybe move replay loading to after the pregame screen?
 		next_screen = create_screen_maybe_replay(configuration.replay_path);
 	} else
 	if(PregameScreen* pregame = dynamic_cast<PregameScreen*>(&predecessor)) {
 		if(PregameScreen::Result::PLAY == pregame->result()) {
 			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get());
-			m_game_screen->set_autorecord(configuration.autorecord);
+			m_game_screen->set_autorecord(configuration.autorecord && !configuration.replay_path.has_value());
 			next_screen = m_game_screen.get();
 		} else
 		if(PregameScreen::Result::QUIT == pregame->result()) {
+			m_server.reset(); // in case we were hosting, shut down this session
 			m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_context);
 			next_screen = m_menu_screen.get();
 		}
@@ -165,17 +167,18 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 		if(the_context.configuration->replay_path.has_value()) {
 			// After a replay, go back to menu.
 			// NOTE: in the future, we should go back to where we came from (using a stack of screens?).
+			m_server.reset(); // in case we were hosting, shut down this session
 			m_menu_screen = std::make_unique<MenuScreen>(*m_draw, *m_context);
 			next_screen = m_menu_screen.get();
 		}
 		else {
 			// Go back to menu
-			m_pregame_screen.release(); // first delete previous instance
 			m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
 			next_screen = m_pregame_screen.get();
 		}
 	} else
 	if(TransitionScreen* transition = dynamic_cast<TransitionScreen*>(&predecessor)) {
+		destroy_screen(transition->predecessor());
 		return &transition->successor();
 	} else
 	if(PinkScreen* pink = dynamic_cast<PinkScreen*>(&predecessor)) {
@@ -201,18 +204,26 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 
 IScreen* ScreenFactory::create_screen_maybe_replay(std::optional<std::filesystem::path> replay_path)
 {
-	if(replay_path.has_value()) {
-		m_game->load_replay(replay_path.value());
+	m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
 
-		// Replay loading -> go straight to game screen.
-		m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get());
-		m_game_screen->set_autorecord(false); // We do not copy-save the same game again in replay mode.
-		return m_game_screen.get();
+	if(replay_path.has_value()) {
+		// Replay loading will signal game start and almost immediately lead to the game screen.
+		m_game->load_replay(replay_path.value());
 	}
-	else {
-		m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
-		return m_pregame_screen.get();
-	}
+
+	return m_pregame_screen.get();
+}
+
+void ScreenFactory::destroy_screen(IScreen& screen)
+{
+	     if(m_menu_screen.get() == &screen)       m_menu_screen.reset();
+	else if(m_pregame_screen.get() == &screen)    m_pregame_screen.reset();
+	else if(m_game_screen.get() == &screen)       m_game_screen.reset();
+	else if(m_server_screen.get() == &screen)     m_server_screen.reset();
+	else if(m_transition_screen.get() == &screen) m_transition_screen.reset();
+	else if(m_pink_screen.get() == &screen)       m_pink_screen.reset();
+	else if(m_creme_screen.get() == &screen)      m_creme_screen.reset();
+	else assert(false);
 }
 
 

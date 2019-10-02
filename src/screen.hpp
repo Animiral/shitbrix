@@ -307,6 +307,7 @@ public:
 	virtual bool done() const override { return m_time >= TRANSITION_TIME; }
 	virtual void input(ControllerAction cinput) override { m_successor.input(cinput); }
 
+	IScreen& predecessor() const { return m_predecessor; }
 	IScreen& successor() const { return m_successor; }
 
 protected:
@@ -353,16 +354,22 @@ public:
 private:
 
 	/**
-	 * When transitioning to a game screen, instantiate the appropriate next
-	 * screen based on the given replay file configuration.
-	 *
-	 * If the replay path is configured, automatically load the replay and go
-	 * straight ahead to the game screen.
-	 * If there is no replay path configured, set up the pregame screen instead.
+	 * Create the pregame screen. If the replay path is configured, automatically load the replay.
 	 *
 	 * @return a pointer to the new screen
 	 */
 	IScreen* ScreenFactory::create_screen_maybe_replay(std::optional<std::filesystem::path> replay_path);
+
+	/**
+	 * Deliberately destroy the given screen and release the resources held by it.
+	 *
+	 * This is the workaround because we can hold a copy of every type of screen, so
+	 * we do not implicitly know which one to release. It is necessary for shutting
+	 * down things like host network ports when no longer needed.
+	 *
+	 * @param predecessor must be one of the screens held by this factory
+	 */
+	void destroy_screen(IScreen& predecessor);
 
 	// resources to create the Screens
 	const GlobalContext* m_context; //!< global settings dependency
