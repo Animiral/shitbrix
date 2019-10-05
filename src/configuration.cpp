@@ -87,11 +87,11 @@ void Configuration::read_from_args(int argc, const char* argv[])
 				i++;
 			}
 			else {
-				throw ConfigException(std::string("Unrecognized argument: ") + argv[i]);
+				throwx<ConfigException>("Unrecognized argument: %s", argv[i]);
 			}
 		}
 		else {
-			throw ConfigException(std::string("Missing parameter for ") + argv[i]);
+			throwx<ConfigException>("Missing parameter for %s", argv[i]);
 		}
 	}
 
@@ -103,7 +103,7 @@ void Configuration::parse(std::string key, std::string value)
 	auto found = config_setter.find(key);
 
 	if(config_setter.end() == found)
-		throw ConfigException("Unknown configuration key: " + key);
+		throwx<ConfigException>("Unknown configuration key: %s", key.c_str());
 
 	found->second(*this, value);
 }
@@ -149,7 +149,7 @@ LaunchMode parse_launch_mode(std::string value)
 	const size_t mode_index = std::distance(launch_mode_string, mode_found);
 
 	if(std::size(launch_mode_string) <= mode_index)
-		throw ConfigException("Invalid launch mode: \"" + value + "\"");
+		throwx<ConfigException>("Invalid launch mode: \"%s\"", value.c_str());
 
 	return static_cast<LaunchMode>(mode_index);
 }

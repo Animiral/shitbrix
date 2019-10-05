@@ -90,7 +90,7 @@ IScreen* ScreenFactory::create_default()
 		case LaunchMode::CLIENT:
 			// game object
 			if(!configuration.server_url.has_value())
-				throw GameException("Client mode requires server_url configuration.");
+				throwx<GameException>("Client mode requires server_url configuration.");
 
 			m_game = create_client_game(configuration.server_url.value().c_str(), configuration.port);
 			break;
@@ -139,7 +139,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 
 		case MenuScreen::Result::PLAY_CLIENT:
 			if(!configuration.server_url.has_value())
-				throw GameException("Client mode requires server_url configuration.");
+				throwx<GameException>("Client mode requires server_url configuration.");
 
 			m_game = create_client_game(configuration.server_url.value().c_str(), configuration.port);
 			break;

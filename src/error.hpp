@@ -26,125 +26,7 @@
 #include <string>
 #include <optional>
 #include <filesystem>
-
-/**
- * General exception for all types of errors that occur in the game.
- */
-struct GameException : public std::exception
-{
-	/**
-	 * Construct the @c GameException from a message and an optional root cause.
-	 */
-	explicit GameException(std::string what, std::unique_ptr<GameException> cause = {});
-	GameException(const GameException& rhs);
-	GameException(GameException&& rhs) = default;
-
-	virtual std::unique_ptr<GameException> clone() const;
-	virtual const char* class_name() const noexcept { return "GameException"; }
-	virtual const char* what() const noexcept override { return m_what.c_str(); }
-
-	const std::string m_what;
-	std::unique_ptr<GameException> m_cause;
-};
-
-/**
- * Invalid syntax or values encountered while reading configuration.
- */
-struct ConfigException : public GameException
-{
-	explicit ConfigException(std::string what = "") : GameException(std::move(what)) {}
-	ConfigException(const ConfigException& rhs) = default;
-	ConfigException(ConfigException&& rhs) = default;
-
-	virtual const char* class_name() const noexcept override { return "ConfigException"; }
-	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<ConfigException>(*this); }
-};
-
-
-/**
- * Invalid game states encountered while evaluating game logic.
- * This can point to invalid setup of pit contents.
- */
-struct LogicException : public GameException
-{
-	explicit LogicException(std::string what = "") : GameException(std::move(what)) {}
-	LogicException(const LogicException& rhs) = default;
-	LogicException(LogicException&& rhs) = default;
-
-	virtual const char* class_name() const noexcept override { return "LogicException"; }
-	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<LogicException>(*this); }
-};
-
-/**
- * Problems in reading and parsing replays.
- */
-struct ReplayException : public GameException
-{
-	explicit ReplayException(std::string what = "", std::unique_ptr<GameException> cause = {});
-	ReplayException(const ReplayException& rhs) = default;
-	ReplayException(ReplayException&& rhs) = default;
-
-	virtual const char* class_name() const noexcept override { return "ReplayException"; }
-	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<ReplayException>(*this); }
-};
-
-/**
- * Umbrella exception for error conditions that arise from use of the SDL library.
- * Their common feature is that they can not be handled and we get the error
- * message from the library.
- */
-struct SdlException : public GameException
-{
-	/**
-	 * Constructor that takes the error message from @c SDL_GetError.
-	 */
-	SdlException();
-
-	/**
-	 * Constructor with custom error message.
-	 */
-	explicit SdlException(const char* what) : GameException(what) {}
-	SdlException(const SdlException& rhs) = default;
-	SdlException(SdlException&& rhs) = default;
-
-	virtual const char* class_name() const noexcept override { return "SdlException"; }
-	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<SdlException>(*this); }
-};
-
-/**
- * Umbrella exception for error conditions that arise from use of the ENet library.
- * Their common feature is that they can not be handled.
- */
-struct ENetException : public GameException
-{
-	/**
-	 * Constructor with custom error message.
-	 */
-	explicit ENetException(const char* what) : GameException(what) {}
-	ENetException(const ENetException& rhs) = default;
-	ENetException(ENetException&& rhs) = default;
-
-	virtual const char* class_name() const noexcept override { return "ENetException"; }
-	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<ENetException>(*this); }
-};
-
-/**
- * Exception for violated input expectations and contracts.
- */
-struct EnforceException : public GameException
-{
-	explicit EnforceException(const char* condition, const char* func, const char* file, int line);
-	EnforceException(const EnforceException& rhs) = default;
-	EnforceException(EnforceException&& rhs) = default;
-
-	virtual const char* class_name() const noexcept override { return "EnforceException"; }
-	virtual std::unique_ptr<GameException> clone() const override { return std::make_unique<EnforceException>(*this); }
-
-	const char* m_condition;
-	const char* m_func;
-	const char* m_file;
-	int m_line;
-};
+#include "globals.hpp"
 
 /**
  * Evaluate the condition and throw an @c EnforceException if it is false.
@@ -316,3 +198,186 @@ void error(const char *format, ...) noexcept;
 void write(const char* level, const char *format, va_list vlist) noexcept;
 
 }
+
+// ================================================
+// Exception class hierarchy
+// ================================================
+
+/**
+ * General exception for all types of errors that occur in the game.
+ */
+class GameException : public std::exception
+{
+
+public:
+
+	/**
+	 * Constructor from a root cause exception and a printf-style formatted message.
+	 */
+	template<typename... Args>
+	explicit GameException(GameException cause, const std::string& format, Args&& ... args)
+		: m_what(string_format(format, std::forward<Args>(args)...)),
+		m_cause(std::make_unique<GameException>(std::move(cause)))
+	{
+	}
+
+	/**
+	 * Constructor from a printf-style formatted message.
+	 */
+	template<typename... Args>
+	explicit GameException(const std::string& format, Args&& ... args)
+		: m_what(string_format(format, std::forward<Args>(args)...))
+	{
+	}
+
+	GameException(const GameException& rhs);
+	GameException(GameException&& rhs) noexcept = default;
+	GameException& operator=(const GameException& rhs);
+	GameException& operator=(GameException&& rhs) noexcept = default;
+	virtual ~GameException() noexcept = default;
+
+	virtual std::unique_ptr<GameException> clone() const;
+	virtual const char* class_name() const noexcept { return "GameException"; }
+	virtual const char* what() const noexcept final override { return m_what.c_str(); }
+	const GameException& cause() const noexcept { return *m_cause; }
+
+private:
+
+	std::string m_what;
+	std::unique_ptr<GameException> m_cause;
+
+};
+
+// shortcut helpers for declaring derived exception classes
+#define EXCEPTION_CONSTRUCT(Class, Base) \
+	template<typename... Args> \
+	explicit Class(GameException cause, const std::string& format, Args&& ... args) \
+		: Base(std::move(cause), format, std::forward<Args>(args)...) \
+	{} \
+	template<typename... Args> \
+	explicit Class(const std::string& format, Args&& ... args) \
+		: Base(format, std::forward<Args>(args)...) \
+	{}
+
+#define EXCEPTION_DEFAULT(Class) \
+	Class(const Class& rhs) = default; \
+	Class(Class&& rhs) noexcept = default; \
+	Class& operator=(const Class& rhs) = default; \
+	Class& operator=(Class&& rhs) noexcept = default; \
+	virtual ~Class() noexcept = default; \
+	virtual const char* class_name() const noexcept override { return #Class; }
+
+/**
+ * Base exception class that implements cloning through the CRTP.
+ *
+ * This class cannot be instantiated on its own. A derived implementation is required.
+ */
+template<class ExceptionImpl>
+class GameExceptionCloning : public GameException
+{
+
+public:
+
+	virtual std::unique_ptr<GameException> clone() const override
+	{
+		return std::make_unique<ExceptionImpl>(static_cast<const ExceptionImpl&>(*this));
+	}
+
+protected:
+
+	EXCEPTION_CONSTRUCT(GameExceptionCloning, GameException)
+	EXCEPTION_DEFAULT(GameExceptionCloning)
+
+};
+
+/**
+ * Invalid syntax or values encountered while reading configuration.
+ */
+class ConfigException : public GameExceptionCloning<ConfigException>
+{
+
+public:
+
+	EXCEPTION_CONSTRUCT(ConfigException, GameExceptionCloning)
+	EXCEPTION_DEFAULT(ConfigException)
+
+};
+
+
+/**
+ * Invalid game states encountered while evaluating game logic.
+ * This can point to invalid setup of pit contents.
+ */
+class LogicException : public GameExceptionCloning<LogicException>
+{
+
+public:
+
+	EXCEPTION_CONSTRUCT(LogicException, GameExceptionCloning)
+	EXCEPTION_DEFAULT(LogicException)
+
+};
+
+/**
+ * Problems in reading and parsing replays.
+ */
+class ReplayException : public GameExceptionCloning<ReplayException>
+{
+
+public:
+
+	EXCEPTION_CONSTRUCT(ReplayException, GameExceptionCloning)
+	EXCEPTION_DEFAULT(ReplayException)
+
+};
+
+/**
+ * Umbrella exception for error conditions that arise from use of the SDL library.
+ * Their common feature is that they can not be handled and we get the error
+ * message from the library.
+ */
+class SdlException : public GameExceptionCloning<SdlException>
+{
+
+public:
+
+	/**
+	 * Constructor from the given error message, or from @c SDL_GetError by default.
+	 */
+	explicit SdlException(const char* what = nullptr);
+
+	EXCEPTION_DEFAULT(SdlException)
+
+};
+
+/**
+ * Umbrella exception for error conditions that arise from use of the ENet library.
+ * Their common feature is that they can not be handled.
+ */
+class ENetException : public GameExceptionCloning<ENetException>
+{
+
+public:
+
+	/**
+	 * Constructor with custom error message.
+	 */
+	explicit ENetException(const char* what) : GameExceptionCloning("%s", what) {}
+
+	EXCEPTION_DEFAULT(ENetException)
+
+};
+
+/**
+ * Exception for violated input expectations and contracts.
+ */
+class EnforceException : public GameExceptionCloning<EnforceException>
+{
+
+public:
+
+	explicit EnforceException(const char* condition, const char* func, const char* file, int line);
+
+	EXCEPTION_DEFAULT(EnforceException)
+
+};

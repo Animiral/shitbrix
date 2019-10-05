@@ -36,7 +36,7 @@ GameButton string_to_game_button(const std::string& button_string)
 	const size_t button_index = std::distance(gamebutton_string, button_found);
 
 	if(std::size(gamebutton_string) <= button_index)
-		throw GameException("Invalid game button string: \"" + button_string + "\"");
+		throwx<GameException>("Invalid game button string: \"%s\"", button_string.c_str());
 
 	return static_cast<GameButton>(button_index);
 }
@@ -54,7 +54,7 @@ ButtonAction string_to_button_action(const std::string& action_string)
 {
 	if("release" == action_string) return ButtonAction::UP;
 	else if("press" == action_string) return ButtonAction::DOWN;
-	else throw GameException("Invalid button action string: \"" + action_string + "\"");
+	else throwx<GameException>("Invalid button action string: \"%s\"", action_string.c_str());
 }
 
 namespace
@@ -78,7 +78,7 @@ Color string_to_color(const std::string& source)
 	const size_t color_index = std::distance(color_string, color_found);
 
 	if(std::size(color_string) <= color_index)
-		throw GameException("Invalid color string: \"" + source + "\"");
+		throwx<GameException>("Invalid color string: \"%s\"", source.c_str());
 
 	return static_cast<Color>(color_index);
 }
@@ -100,7 +100,7 @@ GameMeta GameMeta::from_string(std::string meta_string)
 
 	tokenizer >> std::boolalpha >> players >> seed >> replay >> winner;
 	if(!tokenizer)
-		throw GameException("Invalid GameMeta string: \"" + meta_string + "\"");
+		throwx<GameException>("Invalid GameMeta string: \"%s\"", meta_string.c_str());
 
 	return GameMeta{players, seed, replay, winner};
 }

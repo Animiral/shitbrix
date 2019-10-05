@@ -56,7 +56,7 @@ void MatchBuilder::insert(RowCol rc)
 	Block* match_block = pit.block_at(rc);
 
 	if(!match_block)
-		throw LogicException("MatchBuilder: expected block not present");
+		throwx<LogicException>("MatchBuilder: expected block not present at %dr %dc.", rc.r, rc.c);
 
 	m_result.insert(*match_block);
 	m_chaining |= match_block->chaining;
@@ -111,7 +111,7 @@ void Logic::examine_finish(bool& dead_physical, bool& dead_block, bool& dead_sou
 		if(Physical::State::FALL == state && is_arriving) {
 			// can never fall lower than the preview row of blocks
 			if(physical->rc().r + physical->rows() - 1 > m_pit.bottom())
-				throw LogicException("Object falls too low");
+				throwx<LogicException>("Object falls too low. r=%d, rows=%d, bottom=%d", physical->rc().r, physical->rows(), m_pit.bottom());
 
 			// Re-enter the object as a candidate for falling and hots.
 			// Since falling blocks are automatically excluded from hots,

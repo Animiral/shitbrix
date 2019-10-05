@@ -16,57 +16,12 @@
 namespace
 {
 
-// https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
-template<typename... Args>
-std::string string_format(const std::string& format, Args... args)
-{
-	int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
-	std::unique_ptr<char[]> buf(new char[size]);
-	snprintf(buf.get(), size, format.c_str(), args...);
-	return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
-}
-
 /**
  * Replace spaces with line breaks after at least the given number of characters in each line.
  */
 void auto_linebreaks(std::string& str, int n);
 
 }
-
-GameException::GameException(std::string what, std::unique_ptr<GameException> cause)
-	: m_what(std::move(what)), m_cause(std::move(cause))
-{
-}
-
-GameException::GameException(const GameException& rhs)
-	: m_what(rhs.m_what), m_cause()
-{
-	if(rhs.m_cause)
-		m_cause = rhs.m_cause->clone();
-}
-
-std::unique_ptr<GameException> GameException::clone() const
-{
-	if(m_cause)
-		return std::make_unique<GameException>(m_what, m_cause->clone());
-	else
-		return std::make_unique<GameException>(m_what);
-}
-
-ReplayException::ReplayException(std::string what, std::unique_ptr<GameException> cause)
-	: GameException(std::move(what), std::move(cause))
-{}
-
-SdlException::SdlException()
-: GameException(SDL_GetError())
-{
-}
-
-EnforceException::EnforceException(const char* condition, const char* func, const char* file, int line)
-	: GameException("Enforced condition violated"),
-	  m_condition(condition), m_func(func), m_file(file), m_line(line)
-{}
-
 
 void enforce_impl(bool condition, const char* condition_str, const char* func, const char* file, int line)
 {
@@ -117,20 +72,6 @@ void show_error(const std::exception& exception) noexcept
 	std::string what;
 
 	// put the error message in the log file
-	if(const LogicException* logic_ex = dynamic_cast<const LogicException*>(&exception)) {
-		what = string_format("%s: %s", logic_ex->class_name(), logic_ex->what());
-	} else
-	if(const ReplayException* replay_ex = dynamic_cast<const ReplayException*>(&exception)) {
-		what = string_format("%s: %s", replay_ex->class_name(), replay_ex->what());
-	} else
-	if(const SdlException* sdl_ex = dynamic_cast<const SdlException*>(&exception)) {
-		what = string_format("%s: %s", sdl_ex->class_name(), sdl_ex->what());
-	} else
-	if(const EnforceException* enforce_ex = dynamic_cast<const EnforceException*>(&exception)) {
-		what = string_format("%s: %s in %s (%s:%d), expression: \"%s\"",
-			enforce_ex->class_name(), enforce_ex->what(), enforce_ex->m_func,
-			enforce_ex->m_file, enforce_ex->m_line, enforce_ex->m_condition);
-	} else
 	if(const GameException* game_ex = dynamic_cast<const GameException*>(&exception)) {
 		what = string_format("%s: %s", game_ex->class_name(), game_ex->what());
 	} else {
@@ -302,6 +243,36 @@ void Log::write(const char* level, const char *format, va_list vlist) noexcept
 
 	the_context.log->write(buffer);
 }
+
+GameException::GameException(const GameException& rhs)
+	: m_what(rhs.m_what), m_cause()
+{
+	if(rhs.m_cause)
+		m_cause = rhs.m_cause->clone();
+}
+
+GameException& GameException::operator=(const GameException& rhs)
+{
+	m_what = rhs.m_what;
+
+	if(rhs.m_cause)
+		m_cause = rhs.m_cause->clone();
+
+	return *this;
+}
+
+std::unique_ptr<GameException> GameException::clone() const
+{
+	return std::make_unique<GameException>(*this);
+}
+
+SdlException::SdlException(const char* what)
+: GameExceptionCloning("%s", what ? what : SDL_GetError())
+{}
+
+EnforceException::EnforceException(const char* condition, const char* func, const char* file, int line)
+	: GameExceptionCloning("Enforced condition violated in %s (%s:%d), expression: \"%s\"", func, file, line, condition)
+{}
 
 namespace
 {

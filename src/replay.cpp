@@ -171,7 +171,7 @@ void replay_write(const Journal& journal)
 	struct tm ltime = *std::localtime(&time_now);
 
 	if(0 != errno)
-		throw GameException("Failed to get localtime for journal file name.");
+		throwx<GameException>("Failed to get localtime for journal file name: %s", std::strerror(errno));
 
 	if(!std::filesystem::is_directory("replay"))
 		return; // creating the replay directory is the user's opt-in
@@ -205,7 +205,7 @@ ReplayRecord::Type string_to_replay_record_type(const std::string& type_string)
 	if("start" == type_string) return ReplayRecord::Type::START;
 	else if("meta" == type_string) return ReplayRecord::Type::META;
 	else if("input" == type_string) return ReplayRecord::Type::INPUT;
-	else throw ReplayException("Invalid record type string: \"" + type_string + "\"");
+	else throwx<ReplayException>("Invalid record type string: \"%s\"", type_string.c_str());
 }
 
 }
@@ -225,7 +225,7 @@ Journal replay_read(std::istream& stream)
 		std::string line;
 
 		if(!std::getline(stream, line)) {
-			throw ReplayException("Failed to read from replay.");
+			throwx<ReplayException>("Failed to read from replay.");
 		}
 
 		ReplayRecord record;
@@ -251,8 +251,7 @@ Journal replay_read(std::istream& stream)
 					meta = GameMeta::from_string(meta_string);
 				}
 				catch(GameException ex) {
-					throw ReplayException("Failed to parse meta.",
-						std::make_unique<GameException>(std::move(ex)));
+					throwx<ReplayException>(std::move(ex), "Failed to parse meta.");
 				}
 			}
 			break;
@@ -269,12 +268,11 @@ Journal replay_read(std::istream& stream)
 					input = Input(input_string);
 				}
 				catch(GameException ex) {
-					throw ReplayException("Failed to parse input.",
-					                      std::make_unique<GameException>(std::move(ex)));
+					throwx<ReplayException>(std::move(ex), "Failed to parse input.");
 				}
 
 				if(input.game_time() < prev_time)
-					throw ReplayException("Inputs out of order.");
+					throwx<ReplayException>("Inputs out of order: t=%d after t=%d.", input.game_time(), prev_time);
 
 				inputs.push_back(input);
 				prev_time = input.game_time();
@@ -289,7 +287,7 @@ Journal replay_read(std::istream& stream)
 	}
 
 	if(stream.bad())
-		throw ReplayException("Something went wrong in reading from replay.");
+		throwx<ReplayException>("Something went wrong in reading from replay.");
 
 	// separate meta-data from input data
 	GameState state0{meta};

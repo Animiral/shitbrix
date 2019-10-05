@@ -203,7 +203,7 @@ void IGame::synchronurse(long target_time)
 void IGame::load_replay(std::filesystem::path path)
 {
 	if(!std::filesystem::is_regular_file(path)) {
-		throw GameException("Replay not found: " + path.u8string());
+		throwx<GameException>("Replay not found: %s", path.u8string());
 	}
 
 	std::ifstream stream{ path };
@@ -365,7 +365,7 @@ void ClientGame::input(Input input)
 	assert(m_journal);
 
 	if(!m_switches.ingame)
-		throw GameException("Got input from server before the game is running.");
+		throwx<GameException>("Got input from server before the game is running: %s.", std::string(input).c_str());
 
 	m_journal->add_input(std::move(input));
 }
@@ -383,10 +383,10 @@ void ClientGame::speed(int speed)
 void ClientGame::start()
 {
 	if(!m_switches.ready)
-		throw GameException("Got start from server before the game is ready.");
+		throwx<GameException>("Got start from server before the game is ready.");
 
 	if(m_switches.ingame)
-		throw GameException("Got start from server while the game is ongoing.");
+		throwx<GameException>("Got start from server while the game is ongoing.");
 
 	assert(m_meta.has_value());
 
@@ -400,7 +400,7 @@ void ClientGame::gameend(int winner)
 	assert(m_journal);
 
 	if(!m_switches.ingame)
-		throw GameException("Got gameend from server while the game is not running.");
+		throwx<GameException>("Got gameend from server while the game is not running.");
 
 	m_journal->set_winner(winner);
 	m_switches.winner = winner;
@@ -417,10 +417,10 @@ ServerGame::~ServerGame() noexcept = default;
 void ServerGame::game_start()
 {
 	if(!m_switches.ready)
-		throw GameException("Cannot start game before it is ready.");
+		throwx<GameException>("Cannot start game before it is ready.");
 
 	if(m_switches.ingame)
-		throw GameException("Cannot start game while the game is ongoing.");
+		throwx<GameException>("Cannot start game while the game is ongoing.");
 
 	assert(m_meta.has_value());
 
@@ -435,7 +435,7 @@ void ServerGame::game_start()
 void ServerGame::game_input(Input input)
 {
 	if(!m_switches.ingame)
-		throw GameException("Cannot handle inputs before the game is running.");
+		throwx<GameException>("Cannot handle input before the game is running: %s.", std::string(input).c_str());
 
 	assert(m_journal);
 	m_journal->add_input(input);
@@ -448,7 +448,7 @@ void ServerGame::game_reset(int players, bool replay)
 	base_reset();
 
 	if(2 != players)
-		throw GameException("Only 2 players are currently supported.");
+		throwx<GameException>("%d players are currently not supported.", players);
 
 	static std::random_device rdev;
 	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, NOONE};

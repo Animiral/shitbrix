@@ -78,7 +78,7 @@ PlayerInput PlayerInput::from_string(std::string input_string)
 
 	tokenizer >> game_time >> player >> button_str >> action_str;
 	if(!tokenizer)
-		throw GameException("Invalid PlayerInput string: \"" + input_string + "\"");
+		throwx<GameException>("Invalid PlayerInput string: \"%s\"", input_string.c_str());
 
 	GameButton button = string_to_game_button(button_str);
 	ButtonAction action = string_to_button_action(action_str);
@@ -111,7 +111,7 @@ SpawnBlockInput SpawnBlockInput::from_string(std::string input_string)
 	}
 
 	if(!tokenizer)
-		throw GameException("Invalid SpawnBlockInput string: \"" + input_string + "\"");
+		throwx<GameException>("Invalid SpawnBlockInput string: \"%s\"", input_string.c_str());
 
 	return result;
 }
@@ -138,9 +138,8 @@ SpawnGarbageInput SpawnGarbageInput::from_string(std::string input_string)
 		>> result.rows >> result.columns >> result.rc.r >> result.rc.c;
 
 	if(result.columns <= 0 || result.columns > PIT_COLS || result.rows <= 0)
-		throw GameException("Invalid SpawnGarbageInput size: \"" +
-		                    std::to_string(result.rows) + "r * " +
-		                    std::to_string(result.columns) + "c\"");
+		throwx<GameException>("Invalid SpawnGarbageInput size: \"%dr * %dc\"",
+			result.rows, result.columns);
 
 	result.loot.resize((size_t)result.rows * (size_t)result.columns);
 	for(int i = 0; i < result.rows * result.columns; i++) {
@@ -149,7 +148,7 @@ SpawnGarbageInput SpawnGarbageInput::from_string(std::string input_string)
 	}
 
 	if(!tokenizer)
-		throw GameException("Invalid SpawnGarbageInput string: \"" + input_string + "\"");
+		throwx<GameException>("Invalid SpawnGarbageInput string: \"%s\"", input_string.c_str());
 
 	return result;
 }
@@ -177,7 +176,7 @@ Input::Input(std::string source)
 	else if("SpawnGarbageInput" == type_name)
 		m_impl = SpawnGarbageInput::from_string(input_string);
 	else
-		throw GameException("Invalid Input string: \"" + source + "\"");
+		throwx<GameException>("Invalid Input string: \"%s\"", source.c_str());
 }
 
 bool Input::operator==(const Input& rhs) const noexcept

@@ -44,14 +44,14 @@ Message Message::from_string(std::string message_string)
 
 	tokenizer >> sender >> recipient >> type_string >> std::ws;
 	if(!tokenizer)
-		throw GameException("Invalid Message string: \"" + message_string + "\"");
+		throwx<GameException>("Invalid Message string: \"%s\"", message_string.c_str());
 
 	std::getline(tokenizer, data);
 
 	const auto type_found = std::find(msgtype_string, std::end(msgtype_string), type_string);
 	const size_t type_index = std::distance(msgtype_string, type_found);
 	if(std::size(msgtype_string) <= type_index)
-		throw GameException("Invalid Message type string: \"" + type_string + "\"");
+		throwx<GameException>("Invalid Message type string: \"%s\"", type_string.c_str());
 
 	return Message{sender, recipient, static_cast<MsgType>(type_index), data};
 }

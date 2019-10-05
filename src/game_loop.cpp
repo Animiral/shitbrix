@@ -19,9 +19,7 @@ GameLoop::GameLoop()
 	if(configuration.player_number.has_value()) {
 		const int player_number = *configuration.player_number;
 		if(2 <= player_number) {
-			throw GameException("Cannot control player "
-				+ std::to_string(player_number)
-				+ ". More than two players are currently not yet supported.");
+			throwx<GameException>("Cannot control player %d. More than two players are currently not yet supported.", player_number);
 		}
 		m_input_devices.set_player_number(player_number);
 	}
@@ -31,10 +29,7 @@ GameLoop::GameLoop()
 		const int joystick_number = *configuration.joystick_number;
 		const int joysticks_count = SDL_NumJoysticks();
 		if(joystick_number < 0 || joystick_number >= joysticks_count) {
-			throw GameException("Joystick "
-				+ std::to_string(joystick_number)
-				+ " not found. There are "
-				+ std::to_string(joysticks_count) + " joysticks.");
+			throwx<GameException>("Joystick %d not found. There are %d joysticks.", joystick_number, joysticks_count);
 		}
 		JoystickPtr joystick(SDL_JoystickOpen(joystick_number));
 		sdlok(joystick.get());

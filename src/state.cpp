@@ -225,7 +225,7 @@ Block& Pit::spawn_block(Color color, RowCol rc, Block::State state)
 	enforce(rc.c < PIT_COLS);
 
 	if(rc.r >= m_floor)
-		throwx<LogicException>("Pit: Attempt to spawn block in or below the floor.");
+		throwx<LogicException>("Pit: Attempt to spawn block in or below the floor. r=%d, floor=%d", rc.r, m_floor);
 
 	auto block = std::make_unique<Block>(color, rc, state);
 	Block* raw_block = block.get();
@@ -247,7 +247,7 @@ Garbage& Pit::spawn_garbage(RowCol rc, int width, int height, Loot loot)
 	enforce((size_t)width * (size_t)height == loot.size());
 
 	if (rc.r + height - 1 >= m_floor)
-		throwx<LogicException>("Pit: Attempt to spawn garbage in or below the floor.");
+		throwx<LogicException>("Pit: Attempt to spawn garbage in or below the floor. r=%d, h=%d, floor=%d", rc.r, height, m_floor);
 
 	auto garbage = std::make_unique<Garbage>(rc, width, height, move(loot));
 	Garbage* raw_garbage = garbage.get();
@@ -311,7 +311,7 @@ void Pit::swap(Block& left, Block& right)
 	// sanity checks: blocks must exist where the content map remembers them
 	if(left_entry == end || left_entry->second != &left ||
 	   right_entry == end || right_entry->second != &right) {
-		throwx<LogicException>("Pit: Blocks to be swapped are not recognized and might be foreign.");
+		throwx<LogicException>("Pit: Blocks to be swapped(left: %dr %dc) are not from this pit.", lrc.r, lrc.c);
 	}
 
 	left.set_rc(rrc);
@@ -473,10 +473,10 @@ void Pit::fall_block(Block& block)
 	RowCol to { rc.r+1, rc.c };
 
 	if(to.r >= m_floor)
-		throwx<LogicException>("Pit: Attempt to move block into or below the floor.");
+		throwx<LogicException>("Pit: Attempt to move block into or below the floor: to %dr %dc, floor=%d", to.r, to.c, m_floor);
 
 	if(at(to))
-		throwx<LogicException>("Pit: Attempt to move block to occupied location.");
+		throwx<LogicException>("Pit: Attempt to move block to occupied location: to %dr %dc", to.r, to.c);
 
 	auto erased = m_content_map.erase(rc);
 	assert(1 == erased); // sanity check: this space must have been previously occupied
@@ -491,7 +491,7 @@ void Pit::fall_garbage(Garbage& garbage)
 	RowCol to { rc.r+1, rc.c };
 
 	if(to.r + garbage.rows() - 1 >= m_floor)
-		throwx<LogicException>("Pit: Attempt to move garbage into or below the floor.");
+		throwx<LogicException>("Pit: Attempt to move garbage into or below the floor: to %dr %dc, h=%d, floor=%d", to.r, to.c, garbage.rows(), m_floor);
 
 	clear_area(garbage);
 	garbage.set_rc(to);
@@ -508,7 +508,7 @@ void Pit::fill_area(Physical& physical)
 			auto result = m_content_map.emplace(std::make_pair(target, &physical));
 
 			if(!result.second)
-				throwx<LogicException>("Pit: Attempt to block already blocked space.");
+				throwx<LogicException>("Pit: Attempt to block already blocked space at %dr %dc.", r, c);
 		}
 	}
 }
