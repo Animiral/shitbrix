@@ -5,6 +5,8 @@
 #include "sdl_helper.hpp"
 #include "text.hpp"
 #include <fstream>
+#include <sstream>
+#include <thread>
 #include <ctime>
 #include <cstdarg>
 #include <cassert>
@@ -181,68 +183,43 @@ std::unique_ptr<Logger> create_file_log(std::filesystem::path path)
 	return std::make_unique<FileLogger>(path);
 }
 
-void Log::trace(const char *format, ...) noexcept
+namespace Log
 {
-	va_list vlist;
-	va_start(vlist, format);
-	write("TRACE", format, vlist);
-	va_end(vlist);
-}
 
-void Log::info(const char *format, ...) noexcept
+std::pair<std::string, std::string> write_prerequisites() noexcept
 {
-	va_list vlist;
-	va_start(vlist, format);
-	write("INFO", format, vlist);
-	va_end(vlist);
-}
-
-void Log::error(const char *format, ...) noexcept
-{
-	va_list vlist;
-	va_start(vlist, format);
-	write("ERROR", format, vlist);
-	va_end(vlist);
-}
-
-void Log::write(const char* level, const char *format, va_list vlist) noexcept
-{
-	const size_t level_size = strlen(level);
-	va_list vlist2;
-	va_copy(vlist2, vlist);
-	const int format_size = vsnprintf(NULL, 0, format, vlist2);
-
-	if(format_size < 0)
-		return;
+	// construct date and time string
+	const size_t NOW_BUFSIZE = 20;
+	std::string now_buffer(NOW_BUFSIZE, '\0');
 
 	const time_t now = std::time(nullptr);
 	const struct tm* local_now = std::localtime(&now);
 
-	if(nullptr == local_now)
-		return;
+	if(nullptr == local_now) {
+		now_buffer = "?-?-? ?:?:?";
+	}
+	else {
+		const size_t strftime_size = strftime(&now_buffer[0], NOW_BUFSIZE, "%Y-%m-%d %H:%M:%S", local_now);
 
-	const size_t NOW_BUFSIZE = 20;
-	std::string now_buffer(NOW_BUFSIZE, '\0');
-	const size_t strftime_size = strftime(&now_buffer[0], NOW_BUFSIZE, "%Y-%m-%d %H:%M:%S", local_now);
+		if(0 >= strftime_size) {
+			now_buffer = "?-?-? ?:?:?";
+		}
+	}
 
-	if(0 >= strftime_size)
-		return;
+	// construct thread id string
+	std::ostringstream tid_stream;
+	tid_stream << std::this_thread::get_id();
 
-	std::string buffer(strftime_size + level_size + format_size + 5, '\0');
-	const int sprintf_result = sprintf(&buffer[0], "%s [%s] ", now_buffer.c_str(), level);
-
-	if(sprintf_result < 0)
-		return;
-
-	const int vsprintf_result = vsprintf(&buffer[strftime_size + level_size + 4], format, vlist);
-
-	if(vsprintf_result < 0)
-		return;
-
-	buffer.resize(buffer.size() - 1); // drop trailing '\0' from vsprintf
-
-	the_context.log->write(buffer);
+	return { move(now_buffer), tid_stream.str() };
 }
+
+void write_context(const std::string message) noexcept
+{
+	the_context.log->write(message);
+}
+
+}
+
 
 GameException::GameException(const GameException& rhs)
 	: m_what(rhs.m_what), m_cause()

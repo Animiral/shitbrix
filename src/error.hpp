@@ -22,10 +22,10 @@
 #pragma once
 
 #include <exception>
+#include <filesystem>
 #include <memory>
 #include <string>
-#include <optional>
-#include <filesystem>
+#include <utility>
 #include "globals.hpp"
 
 /**
@@ -175,27 +175,58 @@ namespace Log
 {
 
 /**
+ * Return a string representation of the current time and current thread id.
+ */
+std::pair<std::string, std::string> write_prerequisites() noexcept;
+
+/**
+ * Write the message to the log currently configured in the global context.
+ */
+void write_context(const std::string message) noexcept;
+
+/**
+ * Format the given message and write it using the implementation.
+ */
+template<typename... Args>
+void write(const char* level, const char* format, Args&& ... args) noexcept
+{
+	auto [time_string, tid_string] = write_prerequisites();
+
+	const std::string formatted = string_format(std::string{"%s <%s> [%s] "} + format,
+		time_string.c_str(), tid_string.c_str(), level, std::forward<Args>(args)...);
+
+	write_context(formatted);
+}
+
+/**
  * Write a trace-level log message.
  * If the logger is not intialized, do nothing.
  */
-void trace(const char *format, ...) noexcept;
+template<typename... Args>
+void trace(const char* format, Args&& ... args) noexcept
+{
+	write("TRACE", format, std::forward<Args>(args)...);
+}
 
 /**
  * Write an info-level log message.
  * If the logger is not intialized, do nothing.
  */
-void info(const char *format, ...) noexcept;
+template<typename... Args>
+void info(const char* format, Args&& ... args) noexcept
+{
+	write("INFO", format, std::forward<Args>(args)...);
+}
 
 /**
  * Write an error-level log message.
  * If the logger is not intialized, do nothing.
  */
-void error(const char *format, ...) noexcept;
-
-/**
- * Format the given message and write it using the implementation.
- */
-void write(const char* level, const char *format, va_list vlist) noexcept;
+template<typename... Args>
+void error(const char* format, Args&& ... args) noexcept
+{
+	write("ERROR", format, std::forward<Args>(args)...);
+}
 
 }
 
