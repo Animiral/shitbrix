@@ -119,8 +119,7 @@ SpawnBlockInput SpawnBlockInput::from_string(std::string input_string)
 std::string SpawnGarbageInput::to_string() const
 {
 	std::ostringstream ss;
-	ss << game_time << " " << player << " " << rows
-		<< " " << columns << " " << rc.r << " " << rc.c;
+	ss << game_time << " " << player << " " << rows << " " << columns;
 
 	for(int i = 0; i < loot.size(); i++)
 		ss << " " << color_to_string(loot[i]);
@@ -134,8 +133,7 @@ SpawnGarbageInput SpawnGarbageInput::from_string(std::string input_string)
 	SpawnGarbageInput result;
 	std::string color_source;
 
-	tokenizer >> result.game_time >> result.player
-		>> result.rows >> result.columns >> result.rc.r >> result.rc.c;
+	tokenizer >> result.game_time >> result.player >> result.rows >> result.columns;
 
 	if(result.columns <= 0 || result.columns > PIT_COLS || result.rows <= 0)
 		throwx<GameException>("Invalid SpawnGarbageInput size: \"%dr * %dc\"",
@@ -202,7 +200,6 @@ bool Input::operator==(const Input& rhs) const noexcept
 		const SpawnGarbageInput& rgi = std::get<SpawnGarbageInput>(rhs.m_impl);
 		return rgi.player == gi->player &&
 			rgi.game_time == gi->game_time &&
-			rgi.rc == gi->rc &&
 			rgi.rows == gi->rows &&
 			rgi.columns == gi->columns &&
 			rgi.loot == gi->loot;

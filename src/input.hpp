@@ -73,7 +73,6 @@ struct SpawnGarbageInput
 	int player;             //!< 0-based player index of the victim
 	int rows;               //!< how many rows the block spans
 	int columns;            //!< how many columns the block spans
-	RowCol rc;              //!< where to place the garbage
 	std::vector<Color> loot; //!< contained block colors in order
 
 	/**

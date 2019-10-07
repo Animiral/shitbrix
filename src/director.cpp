@@ -28,6 +28,8 @@ void BlockDirector::update()
 
 void BlockDirector::apply_input(const Input& input)
 {
+	Log::trace("%s %s", __FUNCTION__, std::string(input).c_str());
+
 	input.visit([this](auto&& i) { apply_input(i); });
 }
 
@@ -150,7 +152,6 @@ void BlockDirector::update_single(int player)
 void BlockDirector::apply_input(const PlayerInput& ginput)
 {
 	assert(GameButton::NONE != ginput.button);
-	Log::trace("%s %s", __FUNCTION__, ginput.to_string().c_str());
 
 	switch(ginput.button) {
 		case GameButton::LEFT:
@@ -188,8 +189,6 @@ void BlockDirector::apply_input(const PlayerInput& ginput)
 
 void BlockDirector::apply_input(const SpawnBlockInput& spinput)
 {
-	Log::trace("%s %s", __FUNCTION__, spinput.to_string().c_str());
-
 	Pit& pit = *m_state->pit().at(spinput.player);
 	pit.set_floor(spinput.row + 1);
 	for(int c = 0; c < spinput.colors.size(); c++) {
@@ -200,10 +199,34 @@ void BlockDirector::apply_input(const SpawnBlockInput& spinput)
 
 void BlockDirector::apply_input(const SpawnGarbageInput& sginput)
 {
-	Log::trace("%s %s", __FUNCTION__, sginput.to_string().c_str());
-
 	Pit& pit = *m_state->pit().at(sginput.player);
-	Garbage& garbage = pit.spawn_garbage(sginput.rc, sginput.columns, sginput.rows, sginput.loot);
+
+	// The peak is the bottom row of the garbage block, if possible.
+	const int peak_row = std::min(pit.peak(), pit.top() - 1);
+
+	// We attempt to align the block opposite of what is already in the peak row.
+	int weight = 0;
+	int min_blocked_col = PIT_COLS; // left most blocked space
+	int max_blocked_col = 0; // right most blocked space
+
+	for(int c = 0; c < PIT_COLS; c++)
+		if(pit.at(RowCol{ peak_row, c })) {
+			weight += c - PIT_COLS / 2;
+			min_blocked_col = std::min(c, min_blocked_col);
+			max_blocked_col = std::max(c, max_blocked_col);
+		}
+
+	RowCol rc{ peak_row - sginput.rows + 1, 0 };
+	if(0 > weight) { // align right
+		if(max_blocked_col >= PIT_COLS - sginput.columns) rc.r -= 2; // cannot fit, move up
+		rc.c = PIT_COLS - sginput.columns;
+	}
+	else { // align left
+		if(min_blocked_col < sginput.columns) rc.r -= 2; // cannot fit, move up
+		rc.c = 0;
+	}
+
+	Garbage& garbage = pit.spawn_garbage(rc, sginput.columns, sginput.rows, sginput.loot);
 	garbage.set_state(Physical::State::FALL, ROW_HEIGHT, FALL_SPEED);
 }
 

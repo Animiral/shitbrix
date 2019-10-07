@@ -162,8 +162,8 @@ TEST_F(GameTest, ClientGameRetract)
 	ASSERT_TRUE(client_game->switches().ingame);
 
 	Journal& journal = *m_client_factory->m_journal_ptr;
-	journal.add_input(Input{SpawnGarbageInput{2, 0, 0, 0, {0, 0}, {}}}); // retractable
-	journal.add_input(Input{SpawnGarbageInput{1, 0, 0, 0, {0, 0}, {}}}); // too early
+	journal.add_input(Input{SpawnGarbageInput{2, 0, 0, 0, {}}}); // retractable
+	journal.add_input(Input{SpawnGarbageInput{1, 0, 0, 0, {}}}); // too early
 	journal.add_input(Input{PlayerInput{2, 0, GameButton::SWAP, ButtonAction::DOWN}}); // unaffected
 
 	Message retract_message{0, 0, MsgType::RETRACT, "1"};

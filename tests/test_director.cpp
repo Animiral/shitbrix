@@ -105,6 +105,62 @@ TEST_F(BlockDirectorTest, SpawnLowerFloor)
 }
 
 /**
+ * Tests whether the director properly places garbage bricks above the pit.
+ * If both bricks fit next to each other, they must be arranged so.
+ */
+TEST_F(BlockDirectorTest, SpawnGarbagePlacementNextTo)
+{
+	ASSERT_LE(6, PIT_COLS); // This test depends on a pit size that has enough space
+
+	const SpawnGarbageInput sgi_1x3{ 1, 0, 1, 3, rainbow_loot(3) };
+
+	director->apply_input(Input{ sgi_1x3 });
+	director->apply_input(Input{ sgi_1x3 });
+
+	// Find all existing garbage bricks to examine them
+	std::vector<Garbage*> garbages;
+	std::transform(pit->contents().begin(), pit->contents().end(), std::back_inserter(garbages),
+		[](auto& up) { return dynamic_cast<Garbage*>(up.get()); });
+	auto end = std::remove(garbages.begin(), garbages.end(), nullptr);
+	garbages.erase(end, garbages.end());
+
+	ASSERT_EQ(2, garbages.size()); // there must be exactly two garbage bricks now
+	EXPECT_GT(pit->top(), garbages[0]->rc().r); // garbages must spawn above the visible pit
+	EXPECT_EQ(garbages[0]->rc().r, garbages[1]->rc().r); // bricks must be placed next to each other if possible
+}
+
+/**
+ * Tests whether the director properly places garbage bricks above the pit.
+ * If both bricks do not fit next to each other, they must be placed on top
+ * of each other with alternating left-right alignment.
+ */
+TEST_F(BlockDirectorTest, SpawnGarbagePlacementOnTopOf)
+{
+	ASSERT_GT(8, PIT_COLS); // This test depends on a pit size that is not too wide
+
+	const SpawnGarbageInput sgi_1x4{ 1, 0, 1, 4, rainbow_loot(4) };
+
+	director->apply_input(Input{ sgi_1x4 });
+	director->apply_input(Input{ sgi_1x4 });
+
+	// Find all existing garbage bricks to examine them
+	std::vector<Garbage*> garbages;
+	std::transform(pit->contents().begin(), pit->contents().end(), std::back_inserter(garbages),
+		[](auto& up) { return dynamic_cast<Garbage*>(up.get()); });
+	auto end = std::remove(garbages.begin(), garbages.end(), nullptr);
+	garbages.erase(end, garbages.end());
+
+	ASSERT_EQ(2, garbages.size()); // there must be exactly two garbage bricks now
+
+	const Garbage& g0 = *garbages[0];
+	const Garbage& g1 = *garbages[1];
+	EXPECT_GT(pit->top(), g0.rc().r); // garbages must spawn above the visible pit
+	EXPECT_GT(g0.rc().r, g1.rc().r); // bricks must be placed on top of each other
+	EXPECT_EQ(0, g0.rc().c); // bricks must be aligned left-right
+	EXPECT_EQ(4, PIT_COLS - g1.rc().c); // placement alternates
+}
+
+/**
  * Tests whether blocks correctly cause a match when one lands next
  * to others of the same color.
  */

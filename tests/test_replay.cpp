@@ -155,7 +155,7 @@ TEST_F(ReplayTest, Retract)
 		Input{SpawnBlockInput{1, 0, 1, colors}}, // early input - not retracted
 		Input{PlayerInput{2, 0, GameButton::SWAP, ButtonAction::DOWN}}, // player input - not retracted
 		Input{SpawnBlockInput{2, 0, 2, colors}}, // to be retracted
-		Input{SpawnGarbageInput{2, 0, 1, PIT_COLS, {-9, 0}, {colors.begin(), colors.end()}}} // to be retracted
+		Input{SpawnGarbageInput{2, 0, 1, PIT_COLS, {colors.begin(), colors.end()}}} // to be retracted
 	};
 
 	for(auto input : inputs)

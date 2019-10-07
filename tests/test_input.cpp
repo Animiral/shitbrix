@@ -20,8 +20,8 @@ TEST(InputTest, ParseInput)
 	actual = Input(input_string);
 	EXPECT_EQ(expected, actual);
 
-	input_string = "SpawnGarbageInput 4 0 1 2 8 9 blue red";
-	expected = Input{SpawnGarbageInput{4, 0, 1, 2, {8, 9}, {Color::BLUE, Color::RED}}};
+	input_string = "SpawnGarbageInput 4 0 1 2 blue red";
+	expected = Input{SpawnGarbageInput{4, 0, 1, 2, {Color::BLUE, Color::RED}}};
 	actual = Input(input_string);
 	EXPECT_EQ(expected, actual);
 }
@@ -41,8 +41,8 @@ TEST(InputTest, InputToString)
 	actual = std::string(source);
 	EXPECT_EQ(expected, actual);
 
-	source = Input{SpawnGarbageInput{4, 0, 1, 2, {8, 9}, {Color::BLUE, Color::RED}}};
-	expected = "SpawnGarbageInput 4 0 1 2 8 9 blue red";
+	source = Input{SpawnGarbageInput{4, 0, 1, 2, {Color::BLUE, Color::RED}}};
+	expected = "SpawnGarbageInput 4 0 1 2 blue red";
 	actual = std::string(source);
 	EXPECT_EQ(expected, actual);
 }
