@@ -83,7 +83,6 @@ struct BlockDies
 struct GarbageDissolves
 {
 	Trivia trivia; //!< common information
-	long game_time;
 };
 
 /**
