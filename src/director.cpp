@@ -143,7 +143,7 @@ void BlockDirector::update_single(int player)
 	// For gameplay to work properly, the pit scroll speed must be less
 	// than one full row per tick.
 	if(starving && m_handler)
-		m_handler->fire(evt::Starve{{game_time, player}});
+		m_handler->fire(evt::Starve{{game_time, player}, pit.bottom() + 1});
 
 	// debug: show what the pit considers to be its peak row
 	pit.highlight(pit.peak());

@@ -92,6 +92,7 @@ struct GarbageDissolves
 struct Starve
 {
 	Trivia trivia; //!< common information
+	int row; //!< number of the row which needs refilling
 };
 
 /**

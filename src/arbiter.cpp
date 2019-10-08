@@ -169,9 +169,8 @@ Input input_from_starve(evt::Starve starve, const GameState& state, IColorSuppli
 	for(auto it = colors.begin(); colors.end() != it; ++it)
 		*it = color_supplier.next_spawn();
 
-	Pit& pit = *state.pit().at(starve.trivia.player);
 	int input_time = starve.trivia.game_time + 1; // reaction to event
-	return Input{SpawnBlockInput{input_time, starve.trivia.player, pit.bottom() + 1, colors}};
+	return Input{SpawnBlockInput{input_time, starve.trivia.player, starve.row, colors}};
 }
 
 Input input_garbage(long game_time, int victim, int columns, int rows, bool right_side,

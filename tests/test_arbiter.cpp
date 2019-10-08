@@ -33,7 +33,8 @@ TEST_F(ArbiterTest, LocalArbiterSpawnBlocksOnStarve)
 
 	const long game_time = 1;
 	const long player = 0;
-	arbiter.fire(evt::Starve{{game_time, player}});
+	const int row = 10;
+	arbiter.fire(evt::Starve{{game_time, player}, row});
 
 	const Inputs& inputs = journal.inputs();
 	ASSERT_EQ(1, inputs.size());
@@ -41,6 +42,7 @@ TEST_F(ArbiterTest, LocalArbiterSpawnBlocksOnStarve)
 	ASSERT_NO_THROW(sbi = inputs[0].get<SpawnBlockInput>()); // no bad variant access
 	EXPECT_EQ(game_time + 1, sbi.game_time); // input must be in the future
 	EXPECT_EQ(player, sbi.player);
+	EXPECT_EQ(row, sbi.row);
 }
 
 /**
@@ -117,7 +119,8 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
 
 	const long game_time = 1;
 	const long player = 0;
-	arbiter.fire(evt::Starve{{game_time, player}});
+	const int row = 10;
+	arbiter.fire(evt::Starve{{game_time, player}, row});
 
 	// The appropriate inputs must be in the local journal
 	const Inputs& inputs = journal.inputs();
@@ -126,7 +129,7 @@ TEST_F(ArbiterTest, ServerArbiterSendSpawnBlocksOnStarve)
 	// The appropriate messages must have been sent to the clients
 	MockServerMessages recipient;
 	ClientProtocol client_protocol{move(channels.second[0])};
-	auto matches_input = [](Input i) { auto pi = i.get<SpawnBlockInput>(); return 2 == pi.game_time && 0 == pi.player && 1 == pi.row; };
+	auto matches_input = [](Input i) { auto pi = i.get<SpawnBlockInput>(); return 2 == pi.game_time && 0 == pi.player && 10 == pi.row; };
 	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
 
 	client_protocol.poll(recipient);
