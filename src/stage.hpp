@@ -76,6 +76,138 @@ private:
 };
 
 /**
+ * Base class for different types of particles.
+ *
+ * Particles are short-lived objects that support liveness and eye candy.
+ */
+class IParticle
+{
+
+public:
+
+	/**
+	 * Construct the IParticle using the specified movement.
+	 */
+	explicit IParticle(Point p, float orientation, float xspeed, float yspeed, float turn, float gravity, int ttl);
+	IParticle(const IParticle&) noexcept = default;
+	IParticle(IParticle&&) noexcept = default;
+	IParticle& operator=(const IParticle&) noexcept = default;
+	IParticle& operator=(IParticle&&) noexcept = default;
+
+	virtual ~IParticle() noexcept = default;
+
+	Point p() const noexcept { return m_p; }
+	float orientation() const noexcept { return m_orientation; }
+	int ttl() const noexcept { return m_ttl; }
+
+	/**
+	 * Update the particle according to its movement properties.
+	 *
+	 * @throw EnforceException if the particle is expired (ttl=0)
+	 */
+	void update();
+
+	/**
+	 * Draw the particle to the screen.
+	 */
+	virtual void draw(float dt, IDraw& draw) const = 0;
+
+protected:
+
+	/**
+	 * Derived-specific update action.
+	 */
+	virtual void update_impl() {}
+
+private:
+
+	Point m_p; //!< position
+	float m_orientation; //!< heading of the graphic
+	float m_xspeed, m_yspeed; //!< delta per tick (independent of orientation)
+	float m_turn, m_gravity; //!< turning effect on orientation and accelerating effect on yspeed
+	int m_ttl; //!< time to live
+
+};
+
+/**
+ * A SpriteParticle is a type of particle that is shown using a bitmap animation.
+ */
+class SpriteParticle : public IParticle
+{
+
+public:
+
+	/**
+	 * Construct the SpriteParticle using the specified movement and gfx spritesheet.
+	 */
+	explicit SpriteParticle(Point p, float orientation, float xspeed, float yspeed,
+		float turn, float gravity, int ttl, Gfx gfx);
+	SpriteParticle(const SpriteParticle&) noexcept = default;
+	SpriteParticle(SpriteParticle&&) noexcept = default;
+	SpriteParticle& operator=(const SpriteParticle&) noexcept = default;
+	SpriteParticle& operator=(SpriteParticle&&) noexcept = default;
+
+	virtual ~SpriteParticle() noexcept = default;
+
+	virtual void draw(float dt, IDraw& draw) const override;
+
+protected:
+
+	/**
+	 * Derived-specific update action.
+	 */
+	virtual void update_impl() override;
+
+private:
+
+	Gfx m_gfx; //!< display graphics id
+	size_t m_frame; //!< animation frame counter
+
+};
+
+/**
+ * A TrailParticle is a type of particle drawn using colored lines,
+ * like a spark flying from a candle.
+ */
+class TrailParticle : public IParticle
+{
+
+public:
+
+	using Palette = std::array<wrap::Color, TRAIL_PARTICLE_MAXLEN>;
+
+	/**
+	 * Construct the SpriteParticle using the specified movement and gfx spritesheet.
+	 */
+	explicit TrailParticle(Point p, float orientation, float xspeed, float yspeed,
+		float turn, float gravity, int ttl, Palette palette);
+	TrailParticle(const TrailParticle&) noexcept = default;
+	TrailParticle(TrailParticle&&) noexcept = default;
+	TrailParticle& operator=(const TrailParticle&) noexcept = default;
+	TrailParticle& operator=(TrailParticle&&) noexcept = default;
+
+	virtual ~TrailParticle() noexcept = default;
+
+	size_t length() const noexcept { return m_length; }
+
+	virtual void draw(float dt, IDraw& draw) const override;
+
+protected:
+
+	/**
+	 * Derived-specific update action.
+	 */
+	virtual void update_impl() override;
+
+private:
+
+	std::array<Point, TRAIL_PARTICLE_MAXLEN> m_trail; //!< memory of points visited
+	Palette m_palette; //!< colors of the particle trail
+	size_t m_length; //!< length of the particle trail
+
+};
+
+/**
  * This helper class only draws the contents of Pits to the screen.
  */
 class DrawPit

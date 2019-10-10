@@ -37,6 +37,91 @@ void BonusIndicator::update() noexcept
 }
 
 
+IParticle::IParticle(const Point p, const float orientation,
+	const float xspeed, const float yspeed, const float turn, const float gravity,
+	const int ttl)
+	: m_p(p), m_orientation(orientation), m_xspeed(xspeed), m_yspeed(yspeed),
+	m_turn(turn), m_gravity(gravity), m_ttl(ttl)
+{
+	enforce(0 <= ttl);
+}
+
+void IParticle::update()
+{
+	enforce(0 < m_ttl);
+
+	update_impl();
+
+	m_p.x += m_xspeed;
+	m_p.y += m_yspeed;
+	m_orientation += m_turn;
+	m_yspeed += m_gravity;
+	m_ttl--;
+}
+
+
+SpriteParticle::SpriteParticle(const Point p, const float orientation,
+	const float xspeed, const float yspeed, const float turn, const float gravity,
+	const int ttl, const Gfx gfx)
+	: IParticle(p, orientation, xspeed, yspeed, turn, gravity, ttl),
+	m_gfx(gfx),
+	m_frame(0)
+{
+	enforce(Gfx::PARTICLE == gfx); // as of right now, there is only one particle sprite available
+}
+
+void SpriteParticle::draw(const float dt, IDraw& draw) const
+{
+	draw.gfx_rotate(int(std::round(p().x)), int(std::round(p().y)), orientation(), m_gfx, m_frame);
+}
+
+void SpriteParticle::update_impl()
+{
+	m_frame++;
+
+	if(PARTICLE_FRAMES <= m_frame)
+		m_frame = 0;
+}
+
+
+TrailParticle::TrailParticle(const Point p, const float orientation,
+	const float xspeed, const float yspeed, const float turn, const float gravity,
+	const int ttl, const Palette palette)
+	: IParticle(p, orientation, xspeed, yspeed, turn, gravity, ttl),
+	m_palette(palette),
+	m_trail(),
+	m_length(0)
+{
+}
+
+void TrailParticle::draw(const float dt, IDraw& draw) const
+{
+	Point p0 = p();
+
+	for(int i = 0; i < m_length; i++) {
+		const Point p1 = m_trail[i];
+
+		for(int dx = -1; dx <= 1; dx++)
+		for(int dy = -1; dy <= 1; dy++) {
+			draw.line(int(std::round(p0.x))+dx, int(std::round(p0.y))+dy,
+				int(std::round(p1.x))+dx, int(std::round(p1.y))+dy, m_palette[i]);
+		}
+
+		p0 = p1;
+	}
+}
+
+void TrailParticle::update_impl()
+{
+	// shift m_trail
+	std::copy(++m_trail.rbegin(), m_trail.rend(), m_trail.rbegin());
+	m_trail[0] = p();
+
+	if(m_length < TRAIL_PARTICLE_MAXLEN)
+		m_length++;
+}
+
+
 DrawPit::DrawPit(IDraw& draw, float dt, Point shake, bool show_result,
                  bool debug_overlay, bool debug_highlight)
 	:
@@ -53,7 +138,7 @@ void DrawPit::run(const Pit& pit)
 	m_pit = &pit;
 
 	// restrict drawing area to pit
-	m_draw->clip(static_cast<int>(pit.loc().x), static_cast<int>(pit.loc().y), PIT_W, PIT_H);
+	m_draw->clip({ static_cast<int>(pit.loc().x), static_cast<int>(pit.loc().y), PIT_W, PIT_H });
 
 	for(auto& physical : pit.contents()) {
 		if(Block* b = dynamic_cast<Block*>(&*physical)) {
@@ -201,7 +286,7 @@ void DrawPit::highlight(Point top_left, int width, int height,
                         uint8_t r, uint8_t g, uint8_t b, uint8_t a) const
 {
 	Point loc = translate(top_left);
-	m_draw->highlight(static_cast<int>(loc.x), static_cast<int>(loc.y), width, height, r, g, b, a);
+	m_draw->highlight({ static_cast<int>(loc.x), static_cast<int>(loc.y), width, height }, { r, g, b, a });
 }
 
 Point DrawPit::block_loc(const Block& block) const noexcept
@@ -402,5 +487,5 @@ void Stage::draw_banner(const Banner& banner, float dt) const
 
 void Stage::tint() const
 {
-	m_draw->rect(0, 0, CANVAS_W, CANVAS_H, 0, 0, 0, static_cast<uint8_t>(m_black_fraction * 255));
+	m_draw->rect({ 0, 0, CANVAS_W, CANVAS_H }, { 0, 0, 0, static_cast<uint8_t>(m_black_fraction * 255) });
 }

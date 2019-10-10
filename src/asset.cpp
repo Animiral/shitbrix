@@ -47,6 +47,7 @@ FileAssets::FileAssets(const Sdl& sdl)
 		m_textures.emplace_back(move(v));                                          // Gfx::GARBAGE_*
 
 	m_textures.emplace_back(sdl.create_texture_row("data/gfx/bonus.png", BONUS_W));     // Gfx::BONUS
+	m_textures.emplace_back(sdl.create_texture_row("data/gfx/particle.png", PARTICLE_W));     // Gfx::BONUS
 
 	std::vector<TexturePtr> title_frame;
 	title_frame.push_back(sdl.create_texture("data/gfx/title.png"));

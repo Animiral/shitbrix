@@ -53,12 +53,12 @@ void VisualDemo::draw_demo()
 			draw->gfx(250, 50, Gfx::BONUS, static_cast<size_t>(BonusFrame::CHAIN));
 
 			// A 3. primitives
-			draw->rect(450, 50, 40, 40, 255, 0, 0, 80); // slight red
-			draw->rect(500, 50, 40, 40, 0, 255, 0, 160); // strong green
-			draw->rect(550, 50, 40, 40, 0, 0, 255, 255); // solid blue
-			draw->highlight(450, 100, 40, 40, 255, 0, 0, 80); // slight red
-			draw->highlight(500, 100, 40, 40, 0, 255, 0, 160); // strong green
-			draw->highlight(550, 100, 40, 40, 0, 0, 255, 255); // solid blue
+			draw->rect({ 450, 50, 40, 40 }, { 255, 0, 0, 80 }); // slight red
+			draw->rect({ 500, 50, 40, 40 }, { 0, 255, 0, 160 }); // strong green
+			draw->rect({ 550, 50, 40, 40 }, { 0, 0, 255, 255 }); // solid blue
+			draw->highlight({ 450, 100, 40, 40 }, { 255, 0, 0, 80  }); // slight red
+			draw->highlight({ 500, 100, 40, 40 }, { 0, 255, 0, 160 }); // strong green
+			draw->highlight({ 550, 100, 40, 40 }, { 0, 0, 255, 255 }); // solid blue
 
 			// B. menu background screen
 			canvas2->use_as_target();
@@ -72,25 +72,25 @@ void VisualDemo::draw_demo()
 			draw->gfx(550, 250, Gfx::BONUS, static_cast<size_t>(BonusFrame::CHAIN));
 
 			// B 3. primitives
-			draw->rect(50, 250, 40, 40, 255, 0, 0, 80); // slight red
-			draw->rect(100, 250, 40, 40, 0, 255, 0, 160); // strong green
-			draw->rect(150, 250, 40, 40, 0, 0, 255, 255); // solid blue
-			draw->highlight(50, 300, 40, 40, 255, 0, 0, 80); // slight red
-			draw->highlight(100, 300, 40, 40, 0, 255, 0, 160); // strong green
-			draw->highlight(150, 300, 40, 40, 0, 0, 255, 255); // solid blue
+			draw->rect({ 50, 250, 40, 40  }, { 255, 0, 0, 80  }); // slight red
+			draw->rect({ 100, 250, 40, 40 }, { 0, 255, 0, 160 }); // strong green
+			draw->rect({ 150, 250, 40, 40 }, { 0, 0, 255, 255 }); // solid blue
+			draw->highlight({ 50, 300, 40, 40  }, { 255, 0, 0, 80  }); // slight red
+			draw->highlight({ 100, 300, 40, 40 }, { 0, 255, 0, 160 }); // strong green
+			draw->highlight({ 150, 300, 40, 40 }, { 0, 0, 255, 255 }); // solid blue
 
 			// sliding window animation
 			draw->reset_target();
 
 			int border12 = tick % CANVAS_W;
 			int border21 = (tick + CANVAS_W / 2) % CANVAS_W;
-			draw->clip(border12 - CANVAS_W, 0, CANVAS_W / 2, CANVAS_H); // left side
+			draw->clip({ border12 - CANVAS_W, 0, CANVAS_W / 2, CANVAS_H }); // left side
 			canvas1->draw();
-			draw->clip(border12, 0, CANVAS_W / 2, CANVAS_H); // right side
+			draw->clip({ border12, 0, CANVAS_W / 2, CANVAS_H }); // right side
 			canvas1->draw();
-			draw->clip(border21 - CANVAS_W, 0, CANVAS_W / 2, CANVAS_H); // left side
+			draw->clip({ border21 - CANVAS_W, 0, CANVAS_W / 2, CANVAS_H }); // left side
 			canvas2->draw();
-			draw->clip(border21, 0, CANVAS_W / 2, CANVAS_H); // right side
+			draw->clip({ border21, 0, CANVAS_W / 2, CANVAS_H }); // right side
 			canvas2->draw();
 			draw->unclip();
 

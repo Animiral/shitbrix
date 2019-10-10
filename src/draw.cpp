@@ -56,19 +56,35 @@ void SdlDraw::gfx(int x, int y, Gfx gfx, size_t frame, uint8_t a)
 	sdlok(SDL_RenderCopy(m_renderer, texture, NULL, &dstrect));
 }
 
-void SdlDraw::rect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void SdlDraw::gfx_rotate(int x, int y, double angle, Gfx gfx, size_t frame, uint8_t a)
 {
-	SDL_Rect fill_rect{x, y, w, h};
+	SDL_Texture* texture = &m_assets->texture(gfx, frame);
+	SDL_Rect dstrect{ x, y, 0, 0 };
+	sdlok(SDL_QueryTexture(texture, NULL, NULL, &dstrect.w, &dstrect.h));
+	sdlok(SDL_SetTextureAlphaMod(texture, a));
+	sdlok(SDL_RenderCopyEx(m_renderer, texture, NULL, &dstrect, angle * 180. / M_PI, NULL, SDL_FLIP_NONE));
+}
+
+void SdlDraw::rect(const wrap::Rect rect, const wrap::Color color)
+{
+	SDL_Rect fill_rect{ rect.x, rect.y, rect.w, rect.h };
 	sdlok(SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND));
-	sdlok(SDL_SetRenderDrawColor(m_renderer, r, g, b, a));
+	sdlok(SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a));
 	sdlok(SDL_RenderFillRect(m_renderer, &fill_rect));
 }
 
-void SdlDraw::highlight(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void SdlDraw::line(const int x1, const int y1, const int x2, const int y2, const wrap::Color color)
 {
-	SDL_Rect fill_rect{x, y, w, h};
+	sdlok(SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_BLEND));
+	sdlok(SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a));
+	sdlok(SDL_RenderDrawLine(m_renderer, x1, y1, x2, y2));
+}
+
+void SdlDraw::highlight(const wrap::Rect rect, const wrap::Color color)
+{
+	SDL_Rect fill_rect{ rect.x, rect.y, rect.w, rect.h};
 	sdlok(SDL_SetRenderDrawBlendMode(m_renderer, SDL_BLENDMODE_ADD));
-	sdlok(SDL_SetRenderDrawColor(m_renderer, r, g, b, a));
+	sdlok(SDL_SetRenderDrawColor(m_renderer, color.r, color.g, color.b, color.a));
 	sdlok(SDL_RenderFillRect(m_renderer, &fill_rect));
 }
 
@@ -111,9 +127,9 @@ void SdlDraw::text_fixed(int x, int y, const BitmapFont& font, const char* text)
 	}
 }
 
-void SdlDraw::clip(int x, int y, int w, int h)
+void SdlDraw::clip(const wrap::Rect rect)
 {
-	SDL_Rect clip_rect{x, y, w, h};
+	SDL_Rect clip_rect{ rect.x, rect.y, rect.w, rect.h};
 	sdlok(SDL_RenderSetClipRect(m_renderer, &clip_rect));
 }
 

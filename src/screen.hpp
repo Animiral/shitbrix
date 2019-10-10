@@ -206,6 +206,8 @@ private:
 	IDraw* m_draw; //!< Interface for drawing the screen
 	std::shared_ptr<IGame> m_game; //!< Game object
 
+	std::vector<SpriteParticle> m_sprite_particles;
+	std::vector<TrailParticle> m_trail_particles;
 };
 
 /**

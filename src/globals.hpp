@@ -69,6 +69,7 @@ enum class Gfx
 	GARBAGE_D,
 	GARBAGE_RD,
 	BONUS,
+	PARTICLE,
 	TITLE,
 	MENUBG
 };
@@ -254,6 +255,9 @@ constexpr int CURSOR_W = 88; //!< width of the cursor texture
 constexpr int CURSOR_H = 48; //!< height of the cursor texture
 constexpr int BONUS_W = 16; //!< width of the combo/chain star
 constexpr int BONUS_H = 16; //!< height of the combo/chain star
+constexpr int PARTICLE_W = 10; //!< width/height of the particle image
+constexpr size_t TRAIL_PARTICLE_MAXLEN = 4; //!< number of lines that make up the trail
+constexpr size_t PARTICLE_FRAMES = 5; //!< number of sprites in the particle spritesheet
 constexpr float SHAKE_SCALE = 10.f; //!< pixel amount of shaking per row of garbage dropped
 constexpr float SHAKE_DECREASE = .6f; //!< scale factor for shake strength per frame
 
