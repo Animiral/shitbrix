@@ -8,6 +8,7 @@
 #include "arbiter.hpp"
 #include "director.hpp"
 #include "network.hpp"
+#include "draw.hpp"
 
 #pragma warning(push)
 #pragma warning(disable : 26451)
@@ -130,5 +131,25 @@ public:
 	MOCK_METHOD(void, fire, (evt::Match match), (override));
 	MOCK_METHOD(void, fire, (evt::Chain chain), (override));
 	MOCK_METHOD(void, fire, (evt::Starve starve), (override));
+
+};
+
+class MockDraw : public IDraw
+{
+
+public:
+
+	MOCK_METHOD(void, gfx, (int x, int y, Gfx gfx, size_t frame, uint8_t a), (override));
+	MOCK_METHOD(void, gfx_rotate, (int x, int y, double angle, Gfx gfx, size_t frame, uint8_t a), (override));
+	MOCK_METHOD(void, rect, (wrap::Rect rect, wrap::Color color), (override));
+	MOCK_METHOD(void, line, (int x1, int y1, int x2, int y2, wrap::Color color), (override));
+	MOCK_METHOD(void, highlight, (wrap::Rect rect, wrap::Color color), (override));
+	MOCK_METHOD(void, text, (int x, int y, const TtfText& text), (override));
+	MOCK_METHOD(void, text_fixed, (int x, int y, const BitmapFont& font, const char* text), (override));;
+	MOCK_METHOD(void, clip, (wrap::Rect rect), (override));
+	MOCK_METHOD(void, unclip, (), (override));
+	MOCK_METHOD(std::unique_ptr<ICanvas>, create_canvas, (), (override));
+	MOCK_METHOD(void, reset_target, (), (override));
+	MOCK_METHOD(void, render, (), (override));
 
 };

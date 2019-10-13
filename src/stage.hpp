@@ -208,6 +208,45 @@ private:
 };
 
 /**
+ * A source and container of particles which are spawned sprinkling with some
+ * random properties.
+ */
+class ParticleGenerator
+{
+
+public:
+
+	explicit ParticleGenerator(Point p, int density, float intensity, IDraw& draw);
+
+	void set_p(Point p) noexcept { m_p = p; }
+
+	/**
+	 * Generate more particles according to the generator's density.
+	 */
+	void trigger();
+
+	/**
+	 * Run update logic on all contained particles.
+	 */
+	void update();
+
+	/**
+	 * Draw all contained particles to the screen.
+	 */
+	void draw(float dt) const;
+
+private:
+
+	Point m_p; //!< spawn location of all generated particles
+	int m_density; //!< number of particles spawned per trigger
+	float m_intensity; //!< influences speed, gravity and ttl
+	IDraw* m_draw; //!< drawing object
+
+	std::vector<std::unique_ptr<IParticle>> m_particles;
+
+};
+
+/**
  * This helper class only draws the contents of Pits to the screen.
  */
 class DrawPit

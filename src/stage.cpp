@@ -122,6 +122,51 @@ void TrailParticle::update_impl()
 }
 
 
+ParticleGenerator::ParticleGenerator(const Point p, const int density, const float intensity, IDraw& draw)
+	: m_p(p), m_density(density), m_intensity(intensity), m_draw(&draw)
+{
+}
+
+void ParticleGenerator::trigger()
+{
+#define MY_PI           3.14159265358979323846f  /* pi */
+	static std::minstd_rand generator;
+	static std::uniform_real_distribution<float> orientation_distribution{ 0., 2.f * MY_PI };
+	static std::uniform_real_distribution<float> spd_distribution{ 1.f, 5.f };
+	static std::uniform_real_distribution<float> turn_distribution{ -.5f, .5f };
+
+	for(int i = 0; i < m_density; i++) {
+		const float orientation = orientation_distribution(generator);
+		const float speed = spd_distribution(generator) * m_intensity;
+		const float turn = turn_distribution(generator);
+		const float gravity = .3f * m_intensity;
+		const int ttl = 10;
+		const float xspeed = std::cos(orientation) * speed;
+		const float yspeed = std::sin(orientation) * speed;
+
+		m_particles.push_back(std::make_unique<SpriteParticle>(m_p, orientation,
+			xspeed, yspeed, turn, gravity, ttl, Gfx::PARTICLE));
+	}
+}
+
+void ParticleGenerator::update()
+{
+	for(auto& particle : m_particles) {
+		particle->update();
+	}
+
+	auto end = std::remove_if(m_particles.begin(), m_particles.end(), [](const auto& p) { return 0 >= p->ttl(); });
+	m_particles.erase(end, m_particles.end());
+}
+
+void ParticleGenerator::draw(const float dt) const
+{
+	for(auto& particle : m_particles) {
+		particle->draw(dt, *m_draw);
+	}
+}
+
+
 DrawPit::DrawPit(IDraw& draw, float dt, Point shake, bool show_result,
                  bool debug_overlay, bool debug_highlight)
 	:

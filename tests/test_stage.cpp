@@ -7,6 +7,8 @@
 #include "error.hpp"
 #include "tests_common.hpp"
 
+using testing::_;
+
 class StageTest : public ::testing::Test
 {
 
@@ -86,21 +88,45 @@ TEST_F(StageTest, TrailParticleMove)
 	std::array<wrap::Color, TRAIL_PARTICLE_MAXLEN> palette;
 	palette.fill(wrap::WHITE);
 	// x, y, orientation, xspeed, yspeed, turn, gravity, ttl
-	TrailParticle particle{ 50.f, 60.f, 1.f, -5.f, -2.f, .1f, .2f, 10, palette };
+	TrailParticle particle{ { 50.f, 60.f }, 1.f, -5.f, -2.f, .1f, .2f, 10, palette };
 
 	EXPECT_EQ(0, particle.length());
 
 	particle.update();
-	EXPECT_FLOAT_EQ(45.f, particle.x());
-	EXPECT_FLOAT_EQ(58.f, particle.y());
+	EXPECT_FLOAT_EQ(45.f, particle.p().x);
+	EXPECT_FLOAT_EQ(58.f, particle.p().y);
 	EXPECT_FLOAT_EQ(1.1f, particle.orientation());
 	EXPECT_EQ(9, particle.ttl());
 	EXPECT_EQ(1, particle.length());
 
 	particle.update();
-	EXPECT_FLOAT_EQ(40.f, particle.x());
-	EXPECT_FLOAT_EQ(56.2f, particle.y());
+	EXPECT_FLOAT_EQ(40.f, particle.p().x);
+	EXPECT_FLOAT_EQ(56.2f, particle.p().y);
 	EXPECT_FLOAT_EQ(1.2f, particle.orientation());
 	EXPECT_EQ(8, particle.ttl());
 	EXPECT_EQ(2, particle.length());
+}
+
+/**
+ * Tests particle generator.
+ */
+TEST_F(StageTest, ParticleGenerator)
+{
+	MockDraw draw;
+	Point p{ 50.f, 50.f };
+	// float orientation, float xspeed, float yspeed, float turn, // randomized
+	// float gravity, int ttl, Gfx gfx // fixed
+	float intensity = 1.f; // influences speed, gravity and ttl
+	int density = 2; // number of particles spawned per trigger
+	ParticleGenerator generator(p, density, intensity, draw);
+	generator.trigger(); // spawn more particles
+
+	EXPECT_CALL(draw, gfx_rotate(_, _, _, Gfx::PARTICLE, 0, 255)).Times(density);
+	generator.draw(0.f); // get particles on the screen
+
+	generator.trigger(); // spawn more particles
+	generator.update(); // run logic for dependent particles
+
+	EXPECT_CALL(draw, gfx_rotate(_, _, _, Gfx::PARTICLE, _, 255)).Times(2 * density);
+	generator.draw(0.f); // get particles on the screen
 }
