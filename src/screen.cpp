@@ -408,10 +408,6 @@ PregameScreen::PregameScreen(IDraw& draw, std::shared_ptr<IGame> game)
 		m_result = Result::PLAY;
 		m_done = true;
 	});
-
-	m_sprite_particles.insert(m_sprite_particles.begin(), 60, SpriteParticle({}, 0.f, 0.f, 0.f, 0.f, 0.f, 0, Gfx::PARTICLE));
-	TrailParticle::Palette palette{ {} };
-	m_trail_particles.insert(m_trail_particles.begin(), 60, TrailParticle({}, 0.f, 0.f, 0.f, 0.f, 0.f, 0, palette));;
 }
 
 PregameScreen::~PregameScreen() noexcept
@@ -423,30 +419,6 @@ void PregameScreen::update()
 {
 	m_game->poll();
 	m_time++;
-
-#define MY_PI           3.14159265358979323846f  /* pi */
-	static std::minstd_rand generator;
-	static std::uniform_real_distribution<float> orientation_distribution{ 0., 2.f * MY_PI };
-	static std::uniform_real_distribution<float> spd_distribution{ 1.f, 5.f };
-	static std::uniform_real_distribution<float> turn_distribution{ -.5f, .5f };
-	float orientation = orientation_distribution(generator);
-	float spd = spd_distribution(generator);
-	const float turn = turn_distribution(generator);
-	const float grav = .3f;
-	m_sprite_particles[m_time % 60] = SpriteParticle{ { 100.f, 250.f }, orientation, std::cos(orientation) * spd, std::sin(orientation) * spd, turn, grav, 50, Gfx::PARTICLE };
-	const TrailParticle::Palette palette{ wrap::Color{253, 239, 211, 255}, {230, 148, 58, 255}, {105, 30, 16, 255}, {1, 6, 99, 255} };
-	m_trail_particles[m_time % 60] = TrailParticle{ { 400.f, 250.f }, orientation, std::cos(orientation) * 5.f * spd, std::sin(orientation) * 5.f * spd, turn, grav, 10, palette };
-
-
-	for(int i = 0; i < 60; i++)
-	{
-		if(m_sprite_particles[i].ttl() > 0) {
-			m_sprite_particles[i].update();
-		}
-		if(m_trail_particles[i].ttl() > 0) {
-			m_trail_particles[i].update();
-		}
-	}
 }
 
 void PregameScreen::input(ControllerAction cinput)
@@ -467,18 +439,6 @@ void PregameScreen::input(ControllerAction cinput)
 void PregameScreen::draw_impl(float dt)
 {
 	m_draw->gfx(0, 0, Gfx::TITLE);
-
-	m_draw->gfx_rotate(100, 100, .1 * m_time, Gfx::BLOCK_YELLOW, 0 /* m_time % 4 */, 255);
-
-	for(int i = 0; i < 60; i++)
-	{
-		if(m_sprite_particles[i].ttl() > 0) {
-			m_sprite_particles[i].draw(dt, *m_draw);
-		}
-		if(m_trail_particles[i].ttl() > 0) {
-			m_trail_particles[i].draw(dt, *m_draw);
-		}
-	}
 }
 
 

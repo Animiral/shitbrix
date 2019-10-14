@@ -62,8 +62,8 @@ public:
 
 	void update() noexcept;
 
-	static const int DISPLAY_TIME = 40;
-	static const int FADE_TIME = 15;
+	static const int DISPLAY_TIME;
+	static const int FADE_TIME;
 
 private:
 
@@ -174,7 +174,9 @@ class TrailParticle : public IParticle
 
 public:
 
-	using Palette = std::array<wrap::Color, TRAIL_PARTICLE_MAXLEN>;
+	static constexpr size_t TRAIL_MAXLEN = 4; //!< number of lines that make up the trail
+
+	using Palette = std::array<wrap::Color, TRAIL_MAXLEN>;
 
 	/**
 	 * Construct the SpriteParticle using the specified movement and gfx spritesheet.
@@ -201,7 +203,7 @@ protected:
 
 private:
 
-	std::array<Point, TRAIL_PARTICLE_MAXLEN> m_trail; //!< memory of points visited
+	std::array<Point, TRAIL_MAXLEN> m_trail; //!< memory of points visited
 	Palette m_palette; //!< colors of the particle trail
 	size_t m_length; //!< length of the particle trail
 
@@ -218,7 +220,7 @@ public:
 
 	explicit ParticleGenerator(Point p, int density, float intensity, IDraw& draw);
 
-	void set_p(Point p) noexcept { m_p = p; }
+	void set_position(Point p) noexcept { m_p = p; }
 
 	/**
 	 * Generate more particles according to the generator's density.
@@ -243,6 +245,56 @@ private:
 	IDraw* m_draw; //!< drawing object
 
 	std::vector<std::unique_ptr<IParticle>> m_particles;
+
+};
+
+/**
+ * Visualizes panic time using a ParticleGenerator.
+ */
+class PanicIndicator
+{
+
+public:
+
+	/**
+	 * Construct the indicator for the given pit.
+	 *
+	 * Based on the pit location and the PIT_W and PIT_H constants, we can
+	 * know the location of the whole particle path from full to game over.
+	 */
+	explicit PanicIndicator(Point pit_loc, IDraw& draw);
+
+	/**
+	 * Set the current panic value of the player.
+	 *
+	 * The allowed range is 0.0f to 1.0f, where 1 is calm and 0 is game over.
+	 */
+	void set_panic(float panic);
+
+	/**
+	 * Position the particle generator according to the panic value.
+	 */
+	void update();
+
+	/**
+	 * Draw all dependent particles.
+	 */
+	void draw(float dt) const;
+
+private:
+
+	Point m_start; //!< lower left pit corner
+	Point m_wp0; //!< upper left pit corner
+	Point m_wp1; //!< upper right pit corner
+	Point m_end; //!< lower right pit corner
+	float m_part0; //!< panic time fraction that corresponds to wp0
+	float m_part1; //!< panic time fraction that corresponds to wp1
+
+	bool m_trigger; //!< whether panic is currently indicated
+	ParticleGenerator m_generator; //!< generator object
+
+	static const int PANIC_PARTICLE_DENSITY; //!< number of particles per tick spawned
+	static const float PANIC_PARTICLE_INTENSITY; //!< launch speed of spawned particles
 
 };
 
@@ -292,9 +344,10 @@ private:
 	Point translate(Point p) const noexcept;
 
 	// animation constants
-	static constexpr float BLOCK_BOUNCE_H = 10.f; // height of a block’s bouncing animation when it lands
-	static constexpr int CURSOR_FRAME_TIME = 4; // how many sceen frames to display one cursor frame
-	static constexpr int CURSOR_FRAMES = 4; // number of available cursor frames
+	static const float BLOCK_BOUNCE_H; // height of a block’s bouncing animation when it lands
+	static const int CURSOR_FRAME_TIME; // how many sceen frames to display one cursor frame
+	static const int CURSOR_FRAMES; // number of available cursor frames
+
 };
 
 /**
@@ -320,6 +373,7 @@ public:
 	{
 		Banner banner;
 		BonusIndicator bonus;
+		PanicIndicator panic;
 	};
 
 	using SobVector = std::vector<StageObjects>;

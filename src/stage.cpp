@@ -36,6 +36,9 @@ void BonusIndicator::update() noexcept
 	m_chain_time--;
 }
 
+const int BonusIndicator::DISPLAY_TIME = 40;
+const int BonusIndicator::FADE_TIME = 15;
+
 
 IParticle::IParticle(const Point p, const float orientation,
 	const float xspeed, const float yspeed, const float turn, const float gravity,
@@ -117,7 +120,7 @@ void TrailParticle::update_impl()
 	std::copy(++m_trail.rbegin(), m_trail.rend(), m_trail.rbegin());
 	m_trail[0] = p();
 
-	if(m_length < TRAIL_PARTICLE_MAXLEN)
+	if(m_length < TRAIL_MAXLEN)
 		m_length++;
 }
 
@@ -125,6 +128,8 @@ void TrailParticle::update_impl()
 ParticleGenerator::ParticleGenerator(const Point p, const int density, const float intensity, IDraw& draw)
 	: m_p(p), m_density(density), m_intensity(intensity), m_draw(&draw)
 {
+	enforce(0 <= density);
+	enforce(0.f < intensity);
 }
 
 void ParticleGenerator::trigger()
@@ -165,6 +170,62 @@ void ParticleGenerator::draw(const float dt) const
 		particle->draw(dt, *m_draw);
 	}
 }
+
+
+PanicIndicator::PanicIndicator(const Point pit_loc, IDraw& draw)
+	: m_start(pit_loc.offset(0.f, PIT_H)),
+	m_wp0(pit_loc),
+	m_wp1(pit_loc.offset(PIT_W, 0.f)),
+	m_end(pit_loc.offset(PIT_W, PIT_H)),
+	m_part0(.6f),
+	m_part1(.4f),
+	m_trigger(false),
+	m_generator(m_start, PANIC_PARTICLE_DENSITY, PANIC_PARTICLE_INTENSITY, draw)
+{}
+
+void PanicIndicator::set_panic(const float panic)
+{
+	enforce(panic >= 0.f);
+	enforce(panic <= 1.f);
+
+	// find the position corresponding to the given panic value among our waypoints
+	Point position;
+
+	if(panic > m_part0) {
+		const float fraction = (panic - m_part0) / (1.f - m_part0);
+		position.x = m_start.x * fraction + m_wp0.x * (1.f - fraction);
+		position.y = m_start.y * fraction + m_wp0.y * (1.f - fraction);
+	}
+	else if(panic > m_part1) {
+		const float fraction = (panic - m_part1) / (m_part0 - m_part1);
+		position.x = m_wp0.x * fraction + m_wp1.x * (1.f - fraction);
+		position.y = m_wp0.y * fraction + m_wp1.y * (1.f - fraction);
+	}
+	else {
+		const float fraction = panic / m_part1;
+		position.x = m_wp1.x * fraction + m_end.x * (1.f - fraction);
+		position.y = m_wp1.y * fraction + m_end.y * (1.f - fraction);
+	}
+
+	m_generator.set_position(position);
+	m_trigger = panic < 1.f;
+}
+
+void PanicIndicator::update()
+{
+	if(m_trigger)
+		m_generator.trigger();
+
+	m_generator.update();
+}
+
+void PanicIndicator::draw(const float dt) const
+{
+	m_generator.draw(dt);
+}
+
+const int PanicIndicator::PANIC_PARTICLE_DENSITY = 2;
+const float PanicIndicator::PANIC_PARTICLE_INTENSITY = 1.f;
 
 
 DrawPit::DrawPit(IDraw& draw, float dt, Point shake, bool show_result,
@@ -382,6 +443,10 @@ Point DrawPit::translate(Point p) const noexcept
 	return m_pit->transform(p, m_dt).offset(m_shake.x, m_shake.y);
 }
 
+const float DrawPit::BLOCK_BOUNCE_H = 10.f;
+const int DrawPit::CURSOR_FRAME_TIME = 4;
+const int DrawPit::CURSOR_FRAMES = 4;
+
 
 Stage::Stage(const GameState& state, IDraw& draw)
 	:
@@ -394,16 +459,20 @@ Stage::Stage(const GameState& state, IDraw& draw)
 	enforce(2 == state.pit().size()); // different player number not supported yet
 
 	Point lbanner_loc{LPIT_LOC.offset((PIT_W - BANNER_W) / 2., (PIT_H - BANNER_H) / 2.)};
-	m_sobs.push_back({Banner(lbanner_loc), BonusIndicator(LBONUS_LOC)});
+	m_sobs.push_back({Banner(lbanner_loc), BonusIndicator(LBONUS_LOC), PanicIndicator(LPIT_LOC, draw)});
 
 	Point rbanner_loc{RPIT_LOC.offset((PIT_W - BANNER_W) / 2., (PIT_H - BANNER_H) / 2.)};
-	m_sobs.push_back({Banner(rbanner_loc), BonusIndicator(RBONUS_LOC)});
+	m_sobs.push_back({Banner(rbanner_loc), BonusIndicator(RBONUS_LOC), PanicIndicator(RPIT_LOC, draw) });
 }
 
 void Stage::update()
 {
-	for(auto& sob : m_sobs)
+	for(int i = 0; i < m_sobs.size(); i++) {
+		StageObjects& sob = m_sobs[i];
 		sob.bonus.update();
+		sob.panic.set_panic((m_state && !m_show_result) ? m_state->pit()[i]->panic() : 1.f);
+		sob.panic.update();
+	}
 
 	// update shake for next frame
 	// shake consists of:
@@ -427,12 +496,15 @@ void Stage::draw(float dt) const
 		DrawPit draw_pit{*m_draw, dt, m_shake, m_show_result, m_show_pit_debug_overlay, m_show_pit_debug_highlight};
 
 		for(size_t i = 0; i < m_sobs.size(); ++i) {
+			const StageObjects& sob = m_sobs[i];
 			draw_pit.run(*m_state->pit()[i]);
-			draw_bonus(m_sobs[i].bonus, dt);
+			draw_bonus(sob.bonus, dt);
 
 			if(m_show_result) {
-				draw_banner(m_sobs[i].banner, dt);
+				draw_banner(sob.banner, dt);
 			}
+
+			sob.panic.draw(dt);
 		}
 	}
 
