@@ -64,6 +64,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\agent.hpp" />
     <ClInclude Include="..\..\src\arbiter.hpp" />
     <ClInclude Include="..\..\src\asset.hpp" />
     <ClInclude Include="..\..\src\audio.hpp" />
@@ -88,6 +89,7 @@
     <ClInclude Include="..\..\src\text.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\agent.cpp" />
     <ClCompile Include="..\..\src\arbiter.cpp" />
     <ClCompile Include="..\..\src\asset.cpp" />
     <ClCompile Include="..\..\src\audio.cpp" />

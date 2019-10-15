@@ -48,6 +48,9 @@
     <ClCompile Include="..\..\tests\test_screen.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\tests\test_agent.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\tests\tests_common.hpp">

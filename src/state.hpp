@@ -417,6 +417,11 @@ public:
 	void set_raise(bool raise);
 
 	/**
+	 * Return the want_raise flag for block raise mode.
+	 */
+	bool want_raise(bool raise) const noexcept { return m_want_raise; }
+
+	/**
 	 * If the raise intention flag is @c false, discontinue raise mode.
 	 * The BlockDirector calls this when the next whole row of blocks turns from
 	 * preview to normal. Until then, just a short tap of the raise button
