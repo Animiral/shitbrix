@@ -58,9 +58,24 @@ Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows)
 	return pit.spawn_garbage(rc, columns, rows, rainbow_loot((size_t)columns * (size_t)rows));
 }
 
-bool swap_at(Pit& pit, BlockDirector& director, RowCol rc)
+void cursor_to(Pit& pit, const RowCol rc)
 {
+	enforce(rc.r >= pit.top());
+	enforce(rc.r <= pit.bottom());
+	enforce(rc.c >= 0);
+	enforce(rc.c < PIT_COLS - 1);
+
 	const_cast<Cursor&>(pit.cursor()).rc = rc;
+}
+
+bool swap_at(Pit& pit, BlockDirector& director, const RowCol rc)
+{
+	enforce(rc.r >= pit.top());
+	enforce(rc.r <= pit.bottom());
+	enforce(rc.c >= 0);
+	enforce(rc.c < PIT_COLS);
+
+	cursor_to(pit, rc);
 	director.apply_input(Input(PlayerInput{0, 0, GameButton::SWAP, ButtonAction::DOWN}));
 
 	if(Block* block = pit.block_at(rc))

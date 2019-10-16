@@ -26,12 +26,12 @@ TEST_F(AgentTest, WantRaise)
 {
 	Agent agent(state, 0, 0);
 	auto inputs = agent.move();
+	auto raise_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::RAISE == i.button; });
 
-	ASSERT_EQ(1, inputs.size());
-	EXPECT_EQ(1, inputs[0].game_time);
-	EXPECT_EQ(0, inputs[0].player);
-	EXPECT_EQ(GameButton::RAISE, inputs[0].button);
-	EXPECT_EQ(ButtonAction::DOWN, inputs[0].action);
+	ASSERT_NE(raise_input, inputs.end());
+	EXPECT_EQ(1, raise_input->game_time);
+	EXPECT_EQ(0, raise_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, raise_input->action);
 }
 
 /**
@@ -71,6 +71,37 @@ TEST_F(AgentTest, StopRaise)
  */
 TEST_F(AgentTest, Rebalance)
 {
+	Pit& pit = *state.pit().at(0).get();
+
+	// create a column of blocks that give incentive to rebalance
+	const int top = pit.bottom() - 4;
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// floor blocks at the bottom
+	for(int c = 0; c < PIT_COLS; c++) {
+		Color color = c % 2 ? Color::PURPLE : Color::ORANGE;
+		pit.spawn_block(color, { bottom, c }, Block::State::REST);
+	}
+
+	// pillar to the left
+	for(int r = top; r < bottom; r++) {
+		Color color = (bottom - r) % 2 ? Color::PURPLE : Color::ORANGE;
+		pit.spawn_block(color, { r, 0 }, Block::State::REST);
+	}
+
+	// place cursor over the top block on the pillar
+	cursor_to(pit, RowCol{ top, 0 });
+
+	// now the agent should want to swap, since that throws down a block
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto swap_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::SWAP == i.button; });
+
+	ASSERT_NE(swap_input, inputs.end());
+	EXPECT_EQ(1, swap_input->game_time);
+	EXPECT_EQ(0, swap_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, swap_input->action);
 }
 
 /**
@@ -79,6 +110,37 @@ TEST_F(AgentTest, Rebalance)
  */
 TEST_F(AgentTest, MoveTowardsBlock)
 {
+	Pit& pit = *state.pit().at(0).get();
+
+	// create a column of blocks that give incentive to rebalance
+	const int top = pit.bottom() - 4;
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// floor blocks at the bottom
+	for(int c = 0; c < PIT_COLS; c++) {
+		Color color = c % 2 ? Color::PURPLE : Color::ORANGE;
+		pit.spawn_block(color, { bottom, c }, Block::State::REST);
+	}
+
+	// pillar to the left
+	for(int r = top; r < bottom; r++) {
+		Color color = (bottom - r) % 2 ? Color::PURPLE : Color::ORANGE;
+		pit.spawn_block(color, { r, 0 }, Block::State::REST);
+	}
+
+	// place cursor next to the top block on the pillar
+	cursor_to(pit, RowCol{ top, 1 });
+
+	// now the agent should want to move left, since there is a block there to throw down
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto left_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::LEFT == i.button; });
+
+	ASSERT_NE(left_input, inputs.end());
+	EXPECT_EQ(1, left_input->game_time);
+	EXPECT_EQ(0, left_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, left_input->action);
 }
 
 /**
@@ -87,6 +149,44 @@ TEST_F(AgentTest, MoveTowardsBlock)
  */
 TEST_F(AgentTest, DelayBlocksMoves)
 {
+	Pit& pit = *state.pit().at(0).get();
+
+	// create a column of blocks that give incentive to rebalance
+	const int top = pit.bottom() - 4;
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// floor blocks at the bottom
+	for(int c = 0; c < PIT_COLS; c++) {
+		Color color = c % 2 ? Color::PURPLE : Color::ORANGE;
+		pit.spawn_block(color, { bottom, c }, Block::State::REST);
+	}
+
+	// pillar to the left
+	for(int r = top; r < bottom; r++) {
+		Color color = (bottom - r) % 2 ? Color::PURPLE : Color::ORANGE;
+		pit.spawn_block(color, { r, 0 }, Block::State::REST);
+	}
+
+	// place cursor two spaces from the top block on the pillar
+	cursor_to(pit, RowCol{ top, 2 });
+
+	// now the agent should want to move left twice
+	const int delay = 3;
+	Agent agent(state, 0, delay);
+	auto inputs = agent.move();
+	EXPECT_FALSE(inputs.empty());
+
+	// advance to one frame before the agent is allowed to move again
+	for(int i = 0; i < delay; i++)
+		state.update();
+
+	inputs = agent.move();
+	EXPECT_TRUE(inputs.empty());
+
+	state.update();
+	inputs = agent.move();
+	EXPECT_FALSE(inputs.empty());
 }
 
 /**
@@ -94,6 +194,26 @@ TEST_F(AgentTest, DelayBlocksMoves)
  */
 TEST_F(AgentTest, PerformMatch)
 {
+	Pit& pit = *state.pit().at(0).get();
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// matchable blocks at the bottom
+	pit.spawn_block(Color::PURPLE, { bottom, 0 }, Block::State::REST);
+	pit.spawn_block(Color::PURPLE, { bottom, 1 }, Block::State::REST);
+	pit.spawn_block(Color::PURPLE, { bottom, 3 }, Block::State::REST);
+
+	cursor_to(pit, RowCol{ bottom, 2 });
+
+	// now the agent should want to perform the match
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto swap_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::SWAP == i.button; });
+
+	ASSERT_NE(swap_input, inputs.end());
+	EXPECT_EQ(1, swap_input->game_time);
+	EXPECT_EQ(0, swap_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, swap_input->action);
 }
 
 /**
@@ -101,6 +221,34 @@ TEST_F(AgentTest, PerformMatch)
  */
 TEST_F(AgentTest, PreferLowMatch)
 {
+	Pit& pit = *state.pit().at(0).get();
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// matchable blocks (2 rows)
+	pit.spawn_block(Color::PURPLE, { bottom, 0 }, Block::State::REST);
+	pit.spawn_block(Color::PURPLE, { bottom, 1 }, Block::State::REST);
+	pit.spawn_block(Color::ORANGE, { bottom, 2 }, Block::State::REST);
+	pit.spawn_block(Color::PURPLE, { bottom, 3 }, Block::State::REST);
+	pit.spawn_block(Color::GREEN, { bottom - 1, 0 }, Block::State::REST);
+	pit.spawn_block(Color::GREEN, { bottom - 1, 1 }, Block::State::REST);
+	pit.spawn_block(Color::GREEN, { bottom - 1, 3 }, Block::State::REST);
+
+	cursor_to(pit, RowCol{ bottom - 1, 2 });
+
+	// now the agent should refuse to match at the current position and
+	// instead move towards the more rewarding match down
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto swap_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::SWAP == i.button; });
+	EXPECT_EQ(swap_input, inputs.end());
+
+	const auto move_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::DOWN == i.button; });
+
+	ASSERT_NE(move_input, inputs.end());
+	EXPECT_EQ(1, move_input->game_time);
+	EXPECT_EQ(0, move_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, move_input->action);
 }
 
 /**
@@ -108,6 +256,37 @@ TEST_F(AgentTest, PreferLowMatch)
  */
 TEST_F(AgentTest, PreferDissolveMatch)
 {
+	Pit& pit = *state.pit().at(0).get();
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// matchable blocks (2 rows)
+	pit.spawn_block(Color::PURPLE, { bottom, 0 }, Block::State::REST);
+	pit.spawn_block(Color::PURPLE, { bottom, 1 }, Block::State::REST);
+	pit.spawn_block(Color::ORANGE, { bottom, 2 }, Block::State::REST);
+	pit.spawn_block(Color::PURPLE, { bottom, 3 }, Block::State::REST);
+	pit.spawn_block(Color::GREEN, { bottom - 1, 0 }, Block::State::REST);
+	pit.spawn_block(Color::GREEN, { bottom - 1, 1 }, Block::State::REST);
+	pit.spawn_block(Color::GREEN, { bottom - 1, 3 }, Block::State::REST);
+
+	// garbage
+	pit.spawn_garbage({ bottom - 2, 0 }, PIT_COLS, 1, rainbow_loot(PIT_COLS));
+
+	cursor_to(pit, RowCol{ bottom, 2 });
+
+	// now the agent should refuse to match at the current position and
+	// instead move towards the more rewarding match up (which can dissolve the garbage)
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto swap_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::SWAP == i.button; });
+	EXPECT_EQ(swap_input, inputs.end());
+
+	const auto move_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::UP == i.button; });
+
+	ASSERT_NE(move_input, inputs.end());
+	EXPECT_EQ(1, move_input->game_time);
+	EXPECT_EQ(0, move_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, move_input->action);
 }
 
 /**
@@ -116,6 +295,29 @@ TEST_F(AgentTest, PreferDissolveMatch)
  */
 TEST_F(AgentTest, PerformChainFromAbove)
 {
+	Pit& pit = *state.pit().at(0).get();
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// matchable blocks (2 rows)
+	pit.spawn_block(Color::PURPLE, { bottom, 0 }, Block::State::BREAK);
+	pit.spawn_block(Color::PURPLE, { bottom, 1 }, Block::State::BREAK);
+	pit.spawn_block(Color::PURPLE, { bottom, 2 }, Block::State::BREAK);
+	pit.spawn_block(Color::ORANGE, { bottom - 1, 1 }, Block::State::REST);
+	pit.spawn_block(Color::ORANGE, { bottom, 3 }, Block::State::REST);
+	pit.spawn_block(Color::ORANGE, { bottom, 4 }, Block::State::REST);
+
+	cursor_to(pit, RowCol{ bottom - 1, 1 });
+
+	// now the agent should want to prepare the upper block for the match
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto swap_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::SWAP == i.button; });
+
+	ASSERT_NE(swap_input, inputs.end());
+	EXPECT_EQ(1, swap_input->game_time);
+	EXPECT_EQ(0, swap_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, swap_input->action);
 }
 
 /**
@@ -124,4 +326,27 @@ TEST_F(AgentTest, PerformChainFromAbove)
  */
 TEST_F(AgentTest, PerformChainFromBelow)
 {
+	Pit& pit = *state.pit().at(0).get();
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+
+	// matchable blocks (2 rows)
+	pit.spawn_block(Color::PURPLE, { bottom, 0 }, Block::State::BREAK);
+	pit.spawn_block(Color::PURPLE, { bottom, 1 }, Block::State::BREAK);
+	pit.spawn_block(Color::PURPLE, { bottom, 2 }, Block::State::BREAK);
+	pit.spawn_block(Color::ORANGE, { bottom - 1, 1 }, Block::State::REST);
+	pit.spawn_block(Color::ORANGE, { bottom - 1, 2 }, Block::State::REST);
+	pit.spawn_block(Color::ORANGE, { bottom, 4 }, Block::State::REST);
+
+	cursor_to(pit, RowCol{ bottom, 3 });
+
+	// now the agent should want to prepare the lower block for the match
+	Agent agent(state, 0, 0);
+	const auto inputs = agent.move();
+	const auto swap_input = std::find_if(inputs.begin(), inputs.end(), [](const PlayerInput i) { return GameButton::SWAP == i.button; });
+
+	ASSERT_NE(swap_input, inputs.end());
+	EXPECT_EQ(1, swap_input->game_time);
+	EXPECT_EQ(0, swap_input->player);
+	EXPECT_EQ(ButtonAction::DOWN, swap_input->action);
 }

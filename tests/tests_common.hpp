@@ -35,6 +35,12 @@ std::vector<Color> rainbow_loot(size_t count);
 Garbage& spawn_garbage(Pit& pit, RowCol rc, int columns, int rows);
 
 /**
+ * Move the cursor to the specified location, regardless of the current cursor position.
+ * This is not normally allowed in the game (the cursor does not give random access).
+ */
+void cursor_to(Pit& pit, RowCol rc);
+
+/**
  * Swap the blocks at the specified location, regardless of the current cursor position.
  * This is not normally allowed in the game (the cursor does not give random access).
  * @return success of the swapping, just like @c BlockDirector::swap.

@@ -251,6 +251,9 @@ private:
 
 /**
  * As part of the game data in the Pit, the Cursor is the player's input location.
+ *
+ * The visible cursor graphic, which spans two tiles (for swapping), is placed
+ * such that the cursor's @c rc indicates the *left* selected tile.
  */
 struct Cursor
 {
