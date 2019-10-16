@@ -422,7 +422,7 @@ public:
 	/**
 	 * Return the want_raise flag for block raise mode.
 	 */
-	bool want_raise(bool raise) const noexcept { return m_want_raise; }
+	bool want_raise() const noexcept { return m_want_raise; }
 
 	/**
 	 * If the raise intention flag is @c false, discontinue raise mode.

@@ -39,13 +39,15 @@ public:
 	 */
 	explicit Agent(const GameState& state, int pit, int delay);
 
-	std::vector<PlayerInput> move() const;
+	std::vector<PlayerInput> move();
 
 private:
 
 	const GameState* m_state; //!< game state object to base decisions on
 	int m_pit; //!< pit under control of the agent
 	int m_delay; //!< enforced wait time between moves
-	int m_cooldown; //!< remaining wait time between moves
+	long m_last_time; //!< game state time of last generated move
+
+	const int RAISE_BUFFER = 2; //!< number of rows left free when raising
 
 };
