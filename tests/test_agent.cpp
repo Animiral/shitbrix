@@ -19,6 +19,99 @@ protected:
 };
 
 /**
+ * A BlockPlan must have the block and goal in the same row for the cursor to reach.
+ */
+TEST_F(AgentTest, PlanAddFailsInDifferentRows)
+{
+	const RowCol block_rc{ 0, 0 };
+	const RowCol goal{ 1, 0 };
+	const Plan::BlockPlan block_plan{ block_rc, Color::BLUE, goal };
+	Plan plan;
+
+	EXPECT_THROW(plan.add(block_plan), EnforceException);
+}
+
+/**
+ * A BlockPlan must aim for proper colors only, not `Color::FAKE`.
+ */
+TEST_F(AgentTest, PlanAddFailsOnFake)
+{
+	const Plan::BlockPlan block_plan{ { 0, 0 }, Color::FAKE, { 0, 1 } };
+	Plan plan;
+
+	EXPECT_THROW(plan.add(block_plan), EnforceException);
+}
+
+/**
+ * The next step of a BlockPlan must be constructive, i.e. move the block
+ * closer to the goal.
+ */
+TEST_F(AgentTest, PlanNextStep)
+{
+	const Plan::BlockPlan block_plan{ { 0, 1 }, Color::GREEN, { 0, 3 } };
+	Plan plan;
+	plan.add(block_plan);
+
+	const RowCol cursor{ 3, 3 };
+	const RowCol actual = plan.next_step(cursor);
+	EXPECT_EQ(0, actual.r);
+	EXPECT_EQ(1, actual.c);
+}
+
+/**
+ * The next step of a BlockPlan does not exist for a finished plan.
+ */
+TEST_F(AgentTest, PlanNextStepExceptFinished)
+{
+	Plan plan;
+
+	const RowCol cursor{ 3, 3 };
+	EXPECT_THROW(plan.next_step(cursor), GameException);
+}
+
+/**
+ * Once we inform the Plan about the necessary swaps, it must update its
+ * internal bookkeeping accordingly. In this test, the plan finishes.
+ */
+TEST_F(AgentTest, PlanNotifySwapped)
+{
+	const Plan::BlockPlan block_plan{ { 0, 1 }, Color::GREEN, { 0, 3 } };
+	Plan plan;
+	plan.add(block_plan);
+
+	EXPECT_FALSE(plan.is_finished());
+	plan.notify_swapped({ 0, 1 });
+	plan.notify_swapped({ 0, 2 });
+	EXPECT_TRUE(plan.is_finished()); // green block has arrived
+}
+
+/**
+ * A plan is sensible when it finds its blocks still at the expected positions
+ * with the expected colors.
+ */
+TEST_F(AgentTest, PlanSensible)
+{
+	const Color color = Color::GREEN;
+	const RowCol block_rc{ 0, 1 };
+	const RowCol goal{ 0, 3 };
+
+	Pit pit{ {0.f, 0.f} };
+	pit.set_floor(1);
+	Block& green_block = pit.spawn_block(color, block_rc, Block::State::REST);
+	Block& fake_block = pit.spawn_block(Color::FAKE, { 0, 2 }, Block::State::REST);
+
+	const Plan::BlockPlan block_plan{ block_rc, color, goal };
+	Plan plan;
+	plan.add(block_plan);
+
+	EXPECT_TRUE(plan.is_sensible(pit));
+	pit.swap(green_block, fake_block);
+	EXPECT_FALSE(plan.is_sensible(pit));
+	plan.notify_swapped(block_rc);
+	EXPECT_TRUE(plan.is_sensible(pit));
+}
+
+/**
  * When the Pit is empty and has lots of space, the agent should press the
  * raise button.
  */
@@ -91,7 +184,7 @@ TEST_F(AgentTest, Rebalance)
 	}
 
 	// place cursor over the top block on the pillar
-	cursor_to(pit, RowCol{ top, 0 });
+	cursor_to(pit, RowCol{ bottom - 1, 0 });
 
 	// now the agent should want to swap, since that throws down a block
 	Agent agent(state, 0, 0);
