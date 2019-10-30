@@ -82,6 +82,103 @@ private:
 };
 
 /**
+ * This class gathers information about the blocks in the pit and which colors
+ * it is possible to move to certain coordinates.
+ *
+ * Since blocks can only be moved horizontally and not through garbage bricks,
+ * every space in the pit draws from a limited *pool* of possible colors.
+ *
+ * The pools are mutable to make it easier for the agent to consider questions
+ * such as: “if I pick a green block from this pool to fill a target square,
+ * is there another green block available from the same pool for the next
+ * square?”
+ *
+ * This examination takes into account the limits of the cursor placement in
+ * the pit (only what is on screen).
+ *
+ * On top of all that, we consider the possibility that blocks may fall down
+ * in the future. As a result, the pool of a coordinate at or above a block
+ * that is currently dissolving is given by the location further up, where
+ * a falling block would have to be to land at the given coordinate.
+ */
+class MovePossiblity
+{
+
+public:
+
+	/**
+	 * Construct the object from the information in the target pit.
+	 */
+	explicit MovePossiblity(const Pit& pit);
+
+	/**
+	 * Return true if the given color can be sourced from the predicted
+	 * pool associated with the given coordinate.
+	 */
+	bool is_available(RowCol where, Color color) const noexcept;
+
+	/**
+	 * Remove one available block of the given color from the predicted pool
+	 * associated with the coordinate.
+	 *
+	 * @throw GameException if the color is not available.
+	 */
+	void pick(RowCol where, Color color);
+
+	/**
+	 * Add one available block of the given color to the predicted pool
+	 * associated with the coordinate.
+	 */
+	void put(RowCol where, Color color);
+
+private:
+
+	using Pool = std::vector<Color>;
+
+	/**
+	 * Given a location in the pit, this function returns the location of the
+	 * block that will fall in its place after currently dissolving blocks
+	 * have disappeared.
+	 *
+	 * This is a requirement for accurately judging the
+	 * available resources for a given location.
+	 */
+	RowCol prediction(const Pit& pit, RowCol where) const noexcept;
+
+	/**
+	 * Group together all blocks which can be moved among the same spaces into
+	 * pools.
+	 *
+	 * Write the results to the @c m_pool field.
+	 *
+	 * @return v such that m_pool[v[translate_rc(rc)]] contains the available colors
+	 */
+	std::vector<size_t> make_pools(const Pit& pit);
+
+	/**
+	 * Find the index of every source @c m_pool for every reachable location.
+	 *
+	 * Write the results to the @c m_pool_at field.
+	 */
+	void map_pools(const Pit& pit, const std::vector<size_t>& pool_source);
+
+	/**
+	 * Return the index into the @c m_pool_at lookup vector for the specified
+	 * coordinate.
+	 *
+	 * The length of the vector exactly covers the reachable pit, and each
+	 * coordinate within the reachable area translates to one specific index.
+	 */
+	size_t translate_rc(RowCol rc) const;
+
+	int m_top; //!< top reachable row in the pit
+	int m_bottom; //!< bottom reachable row in the pit
+	std::vector<Pool> m_pool; //!< all my pools, unsorted
+	std::vector<size_t> m_pool_at; //!< index of the pool at the given translated rc
+
+};
+
+/**
  * The Agent continuously examines the game state for opportunities to achieve
  * winning moves.
  *

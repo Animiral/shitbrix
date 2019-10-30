@@ -112,6 +112,92 @@ TEST_F(AgentTest, PlanSensible)
 }
 
 /**
+ * Normally, all blocks in a row are available to move along that row.
+ */
+TEST_F(AgentTest, MovePossiblityAvailable)
+{
+	Pit pit{ {0.f, 0.f} };
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+	const RowCol green_rc{ bottom, 0 };
+	const RowCol red_rc{ bottom, 1 };
+	const RowCol yellow_rc{ bottom - 1, 0 };
+	pit.spawn_block(Color::GREEN, green_rc, Block::State::REST);
+	pit.spawn_block(Color::RED, red_rc, Block::State::REST);
+	pit.spawn_block(Color::YELLOW, yellow_rc, Block::State::REST);
+
+	MovePossiblity possibility{ pit };
+	EXPECT_TRUE(possibility.is_available(green_rc, Color::GREEN));
+	EXPECT_TRUE(possibility.is_available(green_rc, Color::RED));
+	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
+
+	possibility.pick(green_rc, Color::RED);
+	EXPECT_TRUE(possibility.is_available(green_rc, Color::GREEN));
+	EXPECT_FALSE(possibility.is_available(green_rc, Color::RED));
+	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
+
+	possibility.put(green_rc, Color::RED);
+	EXPECT_TRUE(possibility.is_available(green_rc, Color::GREEN));
+	EXPECT_TRUE(possibility.is_available(green_rc, Color::RED));
+	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
+}
+
+/**
+ * Dissolving blocks and garbage blocks cannot be swapped. Resting blocks to
+ * the left and right form separate pools.
+ */
+TEST_F(AgentTest, MovePossiblityBlocked)
+{
+	ASSERT_TRUE(PIT_COLS >= 4); // this test requires a pit at least 4 wide
+
+	Pit pit{ {0.f, 0.f} };
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+	const RowCol green_rc{ bottom, 0 };
+	const RowCol red_rc{ bottom, 1 };
+	const RowCol yellow_rc{ bottom, 3 };
+	const RowCol garbage_rc{ bottom, 2 };
+	pit.spawn_block(Color::GREEN, green_rc, Block::State::REST);
+	pit.spawn_block(Color::RED, red_rc, Block::State::BREAK);
+	pit.spawn_block(Color::YELLOW, yellow_rc, Block::State::REST);
+	pit.spawn_garbage(garbage_rc, 1, 1, Loot{ Color::PURPLE });
+
+	const MovePossiblity possibility{ pit };
+	EXPECT_TRUE(possibility.is_available(green_rc, Color::GREEN));
+	EXPECT_FALSE(possibility.is_available(green_rc, Color::RED));
+	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
+	EXPECT_FALSE(possibility.is_available(yellow_rc, Color::GREEN));
+	EXPECT_FALSE(possibility.is_available(yellow_rc, Color::RED));
+	EXPECT_TRUE(possibility.is_available(yellow_rc, Color::YELLOW));
+}
+
+/**
+ * We expect blocks above dissolving blocks to fall down and predict pools
+ * accordingly.
+ */
+TEST_F(AgentTest, MovePossiblityPrediction)
+{
+	Pit pit{ {0.f, 0.f} };
+	const int bottom = pit.bottom();
+	pit.set_floor(bottom + 1);
+	const RowCol low1_rc{ bottom, 0 };
+	const RowCol low2_rc{ bottom - 1, 0 };
+	const RowCol green_rc{ bottom - 2, 0 };
+	const RowCol red_rc{ bottom - 4, 0 };
+	pit.spawn_block(Color::PURPLE, low1_rc, Block::State::BREAK);
+	pit.spawn_block(Color::ORANGE, low2_rc, Block::State::BREAK);
+	pit.spawn_block(Color::GREEN, green_rc, Block::State::REST);
+	pit.spawn_block(Color::YELLOW, { bottom - 3, 0 }, Block::State::BREAK);
+	pit.spawn_block(Color::RED, red_rc, Block::State::REST);
+
+	const MovePossiblity possibility{ pit };
+	EXPECT_FALSE(possibility.is_available(low1_rc, Color::PURPLE));
+	EXPECT_TRUE(possibility.is_available(low1_rc, Color::GREEN));
+	EXPECT_FALSE(possibility.is_available(low2_rc, Color::ORANGE));
+	EXPECT_TRUE(possibility.is_available(low2_rc, Color::RED));
+}
+
+/**
  * When the Pit is empty and has lots of space, the agent should press the
  * raise button.
  */
