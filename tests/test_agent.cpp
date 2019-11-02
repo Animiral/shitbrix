@@ -131,12 +131,14 @@ TEST_F(AgentTest, MovePossiblityAvailable)
 	EXPECT_TRUE(possibility.is_available(green_rc, Color::RED));
 	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
 
-	possibility.pick(green_rc, Color::RED);
+	const MovePossiblity::ColorCoord color_coord = possibility.pick(green_rc, Color::RED);
+	EXPECT_EQ(Color::RED, color_coord.color);
+	EXPECT_EQ(red_rc, color_coord.rc);
 	EXPECT_TRUE(possibility.is_available(green_rc, Color::GREEN));
 	EXPECT_FALSE(possibility.is_available(green_rc, Color::RED));
 	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
 
-	possibility.put(green_rc, Color::RED);
+	possibility.put(green_rc, color_coord);
 	EXPECT_TRUE(possibility.is_available(green_rc, Color::GREEN));
 	EXPECT_TRUE(possibility.is_available(green_rc, Color::RED));
 	EXPECT_FALSE(possibility.is_available(green_rc, Color::YELLOW));
@@ -297,9 +299,8 @@ TEST_F(AgentTest, MoveTowardsBlock)
 	pit.set_floor(bottom + 1);
 
 	// floor blocks at the bottom
-	for(int c = 0; c < PIT_COLS; c++) {
-		Color color = c % 2 ? Color::PURPLE : Color::ORANGE;
-		pit.spawn_block(color, { bottom, c }, Block::State::REST);
+	for(int c = 1; c <= 6; c++) {
+		pit.spawn_block(static_cast<Color>(c), { bottom, c - 1 }, Block::State::REST);
 	}
 
 	// pillar to the left
@@ -308,8 +309,9 @@ TEST_F(AgentTest, MoveTowardsBlock)
 		pit.spawn_block(color, { r, 0 }, Block::State::REST);
 	}
 
-	// place cursor next to the top block on the pillar
-	cursor_to(pit, RowCol{ top, 1 });
+	// Place cursor next to the bottom block on the pillar.
+	// This is because our current rebalancing strategy is to always rebalance from bottom.
+	cursor_to(pit, RowCol{ bottom - 1, 1 });
 
 	// now the agent should want to move left, since there is a block there to throw down
 	Agent agent(state, 0, 0);

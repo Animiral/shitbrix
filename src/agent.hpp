@@ -42,6 +42,16 @@ public:
 	void add(BlockPlan plan);
 
 	/**
+	 * Merge all steps from the other plan into this plan.
+	 */
+	void join(const Plan& rhs);
+
+	/**
+	 * Return the set of all block movements in this plan.
+	 */
+	const std::vector<BlockPlan>& block_plan() const noexcept;
+
+	/**
 	 * Find the next swap coordinate that will lead to executing all block plans.
 	 *
 	 * Among the available sub-goals, this function will choose one that is
@@ -107,6 +117,15 @@ class MovePossiblity
 public:
 
 	/**
+	 * Specifies that a specific color block is to be found at the given location.
+	 */
+	struct ColorCoord
+	{
+		Color color;
+		RowCol rc;
+	};
+
+	/**
 	 * Construct the object from the information in the target pit.
 	 */
 	explicit MovePossiblity(const Pit& pit);
@@ -119,21 +138,22 @@ public:
 
 	/**
 	 * Remove one available block of the given color from the predicted pool
-	 * associated with the coordinate.
+	 * associated with the coordinate and return it.
 	 *
+	 * @return the location and color of the picked block
 	 * @throw GameException if the color is not available.
 	 */
-	void pick(RowCol where, Color color);
+	ColorCoord pick(RowCol where, Color color);
 
 	/**
-	 * Add one available block of the given color to the predicted pool
+	 * Add one available block color/coord entry to the predicted pool
 	 * associated with the coordinate.
 	 */
-	void put(RowCol where, Color color);
+	void put(RowCol where, ColorCoord entry);
 
 private:
 
-	using Pool = std::vector<Color>;
+	using Pool = std::vector<ColorCoord>;
 
 	/**
 	 * Given a location in the pit, this function returns the location of the
@@ -221,6 +241,27 @@ private:
 	 * Examine the current pit state and find out some way to proceed.
 	 */
 	Plan make_plan();
+
+	/**
+	 * Attempt to make a plan in which 3 blocks of the given color match
+	 * at the given coordinates, under the given move possibilities.
+	 *
+	 * Out of bounds coordinates are tolerated but lead to no plan.
+	 *
+	 * @return a Plan if one exists or an empty optional otherwise
+	 */
+	std::optional<Plan> Agent::make_plan_match(MovePossiblity& moves, std::array<RowCol, 3> coords, Color color);
+
+	/**
+	 * Return the estimated value of executing the given plan.
+	 *
+	 * This includes a small cost for every block to move and a bonus for adjacent
+	 * garbage cleared.
+	 *
+	 * @param plan set of moves in the plan execution
+	 * @param coords location where the matching blocks should go
+	 */
+	int evaluate_plan(const Plan& plan, const std::array<RowCol, 3>& coords);
 
 	const int RAISE_BUFFER = 2; //!< number of rows left free when raising
 

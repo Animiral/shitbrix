@@ -21,6 +21,16 @@ void Plan::add(const BlockPlan plan)
 	m_blocks.push_back(plan);
 }
 
+void Plan::join(const Plan& rhs)
+{
+	m_blocks.insert(m_blocks.end(), rhs.m_blocks.begin(), rhs.m_blocks.end());
+}
+
+const std::vector<Plan::BlockPlan>& Plan::block_plan() const noexcept
+{
+	return m_blocks;
+}
+
 RowCol Plan::next_step(const RowCol cursor) const
 {
 	if(m_blocks.empty())
@@ -89,26 +99,31 @@ bool MovePossiblity::is_available(const RowCol where, const Color color) const n
 {
 	const size_t index = translate_rc(where);
 	const Pool& pool = m_pool[m_pool_at[index]];
-	return pool.end() != std::find(pool.begin(), pool.end(), color);
+	return pool.end() != std::find_if(pool.begin(), pool.end(),
+		[color](const MovePossiblity::ColorCoord& cc) { return cc.color == color; });
 }
 
-void MovePossiblity::pick(const RowCol where, const Color color)
+MovePossiblity::ColorCoord MovePossiblity::pick(const RowCol where, const Color color)
 {
 	const size_t index = translate_rc(where);
 	Pool& pool = m_pool[m_pool_at[index]];
-	const auto it = std::find(pool.begin(), pool.end(), color);
+	const auto it = std::find_if(pool.begin(), pool.end(),
+		[color](const MovePossiblity::ColorCoord& cc) { return cc.color == color; });
 
 	if(pool.end() == it)
 		throwx<GameException>("Cannot pick %s block from row around r%d c%d.", color_to_string(color).c_str(), where.r, where.c);
 
+	const MovePossiblity::ColorCoord color_coord = *it;
 	pool.erase(it);
+
+	return color_coord;
 }
 
-void MovePossiblity::put(const RowCol where, const Color color)
+void MovePossiblity::put(const RowCol where, const ColorCoord entry)
 {
 	const size_t index = translate_rc(where);
 	Pool& pool = m_pool[m_pool_at[index]];
-	pool.push_back(color);
+	pool.push_back(entry);
 }
 
 RowCol MovePossiblity::prediction(const Pit& pit, const RowCol where) const noexcept
@@ -170,16 +185,17 @@ std::vector<size_t> MovePossiblity::make_pools(const Pit& pit)
 			const Block* block = dynamic_cast<const Block*>(physical);
 
 			// scoop all blocks from the row into the current pool as far as we can
-			if(block && Block::State::BREAK != block->block_state()) {
+			if(physical && (!block || Physical::State::BREAK == physical->physical_state())) {
+				current_pool = 0; // space obstructed
+			}
+			else {
 				if(0 == current_pool) {
 					current_pool = m_pool.size();
 					pool_it = m_pool.insert(m_pool.end(), Pool{}); // new empty pool
 				}
 
-				pool_it->push_back(block->col);
-			}
-			else if(physical) {
-				current_pool = 0; // space obstructed
+				if(block)
+					pool_it->push_back({ block->col, rc });
 			}
 
 			pool_source[translate_rc(rc)] = current_pool;
@@ -302,16 +318,18 @@ Plan Agent::make_plan()
 		// find the highest stack in every column
 		for(int c = 0; c < PIT_COLS; c++) {
 			for(int r = pit.bottom(); r >= pit.top(); r--) {
-				if(!pit.at({ r, c })) {
+				if(!pit.block_at({ r, c })) { // garbage does not count for rebalancing
 					peaks[c] = r;
 					break;
 				}
 			}
 		}
 
-		// rebalance all stacks which are off by more than 1 compared to neighbor
+		// rebalance all stacks which are off by more than the limit compared to neighbor
+		const int rebalance_limit = 2;
+
 		for(int c = 0; c < PIT_COLS - 1; c++) {
-			if(peaks[c + 1ull] - peaks[c] > 1) { // left stack is higher
+			if(peaks[c + 1] - peaks[c] > rebalance_limit) { // left stack is higher
 				// rebalance lowest block to the right
 				if(Block* block = pit.block_at({ peaks[c + 1ull], c })) {
 					const RowCol block_rc = block->rc();
@@ -319,7 +337,7 @@ Plan Agent::make_plan()
 					plan.add({ block_rc, block->col, goal });
 				}
 			}
-			else if(peaks[c] - peaks[c + 1ull] > 1) { // right stack is higher
+			else if(peaks[c] - peaks[c + 1] > rebalance_limit) { // right stack is higher
 				// rebalance lowest block to the left
 				if(Block* block = pit.block_at({ peaks[c], c + 1 })) {
 					const RowCol block_rc = block->rc();
@@ -330,24 +348,128 @@ Plan Agent::make_plan()
 		}
 	}
 
-	//// matching (make only one plan for this at a time)
-	//{
-	//	std::vector<int> pool; // available
-	//	const auto color_option = [&pit](const RowCol rc, const Color color)
-	//	{
-	//		for(const Block* block = pit.block_at(rc); block && Block::State::REST == block->block_state)
-	//	};
+	// matching (make only one plan for this at a time)
+	{
+		// Brute force attempt all possible matches on the board.
+		// We immediately make a plan for the first one that we can find.
+		// Since we are searching bottom-to-top, lower matches get priority.
+		MovePossiblity moves(pit);
+		Plan match_plan;
+		int match_value = -1000; // doing something is better than nothing
 
-	//	for(int c = 0; c < PIT_COLS; c++) {
-	//		for(int r = pit.bottom(); r >= pit.top(); r++) {
+		for(int c = 0; c < PIT_COLS; c++) {
+			for(int r = pit.bottom(); r >= pit.top(); r--) {
+				for(int i_color = 1; i_color <= 6; i_color++) {
+					const Color color = static_cast<Color>(i_color);
+					const std::array<RowCol, 3> horizontal_match{ RowCol{r, c}, {r, c + 1}, {r, c + 2} };
+					const std::array<RowCol, 3> vertical_match{ RowCol{r, c}, {r - 1, c}, {r - 2, c} };
 
-	//		}
-	//	}
-	//}
+					for(const auto& rc3 : { horizontal_match, vertical_match }) {
+						const std::optional<Plan> candidate = make_plan_match(moves, rc3, color);
+						if(candidate.has_value()) {
+							const int evaluation = evaluate_plan(candidate.value(), rc3);
+							if(evaluation > match_value) {
+								match_plan = candidate.value();
+								match_value = evaluation;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		plan.join(match_plan);
+	}
 
 	return plan;
 }
 
+/**
+ * Reserve one block of a particular color from the pool of move possibilities
+ * for as long as this object lives and return it afterwards.
+ */
+struct LockMove
+{
+	MovePossiblity* m_moves;
+	RowCol m_target;
+	MovePossiblity::ColorCoord m_color_coord;
+
+	explicit LockMove(MovePossiblity& moves, const Color color, const RowCol target)
+		: m_moves(&moves), m_target(target)
+	{
+		m_color_coord = m_moves->pick(m_target, color);
+	}
+
+	LockMove(const LockMove&) = delete;
+	LockMove& operator=(const LockMove&) = delete;
+
+	LockMove(LockMove&& rhs) noexcept
+		: m_moves(rhs.m_moves), m_target(rhs.m_target), m_color_coord(rhs.m_color_coord)
+	{
+		rhs.m_moves = nullptr; // do not release on destruction of rhs
+	}
+
+	~LockMove() noexcept(false)
+	{
+		if(m_moves)
+			m_moves->put(m_target, m_color_coord);
+	}
+};
+
+std::optional<Plan> Agent::make_plan_match(MovePossiblity& moves, const std::array<RowCol, 3> coords, const Color color)
+{
+	const Pit& pit = *m_state->pit()[m_pit];
+	std::vector<LockMove> locked_moves;
+
+	for(const RowCol rc : coords) {
+		if(rc.r < pit.top() || rc.r > pit.bottom() || rc.c < 0 || rc.c >= PIT_COLS)
+			return {}; // Out of bounds coordinates are tolerated but lead to no plan.
+
+		if(moves.is_available(rc, color))
+			locked_moves.emplace_back(moves, color, rc);
+		else
+			return {};
+	}
+
+	// 3 in a row available & locked - make plan to get all blocks in a row
+	Plan plan;
+
+	for(const LockMove& lm : locked_moves) {
+		if(lm.m_color_coord.rc.c == lm.m_target.c)
+			continue; // no need to move this block at all
+
+		Plan::BlockPlan bp;
+		bp.block_rc = lm.m_color_coord.rc;
+		bp.block_color = lm.m_color_coord.color;
+		bp.goal = { bp.block_rc.r, lm.m_target.c };
+		plan.add(bp);
+	}
+
+	return plan;
+}
+
+int Agent::evaluate_plan(const Plan& plan, const std::array<RowCol, 3>& coords)
+{
+	int value = 0;
+
+	// deduct cost of moving blocks, ignore cursor
+	for(const Plan::BlockPlan bp : plan.block_plan()) {
+		value -= std::abs(bp.block_rc.c - bp.goal.c) + 10;
+	}
+
+	// add value of dissolving nearby garbage
+	const Pit& pit = *m_state->pit()[m_pit];
+	for(const RowCol rc : coords) {
+		const std::array<RowCol, 4> neighbors = { RowCol{ rc.r - 1, rc.c }, { rc.r, rc.c - 1 }, { rc.r + 1, rc.c }, { rc.r, rc.c + 1 } };
+		for(const RowCol n : neighbors)
+			if(pit.garbage_at(n)) {
+				value += 100;
+				return value;
+			}
+	}
+
+	return value;
+}
 
 namespace
 {
