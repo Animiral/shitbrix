@@ -43,6 +43,8 @@ Configuration::Configuration()
 : launch_mode{LaunchMode::MENU},
   player_number{},
   joystick_number{},
+  ai_player{},
+  ai_level(1),
   autorecord{false},
   replay_path{},
   log_path{"logfile.txt"},
@@ -117,7 +119,7 @@ void Configuration::normalize()
 
 void configure_context(const Configuration& configuration)
 {
-	the_context.configuration.reset(new Configuration(std::move(configuration)));
+	the_context.configuration.reset(new Configuration(configuration));
 
 	const bool is_server_only = LaunchMode::SERVER == the_context.configuration->launch_mode;
 	Uint32 sdl_flags = is_server_only ? SDL_INIT_TIMER | SDL_INIT_EVENTS
@@ -165,13 +167,15 @@ std::optional<int> to_opt_int(const std::string& value)
 const std::map<std::string, ConfigSetter> config_setter
 {
 	{"player_number",   [](Configuration& c, std::string value) { c.player_number   = to_opt_int(value); }},
-	{"launch_mode",     [](Configuration& c, std::string value) { c.launch_mode    = parse_launch_mode(value); }},
+	{"launch_mode",     [](Configuration& c, std::string value) { c.launch_mode     = parse_launch_mode(value); }},
 	{"joystick_number", [](Configuration& c, std::string value) { c.joystick_number = to_opt_int(value); }},
+	{"ai_player",       [](Configuration& c, std::string value) { c.ai_player       = to_opt_int(value); }},
+	{"ai_level",        [](Configuration& c, std::string value) { c.ai_level        = std::stoi(value); }},
 	{"autorecord",      [](Configuration& c, std::string value) { c.autorecord      = "true" == value; }},
 	{"replay_path",     [](Configuration& c, std::string value) { c.replay_path     = std::filesystem::path{value}; }},
 	{"log_path",        [](Configuration& c, std::string value) { c.log_path        = std::filesystem::path{value}; }},
 	{"server_url",      [](Configuration& c, std::string value) { c.server_url      = value; }},
-	{"port",            [](Configuration& c, std::string value) { c.port            = std::stoi(value);; }},
+	{"port",            [](Configuration& c, std::string value) { c.port            = std::stoi(value); }},
 };
 
 }

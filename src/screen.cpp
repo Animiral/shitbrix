@@ -2,6 +2,7 @@
 #include "replay.hpp"
 #include "configuration.hpp"
 #include "game.hpp"
+#include "agent.hpp"
 #include "draw.hpp"
 #include "audio.hpp"
 #include "error.hpp"
@@ -153,7 +154,12 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 	} else
 	if(PregameScreen* pregame = dynamic_cast<PregameScreen*>(&predecessor)) {
 		if(PregameScreen::Result::PLAY == pregame->result()) {
-			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get());
+			std::unique_ptr<Agent> agent;
+			if(const auto ai_player = configuration.ai_player) {
+				const int delay = std::array<int, 3>{70, 20, 5}.at(configuration.ai_level);
+				agent.reset(new Agent(m_game->state(), ai_player.value(), delay));
+			}
+			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get(), move(agent));
 			m_game_screen->set_autorecord(configuration.autorecord && !configuration.replay_path.has_value());
 			next_screen = m_game_screen.get();
 		} else
@@ -310,6 +316,12 @@ void MenuScreen::draw_impl(float dt)
 	if(m_active_menu == &m_menu[1]) { // configuration menu
 		m_draw->text_fixed(360, 100, m_choice_font,
 			m_context->configuration->autorecord ? "Auto-Record Replays" : "No Auto-Record");
+
+		m_draw->text_fixed(360, 100 + BITMAP_FONT_LINEHEIGHT, m_choice_font,
+			m_context->configuration->ai_player ? "ON" : "OFF");
+
+		m_draw->text_fixed(360, 100 + 2 * BITMAP_FONT_LINEHEIGHT, m_choice_font,
+			std::vector<std::string>{"easy", "normal", "hard"}.at(m_context->configuration->ai_level).c_str());
 	}
 }
 
@@ -365,6 +377,16 @@ void MenuScreen::dochoice(MenuAction action)
 		m_context->audio->play(Snd::CONFIRM);
 		break;
 
+	case MenuAction::TOGGLE_AGENT:
+		conf.ai_player = conf.ai_player ? std::optional<int>{} : 1;
+		m_context->audio->play(Snd::CONFIRM);
+		break;
+
+	case MenuAction::TOGGLE_AGENT_LEVEL:
+		conf.ai_level = (conf.ai_level + 1) % 3;
+		m_context->audio->play(Snd::CONFIRM);
+		break;
+
 	default:
 		assert(0);
 
@@ -385,6 +407,8 @@ const MenuScreen::SubMenu MenuScreen::m_menu[] =
 	{
 		{
 			{ "Auto-Record Replay", MenuScreen::MenuAction::TOGGLE_AUTORECORD },
+			{ "Player 2 AI", MenuScreen::MenuAction::TOGGLE_AGENT },
+			{ "AI Level", MenuScreen::MenuAction::TOGGLE_AGENT_LEVEL },
 			{ "Back", MenuScreen::MenuAction::GOMAIN }
 		}
 	}
@@ -442,14 +466,15 @@ void PregameScreen::draw_impl(float dt)
 }
 
 
-GameScreen::GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server) :
+GameScreen::GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server, std::unique_ptr<Agent> agent) :
 	IScreen(draw),
 	m_phase(Phase::INTRO),
 	m_time(0),
 	m_done(false),
 	m_stage(new Stage(game->state(), *m_draw)),
 	m_game(move(game)),
-	m_server(server)
+	m_server(server),
+	m_agent(move(agent))
 {
 	assert(m_stage);
 	enforce(m_game);
@@ -650,6 +675,13 @@ void GameScreen::update_play()
 		m_stage->show_result(winner);
 		autorecord_replay();
 		return; // skip the usual; we don't need more game logic
+	}
+
+	// query inputs from agent, if applicable
+	if(m_agent) {
+		for(const PlayerInput pi : m_agent->move()) {
+			m_game->game_input(Input{ pi });
+		}
 	}
 
 	// run game logic until the target time, considering even retcon inputs

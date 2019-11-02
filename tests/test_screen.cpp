@@ -5,6 +5,7 @@
 #include "screen.hpp"
 #include "draw.hpp"
 #include "game.hpp"
+#include "agent.hpp"
 #include "tests_common.hpp"
 
 class ScreenTest : public ::testing::Test
@@ -18,7 +19,7 @@ public:
 		game->game_reset(2, false);
 		game->game_start();
 		draw = std::make_unique<NoDraw>();
-		game_screen = std::make_unique<GameScreen>(*draw, game);
+		game_screen = std::make_unique<GameScreen>(*draw, game, nullptr, nullptr);
 	}
 
 protected:

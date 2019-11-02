@@ -18,6 +18,7 @@
 struct GlobalContext;
 class ICanvas;
 class IDraw;
+class Agent;
 
 class IScreen
 {
@@ -143,6 +144,8 @@ private:
 		GOCONFIG, //!< enter the configuration sub-menu
 		GOQUIT, //!< exit the application
 		TOGGLE_AUTORECORD, //!< change the autorecord flag
+		TOGGLE_AGENT, //!< turn the AI on and off
+		TOGGLE_AGENT_LEVEL, //!< set the AI level
 	};
 
 	/**
@@ -221,7 +224,7 @@ public:
 
 	enum class Phase { INTRO, PLAY, RESULT };
 
-	explicit GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server = nullptr);
+	explicit GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server, std::unique_ptr<Agent> agent);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
@@ -247,6 +250,7 @@ private:
 	std::unique_ptr<Stage> m_stage;
 	std::shared_ptr<IGame> m_game;
 	ServerThread* const m_server;
+	std::unique_ptr<Agent> m_agent; //!< optional player-controlling agent
 
 	/**
 	 * Calculate one update tick in the currently active phase.

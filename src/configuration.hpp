@@ -66,6 +66,16 @@ public:
 	std::optional<int> joystick_number;
 
 	/**
+	 * Number of the player that is controlled by planning agent input.
+	 */
+	std::optional<int> ai_player;
+
+	/**
+	 * Pre-configured strength of the planning agent (0-2).
+	 */
+	int ai_level;
+
+	/**
 	 * Automatically write a replay file after every game.
 	 * Even if the option is set to true, the replay/ directory must exist.
 	 * By default, autorecording is disabled.
