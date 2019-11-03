@@ -247,6 +247,8 @@ Agent::Agent(const GameState& state, const int pit, const int delay)
 	enforce(pit >= 0);
 	enforce(pit < state.pit().size());
 	enforce(delay >= 0);
+
+	Log::info("Agent: active as player %d, delay: %d", pit, delay);
 }
 
 std::vector<PlayerInput> Agent::move()
@@ -269,18 +271,17 @@ std::vector<PlayerInput> Agent::move()
 			inputs.push_back(PlayerInput{ time, m_pit, GameButton::RAISE, ButtonAction::DOWN });
 	}
 
-	// set up input delay
-	if(!inputs.empty()) {
-		m_last_time = m_state->game_time();
+	// need a plan?
+	if(m_plan.is_finished() || !m_plan.is_sensible(pit)) {
+		Log::trace("Agent: New plan! (previous %sfinished)", m_plan.is_finished() ? "" : "not ");
+		m_plan = make_plan();
 	}
 
-	// need a plan?
-	if(m_plan.is_finished())
-		m_plan = make_plan();
-
 	// out of plans?
-	if(m_plan.is_finished())
+	if(m_plan.is_finished()) {
+		Log::trace("Agent: No plan found. t=%d", m_state->game_time());
 		return inputs; // wait for more
+	}
 
 	// follow the plan
 	const RowCol cursor = pit.cursor().rc;
@@ -300,6 +301,12 @@ std::vector<PlayerInput> Agent::move()
 	}
 	else {
 		inputs.push_back(PlayerInput{ time, m_pit, GameButton::SWAP, ButtonAction::DOWN });
+		m_plan.notify_swapped(cursor);
+	}
+
+	// set up input delay
+	if(!inputs.empty()) {
+		m_last_time = m_state->game_time();
 	}
 
 	return inputs;
@@ -331,10 +338,13 @@ Plan Agent::make_plan()
 		for(int c = 0; c < PIT_COLS - 1; c++) {
 			if(peaks[c + 1] - peaks[c] > rebalance_limit) { // left stack is higher
 				// rebalance lowest block to the right
-				if(Block* block = pit.block_at({ peaks[c + 1ull], c })) {
+				if(Block* block = pit.block_at({ peaks[c + 1], c })) {
 					const RowCol block_rc = block->rc();
 					const RowCol goal{ block_rc.r, block_rc.c + 1 };
 					plan.add({ block_rc, block->col, goal });
+					Log::trace("Agent: rebalance %s block from r%d c%d to right. t=%d",
+						color_to_string(block->col).c_str(), block_rc.r, block_rc.c,
+						m_state->game_time());
 				}
 			}
 			else if(peaks[c] - peaks[c + 1] > rebalance_limit) { // right stack is higher
@@ -343,6 +353,9 @@ Plan Agent::make_plan()
 					const RowCol block_rc = block->rc();
 					const RowCol goal{ block_rc.r, block_rc.c - 1 };
 					plan.add({ block_rc, block->col, goal });
+					Log::trace("Agent: rebalance %s block from r%d c%d to left. t=%d",
+						color_to_string(block->col).c_str(), block_rc.r, block_rc.c,
+						m_state->game_time());
 				}
 			}
 		}
@@ -375,6 +388,17 @@ Plan Agent::make_plan()
 						}
 					}
 				}
+			}
+		}
+
+		if(!match_plan.is_finished()) {
+			Log::trace("Agent: planning to match %s blocks (%d to move). t=%d",
+				color_to_string(match_plan.block_plan().front().block_color).c_str(),
+				match_plan.block_plan().size(), m_state->game_time());
+
+			for(const auto& bp : match_plan.block_plan()) {
+				Log::trace("Agent: therefore need to move r%d c%d -> r%d c%d.",
+					bp.block_rc.r, bp.block_rc.c, bp.goal.r, bp.goal.c);
 			}
 		}
 

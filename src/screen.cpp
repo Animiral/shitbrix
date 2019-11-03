@@ -156,7 +156,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 		if(PregameScreen::Result::PLAY == pregame->result()) {
 			std::unique_ptr<Agent> agent;
 			if(const auto ai_player = configuration.ai_player) {
-				const int delay = std::array<int, 3>{70, 20, 5}.at(configuration.ai_level);
+				const int delay = std::array<int, 3>{15, 8, 2}.at(configuration.ai_level);
 				agent.reset(new Agent(m_game->state(), ai_player.value(), delay));
 			}
 			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get(), move(agent));
