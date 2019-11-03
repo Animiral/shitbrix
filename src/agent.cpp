@@ -3,16 +3,6 @@
 #include "error.hpp"
 #include <cassert>
 
-namespace
-{
-
-/**
- * Return the next required swap location for the given @c BlockPlan.
- */
-RowCol next_step_blockplan(const Plan::BlockPlan& b);
-
-}
-
 void Plan::add(const BlockPlan plan)
 {
 	enforce(plan.block_rc.r == plan.goal.r);
@@ -36,16 +26,14 @@ RowCol Plan::next_step(const RowCol cursor) const
 	if(m_blocks.empty())
 		throwx<GameException>("There is no next step in a finished plan.");
 
-	const auto cost = [cursor](const BlockPlan& b)
-	{
-		const RowCol step = next_step_blockplan(b);
-		return std::abs(cursor.r - step.r) + std::abs(cursor.c - step.c);
-	};
+	const Plan::BlockPlan& b = m_blocks.front();
 
-	const auto less_cost = [&cost](const BlockPlan& a, const BlockPlan& b) { return cost(a) < cost(b); };
-
-	const auto cheapest = std::min_element(m_blocks.begin(), m_blocks.end(), less_cost);
-	return next_step_blockplan(*cheapest);
+	if(b.block_rc.c < b.goal.c) {
+		return b.block_rc; // swap right
+	}
+	else {
+		return RowCol{ b.block_rc.r, b.block_rc.c - 1 }; // swap left
+	}
 }
 
 void Plan::notify_swapped(const RowCol rc)
@@ -56,7 +44,7 @@ void Plan::notify_swapped(const RowCol rc)
 			if(b.block_rc.c == rc.c) {
 				b.block_rc.c++; // swap right
 			}
-			else if(b.block_rc.c + 1 == rc.c) {
+			else if(b.block_rc.c == rc.c + 1) {
 				b.block_rc.c--; // swap left
 			}
 		}
@@ -493,19 +481,4 @@ int Agent::evaluate_plan(const Plan& plan, const std::array<RowCol, 3>& coords)
 	}
 
 	return value;
-}
-
-namespace
-{
-
-RowCol next_step_blockplan(const Plan::BlockPlan& b)
-{
-	if(b.block_rc.c < b.goal.c) {
-		return b.block_rc; // swap right
-	}
-	else {
-		return RowCol{ b.block_rc.r, b.block_rc.c - 1 }; // swap left
-	}
-}
-
 }
