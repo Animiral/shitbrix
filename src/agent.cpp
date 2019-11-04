@@ -326,7 +326,7 @@ Plan Agent::make_plan()
 		for(int c = 0; c < PIT_COLS - 1; c++) {
 			if(peaks[c + 1] - peaks[c] > rebalance_limit) { // left stack is higher
 				// rebalance lowest block to the right
-				if(Block* block = pit.block_at({ peaks[c + 1], c })) {
+				if(Block* block = pit.block_at({ peaks[c + 1], c }); block && Color::FAKE != block->col) {
 					const RowCol block_rc = block->rc();
 					const RowCol goal{ block_rc.r, block_rc.c + 1 };
 					plan.add({ block_rc, block->col, goal });
@@ -337,7 +337,7 @@ Plan Agent::make_plan()
 			}
 			else if(peaks[c] - peaks[c + 1] > rebalance_limit) { // right stack is higher
 				// rebalance lowest block to the left
-				if(Block* block = pit.block_at({ peaks[c], c + 1 })) {
+				if(Block* block = pit.block_at({ peaks[c], c + 1 }); block && Color::FAKE != block->col) {
 					const RowCol block_rc = block->rc();
 					const RowCol goal{ block_rc.r, block_rc.c - 1 };
 					plan.add({ block_rc, block->col, goal });
