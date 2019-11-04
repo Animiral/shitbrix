@@ -3,6 +3,7 @@
 #include <string>
 #include <optional>
 #include <filesystem>
+#include "globals.hpp"
 
 /**
  * Initial mode (start screen) of the application.
@@ -74,6 +75,11 @@ public:
 	 * Pre-configured strength of the planning agent (0-2).
 	 */
 	int ai_level;
+
+	/**
+	 * Gameplay parameter settings.
+	 */
+	Rules rules;
 
 	/**
 	 * Automatically write a replay file after every game.

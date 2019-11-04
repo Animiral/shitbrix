@@ -384,7 +384,7 @@ void DrawPit::cursor(const Cursor& cursor) const
 	float y = static_cast<float>(rc.r*ROW_H - (CURSOR_H-ROW_H)/2);
 	Point loc = translate({x, y});
 
-	size_t frame = (cursor.time / CURSOR_FRAME_TIME) % CURSOR_FRAMES;
+	size_t frame = (cursor.anim_time / CURSOR_FRAME_TIME) % CURSOR_FRAMES;
 	m_draw->gfx(loc, Gfx::CURSOR, frame);
 }
 

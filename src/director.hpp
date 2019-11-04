@@ -13,7 +13,6 @@ struct SpawnBlockInput;
 struct SpawnGarbageInput;
 class Journal;
 class IArbiter;
-struct Rules;
 
 /**
  * The Director implements high-level game-logical interactions between

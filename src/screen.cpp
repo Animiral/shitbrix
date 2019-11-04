@@ -51,6 +51,8 @@ ScreenFactory::ScreenFactory(const GlobalContext& context) noexcept
 	enforce(m_context->sdl);
 	enforce(m_context->assets);
 
+	m_rules = m_context->configuration->rules;
+
 	if(LaunchMode::SERVER == m_context->configuration->launch_mode)
 		m_draw = std::make_unique<NoDraw>();
 	else
@@ -93,11 +95,15 @@ IScreen* ScreenFactory::create_default()
 			if(!configuration.server_url.has_value())
 				throwx<GameException>("Client mode requires server_url configuration.");
 
-			m_game = create_client_game(configuration.server_url.value().c_str(), configuration.port);
+			m_game = create_client_game(
+				configuration.server_url.value().c_str(),
+				configuration.port);
 			break;
 
 		case LaunchMode::WITH_SERVER:
-			m_game = create_client_game("localhost", configuration.port);
+			m_game = create_client_game(
+				"localhost",
+				configuration.port);
 			break;
 
 		default:
@@ -135,14 +141,18 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 
 		case MenuScreen::Result::PLAY_HOST:
 			m_server = create_server_thread(configuration.port);
-			m_game = create_client_game("localhost", configuration.port);
+			m_game = create_client_game(
+				"localhost",
+				configuration.port);
 			break;
 
 		case MenuScreen::Result::PLAY_CLIENT:
 			if(!configuration.server_url.has_value())
 				throwx<GameException>("Client mode requires server_url configuration.");
 
-			m_game = create_client_game(configuration.server_url.value().c_str(), configuration.port);
+			m_game = create_client_game(
+				configuration.server_url.value().c_str(),
+				configuration.port);
 			break;
 
 		default:
@@ -159,7 +169,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 				const int delay = std::array<int, 3>{15, 8, 2}.at(configuration.ai_level);
 				agent.reset(new Agent(m_game->state(), ai_player.value(), delay));
 			}
-			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_server.get(), move(agent));
+			m_game_screen = std::make_unique<GameScreen>(*m_draw, m_game, m_rules, m_server.get(), move(agent));
 			m_game_screen->set_autorecord(configuration.autorecord && !configuration.replay_path.has_value());
 			next_screen = m_game_screen.get();
 		} else
@@ -179,7 +189,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 		}
 		else {
 			// Go back to menu
-			m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
+			m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game, m_rules);
 			next_screen = m_pregame_screen.get();
 		}
 	} else
@@ -210,7 +220,7 @@ IScreen* ScreenFactory::create_next(IScreen& predecessor)
 
 IScreen* ScreenFactory::create_screen_maybe_replay(std::optional<std::filesystem::path> replay_path)
 {
-	m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game);
+	m_pregame_screen = std::make_unique<PregameScreen>(*m_draw, m_game, m_rules);
 
 	if(replay_path.has_value()) {
 		// Replay loading will signal game start and almost immediately lead to the game screen.
@@ -414,14 +424,15 @@ const MenuScreen::SubMenu MenuScreen::m_menu[] =
 	}
 };
 
-PregameScreen::PregameScreen(IDraw& draw, std::shared_ptr<IGame> game)
+PregameScreen::PregameScreen(IDraw& draw, const std::shared_ptr<IGame> game, const Rules rules)
 	:
 	IScreen(draw),
 	m_time(0),
 	m_done(false),
 	m_result(),
 	m_draw(&draw),
-	m_game(move(game))
+	m_game(move(game)),
+	m_rules(rules)
 {
 	enforce(m_game);
 
@@ -450,7 +461,7 @@ void PregameScreen::input(ControllerAction cinput)
 	if(ButtonAction::DOWN == cinput.action) {
 		if(Button::A == cinput.button) {
 			// this calls my after_start handler, which will set m_done = true.
-			m_game->game_reset(2, false);
+			m_game->game_reset(2, m_rules, false);
 			m_game->game_start();
 		} else
 		if(Button::QUIT == cinput.button) {
@@ -466,13 +477,20 @@ void PregameScreen::draw_impl(float dt)
 }
 
 
-GameScreen::GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server, std::unique_ptr<Agent> agent) :
+GameScreen::GameScreen(
+	IDraw& draw,
+	const std::shared_ptr<IGame> game,
+	const Rules rules,
+	ServerThread* const server,
+	std::unique_ptr<Agent> agent)
+	:
 	IScreen(draw),
 	m_phase(Phase::INTRO),
 	m_time(0),
 	m_done(false),
 	m_stage(new Stage(game->state(), *m_draw)),
 	m_game(move(game)),
+	m_rules(rules),
 	m_server(server),
 	m_agent(move(agent))
 {
@@ -570,7 +588,7 @@ void GameScreen::input(ControllerAction cinput)
 			if(ButtonAction::DOWN != cinput.action)
 				break;
 
-			m_game->game_reset(2, false);
+			m_game->game_reset(2, m_rules, false);
 		}
 			break;
 
@@ -776,7 +794,7 @@ std::shared_ptr<LocalGame> create_local_game()
 	return std::make_shared<LocalGame>(move(factory));
 }
 
-std::shared_ptr<ClientGame> create_client_game(const char* server_url, int port)
+std::shared_ptr<ClientGame> create_client_game(const char* server_url, const int port)
 {
 	auto client_channel = make_client_channel(server_url, port);
 	auto client_protocol = std::make_unique<ClientProtocol>(std::move(client_channel));

@@ -258,7 +258,9 @@ private:
 struct Cursor
 {
 	RowCol rc;
-	int time;  //!< animation frame timer
+	Dir dir; //!< where the cursor is currently moving
+	int repeat_time; //!< number of updates until the cursor advances in its direction
+	int anim_time;  //!< animation frame timer
 };
 
 
@@ -274,7 +276,7 @@ class Pit
 
 public:
 
-	explicit Pit(Point loc) noexcept;
+	explicit Pit(Point loc, Rules rules) noexcept;
 	Pit(const Pit& rhs);
 	Pit& operator=(const Pit& rhs);
 
@@ -410,6 +412,14 @@ public:
 	void cursor_move(Dir dir) noexcept;
 
 	/**
+	 * Stops the cursor from further moving in the given direction.
+	 *
+	 * If the given direction does not match the current cursor direction, do nothing.
+	 * This operation is associated with releasing the corresponding directional input key.
+	 */
+	void cursor_stop(Dir dir) noexcept;
+
+	/**
 	 * Sets the want_raise flag for block raise mode. If raise mode is on, the pit
 	 * will scroll upwards at an accelerated speed, revealing more block material
 	 * in a short time.
@@ -510,6 +520,7 @@ private:
 	using PhysMap = std::unordered_map<RowCol, Physical*, RowColHash>;
 
 	Point m_loc;     //!< draw location, upper left corner
+	Rules m_rules; //!< pit-specific gameplay parameters
 	Cursor m_cursor; //!< player cursor
 	bool m_want_raise; //!< whether the pit should persist in accelerated scrolling
 	bool m_raise;    //!< whether the pit should scroll in new blocks as fast as possible

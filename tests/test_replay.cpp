@@ -15,7 +15,8 @@ public:
 
 	explicit ReplayTest()
 	{
-		meta = GameMeta{2 /* players */, 4711 /* seed */, false /* replay */};
+		const Rules rules;
+		meta = GameMeta{ 2 /* players */, 4711 /* seed */, false /* replay */, rules };
 		// TODO: Add an Arbiter to the game data where the color supplier used to be
 		// ColorSupplierFactory color_factory = [](int) { return std::make_unique<RainbowColorSupplier>(); };
 		state = std::make_unique<GameState>(meta);
@@ -49,7 +50,7 @@ TEST_F(ReplayTest, WriteJournal)
 
 	std::string expected =
 R"(start
-meta 2 4711 false 1
+meta 2 4711 false 0 1
 input PlayerInput 3 0 left press
 input PlayerInput 5 1 up press
 input PlayerInput 8 0 raise press
@@ -67,7 +68,7 @@ TEST_F(ReplayTest, ReadBasic)
 {
 	std::string replay_str =
 R"(start
-meta 2 4711 false 1
+meta 2 4711 false 0 1
 input PlayerInput 10 1 swap press
 )";
 	std::istringstream stream(replay_str);

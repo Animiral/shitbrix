@@ -16,10 +16,11 @@ public:
 	explicit ScreenTest()
 	{
 		game = std::make_shared<LocalGame>(std::make_unique<LocalGameFactory>());
-		game->game_reset(2, false);
+		const Rules rules;
+		game->game_reset(2, rules, false);
 		game->game_start();
 		draw = std::make_unique<NoDraw>();
-		game_screen = std::make_unique<GameScreen>(*draw, game, nullptr, nullptr);
+		game_screen = std::make_unique<GameScreen>(*draw, game, rules, nullptr, nullptr);
 	}
 
 protected:
@@ -36,7 +37,8 @@ protected:
  */
 TEST_F(ScreenTest, GameScreenDoneOnReset)
 {
-	game->game_reset(2, false);
+	const Rules rules;
+	game->game_reset(2, rules, false);
 	game->poll(); // technically correct, but not required for local game
 	EXPECT_TRUE(game_screen->done());
 	EXPECT_NO_THROW(game_screen->update()); // we can still update the screen without the game

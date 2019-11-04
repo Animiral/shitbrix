@@ -283,6 +283,14 @@ constexpr int BITMAP_FONT_LINEHEIGHT = 25; //!< Pixel height of one line in bmp 
 // ================================================
 
 /**
+ * Holds values that determine the gameplay behavior.
+ */
+struct Rules
+{
+	int cursor_delay = 0; //!< number of updates between cursor moves
+};
+
+/**
  * Holds meta-information about a game round.
  * This information does not change over time like the @c GameState does.
  * It is also used to generate the initial game state and reproduce the replay.
@@ -292,6 +300,7 @@ struct GameMeta
 	int players;   //!< number of participant players
 	unsigned seed; //!< initial random seed
 	bool replay;   //!< true if the game is in replay mode (no extra random decisions)
+	Rules rules;   //!< general rules that apply to every player in this game round
 	int winner = NOONE; //!< player who won the game
 
 	/**

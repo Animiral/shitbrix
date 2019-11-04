@@ -106,13 +106,19 @@ TEST_F(NetworkTest, MessageSerialization)
  */
 TEST_F(NetworkTest, ServerProtocolMeta)
 {
-	GameMeta meta{3, 1234, false, 1};
+	const Rules rules;
+	GameMeta meta{3, 1234, false, rules, 1};
 	m_server_protocol->meta(meta);
 
 	MockServerMessages recipient;
 	auto matches_meta = [] (GameMeta m)
 	{
-		return 3 == m.players && 1234 == m.seed && false == m.replay && 1 == m.winner;
+		return
+			3 == m.players &&
+			1234 == m.seed &&
+			false == m.replay &&
+			0 == m.rules.cursor_delay &&
+			1 == m.winner;
 	};
 	EXPECT_CALL(recipient, meta(Truly(matches_meta))).Times(1);
 
@@ -191,13 +197,19 @@ TEST_F(NetworkTest, ServerProtocolGameend)
  */
 TEST_F(NetworkTest, ClientProtocolMeta)
 {
-	GameMeta meta{3, 1234, false, 1};
+	const Rules rules;
+	GameMeta meta{ 3, 1234, false, rules, 1 };
 	m_client_protocol->meta(meta);
 
 	MockClientMessages recipient;
 	auto matches_meta = [] (GameMeta m)
 	{
-		return 3 == m.players && 1234 == m.seed && false == m.replay && 1 == m.winner;
+		return
+			3 == m.players &&
+			1234 == m.seed &&
+			false == m.replay &&
+			0 == m.rules.cursor_delay &&
+			1 == m.winner;
 	};
 	EXPECT_CALL(recipient, meta(Truly(matches_meta))).Times(1);
 
@@ -213,7 +225,14 @@ TEST_F(NetworkTest, ClientProtocolInput)
 	m_client_protocol->input(Input{input});
 
 	MockClientMessages recipient;
-	auto matches_input = [](Input i) { auto pi = i.get<PlayerInput>(); return 1 == pi.game_time && 2 == pi.player && GameButton::LEFT == pi.button && ButtonAction::DOWN == pi.action; };
+	auto matches_input = [](Input i) {
+		auto pi = i.get<PlayerInput>();
+		return
+			1 == pi.game_time &&
+			2 == pi.player &&
+			GameButton::LEFT == pi.button &&
+			ButtonAction::DOWN == pi.action;
+	};
 	EXPECT_CALL(recipient, input(Truly(matches_input))).Times(1);
 
 	m_server_protocol->poll(recipient);

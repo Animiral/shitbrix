@@ -45,6 +45,7 @@ Configuration::Configuration()
   joystick_number{},
   ai_player{},
   ai_level(1),
+  rules{ 0 },
   autorecord{false},
   replay_path{},
   log_path{"logfile.txt"},
@@ -59,7 +60,7 @@ void Configuration::read_from_file(std::filesystem::path path)
 	std::string line;
 	
 	while(std::getline(stream, line)) {
-		const std::regex line_ex{R"(^\s*(\w+)[\s=]+(.*)$)"};
+		const std::regex line_ex{R"(^\s*([\w\.]+)[\s=]+(.*)$)"};
 		std::cmatch result;
 
 		if(std::regex_match(line.c_str(), result, line_ex)) {
@@ -113,7 +114,14 @@ void Configuration::parse(std::string key, std::string value)
 void Configuration::normalize()
 {
 	// Attempt to bring the configuration into a consistent state after loading it.
-	// Currently, there is nothing to do here, but there might be in the future.
+	if(ai_player.has_value() && (ai_player.value() < 0 || ai_player.value() > 1))
+		ai_player.reset();
+
+	if(ai_level < 0 || ai_level > 2)
+		ai_level = 1;
+
+	if(rules.cursor_delay < 0)
+		rules.cursor_delay = 0;
 }
 
 
@@ -166,16 +174,17 @@ std::optional<int> to_opt_int(const std::string& value)
 
 const std::map<std::string, ConfigSetter> config_setter
 {
-	{"player_number",   [](Configuration& c, std::string value) { c.player_number   = to_opt_int(value); }},
-	{"launch_mode",     [](Configuration& c, std::string value) { c.launch_mode     = parse_launch_mode(value); }},
-	{"joystick_number", [](Configuration& c, std::string value) { c.joystick_number = to_opt_int(value); }},
-	{"ai_player",       [](Configuration& c, std::string value) { c.ai_player       = to_opt_int(value); }},
-	{"ai_level",        [](Configuration& c, std::string value) { c.ai_level        = std::stoi(value); }},
-	{"autorecord",      [](Configuration& c, std::string value) { c.autorecord      = "true" == value; }},
-	{"replay_path",     [](Configuration& c, std::string value) { c.replay_path     = std::filesystem::path{value}; }},
-	{"log_path",        [](Configuration& c, std::string value) { c.log_path        = std::filesystem::path{value}; }},
-	{"server_url",      [](Configuration& c, std::string value) { c.server_url      = value; }},
-	{"port",            [](Configuration& c, std::string value) { c.port            = std::stoi(value); }},
+	{"player_number",      [](Configuration& c, std::string value) { c.player_number   = to_opt_int(value); }},
+	{"launch_mode",        [](Configuration& c, std::string value) { c.launch_mode     = parse_launch_mode(value); }},
+	{"joystick_number",    [](Configuration& c, std::string value) { c.joystick_number = to_opt_int(value); }},
+	{"ai_player",          [](Configuration& c, std::string value) { c.ai_player       = to_opt_int(value); }},
+	{"ai_level",           [](Configuration& c, std::string value) { c.ai_level = std::stoi(value); }},
+	{"rules.cursor_delay", [](Configuration& c, std::string value) { c.rules.cursor_delay = std::stoi(value); }},
+	{"autorecord",         [](Configuration& c, std::string value) { c.autorecord      = "true" == value; }},
+	{"replay_path",        [](Configuration& c, std::string value) { c.replay_path     = std::filesystem::path{value}; }},
+	{"log_path",           [](Configuration& c, std::string value) { c.log_path        = std::filesystem::path{value}; }},
+	{"server_url",         [](Configuration& c, std::string value) { c.server_url      = value; }},
+	{"port",               [](Configuration& c, std::string value) { c.port            = std::stoi(value); }},
 };
 
 }

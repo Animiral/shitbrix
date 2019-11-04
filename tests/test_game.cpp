@@ -92,7 +92,8 @@ protected:
 TEST_F(GameTest, LocalGameReady)
 {
 	EXPECT_FALSE(local_game->switches().ready);
-	local_game->game_reset(2, false);
+	const Rules rules;
+	local_game->game_reset(2, rules, false);
 	EXPECT_TRUE(local_game->switches().ready);
 }
 
@@ -103,7 +104,8 @@ TEST_F(GameTest, LocalGameBeforeReset)
 {
 	bool ready = true;
 	local_game->before_reset([&ready, this]() { ready = local_game->switches().ready; });
-	local_game->game_reset(2, false);
+	const Rules rules;
+	local_game->game_reset(2, rules, false);
 	EXPECT_FALSE(ready);
 }
 
@@ -114,7 +116,8 @@ TEST_F(GameTest, LocalGameAfterStart)
 {
 	bool ingame = false;
 	local_game->after_start([&ingame, this]() { ingame = local_game->switches().ingame; });
-	local_game->game_reset(2, false);
+	const Rules rules;
+	local_game->game_reset(2, rules, false);
 	local_game->game_start();
 	EXPECT_TRUE(ingame);
 }
@@ -180,7 +183,8 @@ TEST_F(GameTest, ServerGameBeforeReset)
 {
 	bool ready = true;
 	server_game->before_reset([&ready, this]() { ready = server_game->switches().ready; });
-	server_game->game_reset(2, false);
+	const Rules rules;
+	server_game->game_reset(2, rules, false);
 	EXPECT_FALSE(ready);
 }
 
@@ -192,7 +196,8 @@ TEST_F(GameTest, ServerGameAfterStart)
 {
 	bool ingame = false;
 	server_game->after_start([&ingame, this]() { ingame = server_game->switches().ingame; });
-	server_game->game_reset(2, false);
+	const Rules rules;
+	server_game->game_reset(2, rules, false);
 	server_game->game_start();
 	EXPECT_TRUE(ingame);
 }
@@ -203,7 +208,8 @@ TEST_F(GameTest, ServerGameAfterStart)
  */
 TEST_F(GameTest, ServerGameRetract)
 {
-	server_game->game_reset(2, false);
+	const Rules rules;
+	server_game->game_reset(2, rules, false);
 	server_game->game_start();
 
 	// add the retractable input to the journal
@@ -232,7 +238,8 @@ TEST_F(GameTest, ServerGameRetract)
  */
 TEST_F(GameTest, SynchronurseBackwards)
 {
-	server_game->game_reset(2, false);
+	const Rules rules;
+	server_game->game_reset(2, rules, false);
 	server_game->game_start();
 
 	server_game->synchronurse(2); // forward
@@ -248,7 +255,8 @@ TEST_F(GameTest, SynchronurseBackwards)
  */
 TEST_F(GameTest, SynchronurseHandlesArbiterInputs)
 {
-	local_game->game_reset(2, false);
+	const Rules rules;
+	local_game->game_reset(2, rules, false);
 	local_game->game_start();
 
 	const RowCol start_rc = m_local_factory->m_state_ptr->pit().at(0)->cursor().rc;

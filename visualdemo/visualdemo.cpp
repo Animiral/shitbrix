@@ -11,7 +11,8 @@ namespace
 std::unique_ptr<IGame> make_game()
 {
 	auto game = std::make_unique<LocalGame>(std::make_unique<LocalGameFactory>());
-	game->game_reset(2, false);
+	const Rules rules;
+	game->game_reset(2, rules, false);
 	game->game_start();
 	return move(game);
 }

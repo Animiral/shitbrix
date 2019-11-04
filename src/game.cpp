@@ -215,7 +215,7 @@ void IGame::load_replay(std::filesystem::path path)
 	//
 	// What actually happens at reset, start and input depends on the concrete
 	// game implementation.
-	game_reset(meta.players, true);
+	game_reset(meta.players, meta.rules, true);
 	game_start();
 
 	for(Input input : journal.inputs()) {
@@ -287,7 +287,7 @@ void LocalGame::game_input(Input input)
 	m_journal->add_input(std::move(input));
 }
 
-void LocalGame::game_reset(int players, bool replay)
+void LocalGame::game_reset(const int players, const Rules rules, const bool replay)
 {
 	assert(2 == players); // different player numbers are not yet supported
 
@@ -295,7 +295,7 @@ void LocalGame::game_reset(int players, bool replay)
 	m_arbiter.reset();
 
 	static std::random_device rdev;
-	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, NOONE};
+	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, rules, NOONE};
 }
 
 void LocalGame::set_speed(int speed)
@@ -320,8 +320,12 @@ void LocalGame::before_rollback(long target_time, long checkpoint_time)
 	assert(!"Rollback should never happen in local game.");
 }
 
-ClientGame::ClientGame(std::unique_ptr<IGameFactory> game_factory, std::unique_ptr<ClientProtocol> protocol) noexcept
-	: IGame(move(game_factory)), m_protocol(move(protocol))
+ClientGame::ClientGame(
+	std::unique_ptr<IGameFactory> game_factory,
+	std::unique_ptr<ClientProtocol> protocol) noexcept
+	:
+	IGame(move(game_factory)),
+	m_protocol(move(protocol))
 {
 	enforce(nullptr != m_protocol);
 }
@@ -336,9 +340,10 @@ void ClientGame::game_input(Input input)
 	m_protocol->input(input);
 }
 
-void ClientGame::game_reset(int players, bool replay)
+void ClientGame::game_reset(const int players, const Rules rules, const bool replay)
 {
-	m_protocol->meta(GameMeta{players, 0, replay});
+	const GameMeta meta{ players, 0, replay, rules };
+	m_protocol->meta(meta);
 }
 
 void ClientGame::set_speed(int speed)
@@ -443,7 +448,7 @@ void ServerGame::game_input(Input input)
 	m_protocol->input(input);
 }
 
-void ServerGame::game_reset(int players, bool replay)
+void ServerGame::game_reset(const int players, const Rules rules, const bool replay)
 {
 	base_reset();
 
@@ -451,7 +456,7 @@ void ServerGame::game_reset(int players, bool replay)
 		throwx<GameException>("%d players are currently not supported.", players);
 
 	static std::random_device rdev;
-	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, NOONE};
+	m_meta = GameMeta{players, replay ? 0 : rdev(), replay, rules, NOONE};
 	m_protocol->meta(*m_meta);
 }
 
@@ -488,7 +493,7 @@ void ServerGame::meta(GameMeta meta)
 {
 	// TODO: only allow this if the client is privileged
 	try {
-		game_reset(meta.players, meta.replay);
+		game_reset(meta.players, meta.rules, meta.replay);
 	}
 	catch(const GameException& ) {
 		// TODO: report error back? kick the client for invalid messaging?

@@ -158,13 +158,19 @@ void BlockDirector::apply_input(const PlayerInput& ginput)
 		case GameButton::RIGHT:
 		case GameButton::UP:
 		case GameButton::DOWN:
+		{
+			const Dir dir = static_cast<Dir>(ginput.button);
 			if(ButtonAction::DOWN == ginput.action)
 			{
-				Dir dir = static_cast<Dir>(ginput.button);
 				m_state->pit().at(ginput.player)->cursor_move(dir);
+
 				if(m_handler)
-					m_handler->fire(evt::CursorMoves{{ginput.game_time, ginput.player}});
+					m_handler->fire(evt::CursorMoves{ {ginput.game_time, ginput.player} });
 			}
+			else { // ButtonAction::UP
+				m_state->pit().at(ginput.player)->cursor_stop(dir);
+			}
+		}
 
 			break;
 

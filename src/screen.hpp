@@ -183,7 +183,7 @@ public:
 
 	enum class Result { PLAY, QUIT };
 
-	explicit PregameScreen(IDraw& draw, std::shared_ptr<IGame> game);
+	explicit PregameScreen(IDraw& draw, std::shared_ptr<IGame> game, Rules rules);
 	virtual ~PregameScreen() noexcept;
 
 	virtual void update() override;
@@ -208,6 +208,7 @@ private:
 
 	IDraw* m_draw; //!< Interface for drawing the screen
 	std::shared_ptr<IGame> m_game; //!< Game object
+	Rules m_rules; //!< game creation parameters
 
 };
 
@@ -224,7 +225,8 @@ public:
 
 	enum class Phase { INTRO, PLAY, RESULT };
 
-	explicit GameScreen(IDraw& draw, std::shared_ptr<IGame> game, ServerThread* server, std::unique_ptr<Agent> agent);
+	explicit GameScreen(IDraw& draw, std::shared_ptr<IGame> game, Rules rules,
+		ServerThread* server, std::unique_ptr<Agent> agent);
 	virtual ~GameScreen() noexcept;
 
 	virtual void update() override;
@@ -249,6 +251,7 @@ private:
 
 	std::unique_ptr<Stage> m_stage;
 	std::shared_ptr<IGame> m_game;
+	Rules m_rules;
 	ServerThread* const m_server;
 	std::unique_ptr<Agent> m_agent; //!< optional player-controlling agent
 
@@ -380,6 +383,7 @@ private:
 
 	std::unique_ptr<IDraw> m_draw; //!< draw object according to configuration
 	std::shared_ptr<IGame> m_game; //!< game object, lives as long as the last dependent screen
+	Rules m_rules;                 //!< set of gameplay parameters from configuration
 	std::unique_ptr<ServerThread> m_server; //!< optional server object
 
 	// all screens are owned and stored by the factory

@@ -158,9 +158,10 @@ int Garbage::shrink() noexcept
 }
 
 
-Pit::Pit(Point loc) noexcept
+Pit::Pit(const Point loc, const Rules rules) noexcept
 : m_loc(loc),
-  m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, 0},
+  m_rules(rules),
+  m_cursor{RowCol{ -PIT_ROWS/2, PIT_COLS/2-1 }, Dir::NONE, 0, 0},
   m_want_raise(false),
   m_raise(false),
   m_enabled(true),
@@ -173,6 +174,7 @@ Pit::Pit(Point loc) noexcept
   m_panic(PANIC_TIME),
   m_highlight_row(0)
 {
+	enforce(m_rules.cursor_delay >= 0);
 }
 
 Pit::Pit(const Pit& rhs)
@@ -376,14 +378,16 @@ void Pit::cursor_move(Dir dir) noexcept
 {
 	enforce(Dir::NONE != dir);
 
-	switch(dir)
-	{
-		case Dir::LEFT:  if(m_cursor.rc.c > 0)          m_cursor.rc.c--; break;
-		case Dir::RIGHT: if(m_cursor.rc.c < PIT_COLS-2) m_cursor.rc.c++; break;
-		case Dir::UP:    if(m_cursor.rc.r > top())      m_cursor.rc.r--; break;
-		case Dir::DOWN:  if(m_cursor.rc.r < bottom())   m_cursor.rc.r++; break;
-		default: assert(false);
-	}
+	m_cursor.dir = dir;
+	m_cursor.repeat_time = 0; // instantly move on next update
+}
+
+void Pit::cursor_stop(Dir dir) noexcept
+{
+	enforce(Dir::NONE != dir);
+
+	if(m_cursor.dir == dir)
+		m_cursor.dir = Dir::NONE;
 }
 
 void Pit::set_raise(bool raise)
@@ -445,11 +449,26 @@ void Pit::update()
 	if(m_enabled)
 		m_scroll += m_raise ? RAISE_SPEED : m_speed;
 
-	// keep cursor in accessible bounds at all times
+	// Cursor: repeat input direction, keep in bounds
 	while(m_cursor.rc.r < top())
 		m_cursor.rc.r++;
 
-	m_cursor.time++;
+	m_cursor.anim_time++;
+
+	if(--m_cursor.repeat_time <= 0) {
+		switch(m_cursor.dir)
+		{
+			case Dir::LEFT:  if(m_cursor.rc.c > 0)            m_cursor.rc.c--; break;
+			case Dir::RIGHT: if(m_cursor.rc.c < PIT_COLS - 2) m_cursor.rc.c++; break;
+			case Dir::UP:    if(m_cursor.rc.r > top())        m_cursor.rc.r--; break;
+			case Dir::DOWN:  if(m_cursor.rc.r < bottom())     m_cursor.rc.r++; break;
+		}
+
+		if(0 == m_rules.cursor_delay) // disable repeat
+			m_cursor.dir = Dir::NONE;
+
+		m_cursor.repeat_time = m_rules.cursor_delay;
+	}
 }
 
 void Pit::refresh_peak() noexcept
@@ -530,6 +549,7 @@ void Pit::assign_basic(const Pit& rhs)
 {
 	m_loc = rhs.m_loc;
 	m_cursor = rhs.m_cursor;
+	m_rules = rhs.m_rules;
 	m_want_raise = rhs.m_want_raise;
 	m_raise = rhs.m_raise;
 	m_enabled = rhs.m_enabled;
@@ -588,7 +608,7 @@ GameState::GameState(GameMeta meta)
 	for(int i = 0; i < meta.players; i++)
 	{
 		Point loc = layout_pit(meta.players, i);
-		m_pit.push_back(std::make_unique<Pit>(loc));
+		m_pit.push_back(std::make_unique<Pit>(loc, meta.rules));
 	}
 }
 

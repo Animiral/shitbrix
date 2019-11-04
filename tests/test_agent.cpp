@@ -95,7 +95,8 @@ TEST_F(AgentTest, PlanSensible)
 	const RowCol block_rc{ 0, 1 };
 	const RowCol goal{ 0, 3 };
 
-	Pit pit{ {0.f, 0.f} };
+	const Rules rules;
+	Pit pit{ {0.f, 0.f}, rules };
 	pit.set_floor(1);
 	Block& green_block = pit.spawn_block(color, block_rc, Block::State::REST);
 	Block& fake_block = pit.spawn_block(Color::FAKE, { 0, 2 }, Block::State::REST);
@@ -116,7 +117,8 @@ TEST_F(AgentTest, PlanSensible)
  */
 TEST_F(AgentTest, MovePossiblityAvailable)
 {
-	Pit pit{ {0.f, 0.f} };
+	const Rules rules;
+	Pit pit{ {0.f, 0.f}, rules };
 	const int bottom = pit.bottom();
 	pit.set_floor(bottom + 1);
 	const RowCol green_rc{ bottom, 0 };
@@ -152,7 +154,8 @@ TEST_F(AgentTest, MovePossiblityBlocked)
 {
 	ASSERT_TRUE(PIT_COLS >= 4); // this test requires a pit at least 4 wide
 
-	Pit pit{ {0.f, 0.f} };
+	const Rules rules;
+	Pit pit{ {0.f, 0.f}, rules };
 	const int bottom = pit.bottom();
 	pit.set_floor(bottom + 1);
 	const RowCol green_rc{ bottom, 0 };
@@ -179,7 +182,8 @@ TEST_F(AgentTest, MovePossiblityBlocked)
  */
 TEST_F(AgentTest, MovePossiblityPrediction)
 {
-	Pit pit{ {0.f, 0.f} };
+	const Rules rules;
+	Pit pit{ {0.f, 0.f}, rules };
 	const int bottom = pit.bottom();
 	pit.set_floor(bottom + 1);
 	const RowCol low1_rc{ bottom, 0 };

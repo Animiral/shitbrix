@@ -277,15 +277,19 @@ std::vector<PlayerInput> Agent::move()
 
 	if(next_step.r < cursor.r) {
 		inputs.push_back(PlayerInput{ time, m_pit, GameButton::UP, ButtonAction::DOWN });
+		inputs.push_back(PlayerInput{ time + 1, m_pit, GameButton::UP, ButtonAction::UP });
 	}
 	else if(next_step.r > cursor.r) {
 		inputs.push_back(PlayerInput{ time, m_pit, GameButton::DOWN, ButtonAction::DOWN });
+		inputs.push_back(PlayerInput{ time + 1, m_pit, GameButton::DOWN, ButtonAction::UP });
 	}
 	else if(next_step.c < cursor.c) {
 		inputs.push_back(PlayerInput{ time, m_pit, GameButton::LEFT, ButtonAction::DOWN });
+		inputs.push_back(PlayerInput{ time + 1, m_pit, GameButton::LEFT, ButtonAction::UP });
 	}
 	else if(next_step.c > cursor.c) {
 		inputs.push_back(PlayerInput{ time, m_pit, GameButton::RIGHT, ButtonAction::DOWN });
+		inputs.push_back(PlayerInput{ time + 1, m_pit, GameButton::RIGHT, ButtonAction::UP });
 	}
 	else {
 		inputs.push_back(PlayerInput{ time, m_pit, GameButton::SWAP, ButtonAction::DOWN });

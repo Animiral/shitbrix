@@ -41,7 +41,7 @@ public:
 	// IGame member functions - local-specific implementation
 	virtual void game_start() override {}
 	virtual void game_input(Input input) override {}
-	virtual void game_reset(int players, bool replay) override {}
+	virtual void game_reset(int players, Rules rules, bool replay) override {}
 	virtual void set_speed(int speed) override {}
 	virtual void poll() override {}
 };
@@ -53,7 +53,8 @@ public:
 
 	explicit GameEventTest()
 	{
-		GameMeta meta{ 2,0 };
+		const Rules rules;
+		GameMeta meta{ 2, 0, false, rules };
 		state = std::make_unique<GameState>(meta);
 		pit = state->pit().at(0).get();
 
