@@ -95,14 +95,26 @@ MovePossiblity::ColorCoord MovePossiblity::pick(const RowCol where, const Color 
 {
 	const size_t index = translate_rc(where);
 	Pool& pool = m_pool[m_pool_at[index]];
-	const auto it = std::find_if(pool.begin(), pool.end(),
-		[color](const MovePossiblity::ColorCoord& cc) { return cc.color == color; });
 
-	if(pool.end() == it)
+	// pick the block from the pool that is closest to the target coords
+	Pool::iterator found = pool.end(); // invalid result until found
+	int best_distance = PIT_COLS; // biggest distance
+
+	for(auto it = pool.begin(); it != pool.end(); it++) {
+		if(it->color == color) {
+			const int distance = std::abs(it->rc.c - where.c);
+			if(distance < best_distance) {
+				found = it;
+				best_distance = distance;
+			}
+		}
+	}
+
+	if(pool.end() == found) // no result
 		throwx<GameException>("Cannot pick %s block from row around r%d c%d.", color_to_string(color).c_str(), where.r, where.c);
 
-	const MovePossiblity::ColorCoord color_coord = *it;
-	pool.erase(it);
+	const MovePossiblity::ColorCoord color_coord = *found;
+	pool.erase(found);
 
 	return color_coord;
 }
