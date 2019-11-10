@@ -365,7 +365,7 @@ private:
 	 *
 	 * @return a pointer to the new screen
 	 */
-	IScreen* ScreenFactory::create_screen_maybe_replay(std::optional<std::filesystem::path> replay_path);
+	IScreen* create_screen_maybe_replay(std::optional<std::filesystem::path> replay_path);
 
 	/**
 	 * Deliberately destroy the given screen and release the resources held by it.

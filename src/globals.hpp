@@ -9,6 +9,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <memory>
 #include <ostream> // debug stuff
 
 // ================================================

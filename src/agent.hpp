@@ -250,7 +250,7 @@ private:
 	 *
 	 * @return a Plan if one exists or an empty optional otherwise
 	 */
-	std::optional<Plan> Agent::make_plan_match(MovePossiblity& moves, std::array<RowCol, 3> coords, Color color);
+	std::optional<Plan> make_plan_match(MovePossiblity& moves, std::array<RowCol, 3> coords, Color color);
 
 	/**
 	 * Return the estimated value of executing the given plan.

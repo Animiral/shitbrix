@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cctype>
+#include <cstring>
 #include <cassert>
 
 ReplayRecord ReplayRecord::make_start() noexcept
