@@ -8,9 +8,6 @@ msvc/**/Win32*/
 msvc/**/*Debug/
 msvc/**/*Release/
 
-# Config file
-shitbrix.conf
-
 # Runtime-generated files
 replay/*
 *logfile*.txt
