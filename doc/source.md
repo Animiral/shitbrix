@@ -2,6 +2,52 @@
 This file documents the technical design of shitbrix. It explains the different modules, classes and interactions from different perspectives.
 Documentation is to be added bit by bit when an area is worked on. It is still very much incomplete.
 
+# Architecture
+The program is structured in roughly three layers:
+
+1. Presentation: coordinates the application at a high level
+2. Logic: core functionality
+3. Utilities: basic definitions, helpers and abstractions
+
+Each layer includes modules and calls functions only from itself or deeper layers. Upward communication is implemented with Inversion of Control patterns.
+
+## Presentation Modules
+
+* **main.cpp**: Options parsing, main loop.
+* **screen.(cpp|hpp)**: State machine for screens and game phases.
+* **stage.(cpp|hpp)**: Ingame on-screen components.
+* **draw.(cpp|hpp)**: Draw objects on the screen according to their state.
+
+## Logic Modules
+
+* Gameplay
+    * **game.(cpp|hpp)**: Ownership of game-related objects.
+    * **state.(cpp|hpp)**: Gameplay object definitions.
+    * **event.(cpp|hpp)**: Gameplay event definitions.
+    * **logic.(cpp|hpp)**: Recognize abstract conditions like "blocks landing" from game state.
+    * **director.(cpp|hpp)**: High-level operations on game state, like "spawn garbage".
+    * **agent.(cpp|hpp)**: AI player agent.
+* Recording
+    * **replay.(cpp|hpp)**: Manipulate the game record as a series of events and write them to a `Journal`.
+    * **input.(cpp|hpp)**: Convert inputs from controller, keyboard and replay into game actions.
+    * **arbiter.(cpp|hpp)**: The Arbiter decides game outcomes that depend on random numbers, such as spawning block colors.
+
+## Utility Modules
+
+* Global Definitions
+    * **globals.(cpp|hpp)**: Define constants and the base `class GameException`. This module has no dependencies and is included almost everywhere.
+    * **error.(cpp|hpp)**: Error handling and logging facilities.
+* Library Abstraction
+    * **asset.(cpp|hpp)**: Load, destroy and map identifiers to game assets.
+    * **(sdl|enet)_helper.(cpp|hpp)**: Convenience helpers for SDL and enet objects to add RAII features.
+    * **sdl_context.hpp**: Facade for the SDL library.
+    * **text.(cpp|hpp)**: Turn `TTF_Font`s or `SDL_Surface` bitmap charsets into colored `SDL_Texture`s for drawing text.
+    * **audio.(cpp|hpp)**: Decorator for playing audio assets.
+    * **network.(cpp|hpp)**: Messaging over the network.
+* Object Management
+    * **configuration.(cpp|hpp)**: Load and manage the settings that govern application behavior.
+    * **context.(cpp|hpp)**: Ownership of global objects constructed according to configuration.
+
 # Input
 There is a hierarchy of inputs.
 
