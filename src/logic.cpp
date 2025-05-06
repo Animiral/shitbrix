@@ -202,7 +202,7 @@ void Logic::convert_garbage() const
 		int garbage_rows = garbage.rows();
 		auto loot_it = garbage.loot();
 		Loot loot(loot_it, loot_it + garbage_columns);
-		bool survived = m_pit.shrink(garbage) > 0;
+		bool survived = m_pit.shrink(garbage);
 
 		for(int c = 0; c < garbage_columns; c++) {
 			// extract loot into bottom row of garbage

@@ -63,7 +63,7 @@ public:
 	GameMeta meta() const noexcept { return m_meta; }
 
 	//! Time value of “earliest undiscovered input” if there are no new inputs.
-	static const long NO_UNDISCOVERED = std::numeric_limits<long>::max();
+	static constexpr long NO_UNDISCOVERED = std::numeric_limits<long>::max();
 
 	/**
 	 * Return the earliest time at which an input happens that has not yet been discovered
