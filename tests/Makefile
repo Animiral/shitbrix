@@ -5,9 +5,11 @@ SRC_DIR=../src
 
 # The googletest directory is not included in the shitbrix archive
 # and must be provided manually. https://github.com/google/googletest
-GTEST_DIR=googletest/include
+GTEST_DIR=../ext/googletest/googletest/include
+GTEST_A=../ext/googletest/googletest/build/lib/libgtest.a ../ext/googletest/googletest/build/lib/libgtest_main.a
+GMOCK_DIR=../ext/googletest/googlemock/include
 
-CPPFLAGS+=-I$(SRC_DIR) -isystem $(GTEST_DIR)
+CPPFLAGS+=-I$(SRC_DIR) -isystem $(GTEST_DIR) -isystem $(GMOCK_DIR)
 CXXFLAGS+=-pthread
 
 # Unfortunately, even the non-gfx game code depends on SDL
@@ -21,7 +23,7 @@ TEST_O=test_block.o test_pit.o test_replay.o test_blockdirector.o test_event.o
 
 # gtest_main.a is the compiled archive of googletest functions
 # including a main() definition. It must be provided manually.
-$(TESTBIN): $(TEST_O) game.a gtest_main.a | $(BINDIR)
+$(TESTBIN): $(TEST_O) game.a $(GTEST_A) | $(BINDIR)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(BINDIR):
