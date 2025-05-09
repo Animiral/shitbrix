@@ -54,19 +54,65 @@ The design goal is to (hopefully) create an application using exemplary modern C
 
 If some aspect violates this ambition, it should happen for a good reason. These can include lack of knowledge and case-by-case comprehensibility.
 
+# Architecture
+The program is structured in roughly three layers:
+
+1. Presentation: coordinates the application at a high level
+2. Logic: core functionality
+3. Utilities: basic definitions, helpers and abstractions
+
+Each layer includes modules and calls functions only from itself or deeper layers. Upward communication is implemented with Inversion of Control patterns.
+
+## Presentation Modules
+
+* **main.cpp**: Load configuration, setup.
+* **game_loop.cpp**: Poll inputs, maintain current screen.
+* **screen.(cpp|hpp)**: State machine for screens and game phases.
+* **stage.(cpp|hpp)**: Ingame on-screen components such as banners and game containers.
+* **draw.(cpp|hpp)**: Draw objects on the screen according to their state.
+
+## Logic Modules
+
+* Gameplay
+    * **game.(cpp|hpp)**: Ownership of game-related objects.
+    * **state.(cpp|hpp)**: Gameplay object definitions.
+    * **event.(cpp|hpp)**: Gameplay event definitions.
+    * **logic.(cpp|hpp)**: Recognize abstract conditions like "blocks landing" from game state.
+    * **director.(cpp|hpp)**: High-level operations on game state, like "spawn garbage".
+    * **agent.(cpp|hpp)**: AI player agent.
+* Recording
+    * **replay.(cpp|hpp)**: Manipulate the game record as a series of events and write them to a `Journal`.
+    * **input.(cpp|hpp)**: Convert inputs from controller, keyboard and replay into game actions.
+    * **arbiter.(cpp|hpp)**: The Arbiter decides game outcomes that depend on random numbers, such as spawning block colors.
+
+## Utility Modules
+
+* Global Definitions
+    * **globals.(cpp|hpp)**: Define constants and the base `class GameException`. This module has no dependencies and is included almost everywhere.
+    * **error.(cpp|hpp)**: Error handling and logging facilities.
+* Library Abstraction
+    * **asset.(cpp|hpp)**: Load, destroy and map identifiers to game assets.
+    * **(sdl|enet)_helper.(cpp|hpp)**: Convenience helpers for SDL and enet objects to add RAII features.
+    * **sdl_context.hpp**: Facade for the SDL library.
+    * **text.(cpp|hpp)**: Turn `TTF_Font`s or `SDL_Surface` bitmap charsets into colored `SDL_Texture`s for drawing text.
+    * **audio.(cpp|hpp)**: Decorator for playing audio assets.
+    * **network.(cpp|hpp)**: Messaging over the network.
+* Object Management
+    * **configuration.(cpp|hpp)**: Load and manage the settings that govern application behavior.
+    * **context.(cpp|hpp)**: Ownership of global objects constructed according to configuration.
+
 # Context
-Similar to the Spring framework, shitbrix features a *context* which is defined globally in `context.hpp`:
+Shitbrix uses a global service locator called *context*, which is defined globally in `context.hpp`:
 
 ```
 extern GlobalContext the_context;
 ```
 
-This Context provides a repository for objects which are convenient to have a global default of, which are unique and/or live as long as the application does.
-Examples are the logger, configuration and library interfaces.
+This context serves as a registry for shared objects and application-wide implementations for things like logging, configuration, and system libraries. These objects are initialized at startup based on the configuration and command-line parameters and remain valid for the duration of the program.
 
-After a setup period at the start of the program, in which the context is set up according to the application's invocation parameters and configuration files, objects in the context are assumed to be properly set up and functioning in their key roles.
+Many classes use dependency injection via the constructor. The contents of the context are globally available in such cases to be used to fill these dependency paramters. The context itself holds ownership of the resources it keeps. 
 
-The context objects are the root of many resources that we later use to construct objects. Many classes follow the dependency injection pattern. Swapping out the implementations of context objects allows us to easily set up a different environment for testing.
+In testing, swapping out the implementations of context objects allows us to easily set up a different environment.
 
 # Input
 There is a hierarchy of inputs.
