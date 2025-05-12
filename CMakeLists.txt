@@ -66,10 +66,8 @@ endif(MSVC)
 include_directories(${SRC_DIR})
 
 file(GLOB INCLUDE_FILES ${SRC_DIR}/*.hpp)
-file(GLOB SOURCE_FILES_ALL ${SRC_DIR}/*.cpp)
-
-list(FILTER SOURCE_FILES_ALL EXCLUDE REGEX ".*/main.cpp$")
-set(SOURCE_FILES_CORE ${SOURCE_FILES_ALL})
+file(GLOB SOURCE_FILES_CORE ${SRC_DIR}/*.cpp)
+list(FILTER SOURCE_FILES_CORE EXCLUDE REGEX ".*/main.cpp$")
 set(SOURCE_FILES_MAIN ${SRC_DIR}/main.cpp)
 
 # Core library target
@@ -118,6 +116,3 @@ target_link_libraries(${PROJECT_NAME}_tests
 )
 
 add_test(NAME all_tests COMMAND ${PROJECT_NAME}_tests)
-
-#source_group(include FILES ${INCLUDE_FILES})
-#source_group(source FILES ${SOURCE_FILES})
